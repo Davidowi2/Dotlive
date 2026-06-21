@@ -1,0 +1,364 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * DOT — Africa's Venture Progression Network
+ * Design system. All colors in oklch. Semantic tokens only.
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+
+  --font-display: "Clash Display", "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Satoshi", "DM Sans", ui-sans-serif, system-ui, sans-serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-glow: var(--primary-glow);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-gold: var(--gold);
+  --color-gold-foreground: var(--gold-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  /* New: info (blue) and warning (amber) semantic tokens */
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+:root {
+  --radius: 0.75rem;
+
+  --background: oklch(0.99 0.006 95);
+  --foreground: oklch(0.22 0.02 165);
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.22 0.02 165);
+
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.22 0.02 165);
+
+  --primary: oklch(0.55 0.13 158);
+  --primary-foreground: oklch(0.99 0.01 150);
+  --primary-glow: oklch(0.72 0.16 160);
+
+  --secondary: oklch(0.96 0.012 150);
+  --secondary-foreground: oklch(0.28 0.03 165);
+
+  --muted: oklch(0.96 0.008 120);
+  --muted-foreground: oklch(0.5 0.02 150);
+
+  --accent: oklch(0.95 0.02 150);
+  --accent-foreground: oklch(0.3 0.05 160);
+
+  --gold: oklch(0.78 0.13 78);
+  --gold-foreground: oklch(0.25 0.04 70);
+
+  --success: oklch(0.6 0.14 150);
+  --success-foreground: oklch(0.99 0.01 150);
+
+  --destructive: oklch(0.58 0.22 25);
+  --destructive-foreground: oklch(0.99 0.01 150);
+
+  /*
+   * Info — calm blue for neutral informational states
+   * Use: connectivity notices, help text highlights, system messages
+   */
+  --info: oklch(0.58 0.14 240);
+  --info-foreground: oklch(0.99 0.01 240);
+
+  /*
+   * Warning — true amber, distinct from gold (which is a brand/premium accent)
+   * Use: deadline approaching, pending verification, low balance alerts
+   * gold = premium/earned; warning = requires attention
+   */
+  --warning: oklch(0.72 0.15 55);
+  --warning-foreground: oklch(0.2 0.04 50);
+
+  --border: oklch(0.9 0.01 150);
+  --input: oklch(0.9 0.01 150);
+  --ring: oklch(0.55 0.13 158);
+
+  --chart-1: oklch(0.55 0.13 158);
+  --chart-2: oklch(0.78 0.13 78);
+  --chart-3: oklch(0.6 0.1 220);
+  --chart-4: oklch(0.65 0.15 30);
+  --chart-5: oklch(0.5 0.12 300);
+
+  --sidebar: oklch(0.98 0.008 150);
+  --sidebar-foreground: oklch(0.3 0.02 165);
+  --sidebar-primary: oklch(0.55 0.13 158);
+  --sidebar-primary-foreground: oklch(0.99 0.01 150);
+  --sidebar-accent: oklch(0.95 0.02 150);
+  --sidebar-accent-foreground: oklch(0.3 0.05 160);
+  --sidebar-border: oklch(0.9 0.01 150);
+  --sidebar-ring: oklch(0.55 0.13 158);
+
+  --gradient-hero: linear-gradient(135deg, oklch(0.55 0.13 158) 0%, oklch(0.72 0.16 160) 50%, oklch(0.78 0.13 78) 100%);
+  --gradient-primary: linear-gradient(135deg, oklch(0.5 0.13 160), oklch(0.68 0.16 162));
+  --gradient-gold: linear-gradient(135deg, oklch(0.78 0.13 78), oklch(0.7 0.14 55));
+  --gradient-surface: linear-gradient(180deg, oklch(1 0 0), oklch(0.97 0.01 150));
+
+  /*
+   * DOT Elevation System — 4 levels
+   *
+   * Level 0 — No shadow      → Default resting state of all cards.
+   *                             Use: rounded-2xl border border-border bg-card
+   *                             Never add a shadow to a card that isn't interactive.
+   *
+   * Level 1 — shadow-sm      → Subtle lift for buttons at rest, small tooltips,
+   *                             dropdown triggers. Single-layer, very soft.
+   *
+   * Level 2 — shadow-soft    → Cards on hover (hover:shadow-soft), open dialogs/modals,
+   *   (= shadow-md)             the balance card in Wallet, active hero cards.
+   *
+   * Level 3 — shadow-elegant → Landing page hero sections only. Not for app pages.
+   *   (= shadow-lg)             Use sparingly — one per marketing screen maximum.
+   *
+   * Level 4 — shadow-glow    → Gradient buttons on :hover (hero, gold variants),
+   *                             the Vantage score ring, wallet balance card.
+   *                             One glow element per screen maximum.
+   */
+  --shadow-sm:      0 1px 3px oklch(0.3 0.04 160 / 0.08),
+                    0 1px 2px oklch(0.3 0.04 160 / 0.06);
+  --shadow-md:      0 4px 16px -4px oklch(0.4 0.06 160 / 0.14),
+                    0 2px 6px -2px oklch(0.3 0.04 160 / 0.08);
+  --shadow-lg:      0 20px 50px -16px oklch(0.4 0.08 160 / 0.26),
+                    0 8px 20px -8px oklch(0.3 0.04 160 / 0.12);
+  --shadow-glow:    0 0 0 1px oklch(0.65 0.16 160 / 0.15),
+                    0 0 32px -4px oklch(0.65 0.16 160 / 0.4);
+
+  /*
+   * DOT Spacing Scale — 8px base grid
+   *
+   * Rule: ALL spacing decisions should land on a multiple of 0.5rem (8px).
+   * Exceptions: icon padding (p-1 = 4px), tight text leading.
+   *
+   * These tokens exist for documentation clarity and custom CSS contexts.
+   * In JSX, use the equivalent Tailwind class directly.
+   *
+   * --space-1  = 0.5rem  =  8px  → Tight: icon gaps (gap-2), badge padding (px-2 py-0.5)
+   * --space-2  = 1rem    = 16px  → Base: form field gaps (gap-4), list items (p-4)
+   * --space-3  = 1.5rem  = 24px  → Comfortable: card inner padding (p-6)
+   * --space-4  = 2rem    = 32px  → Loose: between card sections (mt-8)
+   * --space-6  = 3rem    = 48px  → Section: between page sections
+   * --space-8  = 4rem    = 64px  → Page: top breathing room on large screens
+   * --space-12 = 6rem    = 96px  → Hero: large section padding on marketing pages
+   *
+   * CARD PADDING RULE — enforce these consistently:
+   *   Stat cards, compact cards:   p-5  (1.25rem)
+   *   Standard content cards:      p-6  (1.5rem  = space-3)
+   *   Hero / featured cards:       p-8  (2rem    = space-4)
+   *   Card inner section gap:      mt-4 or mt-5  (not mt-3 or mt-6 inside cards)
+   */
+  --space-1:  0.5rem;
+  --space-2:  1rem;
+  --space-3:  1.5rem;
+  --space-4:  2rem;
+  --space-6:  3rem;
+  --space-8:  4rem;
+  --space-12: 6rem;
+}
+
+.dark {
+  --background: oklch(0.17 0.018 165);
+  --foreground: oklch(0.96 0.01 120);
+
+  --card: oklch(0.21 0.02 166);
+  --card-foreground: oklch(0.96 0.01 120);
+
+  --popover: oklch(0.2 0.02 166);
+  --popover-foreground: oklch(0.96 0.01 120);
+
+  --primary: oklch(0.7 0.15 160);
+  --primary-foreground: oklch(0.16 0.02 165);
+  --primary-glow: oklch(0.78 0.16 162);
+
+  --secondary: oklch(0.26 0.025 165);
+  --secondary-foreground: oklch(0.95 0.01 120);
+
+  --muted: oklch(0.25 0.02 165);
+  --muted-foreground: oklch(0.7 0.02 140);
+
+  --accent: oklch(0.3 0.04 162);
+  --accent-foreground: oklch(0.95 0.02 150);
+
+  --gold: oklch(0.8 0.13 80);
+  --gold-foreground: oklch(0.2 0.03 70);
+
+  --success: oklch(0.7 0.15 155);
+  --success-foreground: oklch(0.16 0.02 165);
+
+  --destructive: oklch(0.65 0.2 25);
+  --destructive-foreground: oklch(0.98 0.01 150);
+
+  --info: oklch(0.68 0.14 235);
+  --info-foreground: oklch(0.16 0.02 240);
+
+  --warning: oklch(0.78 0.14 58);
+  --warning-foreground: oklch(0.18 0.04 50);
+
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 14%);
+  --ring: oklch(0.7 0.15 160);
+
+  --chart-1: oklch(0.7 0.15 160);
+  --chart-2: oklch(0.8 0.13 80);
+  --chart-3: oklch(0.65 0.12 220);
+  --chart-4: oklch(0.68 0.15 30);
+  --chart-5: oklch(0.62 0.14 300);
+
+  --sidebar: oklch(0.19 0.02 166);
+  --sidebar-foreground: oklch(0.95 0.01 120);
+  --sidebar-primary: oklch(0.7 0.15 160);
+  --sidebar-primary-foreground: oklch(0.16 0.02 165);
+  --sidebar-accent: oklch(0.28 0.03 162);
+  --sidebar-accent-foreground: oklch(0.95 0.02 150);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.7 0.15 160);
+
+  --gradient-hero: linear-gradient(135deg, oklch(0.7 0.15 160) 0%, oklch(0.78 0.16 162) 50%, oklch(0.8 0.13 80) 100%);
+  --gradient-primary: linear-gradient(135deg, oklch(0.62 0.15 160), oklch(0.78 0.16 162));
+  --gradient-gold: linear-gradient(135deg, oklch(0.8 0.13 80), oklch(0.72 0.14 55));
+  --gradient-surface: linear-gradient(180deg, oklch(0.22 0.02 166), oklch(0.18 0.02 165));
+
+  --shadow-sm:      0 1px 3px oklch(0 0 0 / 0.25),
+                    0 1px 2px oklch(0 0 0 / 0.2);
+  --shadow-md:      0 4px 16px -4px oklch(0 0 0 / 0.45),
+                    0 2px 6px -2px oklch(0 0 0 / 0.3);
+  --shadow-lg:      0 20px 50px -16px oklch(0 0 0 / 0.55),
+                    0 8px 20px -8px oklch(0 0 0 / 0.35);
+  --shadow-glow:    0 0 0 1px oklch(0.7 0.16 160 / 0.2),
+                    0 0 32px -4px oklch(0.7 0.16 160 / 0.35);
+
+  --space-1:  0.5rem;
+  --space-2:  1rem;
+  --space-3:  1.5rem;
+  --space-4:  2rem;
+  --space-6:  3rem;
+  --space-8:  4rem;
+  --space-12: 6rem;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4, h5 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+}
+
+/* ─── Gradient text ──────────────────────────────────────────────── */
+@utility text-gradient {
+  background-image: var(--gradient-hero);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+/* ─── Subtle grid overlay (landing page sections) ───────────────── */
+@utility bg-grid {
+  background-image:
+    linear-gradient(to right, color-mix(in oklab, var(--foreground) 6%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklab, var(--foreground) 6%, transparent) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+
+/* ─── Elevation utilities ────────────────────────────────────────── */
+@utility shadow-elegant {
+  box-shadow: var(--shadow-lg);
+}
+
+@utility shadow-soft {
+  box-shadow: var(--shadow-md);
+}
+
+@utility shadow-glow {
+  box-shadow: var(--shadow-glow);
+}
+
+/*
+ * ─── Typography utilities ─────────────────────────────────────────
+ *
+ * tabular      → Use on ALL financial/metric numbers: DOT balances,
+ *                Vantage points, percentages, currency. Prevents layout
+ *                reflow when numbers update (digits become equal-width).
+ *
+ * display-number → tabular + display font + tighter tracking. Use on
+ *                  hero stat values (Vantage Point, wallet balance).
+ *
+ * Typography scale for reference:
+ *   Display    font-display, -0.02em tracking
+ *     text-7xl  → landing page heroes
+ *     text-5xl  → landing section heroes
+ *     text-3xl  → app page h1 titles
+ *     text-2xl  → auth/onboarding titles
+ *     text-xl   → card h2 headings
+ *     text-lg   → sub-section h3 headings
+ *   Body       font-sans
+ *     text-base → primary body / descriptions
+ *     text-sm   → labels / secondary text
+ *     text-xs   → metadata / timestamps
+ *
+ *   Weights: bold(700) page titles & stat values · semibold(600) card
+ *   headings · medium(500) labels & buttons · normal(400) body copy
+ */
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+@utility display-number {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  letter-spacing: -0.03em;
+}
