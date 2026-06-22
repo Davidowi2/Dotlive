@@ -391,4 +391,195 @@ export type ServiceOrderRow = typeof serviceOrders.$inferSelect;
 export type ServiceReviewRow = typeof serviceReviews.$inferSelect;
 export type RoleRequirementRow = typeof roleRequirements.$inferSelect;
 export type PaymentRow = typeof payments.$inferSelect;
-// @ts-nocheck
+
+/* ============================ ADMIN ============================ */
+
+/**
+ * admin_audit_log — append-only. Every admin action writes a row
+ * here in the same DB transaction as the action itself, so the
+ * audit log can never be out of sync with reality.
+ *
+ * Production should additionally REVOKE UPDATE/DELETE on this
+ * table from the app's DB role. We can't enforce that from
+ * Drizzle but the migration file 0002_admin_audit_immutable.sql
+ * does.
+ */
+export const adminAuditLog = pgTable(
+  "admin_audit_log",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    actorId: text("actor_id").notNull(), // user id of the admin
+    actorEmail: text("actor_email").notNull(),
+    action: text("action").notNull(), // e.g. "user.ban", "wallet.adjust", "feature_flag.update"
+    targetType: text("target_type"), // "user" | "venture" | "service" | "feature_flag" | etc.
+    targetId: text("target_id"),
+    before: jsonb("before"),
+    after: jsonb("after"),
+    reason: text("reason").notNull(),
+    ip: text("ip"),
+    userAgent: text("user_agent"),
+    requestId: text("request_id"),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    actorIdx: index("audit_actor_idx").on(t.actorId, t.createdAt),
+    targetIdx: index("audit_target_idx").on(t.targetType, t.targetId, t.createdAt),
+    actionIdx: index("audit_action_idx").on(t.action, t.createdAt),
+  })
+);
+
+/**
+ * admin_confirm_tokens — short-lived (5 min) single-use tokens
+ * for destructive actions. The flow is:
+ *   1. Admin clicks "Adjust balance" in the UI.
+ *   2. Frontend POSTs to /api/admin/confirm with the action
+ *      type and a free-text reason. Backend returns a token.
+ *   3. Frontend shows "Are you sure? <reason>" modal.
+ *   4. On confirm, frontend POSTs the actual action with
+ *      X-Admin-Confirm: <token> header.
+ *   5. Backend validates the token, marks it used, and
+ *      performs the action in a transaction with the audit log.
+ */
+export const adminConfirmTokens = pgTable(
+  "admin_confirm_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    token: text("token").notNull().unique(), // random 32-byte hex
+    adminId: text("admin_id").notNull(),
+    action: text("action").notNull(), // action type the token authorizes
+    targetType: text("target_type"),
+    targetId: text("target_id"),
+    payload: jsonb("payload"), // the args the action will be called with
+    reason: text("reason").notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    adminIdx: index("confirm_admin_idx").on(t.adminId),
+    expiresIdx: index("confirm_expires_idx").on(t.expiresAt),
+  })
+);
+
+/**
+ * admin_impersonation_tokens — bound to a specific user, expires
+ * in 15 min, single-use, both issuance AND termination are
+ * audit-logged.
+ *
+ * The token is a JWT signed with a different key from regular
+ * session JWTs, scoped to a single user, and includes an
+ * `impersonator` claim. The web app checks this claim and shows
+ * a persistent red banner: "Viewing as <user>. End session."
+ */
+export const adminImpersonationTokens = pgTable("admin_impersonation_tokens", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  jti: text("jti").notNull().unique(), // unique token id; the JWT 'jti' claim
+  adminId: text("admin_id").notNull(),
+  targetUserId: text("target_user_id").notNull(),
+  reason: text("reason").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  usedAt: timestamp("used_at", { withTimezone: true }),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * feature_flags — key/value with optional rollout percentage.
+ * Lookup is per-request, so keep it small (in-process cache
+ * with 30s TTL is fine).
+ */
+export const featureFlags = pgTable("feature_flags", {
+  key: text("key").primaryKey(),
+  enabled: boolean("enabled").notNull().default(false),
+  /** 0-100: percent of users this is enabled for. null = all. */
+  rolloutPercent: integer("rollout_percent"),
+  /** Optional user-id allowlist that bypasses rollout. */
+  allowList: jsonb("allow_list"), // string[]
+  description: text("description"),
+  updatedBy: text("updated_by").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * payments_audit — every Paystack/Whop webhook event lands here
+ * BEFORE the wallet is touched. If the wallet update fails, we
+ * can replay. The (provider, event_id) pair is UNIQUE so the
+ * webhook handler is idempotent.
+ */
+export const paymentsAudit = pgTable(
+  "payments_audit",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    provider: text("provider").notNull(), // 'paystack' | 'whop'
+    eventId: text("event_id").notNull(),
+    eventType: text("event_type").notNull(), // 'charge.success' | 'subscription.created' | etc.
+    userId: text("user_id"), // resolved; null if event didn't map to a user
+    amountMinor: integer("amount_minor").notNull(), // in kobo / cents
+    currency: text("currency").notNull(), // 'NGN' | 'USD'
+    rawPayload: jsonb("raw_payload").notNull(),
+    status: text("status").notNull().default("received"), // 'received' | 'processed' | 'failed' | 'replayed'
+    processedAt: timestamp("processed_at", { withTimezone: true }),
+    failureReason: text("failure_reason"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    eventIdx: unique("payments_audit_event_uq").on(t.provider, t.eventId),
+    userIdx: index("payments_audit_user_idx").on(t.userId, t.createdAt),
+    statusIdx: index("payments_audit_status_idx").on(t.status, t.createdAt),
+  })
+);
+
+/**
+ * admin_idempotency_keys — admin writes require an
+ * Idempotency-Key header. We store the (admin_id, key) → response
+ * mapping for 24h. If a request comes in with a known key, we
+ * return the cached response instead of re-running the action.
+ * If the same key is used with a different action, 409.
+ */
+export const adminIdempotencyKeys = pgTable(
+  "admin_idempotency_keys",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    adminId: text("admin_id").notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    action: text("action").notNull(),
+    responseStatus: integer("response_status").notNull(),
+    responseBody: jsonb("response_body").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    keyUq: unique("idem_key_uq").on(t.adminId, t.idempotencyKey),
+    expiresIdx: index("idem_expires_idx").on(t.createdAt),
+  })
+);
+
+/**
+ * user_bans — soft-bans with reason + expiry. Distinct from a
+ * deleted user; a banned user can still be unbanned.
+ */
+export const userBans = pgTable(
+  "user_bans",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id").notNull().unique(), // one active ban per user
+    bannedBy: text("banned_by").notNull(),
+    reason: text("reason").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }), // null = permanent
+    revokedBy: text("revoked_by"),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    userIdx: index("bans_user_idx").on(t.userId),
+  })
+);
+
+export type AdminAuditLogRow = typeof adminAuditLog.$inferSelect;
+export type AdminConfirmTokenRow = typeof adminConfirmTokens.$inferSelect;
+export type AdminImpersonationTokenRow = typeof adminImpersonationTokens.$inferSelect;
+export type FeatureFlagRow = typeof featureFlags.$inferSelect;
+export type PaymentsAuditRow = typeof paymentsAudit.$inferSelect;
+export type AdminIdempotencyKeyRow = typeof adminIdempotencyKeys.$inferSelect;
+export type UserBanRow = typeof userBans.$inferSelect;

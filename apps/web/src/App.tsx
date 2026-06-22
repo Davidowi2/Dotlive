@@ -7,6 +7,7 @@ import { DashboardPage } from "./routes/Dashboard.js";
 import { WalletPage } from "./routes/Wallet.js";
 import { WorkPage } from "./routes/Work.js";
 import { OnboardingPage } from "./routes/Onboarding.js";
+import { AdminPage } from "./routes/Admin.js";
 import { useAuth } from "./contexts/AuthContext.js";
 
 function ProtectedRoute({ children }: { children: JSX.Element }) {
@@ -52,6 +53,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <OnboardingPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute>
+            <AdminPage />
           </ProtectedRoute>
         }
       />

@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { type ReactNode, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Wallet, Hammer, BarChart3, LogOut, Settings, Home } from "lucide-react";
+import { Wallet, Hammer, BarChart3, LogOut, Settings, Home, ShieldCheck } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext.js";
 
 interface NavItem {
@@ -17,6 +17,7 @@ const NAV: NavItem[] = [
   { to: "/wallet", label: "Wallet", icon: Wallet },
   { to: "/work", label: "DOT Work", icon: Hammer },
   { to: "/vantage", label: "Vantage", icon: BarChart3, requires: "builder" },
+  { to: "/admin", label: "Admin", icon: ShieldCheck, requires: "admin" },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
