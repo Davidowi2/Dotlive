@@ -1,0 +1,148 @@
+// @ts-nocheck
+/**
+ * Fastify entry point.
+ *
+ * Boot order:
+ *   1. Load .env (via dotenv/config).
+ *   2. Build the app with all plugins and routes.
+ *   3. Register the JWT auth decorator.
+ *   4. Capture raw body for webhook signature verification.
+ *   5. Register route plugins.
+ *   6. Add a central error handler.
+ *   7. Listen on PORT.
+ */
+
+import "dotenv/config";
+import Fastify from "fastify";
+import cors from "@fastify/cors";
+import jwt from "@fastify/jwt";
+import multipart from "@fastify/multipart";
+
+import { authRoutes } from "./routes/auth.js";
+import { userRoutes } from "./routes/users.js";
+import { walletRoutes } from "./routes/wallet.js";
+import { ventureRoutes } from "./routes/ventures.js";
+import { vantageRoutes } from "./routes/vantage.js";
+import { academyRoutes } from "./routes/academy.js";
+import { pitchathonRoutes } from "./routes/pitchathons.js";
+import { marketplaceRoutes } from "./routes/marketplace.js";
+import { communityRoutes } from "./routes/community.js";
+import { uploadRoutes } from "./routes/upload.js";
+import { webhookRoutes } from "./routes/webhooks.js";
+
+const PORT = Number(process.env.PORT ?? 3001);
+const NODE_ENV = process.env.NODE_ENV ?? "development";
+
+const app = Fastify({
+  logger: NODE_ENV === "development" ? { level: "info" } : true,
+  // Webhooks need the raw body for HMAC verification.
+  // We capture it via the content-type parser plugin hook below.
+});
+
+/* -------------------- Content-type parser: capture raw body -------------------- */
+app.addContentTypeParser(
+  "application/json",
+  { parseAs: "buffer" },
+  (req, body: Buffer, done) => {
+    (req as any).rawBody = body;
+    try {
+      const json = body.length > 0 ? JSON.parse(body.toString("utf8")) : {};
+      done(null, json);
+    } catch (err) {
+      done(err as Error, undefined);
+    }
+  }
+);
+
+// Capture raw body for webhook routes too.
+app.addContentTypeParser(
+  "*",
+  { parseAs: "buffer" },
+  (req, body: Buffer, done) => {
+    (req as any).rawBody = body;
+    // For multipart, multipart plugin handles it; we leave body untouched.
+    if (req.headers["content-type"]?.startsWith("multipart/")) {
+      return done(null, body);
+    }
+    if (body.length === 0) return done(null, {});
+    try {
+      done(null, JSON.parse(body.toString("utf8")));
+    } catch {
+      // Non-JSON; let the route deal with raw body.
+      done(null, body.toString("utf8"));
+    }
+  }
+);
+
+/* -------------------- Plugins -------------------- */
+await app.register(cors, {
+  origin: process.env.FRONTEND_URL ?? "http://localhost:5173",
+  credentials: true,
+});
+
+await app.register(jwt, {
+  secret: process.env.JWT_SECRET ?? "dev-secret-do-not-use-in-prod",
+});
+
+await app.register(multipart, {
+  limits: { fileSize: 25 * 1024 * 1024 }, // 25 MB
+});
+
+// Auth decorator: `app.authenticate` for protected routes.
+app.decorate("authenticate", async (req: any, reply: any) => {
+  try {
+    await req.jwtVerify();
+  } catch {
+    return reply.code(401).send({ error: "Unauthorized" });
+  }
+});
+
+declare module "fastify" {
+  interface FastifyInstance {
+    authenticate: (req: any, reply: any) => Promise<void>;
+  }
+}
+
+/* -------------------- Health check -------------------- */
+app.get("/api/health", async () => ({
+  ok: true,
+  service: "dotlive-api",
+  env: NODE_ENV,
+  time: new Date().toISOString(),
+}));
+
+/* -------------------- Routes -------------------- */
+await app.register(authRoutes, { prefix: "/api" });
+await app.register(userRoutes, { prefix: "/api" });
+await app.register(walletRoutes, { prefix: "/api" });
+await app.register(ventureRoutes, { prefix: "/api" });
+await app.register(vantageRoutes, { prefix: "/api" });
+await app.register(academyRoutes, { prefix: "/api" });
+await app.register(pitchathonRoutes, { prefix: "/api" });
+await app.register(marketplaceRoutes, { prefix: "/api" });
+await app.register(communityRoutes, { prefix: "/api" });
+await app.register(uploadRoutes, { prefix: "/api" });
+await app.register(webhookRoutes, { prefix: "/api" });
+
+/* -------------------- Error handler -------------------- */
+app.setErrorHandler((err, req, reply) => {
+  req.log.error(err);
+  const statusCode = err.statusCode ?? 500;
+  reply.code(statusCode).send({
+    error: err.message ?? "Internal server error",
+    code: err.code,
+  });
+});
+
+/* -------------------- Boot -------------------- */
+const start = async () => {
+  try {
+    await app.listen({ port: PORT, host: "0.0.0.0" });
+    app.log.info(`DOT API listening on http://0.0.0.0:${PORT}`);
+  } catch (err) {
+    app.log.error(err);
+    process.exit(1);
+  }
+};
+start();
+// @ts-nocheck

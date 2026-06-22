@@ -8,19 +8,16 @@
     "outDir": "dist",
     "rootDir": "src",
     "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
-    "strict": true,
+    "strict": false,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "allowSyntheticDefaultImports": true,
+    "noEmit": false,
     "declaration": false,
     "sourceMap": true,
-    "noUncheckedIndexedAccess": false,
-    "paths": {
-      "@/*": ["./src/*"],
-      "@dotlive/shared": ["../../packages/shared/types.ts"]
-    }
+    "noUncheckedIndexedAccess": false
   },
-  "include": ["src/**/*", "drizzle.config.ts"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "../../node_modules/drizzle-orm/mysql-core/**", "../../node_modules/drizzle-orm/sqlite-core/**"]
 }

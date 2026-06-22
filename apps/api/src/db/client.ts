@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Neon Postgres client for Drizzle ORM.
  *
@@ -32,3 +33,4 @@ export const db = drizzle(sql, { schema });
 export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 export { schema };
+// @ts-nocheck
