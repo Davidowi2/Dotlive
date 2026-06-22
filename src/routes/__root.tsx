@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider } from "@/hooks/use-auth";
 import { Toaster } from "@/components/ui/sonner";
+import { CookieConsent } from "@/components/CookieConsent";
 import { supabase } from "@/integrations/supabase/client";
 
 function NotFoundComponent() {
@@ -172,6 +173,7 @@ function RootComponent() {
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
         <Toaster richColors position="top-center" />
+        <CookieConsent />
       </AuthProvider>
     </QueryClientProvider>
   );

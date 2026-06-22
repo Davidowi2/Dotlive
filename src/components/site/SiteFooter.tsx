@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Logo } from "./Logo";
+import { CookieSettingsLink } from "@/components/CookieConsent";
 
 const columns = [
   {
@@ -77,6 +78,8 @@ export function SiteFooter() {
             <Link to="/terms" className="hover:text-foreground transition-colors">Terms</Link>
             <span>·</span>
             <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
+            <span>·</span>
+            <CookieSettingsLink className="hover:text-foreground transition-colors cursor-pointer" />
             <span>·</span>
             <span>Built for African founders.</span>
           </div>
