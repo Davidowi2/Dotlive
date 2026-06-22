@@ -24,18 +24,25 @@ const columns = [
   {
     title: "Company",
     links: [
-      { label: "About", to: "/" },
+      { label: "About", to: "/about" },
       { label: "Pilot Program", to: "/" },
-      { label: "Contact", to: "/" },
+      { label: "Contact", to: "/help" },
     ],
   },
-];
+  {
+    title: "Legal",
+    links: [
+      { label: "Terms of Service", to: "/terms" },
+      { label: "Privacy Policy", to: "/privacy" },
+    ],
+  },
+] as const;
 
 export function SiteFooter() {
   return (
     <footer className="border-t border-border/60 bg-card/40">
       <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
-        <div className="grid gap-10 md:grid-cols-[1.5fr_repeat(3,1fr)]">
+        <div className="grid gap-10 md:grid-cols-[1.5fr_repeat(4,1fr)]">
           <div className="max-w-xs">
             <Logo />
             <p className="mt-4 text-sm text-muted-foreground">
@@ -61,11 +68,18 @@ export function SiteFooter() {
             </div>
           ))}
         </div>
+
         <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-border/60 pt-6 sm:flex-row">
           <p className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} DOT. All rights reserved.
+            © {new Date().getFullYear()} DOT Africa Ltd. All rights reserved.
           </p>
-          <p className="text-xs text-muted-foreground">Built for African founders.</p>
+          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+            <Link to="/terms" className="hover:text-foreground transition-colors">Terms</Link>
+            <span>·</span>
+            <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
+            <span>·</span>
+            <span>Built for African founders.</span>
+          </div>
         </div>
       </div>
     </footer>
