@@ -1,25 +1,23 @@
-{
-  "name": "dotlive-monorepo",
-  "private": true,
-  "version": "1.0.0",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
-  "scripts": {
-    "dev:api": "npm --workspace apps/api run dev",
-    "dev:web": "npm --workspace apps/web run dev",
-    "build:api": "npm --workspace apps/api run build",
-    "build:web": "npm --workspace apps/web run build",
-    "db:generate": "npm --workspace apps/api run db:generate",
-    "db:push": "npm --workspace apps/api run db:push",
-    "db:seed": "npm --workspace apps/api run db:seed"
-  },
-  "engines": {
-    "node": ">=20"
-  },
-  "devDependencies": {
-    "@electric-sql/pglite": "^0.5.3",
-    "@types/ws": "^8.18.1"
-  }
+﻿{
+    "name":  "dotlive-monorepo",
+    "private":  true,
+    "version":  "1.0.0",
+    "workspaces":  [
+                       "apps/api",
+                       "packages/*"
+                   ],
+    "scripts":  {
+                    "dev:api":  "npm --workspace apps/api run dev",
+                    "build:api":  "npm --workspace apps/api run build",
+                    "db:generate":  "npm --workspace apps/api run db:generate",
+                    "db:push":  "npm --workspace apps/api run db:push",
+                    "db:seed":  "npm --workspace apps/api run db:seed"
+                },
+    "engines":  {
+                    "node":  "\u003e=20"
+                },
+    "devDependencies":  {
+                            "@electric-sql/pglite":  "^0.5.3",
+                            "@types/ws":  "^8.18.1"
+                        }
 }
