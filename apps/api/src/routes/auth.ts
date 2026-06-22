@@ -143,7 +143,22 @@ export async function authRoutes(app: FastifyInstance) {
         headers: { Authorization: `Bearer ${tokens.access_token}` },
       });
       if (!uiRes.ok) return reply.code(502).send({ error: "Google userinfo failed" });
-      const ui = (await uiRes.json()) as { id: string; email: string; name?: string; picture?: string; verified_email?: boolean };
+      const ui = (await uiRes.json()) as {
+        id: string;
+        email: string;
+        name?: string;
+        picture?: string;
+        verified_email?: boolean;
+      };
+
+      // Reject unverified emails — otherwise a Google account
+      // holder could sign in as anyone whose email they control.
+      if (ui.verified_email !== true) {
+        return reply.code(403).send({
+          error: "Your Google account email is not verified. " +
+                 "Verify it at https://myaccount.google.com then try again.",
+        });
+      }
 
       // Upsert user.
       const existing = await db.select().from(users).where(eq(users.email, ui.email.toLowerCase())).limit(1);

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext.js";
 import { ApiError } from "../api/client.js";
@@ -7,6 +7,8 @@ import { ApiError } from "../api/client.js";
 export function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const sessionExpired = params.get("expired") === "1";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -31,6 +33,11 @@ export function LoginPage() {
           <span className="text-[var(--primary)]">●</span> dotlive
         </Link>
         <div className="glass rounded-2xl p-8">
+          {sessionExpired && (
+            <div className="mb-4 flex items-start gap-2 rounded-lg border border-[var(--gold)]/40 bg-[var(--gold)]/10 px-3 py-2 text-xs text-[var(--gold)]">
+              Your session expired. Please log in again.
+            </div>
+          )}
           <h1 className="font-display text-3xl font-bold">Welcome back</h1>
           <p className="mt-1 text-sm text-[var(--text-muted)]">Log in to keep building.</p>
 

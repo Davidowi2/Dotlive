@@ -8,6 +8,7 @@
  */
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { authApi } from "../api/auth.js";
 import { setToken, getToken } from "../api/client.js";
 import type { AppRole, User } from "@dotlive/shared";
@@ -28,6 +29,7 @@ const AuthContext = createContext<AuthState | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const qc = useQueryClient();
 
   useEffect(() => {
     const token = getToken();
@@ -42,16 +44,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setLoading(false));
   }, []);
 
+  // Sync the user state to null when the API wrapper detects an
+  // expired/invalid token (dispatched from api/client.ts).
+  useEffect(() => {
+    function onExpired() {
+      setUser(null);
+      // Clear every cached query so user A's data is not visible
+      // to user B after a token swap on the same browser.
+      qc.clear();
+    }
+    window.addEventListener("dotlive:auth:expired", onExpired);
+    return () => window.removeEventListener("dotlive:auth:expired", onExpired);
+  }, [qc]);
+
   async function signup(input: { email: string; password: string; name?: string }) {
     const res = await authApi.signup(input);
     setToken(res.token);
     setUser(res.user);
+    qc.clear();
   }
 
   async function login(input: { email: string; password: string }) {
     const res = await authApi.login(input);
     setToken(res.token);
     setUser(res.user);
+    qc.clear();
   }
 
   async function logout() {
@@ -62,6 +79,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setToken(null);
     setUser(null);
+    // Drop every cached query so the next user on this browser
+    // never sees stale data from this account.
+    qc.clear();
   }
 
   function hasRole(role: AppRole) {

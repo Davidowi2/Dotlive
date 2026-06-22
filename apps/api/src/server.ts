@@ -29,6 +29,7 @@ import { marketplaceRoutes } from "./routes/marketplace.js";
 import { communityRoutes } from "./routes/community.js";
 import { uploadRoutes } from "./routes/upload.js";
 import { webhookRoutes } from "./routes/webhooks.js";
+import { statsRoutes } from "./routes/stats.js";
 
 const PORT = Number(process.env.PORT ?? 3001);
 const NODE_ENV = process.env.NODE_ENV ?? "development";
@@ -123,6 +124,7 @@ await app.register(marketplaceRoutes, { prefix: "/api" });
 await app.register(communityRoutes, { prefix: "/api" });
 await app.register(uploadRoutes, { prefix: "/api" });
 await app.register(webhookRoutes, { prefix: "/api" });
+await app.register(statsRoutes, { prefix: "/api" });
 
 /* -------------------- Error handler -------------------- */
 app.setErrorHandler((err, req, reply) => {

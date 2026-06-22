@@ -1,27 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
-import { ArrowLeft, Wallet as WalletIcon } from "lucide-react";
+import { Wallet as WalletIcon } from "lucide-react";
 import { walletApi } from "../api/wallet.js";
+import { AppShell } from "../components/AppShell.js";
 
 export function WalletPage() {
   const balance = useQuery({ queryKey: ["wallet"], queryFn: walletApi.balance });
   const txns = useQuery({ queryKey: ["wallet", "txns"], queryFn: walletApi.transactions });
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
-      <header className="border-b border-[var(--border)] bg-[var(--bg-soft)]">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
-          <Link to="/dashboard" className="flex items-center gap-2 text-sm text-[var(--text-muted)] hover:text-[var(--text)]">
-            <ArrowLeft className="size-4" /> Back
-          </Link>
-          <Link to="/" className="font-display text-lg font-bold">
-            <span className="text-[var(--primary)]">●</span> dotlive
-          </Link>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-4xl px-6 py-10">
-        <h1 className="font-display text-4xl font-bold">Wallet</h1>
+    <AppShell>
+      <h1 className="font-display text-4xl font-bold">Wallet</h1>
 
         <div className="glass mt-8 rounded-2xl p-8">
           <div className="flex items-center gap-3 text-sm text-[var(--text-muted)]">
@@ -58,7 +46,6 @@ export function WalletPage() {
             </div>
           ))}
         </div>
-      </main>
-    </div>
+    </AppShell>
   );
 }

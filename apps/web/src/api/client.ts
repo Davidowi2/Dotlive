@@ -32,6 +32,13 @@ interface RequestOpts {
   body?: unknown;
   headers?: Record<string, string>;
   signal?: AbortSignal;
+  /** Set true to opt out of automatic 401 handling. */
+  skipAuthRetry?: boolean;
+}
+
+interface ApiResponseMeta {
+  status: number;
+  ok: boolean;
 }
 
 async function request<T>(path: string, opts: RequestOpts = {}): Promise<T> {
@@ -40,7 +47,7 @@ async function request<T>(path: string, opts: RequestOpts = {}): Promise<T> {
     ...opts.headers,
   };
   const token = getToken();
-  if (token) headers.Authorization = `Bearer ${token}`;
+  if (token && !opts.skipAuthRetry) headers.Authorization = `Bearer ${token}`;
 
   let body: BodyInit | undefined;
   if (opts.body !== undefined) {
@@ -52,34 +59,47 @@ async function request<T>(path: string, opts: RequestOpts = {}): Promise<T> {
     }
   }
 
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method: opts.method ?? "GET",
-    headers,
-    body,
-    signal: opts.signal,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      method: opts.method ?? "GET",
+      headers,
+      body,
+      signal: opts.signal,
+    });
+  } catch (e) {
+    // Network error — bubble up with a clearer message.
+    throw new ApiError(0, e instanceof Error ? e.message : "Network error", null);
+  }
 
   const contentType = res.headers.get("content-type") ?? "";
   const isJson = contentType.includes("application/json");
   const payload = isJson ? await res.json().catch(() => null) : await res.text();
+
+  // 401 on a non-auth route: token is dead. Clear it and let the
+  // AuthContext pick up the change on next mount. We dispatch a
+  // custom event so the AuthContext can react synchronously.
+  if (res.status === 401 && !path.startsWith("/api/auth/") && !opts.skipAuthRetry) {
+    setToken(null);
+    window.dispatchEvent(new CustomEvent("dotlive:auth:expired"));
+    if (window.location.pathname !== "/login") {
+      window.location.assign("/login?expired=1");
+    }
+    throw new ApiError(401, "Session expired. Please log in again.", payload);
+  }
 
   if (!res.ok) {
     const msg =
       (isJson && payload && typeof payload === "object" && "error" in payload
         ? String((payload as any).error)
         : res.statusText) || "Request failed";
-    if (res.status === 401) {
-      setToken(null);
-      // Soft redirect — the AuthContext will pick this up.
-      if (!path.startsWith("/api/auth/")) {
-        window.location.assign("/login");
-      }
-    }
     throw new ApiError(res.status, msg, payload);
   }
 
   return payload as T;
 }
+
+void ({} as ApiResponseMeta); // type marker — keeps the interface import-clean
 
 export const api = {
   get: <T>(path: string, opts?: RequestOpts) => request<T>(path, { ...opts, method: "GET" }),

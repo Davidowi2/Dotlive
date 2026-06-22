@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Search, Store, Briefcase } from "lucide-react";
+import { Search, Store, Briefcase } from "lucide-react";
 import { marketplaceApi } from "../api/marketplace.js";
 import { useAuth } from "../contexts/AuthContext.js";
+import { AppShell } from "../components/AppShell.js";
 
 export function WorkPage() {
-  const { user, hasRole } = useAuth();
+  const { hasRole } = useAuth();
   const [tab, setTab] = useState<"gigs" | "jobs">("gigs");
   const [search, setSearch] = useState("");
 
@@ -22,23 +22,8 @@ export function WorkPage() {
   });
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
-      <header className="border-b border-[var(--border)] bg-[var(--bg-soft)]">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <Link to="/dashboard" className="flex items-center gap-2 text-sm text-[var(--text-muted)] hover:text-[var(--text)]">
-            <ArrowLeft className="size-4" /> Back
-          </Link>
-          <Link to="/" className="font-display text-lg font-bold">
-            <span className="text-[var(--primary)]">●</span> dotlive
-          </Link>
-          <div className="text-sm text-[var(--text-muted)]">
-            {user?.email} · {hasRole("founder") ? "founder" : "builder"}
-          </div>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-6xl px-6 py-10">
-        <h1 className="font-display text-4xl font-bold">DOT Work</h1>
+    <AppShell>
+      <h1 className="font-display text-4xl font-bold">DOT Work</h1>
         <p className="mt-1 text-sm text-[var(--text-muted)]">
           Gigs (services) and Jobs (formal listings). Pay in DOT.
         </p>
@@ -120,7 +105,6 @@ export function WorkPage() {
             </div>
           )}
         </div>
-      </main>
-    </div>
+    </AppShell>
   );
 }

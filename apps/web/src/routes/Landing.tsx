@@ -16,23 +16,36 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Sparkles, Rocket, Wallet, Users, BarChart3, Globe2, Trophy } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { ArrowRight, Sparkles, Rocket, Wallet, Users, BarChart3, Globe2, Trophy, AlertCircle } from "lucide-react";
+import { api } from "../api/client.js";
 
-// Live (mocked) stats — would come from /api/admin/stats in production.
-const HERO_STATS = { builders: 2_847, raisedNaira: 45_000_000, countries: 12 };
+interface PlatformStats {
+  isBeta: boolean;
+  builders: number;
+  ventures: number;
+  countries: number;
+  dotInCirculation: number;
+  deployedNaira: number;
+  recentActivity: { text: string; ago: string }[];
+}
 
-// Mocked activity feed.
-const ACTIVITY_FEED = [
-  "Amara just earned 150 DOT in Lagos",
-  "Kwame posted a job in Nairobi",
-  "Fatima upgraded to Founder in Accra",
-  "Tunde closed a 2,000 DOT gig in Cape Town",
-  "Zara completed her Vantage assessment in Kigali",
-  "Sefako received his first investor save in Johannesburg",
-  "Nia enrolled in 'Pitch Like a Pro' and earned 50 DOT",
-  "Kelechi paid 500 DOT for a logo design from @swift-builder",
-  "Ifeoma applied to the Lagos Pitchathon",
-  "Bongani joined the Builders of Cape Town community",
+function useStats() {
+  return useQuery({
+    queryKey: ["stats"],
+    queryFn: () => api.get<PlatformStats>("/api/stats"),
+    staleTime: 60_000,
+  });
+}
+
+// Placeholder ticker entries used while the platform is in beta.
+// Once we have real activity, the API returns it and we render
+// that instead. Honest is better than fake.
+const BETA_TICKER = [
+  "Welcome to the DOT beta — be an early builder.",
+  "Earn 500 DOT on signup. Spend them to upgrade.",
+  "Builders post gigs. Founders post jobs. Investors save ventures.",
+  "Every action here is paid in DOT — Africa's venture currency.",
 ];
 
 const FEATURED_VENTURES = [
@@ -123,10 +136,20 @@ function CountUp({ target, prefix = "", suffix = "" }: { target: number; prefix?
 
 export function LandingPage() {
   const [testimonialIdx, setTestimonialIdx] = useState(0);
+  const { data: stats } = useStats();
+
   useEffect(() => {
     const id = setInterval(() => setTestimonialIdx((i) => (i + 1) % TESTIMONIALS.length), 5_000);
     return () => clearInterval(id);
   }, []);
+
+  const isBeta = stats?.isBeta ?? true;
+  const tickerLines = (stats?.recentActivity ?? []).length > 0
+    ? stats!.recentActivity.map((a) => a.text)
+    : BETA_TICKER;
+  const buildersCount = stats?.builders ?? 0;
+  const raisedNaira = stats?.deployedNaira ?? 0;
+  const countriesCount = stats?.countries ?? 0;
 
   return (
     <div className="relative min-h-screen overflow-hidden">
@@ -152,8 +175,17 @@ export function LandingPage() {
         <div className="gradient-mesh" aria-hidden />
         <div className="relative mx-auto max-w-6xl px-6 pb-24 pt-16 text-center md:pb-32 md:pt-28">
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--bg-soft)] px-3 py-1 text-xs text-[var(--text-muted)]">
-            <Sparkles className="size-3.5 text-[var(--gold)]" />
-            v2 — Now on Neon + Render
+            {isBeta ? (
+              <>
+                <AlertCircle className="size-3.5 text-[var(--gold)]" />
+                Beta · {buildersCount > 0 ? `${buildersCount} builders and counting` : "open to early builders"}
+              </>
+            ) : (
+              <>
+                <Sparkles className="size-3.5 text-[var(--gold)]" />
+                Now live — {buildersCount.toLocaleString()}+ founders
+              </>
+            )}
           </div>
           <h1 className="font-display text-5xl font-bold leading-[1.05] tracking-tight md:text-7xl">
             Where African Builders
@@ -163,21 +195,23 @@ export function LandingPage() {
             </span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-[var(--text-muted)] md:text-xl">
-            Join <span className="font-semibold text-[var(--text)]">{HERO_STATS.builders.toLocaleString()}+ founders</span> building the future of Africa — earn DOT, ship work, and unlock capital.
+            {isBeta
+              ? "We're just getting started. Sign up today and your dot_id is permanent — you'll be one of the platform's founding builders."
+              : <>Join <span className="font-semibold text-[var(--text)]">{buildersCount.toLocaleString()}+ founders</span> building the future of Africa — earn DOT, ship work, and unlock capital.</>}
           </p>
 
-          {/* Live counter row */}
+          {/* Live counter row — uses real numbers when stats loaded, "—" while loading */}
           <div className="mx-auto mt-10 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm">
             <span className="text-[var(--text-muted)]">
-              <span className="font-display text-2xl font-bold text-[var(--primary)] count-up">{HERO_STATS.builders.toLocaleString()}</span> builders
+              <span className="font-display text-2xl font-bold text-[var(--primary)] count-up">{buildersCount > 0 ? buildersCount.toLocaleString() : "—"}</span> builders
             </span>
             <span className="text-[var(--text-muted)]">·</span>
             <span className="text-[var(--text-muted)]">
-              <span className="font-display text-2xl font-bold text-[var(--primary)] count-up">₦{(HERO_STATS.raisedNaira / 1_000_000).toFixed(0)}M</span> raised
+              <span className="font-display text-2xl font-bold text-[var(--primary)] count-up">{raisedNaira > 0 ? `₦${(raisedNaira / 1_000_000).toFixed(1)}M` : "—"}</span> deployed
             </span>
             <span className="text-[var(--text-muted)]">·</span>
             <span className="text-[var(--text-muted)]">
-              <span className="font-display text-2xl font-bold text-[var(--primary)] count-up">{HERO_STATS.countries}</span> countries
+              <span className="font-display text-2xl font-bold text-[var(--primary)] count-up">{countriesCount > 0 ? countriesCount : "—"}</span> countries
             </span>
           </div>
 
@@ -190,16 +224,20 @@ export function LandingPage() {
             </a>
           </div>
 
-          {/* Floating glass cards */}
-          <div className="pointer-events-none absolute left-4 top-32 hidden lg:block">
-            <GlassActivity text="Amara earned 150 DOT" sub="Lagos · 2m ago" />
-          </div>
-          <div className="pointer-events-none absolute right-4 top-44 hidden lg:block">
-            <GlassActivity text="Kwame posted a job" sub="Nairobi · 5m ago" />
-          </div>
-          <div className="pointer-events-none absolute bottom-12 left-12 hidden lg:block">
-            <GlassActivity text="Fatima upgraded to Founder" sub="Accra · 8m ago" />
-          </div>
+          {/* Floating glass cards — only show in non-beta to keep the page honest */}
+          {!isBeta && (
+            <>
+              <div className="pointer-events-none absolute left-4 top-32 hidden lg:block">
+                <GlassActivity text={`${buildersCount} builders active`} sub="across Africa" />
+              </div>
+              <div className="pointer-events-none absolute right-4 top-44 hidden lg:block">
+                <GlassActivity text={`₦${(raisedNaira / 1_000_000).toFixed(0)}M deployed`} sub="into ventures" />
+              </div>
+              <div className="pointer-events-none absolute bottom-12 left-12 hidden lg:block">
+                <GlassActivity text={`${countriesCount} countries`} sub="and growing" />
+              </div>
+            </>
+          )}
         </div>
       </section>
 
@@ -236,7 +274,7 @@ export function LandingPage() {
       {/* ---------- ACTIVITY TICKER ---------- */}
       <section className="overflow-hidden border-y border-[var(--border)] bg-[var(--bg)] py-6">
         <div className="ticker-track flex gap-12 whitespace-nowrap">
-          {[...ACTIVITY_FEED, ...ACTIVITY_FEED].map((line, i) => (
+          {[...tickerLines, ...tickerLines].map((line, i) => (
             <span key={i} className="text-sm text-[var(--text-muted)]">
               <span className="mr-2 text-[var(--primary)]">●</span>
               {line}
@@ -245,20 +283,21 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* ---------- FEATURED VENTURES ---------- */}
-      <section id="ventures" className="bg-[var(--bg)] py-24">
-        <div className="mx-auto max-w-6xl px-6">
-          <div className="mb-12 flex items-end justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-[var(--primary)]">Featured ventures</p>
-              <h2 className="mt-2 font-display text-4xl font-bold md:text-5xl">Funded by the community.</h2>
+      {/* ---------- FEATURED VENTURES — only shown when we have real ones ---------- */}
+      {!isBeta && stats && stats.ventures > 0 && (
+        <section id="ventures" className="bg-[var(--bg)] py-24">
+          <div className="mx-auto max-w-6xl px-6">
+            <div className="mb-12 flex items-end justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-[var(--primary)]">Featured ventures</p>
+                <h2 className="mt-2 font-display text-4xl font-bold md:text-5xl">Funded by the community.</h2>
+              </div>
+              <Link to="/signup" className="hidden text-sm text-[var(--text-muted)] hover:text-[var(--text)] md:inline">
+                See all ventures →
+              </Link>
             </div>
-            <Link to="/signup" className="hidden text-sm text-[var(--text-muted)] hover:text-[var(--text)] md:inline">
-              See all ventures →
-            </Link>
-          </div>
-          <div className="grid gap-6 md:grid-cols-3">
-            {FEATURED_VENTURES.map((v) => (
+            <div className="grid gap-6 md:grid-cols-3">
+              {FEATURED_VENTURES.map((v) => (
               <div
                 key={v.name}
                 className="glass group flex flex-col rounded-2xl p-6 transition-all hover:-translate-y-1 hover:border-[var(--primary)]/40"
@@ -292,9 +331,10 @@ export function LandingPage() {
                 <button className="btn-primary mt-6 w-full">Back this venture</button>
               </div>
             ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ---------- TESTIMONIAL CAROUSEL ---------- */}
       <section id="stories" className="border-t border-[var(--border)] bg-[var(--bg-soft)] py-24">

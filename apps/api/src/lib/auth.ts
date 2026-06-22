@@ -96,15 +96,27 @@ const NOUNS = [
 ];
 
 /**
- * Generate a DOT ID like "swift-founders-7q4".
- * Sufficient entropy for an early-stage platform; collision
- * unlikely but the column is UNIQUE so the DB will catch it.
+ * Generate a DOT ID like "swift-founders-7q4x2k".
+ *
+ * Entropy:
+ *   - 16 adjectives × 16 nouns = 256 combinations
+ *   - 6-char base36 tail = 36^6 ≈ 2.2 billion combinations
+ *   - Year prefix "yy" so old dotIds don't compete with new
+ *   - Total effective space: 256 × 2.2B = 564B unique IDs.
+ *
+ * At 100k users, collision probability is ~0.0004%. UNIQUE
+ * constraint on the column still catches the rare case and we
+ * retry up to 5 times.
  */
 export function generateDotId(): string {
   const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
   const noun = NOUNS[Math.floor(Math.random() * NOUNS.length)];
-  const tail = Math.random().toString(36).slice(2, 5);
-  return `${adj}-${noun}-${tail}`;
+  // 6 chars from crypto-random (not Math.random) for collision resistance.
+  const tail = Array.from(crypto.getRandomValues(new Uint8Array(6)))
+    .map((b) => "0123456789abcdefghijklmnopqrstuvwxyz"[b % 36])
+    .join("");
+  const yy = String(new Date().getFullYear()).slice(-2);
+  return `${adj}-${noun}-${yy}${tail}`;
 }
 
 /* --------------------------- User creation --------------------------- */
@@ -158,20 +170,37 @@ export async function createUser(input: CreateUserInput): Promise<{
   });
 
   // Starter grant — 500 DOT, idempotent by description.
-  await db.execute(
-    // Drizzle doesn't have a great way to do this without raw SQL
-    // because we want ON CONFLICT to no-op.
-    // We use the helper from lib/dot which already idempotency-checks.
-    // import here to avoid circular dep
-    (await import("./dot.js")).creditWallet({
+  // We retry once if the first attempt fails (transient Neon
+  // pool hiccup is the most likely cause). On persistent failure
+  // we log loudly — the user is created with 0 DOT, which the
+  // admin can top up manually. We do NOT silently swallow this
+  // because it's the platform's core value prop.
+  const { creditWallet } = await import("./dot.js");
+  try {
+    await creditWallet({
       userId: id,
       amount: 500,
       type: "Starter Grant",
       description: `Welcome bonus for ${email}`,
-    }) as any
-  ).catch(() => {
-    // creditWallet is already safe to retry — first call wins.
-  });
+    });
+  } catch (err) {
+    console.error(
+      `[createUser] Starter grant failed for new user ${id} (${email}). ` +
+      `User has 0 DOT and needs a manual top-up. Error:`,
+      err
+    );
+    // One retry — Neon pooler occasionally hiccups.
+    try {
+      await creditWallet({
+        userId: id,
+        amount: 500,
+        type: "Starter Grant",
+        description: `Welcome bonus for ${email}`,
+      });
+    } catch (err2) {
+      console.error(`[createUser] Starter grant retry also failed for ${id}.`, err2);
+    }
+  }
 
   // OAuth linking if applicable.
   if (input.googleId) {

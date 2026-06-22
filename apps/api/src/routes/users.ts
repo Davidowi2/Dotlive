@@ -45,6 +45,19 @@ export async function userRoutes(app: FastifyInstance) {
     return reply.send({ user });
   });
 
+  /** GET /api/users/roles/requirements — public list of upgrade options */
+  app.get("/users/roles/requirements", async (_req, reply) => {
+    const rows = await db.select().from(roleRequirements).where(eq(roleRequirements.isActive, true));
+    return reply.send({
+      requirements: rows.map((r) => ({
+        role: r.role,
+        dotCost: r.dotCost,
+        requiredFields: r.requiredFields as string[],
+        description: r.description,
+      })),
+    });
+  });
+
   /** POST /api/users/roles — request a role upgrade */
   app.post("/users/roles", { preHandler: app.authenticate }, async (req, reply) => {
     const { sub } = req.user as { sub: string };

@@ -5,14 +5,13 @@
 #      Blueprint → select this repo). Render auto-detects this file.
 #   2. Creating a Web Service manually and pointing it at apps/api.
 #
-# Build/start matches the master spec (npm install + node server.js).
-# Note: the master prompt assumes a "backend/" directory and a
-# non-TS source. We ship ESM TS compiled to dist/server.js. To
-# run from a literal `backend/server.js` directory, symlink or
-# copy dist/server.js into backend/server.js in CI (see ci/build.sh).
+# Workspace install note:
+#   Because the API shares a node_modules with apps/web via npm
+#   workspaces, we install at the repo root first, then build
+#   only apps/api. Render's buildCommand runs from the rootDir
+#   we set below, so we `cd ../..` to reach the repo root.
 #
 # Region: Singapore (closest to Neon ap-southeast-2 + most African users)
-# Plan:   Starter (free) for dev; Standard for production.
 
 services:
   - type: web
@@ -21,7 +20,10 @@ services:
     region: singapore
     plan: starter
     rootDir: apps/api
-    buildCommand: npm install && npm run build
+    buildCommand: |
+      cd ../.. && \
+      npm install --no-audit --no-fund && \
+      npm --workspace apps/api run build
     startCommand: node dist/server.js
     healthCheckPath: /api/health
     autoDeploy: true
