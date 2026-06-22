@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Auth helpers — Lucia v3 for session management + Argon2 for
  * password hashing + Fastify JWT for stateless API auth.
@@ -26,7 +25,7 @@ import { eq } from "drizzle-orm";
 
 import { db } from "../db/client.js";
 import { users, sessions, oauthAccounts, userRoles } from "../db/schema.js";
-import type { AppRole } from "../../../packages/shared/types.js";
+import type { AppRole } from "../sharedTypes.js";
 
 const adapter = new DrizzlePostgreSQLAdapter(db as any, sessions as any, users as any);
 
@@ -162,12 +161,12 @@ export async function createUser(input: CreateUserInput): Promise<{
     name: input.name ?? null,
     avatarUrl: input.avatarUrl ?? null,
     dotId,
-  });
+  } as any);
 
   await db.insert(userRoles).values({
     userId: id,
     role: "builder",
-  });
+  } as any);
 
   // Starter grant — 500 DOT, idempotent by description.
   // We retry once if the first attempt fails (transient Neon
@@ -208,7 +207,7 @@ export async function createUser(input: CreateUserInput): Promise<{
       providerId: "google",
       providerUserId: input.googleId,
       userId: id,
-    }).onConflictDoNothing();
+    } as any).onConflictDoNothing();
   }
 
   return {

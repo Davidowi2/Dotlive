@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Academy routes: courses, enrollments, completion + DOT reward.
  */
@@ -44,7 +43,7 @@ export async function academyRoutes(app: FastifyInstance) {
     try {
       const inserted = await db
         .insert(courseEnrollments)
-        .values({ courseId: parsed.data.courseId, userId: sub, status: "enrolled" })
+        .values({ courseId: parsed.data.courseId, userId: sub, status: "enrolled" } as any)
         .returning();
       return reply.send({ enrollment: inserted[0] });
     } catch {
@@ -76,7 +75,7 @@ export async function academyRoutes(app: FastifyInstance) {
 
     await db
       .update(courseEnrollments)
-      .set({ status: "completed", completedAt: new Date(), rewardedAt: new Date() })
+      .set({ status: "completed", completedAt: new Date(), rewardedAt: new Date() } as any)
       .where(eq(courseEnrollments.id, enroll[0].id));
 
     if (reward > 0) {

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Public stats route for the landing page.
  *
@@ -16,26 +15,21 @@ export async function statsRoutes(app: FastifyInstance) {
   /** GET /api/stats — public, cacheable for 60s. */
   app.get("/stats", async (_req, reply) => {
     // Single round-trip with COUNT()s.
-    const counts = await sql<{
-      users: number;
-      ventures: number;
-      countries: number;
-      dot_in_circulation: string;
-    }>`
+    const counts = await sql`
       SELECT
         (SELECT COUNT(*)::int FROM users) AS users,
         (SELECT COUNT(*)::int FROM ventures) AS ventures,
-        (SELECT COUNT(DISTINCT country)::int FROM ventures WHERE country IS NOT NULL) AS countries,
+        (SELECT COUNT(DISTINCT country)::int FROM users WHERE country IS NOT NULL) AS countries,
         (SELECT COALESCE(SUM(balance), 0)::text FROM wallets) AS dot_in_circulation
-    `;
+    ` as { users: number; ventures: number; countries: number; dot_in_circulation: string }[];
     const row = counts[0];
 
     // Sum of role-upgrade DOT spent = "DOT deployed into the economy".
     // We approximate "raised" by summing venture funding_goal for now.
-    const deployedRows = await sql<{ total: string }>`
+    const deployedRows = await sql`
       SELECT COALESCE(SUM(funding_goal), 0)::text AS total
       FROM ventures WHERE funding_goal > 0
-    `;
+    ` as { total: string }[];
     const deployedNaira = Number(deployedRows[0]?.total ?? 0);
 
     // Thresholds for showing "beta" vs "live" framing on the landing.

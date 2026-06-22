@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Community routes: create, list, join via referral, list members.
  */
@@ -41,7 +40,7 @@ export async function communityRoutes(app: FastifyInstance) {
         region: parsed.data.region,
         category: parsed.data.category,
         referralCode,
-      })
+      } as any)
       .returning();
     return reply.send({ community: inserted[0] });
   });
@@ -89,7 +88,7 @@ export async function communityRoutes(app: FastifyInstance) {
     try {
       const inserted = await db
         .insert(communityMembers)
-        .values({ communityId: c[0].id, founderId: sub })
+        .values({ communityId: c[0].id, founderId: sub } as any)
         .returning();
       return reply.send({ membership: inserted[0], community: c[0] });
     } catch {

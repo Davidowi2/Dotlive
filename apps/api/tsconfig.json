@@ -10,14 +10,12 @@
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
-    "strict": false,
-    "skipLibCheck": true,
-    "resolveJsonModule": true,
     "noEmit": false,
-    "declaration": false,
-    "sourceMap": true,
-    "noUncheckedIndexedAccess": false
+    "skipLibCheck": true,
+    "strict": false,
+    "moduleDetection": "force",
+    "isolatedModules": true,
+    "resolveJsonModule": true
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "../../node_modules/drizzle-orm/mysql-core/**", "../../node_modules/drizzle-orm/sqlite-core/**"]
+  "include": ["src/**/*"]
 }

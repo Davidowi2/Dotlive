@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Marketplace routes: services (gigs), job listings, orders.
  */
@@ -79,7 +78,7 @@ export async function marketplaceRoutes(app: FastifyInstance) {
         priceDot: String(s.priceDot),
         deliveryDays: s.deliveryDays,
         isActive: true,
-      })
+      } as any)
       .returning();
     return reply.send({ service: serializeService(inserted[0]) });
   });
@@ -117,7 +116,7 @@ export async function marketplaceRoutes(app: FastifyInstance) {
     const existing = await db.select().from(services).where(eq(services.id, req.params.id)).limit(1);
     if (existing.length === 0) return reply.code(404).send({ error: "Not found" });
     if (existing[0].builderId !== sub) return reply.code(403).send({ error: "Not your service" });
-    await db.update(services).set({ isActive: false, updatedAt: new Date() }).where(eq(services.id, req.params.id));
+    await db.update(services).set({ isActive: false, updatedAt: new Date() } as any).where(eq(services.id, req.params.id));
     return reply.send({ ok: true });
   });
 
@@ -171,7 +170,7 @@ export async function marketplaceRoutes(app: FastifyInstance) {
         employmentType: parsed.data.employmentType,
         requirements: parsed.data.requirements,
         isOpen: true,
-      })
+      } as any)
       .returning();
     return reply.send({ job: inserted[0] });
   });
@@ -247,7 +246,7 @@ export async function marketplaceRoutes(app: FastifyInstance) {
         title: svc[0].title,
         requirements: parsed.data.requirements,
         status: "in_progress",
-      })
+      } as any)
       .returning();
     return reply.send({ order: inserted[0] });
   });
@@ -281,7 +280,7 @@ export async function marketplaceRoutes(app: FastifyInstance) {
 
     const updated = await db
       .update(serviceOrders)
-      .set({ status: "delivered", deliveryNote: parsed.data.deliveryNote, updatedAt: new Date() })
+      .set({ status: "delivered", deliveryNote: parsed.data.deliveryNote, updatedAt: new Date() } as any)
       .where(eq(serviceOrders.id, req.params.id))
       .returning();
     return reply.send({ order: updated[0] });
@@ -297,7 +296,7 @@ export async function marketplaceRoutes(app: FastifyInstance) {
 
     const updated = await db
       .update(serviceOrders)
-      .set({ status: "completed", completedAt: new Date(), updatedAt: new Date() })
+      .set({ status: "completed", completedAt: new Date(), updatedAt: new Date() } as any)
       .where(eq(serviceOrders.id, req.params.id))
       .returning();
     return reply.send({ order: updated[0] });
@@ -324,14 +323,14 @@ export async function marketplaceRoutes(app: FastifyInstance) {
       // possible if they spent escrow), mark for manual review.
       await db
         .update(serviceOrders)
-        .set({ status: "disputed", updatedAt: new Date() })
+        .set({ status: "disputed", updatedAt: new Date() } as any)
         .where(eq(serviceOrders.id, req.params.id));
       return reply.code(409).send({ error: "Refund failed; order marked disputed" });
     }
 
     const updated = await db
       .update(serviceOrders)
-      .set({ status: "cancelled", updatedAt: new Date() })
+      .set({ status: "cancelled", updatedAt: new Date() } as any)
       .where(eq(serviceOrders.id, req.params.id))
       .returning();
     return reply.send({ order: updated[0] });

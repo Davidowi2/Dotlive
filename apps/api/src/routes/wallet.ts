@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Wallet routes: balance, transaction history, DOT transfers.
  */
@@ -23,7 +22,7 @@ export async function walletRoutes(app: FastifyInstance) {
     const { sub } = req.user as { sub: string };
     let w = await db.select().from(wallets).where(eq(wallets.userId, sub)).limit(1);
     if (w.length === 0) {
-      await db.insert(wallets).values({ userId: sub, balance: "0" });
+      await db.insert(wallets).values({ userId: sub, balance: "0" } as any);
       w = await db.select().from(wallets).where(eq(wallets.userId, sub)).limit(1);
     }
     return reply.send({ balance: Number(w[0].balance) });

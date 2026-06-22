@@ -30,7 +30,7 @@ export function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-[var(--bg)] px-6 py-12 text-[var(--text)]">
       <div className="w-full max-w-md">
         <Link to="/" className="mb-8 block text-center font-display text-xl font-bold">
-          <span className="text-[var(--primary)]">●</span> dotlive
+          <img src="/logo.svg" alt="DOT" className="inline size-5 align-text-bottom opacity-80" /> dotlive
         </Link>
         <div className="glass rounded-2xl p-8">
           {sessionExpired && (

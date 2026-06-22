@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * User routes: profile, role management, lookup.
  */
@@ -11,7 +10,7 @@ import { db } from "../db/client.js";
 import { users, userRoles, roleRequirements, wallets } from "../db/schema.js";
 import { loadUserWithRoles, userHasRole } from "../lib/auth.js";
 import { debitWallet } from "../lib/dot.js";
-import type { AppRole } from "../../../packages/shared/types.js";
+import type { AppRole } from "../sharedTypes.js";
 
 const profilePatchSchema = z.object({
   name: z.string().min(1).max(100).optional(),
@@ -94,7 +93,7 @@ export async function userRoutes(app: FastifyInstance) {
       type: "Role Upgrade",
       description: `Upgraded to ${role}`,
     });
-    await db.insert(userRoles).values({ userId: sub, role }).onConflictDoNothing();
+    await db.insert(userRoles).values({ userId: sub, role } as any).onConflictDoNothing();
 
     const user = await loadUserWithRoles(sub);
     return reply.send({ user });

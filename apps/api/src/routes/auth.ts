@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Auth routes: signup, login, logout, me, Google OAuth.
  */

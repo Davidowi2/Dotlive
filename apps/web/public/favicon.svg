@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Favicon — even more minimal than the logo. At 16px the
+     layered disc only registers as a circle, so we punch
+     one visible horizontal slit to suggest the form. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <circle cx="16" cy="16" r="14" fill="#3a3a3a"/>
+  <path d="M 4 14 Q 10 11 16 12.5 T 28 14 L 28 16 Q 22 13 16 14.5 T 4 16 Z" fill="#0a0a0a"/>
+  <path d="M 4 18 Q 12 15.5 16 16.5 T 28 18 L 28 20 Q 20 17.5 16 18.5 T 4 20 Z" fill="#0a0a0a"/>
+</svg>

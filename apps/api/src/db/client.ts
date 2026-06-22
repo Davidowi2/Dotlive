@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Neon Postgres client for Drizzle ORM.
  *

@@ -156,7 +156,7 @@ export function LandingPage() {
       {/* ---------- Top nav ---------- */}
       <header className="relative z-10 mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
         <Link to="/" className="font-display text-xl font-bold tracking-tight">
-          <span className="text-[var(--primary)]">●</span> dotlive
+          <img src="/logo.svg" alt="DOT" className="inline size-5 align-text-bottom opacity-80" /> dotlive
         </Link>
         <nav className="hidden items-center gap-6 text-sm text-[var(--text-muted)] md:flex">
           <a href="#how" className="hover:text-[var(--text)]">How it works</a>
@@ -173,6 +173,13 @@ export function LandingPage() {
       {/* ---------- HERO ---------- */}
       <section className="relative isolate">
         <div className="gradient-mesh" aria-hidden />
+        {/* Atmospheric logo watermark behind the hero text. */}
+        <img
+          src="/logo.svg"
+          alt=""
+          aria-hidden
+          className="pointer-events-none absolute left-1/2 top-1/2 size-[640px] -translate-x-1/2 -translate-y-1/2 opacity-[0.06] blur-[1px]"
+        />
         <div className="relative mx-auto max-w-6xl px-6 pb-24 pt-16 text-center md:pb-32 md:pt-28">
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--bg-soft)] px-3 py-1 text-xs text-[var(--text-muted)]">
             {isBeta ? (

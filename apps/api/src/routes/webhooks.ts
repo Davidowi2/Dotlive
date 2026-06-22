@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Webhook routes for payment providers.
  *
@@ -55,13 +54,13 @@ export async function webhookRoutes(app: FastifyInstance) {
 
     const expectedKobo = Number(payment[0].nairaAmount) * 100;
     if (payload.data.amount !== expectedKobo || payload.data.status !== "success") {
-      await db.update(payments).set({ status: "amount_mismatch" }).where(eq(payments.reference, ref));
+      await db.update(payments).set({ status: "amount_mismatch" } as any).where(eq(payments.reference, ref));
       return reply.send({ ok: true });
     }
 
     await db
       .update(payments)
-      .set({ status: "success", paidAt: new Date(payload.data.paid_at ?? Date.now()) })
+      .set({ status: "success", paidAt: new Date(payload.data.paid_at ?? Date.now()) } as any)
       .where(eq(payments.reference, ref));
 
     await creditWallet({
@@ -71,7 +70,7 @@ export async function webhookRoutes(app: FastifyInstance) {
       description: `Paystack deposit · ${ref}`,
       reference: ref,
     });
-    await db.update(payments).set({ creditedAt: new Date() }).where(eq(payments.reference, ref));
+    await db.update(payments).set({ creditedAt: new Date() } as any).where(eq(payments.reference, ref));
     return reply.send({ ok: true });
   });
 

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Venture routes: CRUD, filtered list, owner-scoped updates.
  */
@@ -44,7 +43,7 @@ export async function ventureRoutes(app: FastifyInstance) {
         website: v.website,
         fundingGoal: String(v.fundingGoal),
         logoUrl: v.logoUrl,
-      })
+      } as any)
       .returning();
     return reply.send({ venture: serialize(inserted[0]) });
   });

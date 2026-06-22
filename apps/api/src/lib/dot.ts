@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * DOT token logic.
  *

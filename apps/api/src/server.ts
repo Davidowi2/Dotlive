@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Fastify entry point.
  *
@@ -30,6 +29,7 @@ import { communityRoutes } from "./routes/community.js";
 import { uploadRoutes } from "./routes/upload.js";
 import { webhookRoutes } from "./routes/webhooks.js";
 import { statsRoutes } from "./routes/stats.js";
+import { onboardingRoutes } from "./routes/onboarding.js";
 
 const PORT = Number(process.env.PORT ?? 3001);
 const NODE_ENV = process.env.NODE_ENV ?? "development";
@@ -125,6 +125,7 @@ await app.register(communityRoutes, { prefix: "/api" });
 await app.register(uploadRoutes, { prefix: "/api" });
 await app.register(webhookRoutes, { prefix: "/api" });
 await app.register(statsRoutes, { prefix: "/api" });
+await app.register(onboardingRoutes, { prefix: "/api" });
 
 /* -------------------- Error handler -------------------- */
 app.setErrorHandler((err, req, reply) => {

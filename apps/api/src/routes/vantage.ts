@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Vantage assessment routes.
  *
@@ -46,7 +45,7 @@ export async function vantageRoutes(app: FastifyInstance) {
         investmentReadiness: parsed.data.investmentReadiness,
         stage: parsed.data.stage,
         report: parsed.data.report ?? null,
-      })
+      } as any)
       .returning();
 
     return reply.send({ assessment: inserted[0] });

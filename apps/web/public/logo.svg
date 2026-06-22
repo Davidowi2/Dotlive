@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  DOT logo — a circle divided into flowing horizontal strata.
+  Designed to sit on #0a0a0a and blend in.
+  - At rest: nearly invisible (subtle grey-on-black).
+  - On hover / hero contexts: layers separate by 4-8px,
+    revealing depth.
+  - Texture: SVG turbulence noise that mirrors the marble
+    feel of the source mark without using a raster image.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="DOT">
+  <defs>
+    <!-- Cloud/marble turbulence that gives the logo its
+         atmospheric depth. Generated procedurally so it
+         scales perfectly to any size. -->
+    <filter id="dot-marble" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.012 0.045" numOctaves="2" seed="7" result="noise"/>
+      <feColorMatrix in="noise" type="matrix"
+        values="0 0 0 0 1
+                0 0 0 0 1
+                0 0 0 0 1
+                0 0 0 0.16 0" result="whitish"/>
+      <feComposite in="SourceGraphic" in2="whitish" operator="over"/>
+    </filter>
+
+    <!-- The layered disc: a circle with three flowing
+         horizontal cutouts that read as wind / water / strata. -->
+    <g id="dot-layers">
+      <!-- Outer disc -->
+      <circle cx="32" cy="32" r="28" fill="currentColor"/>
+      <!-- Cutout 1: long horizontal band, ~upper third -->
+      <path d="M 6 22 Q 18 17 32 19 T 58 22 L 58 25 Q 44 21 32 23 T 6 26 Z"
+            fill="#0a0a0a"/>
+      <!-- Cutout 2: middle band with a slight curl -->
+      <path d="M 4 32 Q 20 27 32 30 T 60 33 L 60 36 Q 44 32 32 35 T 4 35 Z"
+            fill="#0a0a0a"/>
+      <!-- Cutout 3: lower band, longer -->
+      <path d="M 6 42 Q 22 38 32 40 T 58 42 L 58 45 Q 42 41 32 43 T 6 46 Z"
+            fill="#0a0a0a"/>
+      <!-- Subtle highlight along the top edge of each layer -->
+      <path d="M 6 22 Q 18 17 32 19 T 58 22" stroke="#ffffff" stroke-width="0.5" stroke-opacity="0.15" fill="none"/>
+      <path d="M 4 32 Q 20 27 32 30 T 60 33" stroke="#ffffff" stroke-width="0.5" stroke-opacity="0.15" fill="none"/>
+      <path d="M 6 42 Q 22 38 32 40 T 58 42" stroke="#ffffff" stroke-width="0.5" stroke-opacity="0.15" fill="none"/>
+    </g>
+  </defs>
+
+  <!-- Render the disc with the marble filter. The fill
+       comes from currentColor so we can theme it per usage
+       (logo in header = subtle grey, hero = brighter). -->
+  <g filter="url(#dot-marble)" style="color: #2a2a2a;">
+    <use href="#dot-layers"/>
+  </g>
+</svg>

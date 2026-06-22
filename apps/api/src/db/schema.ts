@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Drizzle ORM schema for the DOT platform.
  *
@@ -33,6 +32,9 @@ export const users = pgTable("users", {
   name: text("name"),
   avatarUrl: text("avatar_url"),
   dotId: text("dot_id").notNull().unique(),
+  onboardingIntent: text("onboarding_intent"),
+  invitedBy: text("invited_by"),
+  onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

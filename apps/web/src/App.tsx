@@ -6,6 +6,7 @@ import { GoogleCallbackPage } from "./routes/GoogleCallback.js";
 import { DashboardPage } from "./routes/Dashboard.js";
 import { WalletPage } from "./routes/Wallet.js";
 import { WorkPage } from "./routes/Work.js";
+import { OnboardingPage } from "./routes/Onboarding.js";
 import { useAuth } from "./contexts/AuthContext.js";
 
 function ProtectedRoute({ children }: { children: JSX.Element }) {
@@ -43,6 +44,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <WorkPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/onboarding"
+        element={
+          <ProtectedRoute>
+            <OnboardingPage />
           </ProtectedRoute>
         }
       />

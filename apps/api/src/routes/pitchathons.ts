@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Events + Pitchathons routes.
  *
@@ -58,7 +57,7 @@ export async function pitchathonRoutes(app: FastifyInstance) {
 
       const inserted = await db
         .insert(eventRegistrations)
-        .values({ eventId: req.params.id, userId: sub })
+        .values({ eventId: req.params.id, userId: sub } as any)
         .returning();
       return reply.send({ registration: inserted[0] });
     }
@@ -103,7 +102,7 @@ export async function pitchathonRoutes(app: FastifyInstance) {
             pitchDeckUrl: parsed.data.pitchDeckUrl,
             fundingAsk: parsed.data.fundingAsk != null ? String(parsed.data.fundingAsk) : null,
             status: "submitted",
-          })
+          } as any)
           .returning();
         return reply.send({ application: inserted[0] });
       } catch (e) {

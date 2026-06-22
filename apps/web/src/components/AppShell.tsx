@@ -40,7 +40,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <span className="block size-5">☰</span>
             </button>
             <Link to="/dashboard" className="font-display text-lg font-bold">
-              <span className="text-[var(--primary)]">●</span> dotlive
+              <img src="/logo.svg" alt="DOT" className="inline size-5 align-text-bottom opacity-80" /> dotlive
             </Link>
           </div>
           <div className="flex items-center gap-3">
