@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Hammer,
   Loader2,
@@ -13,6 +13,8 @@ import {
   Store,
   Pencil,
   Trash2,
+  Briefcase,
+  Lock,
 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
@@ -51,6 +53,9 @@ import {
   useMyBuilderProfile,
   useBuilderStats,
   useWallet,
+  useJobListings,
+  useMyJobListings,
+  type JobListing,
 } from "@/hooks/use-dot-data";
 import {
   WORK_CATEGORIES,
@@ -66,11 +71,18 @@ export const Route = createFileRoute("/_authenticated/work")({
   head: () => ({
     meta: [
       { title: "DOT Work — Earn DOT" },
-      { name: "description", content: "Hire builders or sell your skills and earn DOT." },
+      { name: "description", content: "Hire builders, browse jobs, or sell your skills and earn DOT." },
     ],
   }),
   component: WorkPage,
 });
+
+const JOB_EMPLOYMENT_TYPES = [
+  { value: "full_time",   label: "Full-time" },
+  { value: "part_time",   label: "Part-time" },
+  { value: "contract",    label: "Contract" },
+  { value: "internship",  label: "Internship" },
+] as const;
 
 type Service = {
   id: string;
@@ -83,36 +95,32 @@ type Service = {
   is_active: boolean;
 };
 
+/* ═══════════════════════ PAGE SHELL ═══════════════════════ */
 function WorkPage() {
   return (
     <AppShell>
       <PageHeader
         title="DOT Work"
-        subtitle="Hire builders or earn DOT with your skills."
+        subtitle="Hire builders, browse jobs, or earn DOT with your skills."
       />
-
-      <Tabs defaultValue="browse" className="mt-6">
+      <Tabs defaultValue="gigs" className="mt-6">
         <TabsList>
-          <TabsTrigger value="browse">Browse</TabsTrigger>
+          <TabsTrigger value="gigs">Gigs</TabsTrigger>
+          <TabsTrigger value="jobs">Jobs</TabsTrigger>
           <TabsTrigger value="orders">My Orders</TabsTrigger>
           <TabsTrigger value="sell">Sell</TabsTrigger>
         </TabsList>
-        <TabsContent value="browse">
-          <BrowseTab />
-        </TabsContent>
-        <TabsContent value="orders">
-          <OrdersTab />
-        </TabsContent>
-        <TabsContent value="sell">
-          <SellTab />
-        </TabsContent>
+        <TabsContent value="gigs"><GigsTab /></TabsContent>
+        <TabsContent value="jobs"><JobsTab /></TabsContent>
+        <TabsContent value="orders"><OrdersTab /></TabsContent>
+        <TabsContent value="sell"><SellTab /></TabsContent>
       </Tabs>
     </AppShell>
   );
 }
 
-/* ----------------------------- Browse ----------------------------- */
-function BrowseTab() {
+/* ═══════════════════════ GIGS TAB ═══════════════════════ */
+function GigsTab() {
   const { user } = useAuth();
   const [category, setCategory] = useState<string>("");
   const [search, setSearch] = useState("");
@@ -127,7 +135,7 @@ function BrowseTab() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search services…"
+            placeholder="Search gigs…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -140,9 +148,7 @@ function BrowseTab() {
           <SelectContent>
             <SelectItem value="all">All categories</SelectItem>
             {WORK_CATEGORIES.map((c) => (
-              <SelectItem key={c} value={c}>
-                {c}
-              </SelectItem>
+              <SelectItem key={c} value={c}>{c}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -151,11 +157,7 @@ function BrowseTab() {
       {isLoading ? (
         <PageSkeleton.CardGrid count={6} cols={3} />
       ) : visible.length === 0 ? (
-        <EmptyState
-          icon={Store}
-          title="No services found"
-          description="Try a different category or search term."
-        />
+        <EmptyState icon={Store} title="No gigs found" description="Try a different category or search term." />
       ) : (
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {visible.map((s) => (
@@ -163,7 +165,6 @@ function BrowseTab() {
           ))}
         </div>
       )}
-
       <OrderDialog service={order} onClose={() => setOrder(null)} />
     </div>
   );
@@ -194,9 +195,7 @@ function ServiceCard({ service, onOrder }: { service: Service; onOrder: () => vo
           <p className="font-display text-lg font-bold text-primary">{formatDot(service.price_dot)} DOT</p>
           <p className="text-xs text-muted-foreground">{formatNaira(dotToNaira(service.price_dot))}</p>
         </div>
-        <Button variant="hero" onClick={onOrder}>
-          Order
-        </Button>
+        <Button variant="hero" onClick={onOrder}>Order</Button>
       </div>
     </div>
   );
@@ -241,10 +240,7 @@ function OrderDialog({ service, onClose }: { service: Service | null; onClose: (
           <DialogTitle>Order: {service?.title}</DialogTitle>
           <DialogDescription>
             {service && (
-              <>
-                {formatDot(service.price_dot)} DOT will be held from your wallet and released to the builder
-                when you confirm the work is done.
-              </>
+              <>{formatDot(service.price_dot)} DOT will be held from your wallet and released to the builder when you confirm the work is done.</>
             )}
           </DialogDescription>
         </DialogHeader>
@@ -270,7 +266,282 @@ function OrderDialog({ service, onClose }: { service: Service | null; onClose: (
   );
 }
 
-/* ----------------------------- Orders ----------------------------- */
+/* ═══════════════════════ JOBS TAB ═══════════════════════ */
+function JobsTab() {
+  const { roles } = useAuth();
+  const isFounder = roles.includes("founder");
+  const [category, setCategory] = useState("");
+  const [search, setSearch] = useState("");
+  const [minSalary, setMinSalary] = useState("");
+  const [employmentType, setEmploymentType] = useState("");
+  const { data: jobs = [], isLoading } = useJobListings(category || undefined, search);
+  const [selectedJob, setSelectedJob] = useState<JobListing | null>(null);
+  const [showPostForm, setShowPostForm] = useState(false);
+
+  const filtered = jobs.filter((j) => {
+    if (employmentType && j.employment_type !== employmentType) return false;
+    if (minSalary && j.salary_dot < Number(minSalary)) return false;
+    return true;
+  });
+
+  return (
+    <div className="mt-4">
+      {/* Filters row */}
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search jobs…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <Select value={category || "all"} onValueChange={(v) => setCategory(v === "all" ? "" : v)}>
+          <SelectTrigger className="sm:w-44">
+            <SelectValue placeholder="Category" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All categories</SelectItem>
+            {WORK_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={employmentType || "all"} onValueChange={(v) => setEmploymentType(v === "all" ? "" : v)}>
+          <SelectTrigger className="sm:w-40">
+            <SelectValue placeholder="Type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All types</SelectItem>
+            {JOB_EMPLOYMENT_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Input
+          placeholder="Min DOT salary"
+          type="number"
+          min={0}
+          value={minSalary}
+          onChange={(e) => setMinSalary(e.target.value)}
+          className="sm:w-36"
+        />
+        {isFounder ? (
+          <Button variant="hero" onClick={() => setShowPostForm(true)}>
+            <Plus className="size-4" /> Post a Job
+          </Button>
+        ) : (
+          <Button variant="outline" asChild>
+            <Link to="/onboarding">
+              <Lock className="size-4" /> Upgrade to Post
+            </Link>
+          </Button>
+        )}
+      </div>
+
+      {/* Listing */}
+      {isLoading ? (
+        <PageSkeleton.TransactionRows rows={5} />
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          icon={Briefcase}
+          title="No jobs found"
+          description="No open positions match your filters."
+          action={
+            isFounder ? (
+              <Button variant="hero" onClick={() => setShowPostForm(true)}>
+                <Plus className="size-4" /> Post the first job
+              </Button>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Founders can post jobs.{" "}
+                <Link to="/onboarding" className="text-primary underline">Become a Founder</Link>
+              </p>
+            )
+          }
+        />
+      ) : (
+        <div className="mt-6 space-y-3">
+          {filtered.map((j) => (
+            <JobCard key={j.id} job={j} onView={() => setSelectedJob(j)} />
+          ))}
+        </div>
+      )}
+
+      <JobDetailDialog job={selectedJob} onClose={() => setSelectedJob(null)} />
+      {showPostForm && <JobFormDialog onClose={() => setShowPostForm(false)} />}
+    </div>
+  );
+}
+
+function JobCard({ job, onView }: { job: JobListing; onView: () => void }) {
+  const typeLabel = JOB_EMPLOYMENT_TYPES.find((t) => t.value === job.employment_type)?.label ?? job.employment_type;
+  return (
+    <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="font-display text-base font-semibold">{job.title}</h3>
+          <Badge variant="outline">{job.category}</Badge>
+          <Badge variant="secondary">{typeLabel}</Badge>
+        </div>
+        <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{job.description}</p>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Posted {new Date(job.created_at).toLocaleDateString()}
+        </p>
+      </div>
+      <div className="flex shrink-0 flex-col items-end gap-2 sm:items-end">
+        <p className="font-display text-lg font-bold text-primary">{formatDot(job.salary_dot)} DOT</p>
+        <p className="text-xs text-muted-foreground">{formatNaira(dotToNaira(job.salary_dot))}</p>
+        <Button variant="hero" size="sm" onClick={onView}>View job</Button>
+      </div>
+    </div>
+  );
+}
+
+function JobDetailDialog({ job, onClose }: { job: JobListing | null; onClose: () => void }) {
+  const typeLabel = JOB_EMPLOYMENT_TYPES.find((t) => t.value === job?.employment_type)?.label ?? job?.employment_type;
+  return (
+    <Dialog open={!!job} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{job?.title}</DialogTitle>
+          <DialogDescription>
+            <span className="inline-flex flex-wrap gap-2">
+              <Badge variant="outline">{job?.category}</Badge>
+              <Badge variant="secondary">{typeLabel}</Badge>
+              <span className="font-semibold text-primary">{job ? formatDot(job.salary_dot) : ""} DOT / mo</span>
+            </span>
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 text-sm">
+          <div>
+            <p className="font-medium text-foreground">About this role</p>
+            <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{job?.description}</p>
+          </div>
+          {job?.requirements && (
+            <div>
+              <p className="font-medium text-foreground">Requirements</p>
+              <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{job.requirements}</p>
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="hero" onClick={onClose}>Apply via DOT (coming soon)</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function JobFormDialog({ job, onClose }: { job?: JobListing; onClose: () => void }) {
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  const [title, setTitle] = useState(job?.title ?? "");
+  const [description, setDescription] = useState(job?.description ?? "");
+  const [category, setCategory] = useState(job?.category ?? WORK_CATEGORIES[0]);
+  const [salary, setSalary] = useState(job?.salary_dot ?? 5000);
+  const [empType, setEmpType] = useState(job?.employment_type ?? "full_time");
+  const [requirements, setRequirements] = useState(job?.requirements ?? "");
+  const [isOpen, setIsOpen] = useState(job?.is_open ?? true);
+  const [busy, setBusy] = useState(false);
+
+  async function save() {
+    if (!user) return;
+    if (!title.trim() || !description.trim()) {
+      toast.error("Title and description are required.");
+      return;
+    }
+    if (salary <= 0) {
+      toast.error("Salary must be a positive number.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const payload = {
+        venture_id: user.id,
+        title: title.trim(),
+        description: description.trim(),
+        category,
+        salary_dot: Math.floor(salary),
+        employment_type: empType,
+        requirements: requirements.trim() || null,
+        is_open: isOpen,
+      };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const sb = supabase as any;
+      const { error } = job
+        ? await sb.from("job_listings").update(payload).eq("id", job.id)
+        : await sb.from("job_listings").insert(payload);
+      if (error) throw error;
+      qc.invalidateQueries({ queryKey: ["job_listings"] });
+      qc.invalidateQueries({ queryKey: ["my_job_listings"] });
+      toast.success(job ? "Job updated." : "Job posted.");
+      onClose();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not save job");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{job ? "Edit job" : "Post a job"}</DialogTitle>
+          <DialogDescription>Only founders can post jobs. The listing will appear in the Jobs tab.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="j-title">Job title</Label>
+            <Input id="j-title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="j-desc">Description</Label>
+            <Textarea id="j-desc" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={5000} rows={4} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Category</Label>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {WORK_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Employment type</Label>
+              <Select value={empType} onValueChange={setEmpType}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {JOB_EMPLOYMENT_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="j-salary">Salary (DOT / month)</Label>
+            <Input id="j-salary" type="number" min={1} value={salary} onChange={(e) => setSalary(Number(e.target.value))} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="j-req">Requirements (optional)</Label>
+            <Textarea id="j-req" value={requirements} onChange={(e) => setRequirements(e.target.value)} maxLength={2000} rows={3} />
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={isOpen} onChange={(e) => setIsOpen(e.target.checked)} className="size-4 accent-primary" />
+            Listing is open / accepting applications
+          </label>
+        </div>
+        <DialogFooter>
+          <Button variant="hero" onClick={save} disabled={busy}>
+            {busy && <Loader2 className="size-4 animate-spin" />}
+            {job ? "Save" : "Post job"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ═══════════════════════ ORDERS TAB ═══════════════════════ */
 function OrdersTab() {
   const { data: orders = [], isLoading } = useMyOrders("client");
   const qc = useQueryClient();
@@ -289,14 +560,9 @@ function OrdersTab() {
     }
   }
 
-
   if (isLoading) return <PageSkeleton.TransactionRows rows={4} />;
   if (orders.length === 0) return (
-    <EmptyState
-      icon={Package}
-      title="No orders yet"
-      description="You haven't ordered any services yet."
-    />
+    <EmptyState icon={Package} title="No orders yet" description="You haven't ordered any services yet." />
   );
 
   return (
@@ -312,31 +578,22 @@ function OrdersTab() {
                   {formatDot(Number(o.amount_dot))} DOT · {new Date(o.created_at).toLocaleDateString()}
                 </p>
               </div>
-              <Badge variant="secondary" className={cn("shrink-0", meta.tone)}>
-                {meta.label}
-              </Badge>
+              <Badge variant="secondary" className={cn("shrink-0", meta.tone)}>{meta.label}</Badge>
             </div>
             {o.delivery_note && (
               <p className="mt-3 rounded-lg bg-muted/50 p-3 text-sm">
-                <span className="font-medium">Delivery: </span>
-                {o.delivery_note}
+                <span className="font-medium">Delivery: </span>{o.delivery_note}
               </p>
             )}
             <div className="mt-4 flex flex-wrap gap-2">
               {(o.status === "in_progress" || o.status === "delivered") && (
                 <>
-                  <Button
-                    variant="hero"
-                    size="sm"
-                    onClick={() => run(supabase.rpc("complete_service_order", { _order_id: o.id }), "Order completed — builder paid.")}
-                  >
+                  <Button variant="hero" size="sm"
+                    onClick={() => run(supabase.rpc("complete_service_order", { _order_id: o.id }), "Order completed — builder paid.")}>
                     <CheckCircle2 className="size-4" /> Confirm & pay
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => run(supabase.rpc("cancel_service_order", { _order_id: o.id }), "Order cancelled — you were refunded.")}
-                  >
+                  <Button variant="outline" size="sm"
+                    onClick={() => run(supabase.rpc("cancel_service_order", { _order_id: o.id }), "Order cancelled — you were refunded.")}>
                     Cancel
                   </Button>
                 </>
@@ -414,15 +671,18 @@ function ReviewDialog({ order, onClose }: { order: { id: string; title: string }
   );
 }
 
-/* ----------------------------- Sell ----------------------------- */
+/* ═══════════════════════ SELL TAB ═══════════════════════ */
 function SellTab() {
-  const { user } = useAuth();
+  const { user, roles } = useAuth();
+  const isFounder = roles.includes("founder");
   const { data: profile, isLoading: pLoading } = useMyBuilderProfile();
   const { data: services = [] } = useMyServices();
   const { data: orders = [] } = useMyOrders("builder");
+  const { data: myJobs = [] } = useMyJobListings();
   const { data: stats } = useBuilderStats(user?.id);
   const qc = useQueryClient();
   const [editService, setEditService] = useState<Service | null | "new">(null);
+  const [editJob, setEditJob] = useState<JobListing | null | "new">(null);
   const [deliveryOrder, setDeliveryOrder] = useState<{ id: string; title: string } | null>(null);
 
   async function deliver(orderId: string, note: string) {
@@ -451,6 +711,19 @@ function SellTab() {
     }
   }
 
+  async function deleteJob(id: string) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase as any).from("job_listings").delete().eq("id", id);
+      if (error) throw error;
+      qc.invalidateQueries({ queryKey: ["job_listings"] });
+      qc.invalidateQueries({ queryKey: ["my_job_listings"] });
+      toast.success("Job listing removed.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not remove");
+    }
+  }
+
   if (pLoading) return <PageSkeleton.StatCards count={3} />;
 
   if (!profile) {
@@ -465,19 +738,10 @@ function SellTab() {
 
   return (
     <div className="mt-4 space-y-8">
+      {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard
-          label="Earned"
-          value={`${formatDot(Number(stats?.total_earned ?? 0))} DOT`}
-          icon={Wallet}
-          accent="primary"
-        />
-        <StatCard
-          label="Completed"
-          value={String(Number(stats?.orders_completed ?? 0))}
-          icon={CheckCircle2}
-          accent="primary"
-        />
+        <StatCard label="Earned" value={`${formatDot(Number(stats?.total_earned ?? 0))} DOT`} icon={Wallet} accent="primary" />
+        <StatCard label="Completed" value={String(Number(stats?.orders_completed ?? 0))} icon={CheckCircle2} accent="primary" />
         <StatCard
           label="Rating"
           value={Number(stats?.review_count ?? 0) > 0 ? String(Number(stats?.avg_rating)) : "—"}
@@ -489,23 +753,17 @@ function SellTab() {
 
       <BuilderProfileForm existing={profile} />
 
+      {/* My Gig Services */}
       <section>
         <div className="flex items-center justify-between">
-          <h2 className="font-display text-lg font-semibold">Your services</h2>
+          <h2 className="font-display text-lg font-semibold">Your gig services</h2>
           <Button variant="hero" size="sm" onClick={() => setEditService("new")}>
             <Plus className="size-4" /> New service
           </Button>
         </div>
         {services.length === 0 ? (
-          <EmptyState
-            icon={Store}
-            title="No services yet"
-            description="Create a service to start earning DOT."
-            action={
-              <Button variant="hero" size="sm" onClick={() => setEditService("new")}>
-                <Plus className="size-4" /> New service
-              </Button>
-            }
+          <EmptyState icon={Store} title="No services yet" description="Create a service to start earning DOT."
+            action={<Button variant="hero" size="sm" onClick={() => setEditService("new")}><Plus className="size-4" /> New service</Button>}
           />
         ) : (
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -518,10 +776,10 @@ function SellTab() {
                   </p>
                 </div>
                 <div className="flex shrink-0 gap-1">
-                  <Button variant="ghost" size="icon" onClick={() => setEditService(s as Service)}>
+                  <Button variant="ghost" size="icon" onClick={() => setEditService(s as Service)} aria-label="Edit service">
                     <Pencil className="size-4" />
                   </Button>
-                  <Button variant="ghost" size="icon" onClick={() => deleteService(s.id)}>
+                  <Button variant="ghost" size="icon" onClick={() => deleteService(s.id)} aria-label="Delete service">
                     <Trash2 className="size-4 text-destructive" />
                   </Button>
                 </div>
@@ -531,15 +789,49 @@ function SellTab() {
         )}
       </section>
 
+      {/* My Job Listings (founders only) */}
+      {isFounder && (
+        <section>
+          <div className="flex items-center justify-between">
+            <h2 className="font-display text-lg font-semibold">Your job listings</h2>
+            <Button variant="hero" size="sm" onClick={() => setEditJob("new")}>
+              <Plus className="size-4" /> Post a job
+            </Button>
+          </div>
+          {myJobs.length === 0 ? (
+            <EmptyState icon={Briefcase} title="No job listings yet" description="Post a job to find full-time, part-time, or contract talent."
+              action={<Button variant="hero" size="sm" onClick={() => setEditJob("new")}><Plus className="size-4" /> Post a job</Button>}
+            />
+          ) : (
+            <div className="mt-4 space-y-3">
+              {myJobs.map((j) => (
+                <div key={j.id} className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{j.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {j.category} · {formatDot(j.salary_dot)} DOT {!j.is_open && "· closed"}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => setEditJob(j)} aria-label="Edit job">
+                      <Pencil className="size-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => deleteJob(j.id)} aria-label="Delete job">
+                      <Trash2 className="size-4 text-destructive" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Incoming gig orders */}
       <section>
         <h2 className="font-display text-lg font-semibold">Incoming orders</h2>
         {activeOrders.length === 0 ? (
-          <EmptyState
-            variant="inline"
-            icon={Package}
-            title="No active orders"
-            description="No active orders right now."
-          />
+          <EmptyState variant="inline" icon={Package} title="No active orders" description="No active orders right now." />
         ) : (
           <div className="mt-4 space-y-3">
             {activeOrders.map((o) => {
@@ -551,18 +843,16 @@ function SellTab() {
                       <p className="truncate font-medium">{o.title}</p>
                       <p className="text-xs text-muted-foreground">{formatDot(Number(o.amount_dot))} DOT</p>
                     </div>
-                    <Badge variant="secondary" className={cn("shrink-0", meta.tone)}>
-                      {meta.label}
-                    </Badge>
+                    <Badge variant="secondary" className={cn("shrink-0", meta.tone)}>{meta.label}</Badge>
                   </div>
                   {o.requirements && (
                     <p className="mt-3 rounded-lg bg-muted/50 p-3 text-sm">
-                      <span className="font-medium">Brief: </span>
-                      {o.requirements}
+                      <span className="font-medium">Brief: </span>{o.requirements}
                     </p>
                   )}
                   {o.status === "in_progress" && (
-                    <Button variant="hero" size="sm" className="mt-4" onClick={() => setDeliveryOrder({ id: o.id, title: o.title })}>
+                    <Button variant="hero" size="sm" className="mt-4"
+                      onClick={() => setDeliveryOrder({ id: o.id, title: o.title })}>
                       Mark delivered
                     </Button>
                   )}
@@ -574,12 +864,11 @@ function SellTab() {
       </section>
 
       {editService !== null && (
-        <ServiceFormDialog
-          service={editService === "new" ? null : editService}
-          onClose={() => setEditService(null)}
-        />
+        <ServiceFormDialog service={editService === "new" ? null : editService} onClose={() => setEditService(null)} />
       )}
-
+      {editJob !== null && (
+        <JobFormDialog job={editJob === "new" ? undefined : editJob} onClose={() => setEditJob(null)} />
+      )}
       <DeliveryDialog
         orderId={deliveryOrder?.id ?? null}
         orderTitle={deliveryOrder?.title ?? ""}
@@ -590,6 +879,7 @@ function SellTab() {
   );
 }
 
+/* ═══════════════════════ SHARED FORMS ═══════════════════════ */
 function BuilderProfileForm({ existing }: { existing?: { headline: string; bio: string | null; skills: string[]; available: boolean } }) {
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -631,13 +921,8 @@ function BuilderProfileForm({ existing }: { existing?: { headline: string; bio: 
       <div className="mt-4 space-y-3">
         <div className="space-y-1.5">
           <Label htmlFor="headline">Headline</Label>
-          <Input
-            id="headline"
-            value={headline}
-            onChange={(e) => setHeadline(e.target.value)}
-            placeholder="e.g. Brand & product designer for African startups"
-            maxLength={120}
-          />
+          <Input id="headline" value={headline} onChange={(e) => setHeadline(e.target.value)}
+            placeholder="e.g. Brand & product designer for African startups" maxLength={120} />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="bio">Bio</Label>
@@ -722,15 +1007,9 @@ function ServiceFormDialog({ service, onClose }: { service: Service | null; onCl
           <div className="space-y-1.5">
             <Label>Category</Label>
             <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {WORK_CATEGORIES.map((c) => (
-                  <SelectItem key={c} value={c}>
-                    {c}
-                  </SelectItem>
-                ))}
+                {WORK_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -759,5 +1038,3 @@ function ServiceFormDialog({ service, onClose }: { service: Service | null; onCl
     </Dialog>
   );
 }
-
-

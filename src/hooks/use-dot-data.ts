@@ -204,3 +204,58 @@ export function useBuilderStats(builderId?: string) {
   });
 }
 
+// ============ Job Listings ============
+
+export type JobListing = {
+  id: string;
+  venture_id: string;
+  title: string;
+  description: string;
+  category: string;
+  salary_dot: number;
+  employment_type: string;
+  requirements: string | null;
+  is_open: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const supabaseAny = supabase as any;
+
+export function useJobListings(category?: string, search?: string) {
+  return useQuery({
+    queryKey: ["job_listings", category ?? "all", search ?? ""],
+    queryFn: async () => {
+      // job_listings is a new table not yet reflected in the generated types
+      let q = supabaseAny
+        .from("job_listings")
+        .select("*")
+        .eq("is_open", true)
+        .order("created_at", { ascending: false });
+      if (category) q = q.eq("category", category);
+      if (search && search.trim()) q = q.ilike("title", `%${search.trim()}%`);
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data ?? []) as JobListing[];
+    },
+  });
+}
+
+export function useMyJobListings() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["my_job_listings", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabaseAny
+        .from("job_listings")
+        .select("*")
+        .eq("venture_id", user!.id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as JobListing[];
+    },
+  });
+}
+
