@@ -12,9 +12,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { supabase } from "@/integrations/supabase/client";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/use-auth";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useDotAuth } from "@/contexts/DotAuthContext";
+import {
+  getMyCommunity,
+  listMembers,
+  getReferralCode,
+  createCommunity,
+  type CommunityMember,
+} from "@/api/community";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/community")({
@@ -22,92 +28,50 @@ export const Route = createFileRoute("/_authenticated/community")({
   component: CommunityPage,
 });
 
-interface FounderInfo {
-  user_id: string;
-  venture_name: string | null;
-  vantage_point: number | null;
-  stage: string | null;
-}
-
-interface MemberRow {
-  id: string;
-  community_id: string;
-  founder_id: string;
-  status: string;
-  joined_at: string;
-  founder_profiles: FounderInfo | null;
-}
-
-
 function CommunityPage() {
-  const { user } = useAuth();
+  const { user } = useDotAuth();
   const qc = useQueryClient();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [region, setRegion] = useState("");
   const [category, setCategory] = useState("");
-  const [busy, setBusy] = useState(false);
 
   const { data: community, isLoading } = useQuery({
-    queryKey: ["my-community", user?.id],
+    queryKey: ["my-community"],
+    queryFn: getMyCommunity,
     enabled: !!user,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("communities")
-        .select("id, name, description, category, region, leader_id, created_at, updated_at")
-        .eq("leader_id", user!.id)
-        .maybeSingle();
-      if (error) throw error;
-      if (!data) return null;
-      const { data: code } = await supabase.rpc("get_my_referral_code");
-      return { ...data, referral_code: (code as string | null) ?? "" };
-    },
   });
+
+  const communityId = community?.id;
 
   const { data: members = [] } = useQuery({
-    queryKey: ["community-members", community?.id],
-    enabled: !!community,
-    queryFn: async (): Promise<MemberRow[]> => {
-      const { data: rows, error } = await supabase
-        .from("community_members")
-        .select("*")
-        .eq("community_id", community!.id);
-      if (error) throw error;
-      const list = rows ?? [];
-      if (list.length === 0) return [];
-      const ids = list.map((r) => r.founder_id);
-      const { data: profiles } = await supabase
-        .from("founder_profiles")
-        .select("user_id, venture_name, vantage_point, stage")
-        .in("user_id", ids);
-      const map = new Map((profiles ?? []).map((p) => [p.user_id, p]));
-      return list.map((r) => ({
-        ...r,
-        founder_profiles: map.get(r.founder_id) ?? null,
-      }));
+    queryKey: ["community-members", communityId],
+    queryFn: () => listMembers(communityId!),
+    enabled: !!communityId,
+  });
+
+  const { data: referralCode } = useQuery({
+    queryKey: ["referral-code"],
+    queryFn: getReferralCode,
+    enabled: !!communityId,
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (data: { name: string; description: string; region: string; category: string }) =>
+      createCommunity(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["my-community"] });
+      toast.success("Community created!");
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Could not create");
     },
   });
 
-  async function createCommunity(e: React.FormEvent) {
+  async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     if (!user) return;
-    setBusy(true);
-    try {
-      const { error } = await supabase.from("communities").insert({
-        name,
-        description,
-        region,
-        category,
-        leader_id: user.id,
-      });
-      if (error) throw error;
-      qc.invalidateQueries({ queryKey: ["my-community", user.id] });
-      toast.success("Community created!");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not create");
-    } finally {
-      setBusy(false);
-    }
+    await createMutation.mutateAsync({ name, description, region, category });
   }
 
   if (isLoading) {
@@ -127,7 +91,7 @@ function CommunityPage() {
           title="Create your community"
           subtitle="Launch your community and start onboarding founders."
         />
-        <form onSubmit={createCommunity} className="mt-6 max-w-lg space-y-4 rounded-2xl border border-border bg-card p-6">
+        <form onSubmit={handleCreate} className="mt-6 max-w-lg space-y-4 rounded-2xl border border-border bg-card p-6">
           <div className="space-y-2">
             <Label htmlFor="name">Community name</Label>
             <Input id="name" required value={name} onChange={(e) => setName(e.target.value)} placeholder="Lagos Builders" />
@@ -146,8 +110,8 @@ function CommunityPage() {
             <Label htmlFor="desc">Description</Label>
             <Textarea id="desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
           </div>
-          <Button type="submit" variant="hero" disabled={busy}>
-            {busy ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+          <Button type="submit" variant="hero" disabled={createMutation.isPending}>
+            {createMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
             Create community
           </Button>
         </form>
@@ -155,15 +119,9 @@ function CommunityPage() {
     );
   }
 
-  const joinUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/join/${community.referral_code}`;
+  const code = referralCode ?? community.referralCode;
+  const joinUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/join/${code}`;
   const activeCount = members.filter((m) => m.status === "active").length;
-  const withVantage = members.filter((m) => (m.founder_profiles as { vantage_point?: number } | null)?.vantage_point).length;
-  const avgVantage = members.length
-    ? Math.round(
-        members.reduce((s, m) => s + ((m.founder_profiles as { vantage_point?: number } | null)?.vantage_point ?? 0), 0) /
-          members.length,
-      )
-    : 0;
 
   return (
     <AppShell>
@@ -175,8 +133,8 @@ function CommunityPage() {
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Members" value={String(members.length)} icon={Users} accent="primary" />
         <StatCard label="Active founders" value={String(activeCount)} icon={TrendingUp} accent="primary" />
-        <StatCard label="Vantage completed" value={String(withVantage)} icon={CheckCircle2} accent="gold" />
-        <StatCard label="Avg Vantage" value={String(avgVantage)} sub="/ 1000" icon={Gauge} accent="gold" />
+        <StatCard label="Vantage completed" value={String(0)} icon={CheckCircle2} accent="gold" />
+        <StatCard label="Avg Vantage" value={String(0)} sub="/ 1000" icon={Gauge} accent="gold" />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
@@ -185,39 +143,36 @@ function CommunityPage() {
           <DataTable
             columns={[
               {
-                key: "venture",
-                header: "Venture",
-                cell: (m) => {
-                  const fp = m.founder_profiles as { venture_name?: string } | null;
-                  return <span className="font-medium">{fp?.venture_name ?? "—"}</span>;
-                },
+                key: "founder",
+                header: "Founder",
+                cell: (m: CommunityMember) => (
+                  <span className="font-medium">{m.founder?.name ?? "—"}</span>
+                ),
               },
               {
-                key: "stage",
-                header: "Stage",
+                key: "dotId",
+                header: "DOT ID",
                 hideOnMobile: true,
-                cell: (m) => {
-                  const fp = m.founder_profiles as { stage?: string } | null;
-                  return <span className="text-muted-foreground">{fp?.stage ?? "—"}</span>;
-                },
+                cell: (m: CommunityMember) => (
+                  <span className="text-muted-foreground">{m.founder?.dotId ?? "—"}</span>
+                ),
               },
               {
-                key: "vantage",
-                header: "Vantage",
+                key: "status",
+                header: "Status",
                 align: "right",
-                cell: (m) => {
-                  const fp = m.founder_profiles as { vantage_point?: number } | null;
-                  return <span className="tabular">{fp?.vantage_point ?? 0}</span>;
-                },
+                cell: (m: CommunityMember) => (
+                  <span className="tabular">{m.status}</span>
+                ),
               },
               {
                 key: "joined",
                 header: "Joined",
                 align: "right",
                 hideOnMobile: true,
-                cell: (m) => (
+                cell: (m: CommunityMember) => (
                   <span className="text-muted-foreground">
-                    {new Date(m.joined_at).toLocaleDateString()}
+                    {new Date(m.joinedAt).toLocaleDateString()}
                   </span>
                 ),
               },
@@ -242,7 +197,7 @@ function CommunityPage() {
           </div>
           <p className="mt-4 text-xs text-muted-foreground">Referral code</p>
           <div className="mt-1 flex items-center gap-2">
-            <code className="flex-1 rounded-lg bg-muted px-3 py-2 text-sm font-medium">{community.referral_code}</code>
+            <code className="flex-1 rounded-lg bg-muted px-3 py-2 text-sm font-medium">{code}</code>
             <Button
               variant="outline"
               size="icon"
@@ -260,5 +215,3 @@ function CommunityPage() {
     </AppShell>
   );
 }
-
-

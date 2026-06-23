@@ -1,17 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { BookOpen, ExternalLink, Loader2, CheckCircle2, Award, Gift } from "lucide-react";
+import { BookOpen, ExternalLink, CheckCircle2, Award, Gift } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
 import { EmptyState } from "@/components/app/EmptyState";
 import { PageSkeleton } from "@/components/app/PageSkeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/integrations/supabase/client";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/use-auth";
-import { useMyEnrollments } from "@/hooks/use-dot-data";
-import { useServerFn } from "@tanstack/react-start";
-import { completeCourse } from "@/lib/academy.functions";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useDotAuth } from "@/contexts/DotAuthContext";
+import { listCourses, getMyEnrollments, enrollInCourse, completeCourse } from "@/api/academy";
 import { formatDot } from "@/lib/constants";
 import { toast } from "sonner";
 
@@ -26,33 +23,39 @@ export const Route = createFileRoute("/_authenticated/academy")({
 });
 
 function AcademyPage() {
-  const { user } = useAuth();
+  const { user } = useDotAuth();
   const qc = useQueryClient();
-  const completeCourseFn = useServerFn(completeCourse);
+
   const { data: courses = [], isLoading } = useQuery({
     queryKey: ["courses"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("courses")
-        .select("*")
-        .eq("is_published", true)
-        .order("created_at");
-      if (error) throw error;
-      return data ?? [];
+    queryFn: listCourses,
+  });
+
+  const { data: enrollments = [] } = useQuery({
+    queryKey: ["my-enrollments"],
+    queryFn: getMyEnrollments,
+    enabled: !!user,
+  });
+
+  const enrollMutation = useMutation({
+    mutationFn: (courseId: string) => enrollInCourse(courseId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["my-enrollments"] }),
+  });
+
+  const completeMutation = useMutation({
+    mutationFn: (courseId: string) => completeCourse(courseId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["my-enrollments"] });
+      qc.invalidateQueries({ queryKey: ["wallet"] });
     },
   });
-  const { data: enrollments = [] } = useMyEnrollments();
 
-  const enrollMap = new Map(enrollments.map((e) => [e.course_id, e]));
+  const enrollMap = new Map(enrollments.map((e) => [e.courseId, e]));
 
   async function enroll(courseId: string, whopUrl: string | null) {
     if (!user) return;
     try {
-      const { error } = await supabase
-        .from("course_enrollments")
-        .upsert({ course_id: courseId, user_id: user.id, status: "enrolled" }, { onConflict: "course_id,user_id" });
-      if (error) throw error;
-      qc.invalidateQueries({ queryKey: ["enrollments", user.id] });
+      await enrollMutation.mutateAsync(courseId);
       toast.success("Enrolled! Opening course on Whop.");
       if (whopUrl) window.open(whopUrl, "_blank", "noopener");
     } catch (err) {
@@ -63,12 +66,7 @@ function AcademyPage() {
   async function complete(courseId: string, reward: number) {
     if (!user) return;
     try {
-      // Completion and the DOT reward are verified and granted server-side
-      // (idempotent). The client cannot set the amount or self-award.
-      await completeCourseFn({ data: { courseId } });
-      qc.invalidateQueries({ queryKey: ["enrollments", user.id] });
-      qc.invalidateQueries({ queryKey: ["wallet", user.id] });
-      qc.invalidateQueries({ queryKey: ["transactions", user.id] });
+      await completeMutation.mutateAsync(courseId);
       toast.success(reward > 0 ? `Completed! +${formatDot(reward)} DOT earned.` : "Marked complete!");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not update");
@@ -113,12 +111,12 @@ function AcademyPage() {
                 <h3 className="mt-4 font-display text-lg font-semibold">{c.title}</h3>
                 <p className="mt-1 flex-1 text-sm text-muted-foreground">{c.description}</p>
                 <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
-                  {c.dot_reward > 0 && (
+                  {c.dotReward > 0 && (
                     <span className="flex items-center gap-1 text-gold">
-                      <Gift className="size-3" /> +{formatDot(c.dot_reward)} DOT
+                      <Gift className="size-3" /> +{formatDot(c.dotReward)} DOT
                     </span>
                   )}
-                  {c.vantage_boost > 0 && <span>+{c.vantage_boost} Vantage</span>}
+                  {c.vantageBoost > 0 && <span>+{c.vantageBoost} Vantage</span>}
                 </div>
                 <div className="mt-4 flex gap-2">
                   {done ? (
@@ -127,15 +125,15 @@ function AcademyPage() {
                     </Button>
                   ) : enr ? (
                     <>
-                      <Button variant="outline" className="flex-1" onClick={() => c.whop_url && window.open(c.whop_url, "_blank", "noopener")}>
+                      <Button variant="outline" className="flex-1" onClick={() => c.whopUrl && window.open(c.whopUrl, "_blank", "noopener")}>
                         <ExternalLink className="size-4" /> Open
                       </Button>
-                      <Button variant="hero" onClick={() => complete(c.id, c.dot_reward)}>
+                      <Button variant="hero" onClick={() => complete(c.id, c.dotReward)}>
                         Mark done
                       </Button>
                     </>
                   ) : (
-                    <Button variant="hero" className="flex-1" onClick={() => enroll(c.id, c.whop_url)}>
+                    <Button variant="hero" className="flex-1" onClick={() => enroll(c.id, c.whopUrl)}>
                       Enroll <ExternalLink className="size-4" />
                     </Button>
                   )}
