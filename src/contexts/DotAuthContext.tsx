@@ -1,12 +1,8 @@
 /**
  * DotAuthContext — Authentication context backed by the Fastify API.
  *
- * Exports the same interface as the existing Supabase-based AuthContext
- * so pages can be migrated one at a time without breaking others.
- *
- * Usage (when migrating a page):
- *   import { useDotAuth } from "@/contexts/DotAuthContext";
- *   const { user, login, logout, isLoading } = useDotAuth();
+ * Client-side only: all localStorage access and API calls are guarded
+ * behind useEffect so they never run during SSR.
  */
 
 import {
@@ -22,7 +18,7 @@ import { getToken, setToken, clearToken } from "@/api/client";
 import type { User } from "@/types/api";
 import type { SignupData } from "@/api/auth";
 
-/* ── Context shape — mirrors existing AuthContext ────────── */
+/* ── Context shape ─────────────────────────────────────── */
 
 interface DotAuthContextValue {
   user: User | null;
@@ -31,9 +27,7 @@ interface DotAuthContextValue {
   signup: (data: SignupData) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
-  /** Re-fetch user from the server (e.g., after role upgrade) */
   refresh: () => Promise<void>;
-  /** Convenience helpers */
   hasRole: (role: string) => boolean;
   primaryRole: string | null;
   roles: string[];
@@ -41,31 +35,55 @@ interface DotAuthContextValue {
 
 const DotAuthContext = createContext<DotAuthContextValue | undefined>(undefined);
 
-const ROLE_PRIORITY = ["admin", "super_admin", "community_leader", "investor", "founder", "vendor", "builder"];
+const ROLE_PRIORITY = [
+  "admin", "super_admin", "community_leader", "investor",
+  "founder", "vendor", "builder",
+];
 
-/* ── Provider ───────────────────────────────────────────── */
+/* ── Provider ──────────────────────────────────────────── */
 
 export function DotAuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setTokenState] = useState<string | null>(getToken());
+  // Start as null / loading=true — never read localStorage during SSR
+  const [user, setUser]         = useState<User | null>(null);
+  const [token, setTokenState]  = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const loadUser = useCallback(async () => {
-    const stored = getToken();
-    if (!stored) {
-      setUser(null);
-      setTokenState(null);
+    // Guard: only runs on the client
+    if (typeof window === "undefined") {
       setIsLoading(false);
       return;
     }
-    const u = await getMe();
-    setUser(u);
-    setTokenState(u ? stored : null);
-    if (!u) clearToken();
-    setIsLoading(false);
+
+    try {
+      const stored = getToken();
+      if (!stored) {
+        setUser(null);
+        setTokenState(null);
+        setIsLoading(false);
+        return;
+      }
+
+      const u = await getMe();
+      if (u) {
+        setUser(u);
+        setTokenState(stored);
+      } else {
+        clearToken();
+        setUser(null);
+        setTokenState(null);
+      }
+    } catch {
+      // Token invalid or API unreachable — stay logged out
+      clearToken();
+      setUser(null);
+      setTokenState(null);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
-  // On mount — load user from stored token
+  // Only runs on the client after hydration
   useEffect(() => {
     loadUser();
   }, [loadUser]);
@@ -108,7 +126,7 @@ export function DotAuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
-/* ── Hook ───────────────────────────────────────────────── */
+/* ── Hook ──────────────────────────────────────────────── */
 
 export function useDotAuth(): DotAuthContextValue {
   const ctx = useContext(DotAuthContext);

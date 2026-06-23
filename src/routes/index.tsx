@@ -29,6 +29,7 @@ import { Button } from "@/components/ui/button";
 import heroImg from "@/assets/hero-dot.jpg";
 
 export const Route = createFileRoute("/")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "DOT — Africa's Venture Progression Network" },
