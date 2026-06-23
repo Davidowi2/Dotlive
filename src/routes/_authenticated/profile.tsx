@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { User, Globe, Save, Loader2, Camera } from "lucide-react";
+import { Globe, Save, Loader2, Camera } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
 import { PageSkeleton } from "@/components/app/PageSkeleton";
@@ -16,12 +16,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/use-auth";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useDotAuth } from "@/contexts/DotAuthContext";
 import { useFounderProfile } from "@/hooks/use-dot-data";
+import { updateProfile } from "@/api/users";
+import { uploadImage } from "@/api/upload";
 import { INDUSTRIES, AFRICAN_COUNTRIES } from "@/lib/constants";
+import { ApiError } from "@/types/api";
 import { toast } from "sonner";
+
+// Founder profile updates still go through Supabase until that endpoint is built
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({ meta: [{ title: "Edit Profile — DOT" }] }),
@@ -29,37 +34,37 @@ export const Route = createFileRoute("/_authenticated/profile")({
 });
 
 function ProfileEditPage() {
-  const { user, profile, refresh, roles } = useAuth();
+  const { user, refresh } = useDotAuth();
   const { data: founder, isLoading: founderLoading } = useFounderProfile();
   const qc = useQueryClient();
-  const isFounder = roles.includes("founder");
+  const isFounder = (user?.roles ?? []).includes("founder");
 
   const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
   const [ventureName, setVentureName] = useState("");
   const [industry, setIndustry] = useState("");
   const [country, setCountry] = useState("");
   const [bio, setBio] = useState("");
   const [website, setWebsite] = useState("");
   const [fundingGoal, setFundingGoal] = useState("");
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // Pre-fill when data loads
+  // Pre-fill from DotAuth user
   useEffect(() => {
-    if (profile) {
-      setName(profile.name ?? "");
-      setPhone(profile.phone ?? "");
+    if (user) {
+      setName(user.name ?? "");
     }
-  }, [profile]);
+  }, [user]);
 
+  // Pre-fill founder data (still from Supabase hook for now)
   useEffect(() => {
     if (founder) {
-      setVentureName(founder.venture_name ?? "");
-      setIndustry(founder.industry ?? "");
-      setCountry(founder.country ?? "");
-      setBio(founder.bio ?? "");
-      setWebsite(founder.website ?? "");
-      setFundingGoal(founder.funding_goal ? String(founder.funding_goal) : "");
+      setVentureName((founder as any).venture_name ?? "");
+      setIndustry((founder as any).industry ?? "");
+      setCountry((founder as any).country ?? "");
+      setBio((founder as any).bio ?? "");
+      setWebsite((founder as any).website ?? "");
+      setFundingGoal((founder as any).funding_goal ? String((founder as any).funding_goal) : "");
     }
   }, [founder]);
 
@@ -68,14 +73,20 @@ function ProfileEditPage() {
     if (!user) return;
     setBusy(true);
     try {
-      // Update profiles table
-      const { error: profErr } = await supabase
-        .from("profiles")
-        .update({ name: name.trim(), phone: phone.trim() || null })
-        .eq("id", user.id);
-      if (profErr) throw profErr;
+      // Upload avatar if a new file was selected
+      let avatarUrl: string | undefined;
+      if (avatarFile) {
+        avatarUrl = await uploadImage(avatarFile, "avatars");
+      }
 
-      // Update founder_profiles if founder
+      // Update core profile via Fastify API
+      await updateProfile({
+        name: name.trim() || undefined,
+        avatarUrl,
+      });
+
+      // Update founder venture details — still via Supabase until the Fastify
+      // venture endpoint is wired to this form
       if (isFounder) {
         const { error: fpErr } = await supabase
           .from("founder_profiles")
@@ -95,7 +106,13 @@ function ProfileEditPage() {
       qc.invalidateQueries({ queryKey: ["founder_profile", user.id] });
       toast.success("Profile updated.");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not save profile");
+      const msg =
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Could not save profile";
+      toast.error(msg);
     } finally {
       setBusy(false);
     }
@@ -110,7 +127,8 @@ function ProfileEditPage() {
     );
   }
 
-  const initial = (profile?.name || profile?.email || "?").charAt(0).toUpperCase();
+  const initial = (user?.name || user?.email || "?").charAt(0).toUpperCase();
+  const avatarPreview = avatarFile ? URL.createObjectURL(avatarFile) : user?.avatarUrl ?? null;
 
   return (
     <AppShell>
@@ -128,19 +146,36 @@ function ProfileEditPage() {
       <form onSubmit={handleSave} className="mt-8 grid gap-8 lg:grid-cols-3">
         {/* Avatar panel */}
         <div className="flex flex-col items-center gap-4 rounded-2xl border border-border bg-card p-6">
-          <div className="relative">
-            <div className="flex size-24 items-center justify-center rounded-full [background-image:var(--gradient-primary)] font-display text-3xl font-bold text-primary-foreground">
-              {initial}
-            </div>
+          <label htmlFor="avatar-upload" className="relative cursor-pointer">
+            {avatarPreview ? (
+              <img
+                src={avatarPreview}
+                alt="Avatar"
+                className="size-24 rounded-full object-cover"
+              />
+            ) : (
+              <div className="flex size-24 items-center justify-center rounded-full [background-image:var(--gradient-primary)] font-display text-3xl font-bold text-primary-foreground">
+                {initial}
+              </div>
+            )}
             <span className="absolute -bottom-1 -right-1 flex size-8 items-center justify-center rounded-full border-2 border-card bg-primary text-primary-foreground shadow-sm">
               <Camera className="size-3.5" />
             </span>
-          </div>
+            <input
+              id="avatar-upload"
+              type="file"
+              accept="image/*"
+              className="sr-only"
+              onChange={(e) => setAvatarFile(e.target.files?.[0] ?? null)}
+            />
+          </label>
           <div className="text-center">
-            <p className="font-display font-semibold">{profile?.name || "—"}</p>
-            <p className="text-sm text-muted-foreground">{profile?.email}</p>
+            <p className="font-display font-semibold">{user?.name || "—"}</p>
+            <p className="text-sm text-muted-foreground">{user?.email}</p>
           </div>
-          <p className="text-xs text-muted-foreground">Avatar upload coming soon</p>
+          {avatarFile && (
+            <p className="text-xs text-primary">{avatarFile.name} — will upload on save</p>
+          )}
         </div>
 
         {/* Form fields */}
@@ -151,16 +186,26 @@ function ProfileEditPage() {
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="name">Full name</Label>
-                <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Amara Okafor" />
+                <Input
+                  id="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Amara Okafor"
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" value={profile?.email ?? ""} disabled className="opacity-60" />
+                <Input
+                  id="email"
+                  value={user?.email ?? ""}
+                  disabled
+                  className="opacity-60"
+                />
                 <p className="text-xs text-muted-foreground">Email cannot be changed here</p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="phone">Phone</Label>
-                <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+234 801 234 5678" />
+                <Label>DOT ID</Label>
+                <Input value={user?.dotId ?? ""} disabled className="font-mono opacity-60" />
               </div>
             </div>
           </div>
@@ -172,24 +217,37 @@ function ProfileEditPage() {
               <div className="mt-5 space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="venture">Venture name</Label>
-                  <Input id="venture" value={ventureName} onChange={(e) => setVentureName(e.target.value)} placeholder="PayAfrika" />
+                  <Input
+                    id="venture"
+                    value={ventureName}
+                    onChange={(e) => setVentureName(e.target.value)}
+                    placeholder="PayAfrika"
+                  />
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label>Industry</Label>
                     <Select value={industry} onValueChange={setIndustry}>
-                      <SelectTrigger><SelectValue placeholder="Select industry" /></SelectTrigger>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select industry" />
+                      </SelectTrigger>
                       <SelectContent>
-                        {INDUSTRIES.map((i) => <SelectItem key={i} value={i}>{i}</SelectItem>)}
+                        {INDUSTRIES.map((i) => (
+                          <SelectItem key={i} value={i}>{i}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
                     <Label>Country</Label>
                     <Select value={country} onValueChange={setCountry}>
-                      <SelectTrigger><SelectValue placeholder="Select country" /></SelectTrigger>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select country" />
+                      </SelectTrigger>
                       <SelectContent>
-                        {AFRICAN_COUNTRIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                        {AFRICAN_COUNTRIES.map((c) => (
+                          <SelectItem key={c} value={c}>{c}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -198,17 +256,35 @@ function ProfileEditPage() {
                   <Label htmlFor="website">Website</Label>
                   <div className="relative">
                     <Globe className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input id="website" className="pl-9" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="yourventure.io" />
+                    <Input
+                      id="website"
+                      className="pl-9"
+                      value={website}
+                      onChange={(e) => setWebsite(e.target.value)}
+                      placeholder="yourventure.io"
+                    />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="bio">Bio</Label>
-                  <Textarea id="bio" rows={3} value={bio} onChange={(e) => setBio(e.target.value)}
-                    placeholder="What does your venture do?" maxLength={500} />
+                  <Textarea
+                    id="bio"
+                    rows={3}
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    placeholder="What does your venture do?"
+                    maxLength={500}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="goal">Funding goal (₦)</Label>
-                  <Input id="goal" type="number" value={fundingGoal} onChange={(e) => setFundingGoal(e.target.value)} placeholder="5000000" />
+                  <Input
+                    id="goal"
+                    type="number"
+                    value={fundingGoal}
+                    onChange={(e) => setFundingGoal(e.target.value)}
+                    placeholder="5000000"
+                  />
                 </div>
               </div>
             </div>
