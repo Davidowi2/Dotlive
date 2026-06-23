@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Bell, Shield, Palette, Globe, Trash2, LogOut } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import { Bell, Shield, Palette, Globe, Trash2, LogOut, Mail } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,9 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { useDotAuth } from "@/contexts/DotAuthContext";
+import { dotApi } from "@/api/client";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({ meta: [{ title: "Settings — DOT" }] }),
@@ -14,6 +18,23 @@ export const Route = createFileRoute("/_authenticated/settings")({
 });
 
 function SettingsPage() {
+  const { user, logout } = useDotAuth();
+  const navigate = useNavigate();
+
+  function handleSignOut() {
+    logout();
+    navigate({ to: "/auth" });
+  }
+
+  async function handlePasswordReset() {
+    if (!user?.email) return;
+    try {
+      await dotApi.post("/api/auth/forgot-password", { email: user.email });
+      toast.success("Password reset link sent to your email.");
+    } catch {
+      toast.error("Could not send reset link. Try again.");
+    }
+  }
   return (
     <AppShell>
       <PageHeader title="Settings" subtitle="Manage your account preferences." />
@@ -44,12 +65,14 @@ function SettingsPage() {
           </div>
         </Section>
 
-        <Section icon={Shield} title="Privacy">
-          <Row label="Show venture in DOT Demo" sub="Allow investors to discover your venture">
-            <Switch defaultChecked />
+        <Section icon={Shield} title="Security">
+          <Row label="Change password" sub="Send a password reset link to your email">
+            <Button variant="outline" size="sm" onClick={handlePasswordReset}>
+              <Mail className="size-4" /> Send reset link
+            </Button>
           </Row>
-          <Row label="Show Vantage score publicly" sub="Display your score on your public profile">
-            <Switch defaultChecked />
+          <Row label="Two-factor authentication" sub="Extra security for your account">
+            <span className="text-xs text-muted-foreground">Coming soon</span>
           </Row>
         </Section>
 
@@ -61,11 +84,11 @@ function SettingsPage() {
         <Separator />
 
         <div className="space-y-3">
-          <Button variant="outline" className="w-full justify-start text-muted-foreground">
-            <LogOut className="size-4" /> Sign out of all devices
+          <Button variant="outline" className="w-full justify-start text-muted-foreground" onClick={handleSignOut}>
+            <LogOut className="size-4" /> Sign out
           </Button>
           <Button variant="outline" className="w-full justify-start text-destructive hover:bg-destructive/10">
-            <Trash2 className="size-4" /> Delete account
+            <Trash2 className="size-4" /> Delete account — contact support@dot.africa
           </Button>
         </div>
       </div>

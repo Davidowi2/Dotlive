@@ -35,11 +35,20 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+// ContentTab still uses Supabase — no Fastify content-create endpoints yet
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/use-auth";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useDotAuth } from "@/contexts/DotAuthContext";
 import { formatDot, formatNaira, ROLE_LABELS, type AppRole } from "@/lib/constants";
 import { elevateUser, revokeAdmin, claimSuperAdmin } from "@/lib/admin.functions";
+import {
+  listAdminUsers,
+  adjustBalance,
+  banUser,
+  unbanUser,
+  getAdminStats,
+  type AdminUser,
+} from "@/api/admin";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin")({
@@ -48,7 +57,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
 });
 
 function AdminPage() {
-  const { roles, refresh } = useAuth();
+  const { roles, refresh } = useDotAuth();
   const isAdmin = roles.includes("admin") || roles.includes("super_admin");
   const isSuperAdmin = roles.includes("super_admin");
   const claim = useServerFn(claimSuperAdmin);
@@ -115,7 +124,7 @@ function AdminPage() {
 
 function RolesTab() {
   const qc = useQueryClient();
-  const { user } = useAuth();
+  const { user } = useDotAuth();
   const elevate = useServerFn(elevateUser);
   const revoke = useServerFn(revokeAdmin);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -326,55 +335,68 @@ function MembersTab() {
   const qc = useQueryClient();
   const [target, setTarget] = useState<{ id: string; name: string } | null>(null);
   const [amount, setAmount] = useState(0);
-  const [type, setType] = useState("Reward");
-  const [busy, setBusy] = useState(false);
+  const [type, setType] = useState("Admin Credit");
+  const [banTarget, setBanTarget] = useState<AdminUser | null>(null);
+  const [banReason, setBanReason] = useState("");
+  const [search, setSearch] = useState("");
 
-  const { data: members = [], isLoading } = useQuery({
-    queryKey: ["admin-members"],
-    queryFn: async () => {
-      const [{ data: profiles }, { data: wallets }] = await Promise.all([
-        supabase.from("profiles").select("id, name, email"),
-        supabase.from("wallets").select("user_id, balance"),
-      ]);
-      const wmap = new Map((wallets ?? []).map((w) => [w.user_id, w.balance]));
-      return (profiles ?? []).map((p) => ({ ...p, balance: wmap.get(p.id) ?? 0 }));
-    },
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin-members", search],
+    queryFn: () => listAdminUsers({ search: search || undefined, limit: 100 }),
   });
+  const members = data?.users ?? [];
 
-  async function adjust() {
-    if (!target) return;
-    setBusy(true);
-    try {
-      const { error } = await supabase.rpc("admin_adjust_wallet", {
-        _user_id: target.id,
-        _amount: amount,
-        _type: type,
-        _description: `Admin ${type.toLowerCase()}`,
-      });
-      if (error) throw error;
+  const adjustMutation = useMutation({
+    mutationFn: () =>
+      adjustBalance(target!.id, amount, `${type} — manual admin adjustment`),
+    onSuccess: () => {
       toast.success("Balance updated");
       qc.invalidateQueries({ queryKey: ["admin-members"] });
       setTarget(null);
       setAmount(0);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed");
-    } finally {
-      setBusy(false);
-    }
-  }
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed"),
+  });
+
+  const banMutation = useMutation({
+    mutationFn: () => banUser(banTarget!.id, banReason),
+    onSuccess: () => {
+      toast.success("User banned");
+      qc.invalidateQueries({ queryKey: ["admin-members"] });
+      setBanTarget(null);
+      setBanReason("");
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed"),
+  });
+
+  const unbanMutation = useMutation({
+    mutationFn: (userId: string) => unbanUser(userId, "Admin unban"),
+    onSuccess: () => {
+      toast.success("User unbanned");
+      qc.invalidateQueries({ queryKey: ["admin-members"] });
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed"),
+  });
 
   if (isLoading) return <PageSkeleton.TableRows rows={6} cols={4} />;
 
   return (
-    <div className="mt-4">
+    <div className="mt-4 space-y-4">
+      <Input
+        placeholder="Search by name, email or DOT ID…"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="max-w-sm"
+      />
       <DataTable
         columns={[
           {
             key: "name",
             header: "Name",
-            cell: (m) => (
+            cell: (m: AdminUser) => (
               <div>
                 <p className="font-medium">{m.name ?? "—"}</p>
+                <p className="font-mono text-xs text-muted-foreground">{m.dotId}</p>
               </div>
             ),
           },
@@ -382,39 +404,47 @@ function MembersTab() {
             key: "email",
             header: "Email",
             hideOnMobile: true,
-            cell: (m) => (
-              <span className="text-muted-foreground">{m.email}</span>
-            ),
+            cell: (m: AdminUser) => <span className="text-muted-foreground">{m.email}</span>,
           },
           {
-            key: "balance",
-            header: "Balance",
-            cell: (m) => (
-              <span className="tabular">{formatDot(Number(m.balance))} DOT</span>
+            key: "joined",
+            header: "Joined",
+            hideOnMobile: true,
+            cell: (m: AdminUser) => (
+              <span className="text-muted-foreground">{new Date(m.createdAt).toLocaleDateString()}</span>
             ),
           },
           {
             key: "actions",
             header: "",
             align: "right",
-            cell: (m) => (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setTarget({ id: m.id, name: m.name ?? m.email ?? "" })}
-              >
-                <Coins className="size-4" /> Adjust
-              </Button>
+            cell: (m: AdminUser) => (
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setTarget({ id: m.id, name: m.name ?? m.email ?? "" })}
+                >
+                  <Coins className="size-4" /> Adjust
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive hover:bg-destructive/10"
+                  onClick={() => setBanTarget(m)}
+                >
+                  Ban
+                </Button>
+              </div>
             ),
           },
         ]}
         rows={members}
         getRowKey={(m) => m.id}
-        emptyState={
-          <EmptyState variant="inline" icon={Users} title="No members yet" />
-        }
+        emptyState={<EmptyState variant="inline" icon={Users} title="No members yet" />}
       />
 
+      {/* Adjust balance dialog */}
       <Dialog open={!!target} onOpenChange={(o) => !o && setTarget(null)}>
         <DialogContent>
           <DialogHeader>
@@ -436,14 +466,49 @@ function MembersTab() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="amt">Amount (DOT, use negative to deduct)</Label>
-              <Input id="amt" type="number" value={amount} onChange={(e) => setAmount(Number(e.target.value))} />
+              <Label htmlFor="amt">Amount (DOT, negative to deduct)</Label>
+              <Input
+                id="amt"
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(Number(e.target.value))}
+              />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="hero" onClick={adjust} disabled={busy}>
-              {busy && <Loader2 className="size-4 animate-spin" />}
+            <Button variant="hero" onClick={() => adjustMutation.mutate()} disabled={adjustMutation.isPending}>
+              {adjustMutation.isPending && <Loader2 className="size-4 animate-spin" />}
               Apply
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Ban dialog */}
+      <Dialog open={!!banTarget} onOpenChange={(o) => !o && setBanTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ban — {banTarget?.name ?? banTarget?.email}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="ban-reason">Reason</Label>
+            <Textarea
+              id="ban-reason"
+              value={banReason}
+              onChange={(e) => setBanReason(e.target.value)}
+              placeholder="Reason for ban (required)"
+              rows={3}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              className="text-destructive"
+              onClick={() => banMutation.mutate()}
+              disabled={banMutation.isPending || banReason.length < 5}
+            >
+              {banMutation.isPending && <Loader2 className="size-4 animate-spin" />}
+              Confirm ban
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -453,6 +518,11 @@ function MembersTab() {
 }
 
 function PaymentsTab() {
+  const { data: stats } = useQuery({
+    queryKey: ["admin-stats"],
+    queryFn: getAdminStats,
+  });
+
   const { data: payments = [], isLoading } = useQuery({
     queryKey: ["admin-payments"],
     queryFn: async () => {
