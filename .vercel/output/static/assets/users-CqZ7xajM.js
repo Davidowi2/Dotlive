@@ -1,0 +1,1 @@
+import{r as e}from"./client-B--aLy2O.js";async function t(t){return(await e.patch(`/api/users/me`,t)).user}async function n(t){return(await e.get(`/api/users/by-dot-id/${t}`)).user}export{t as n,n as t};

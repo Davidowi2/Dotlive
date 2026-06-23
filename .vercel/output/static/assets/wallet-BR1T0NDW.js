@@ -1,0 +1,1 @@
+import{r as e}from"./client-B--aLy2O.js";async function t(){return e.get(`/api/wallet`)}async function n(){return(await e.get(`/api/wallet/transactions`)).transactions}async function r(t,n,r){return e.post(`/api/wallet/transfer`,{toDotId:t,amount:n,description:r})}export{n,r,t};
