@@ -9,8 +9,10 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PlatformRouteImport } from './routes/platform'
 import { Route as JourneyRouteImport } from './routes/journey'
 import { Route as InvestorsRouteImport } from './routes/investors'
@@ -21,6 +23,7 @@ import { Route as AboutRouteImport } from './routes/about'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as FounderIdRouteImport } from './routes/founder.$id'
+import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AuthenticatedWorkRouteImport } from './routes/_authenticated/work'
 import { Route as AuthenticatedWalletRouteImport } from './routes/_authenticated/wallet'
 import { Route as AuthenticatedVantageRouteImport } from './routes/_authenticated/vantage'
@@ -43,6 +46,11 @@ import { Route as AuthenticatedAcademyRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedJoinCodeRouteImport } from './routes/_authenticated/join.$code'
 import { Route as ApiPublicWebhooksPaystackRouteImport } from './routes/api/public/webhooks/paystack'
 
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
@@ -51,6 +59,11 @@ const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PlatformRoute = PlatformRouteImport.update({
@@ -101,6 +114,11 @@ const FounderIdRoute = FounderIdRouteImport.update({
   id: '/founder/$id',
   path: '/founder/$id',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/callback',
+  path: '/callback',
+  getParentRoute: () => AuthRoute,
 } as any)
 const AuthenticatedWorkRoute = AuthenticatedWorkRouteImport.update({
   id: '/work',
@@ -215,14 +233,16 @@ const ApiPublicWebhooksPaystackRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/communities': typeof CommunitiesRoute
   '/help': typeof HelpRoute
   '/investors': typeof InvestorsRoute
   '/journey': typeof JourneyRoute
   '/platform': typeof PlatformRoute
+  '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/academy': typeof AuthenticatedAcademyRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/certificates': typeof AuthenticatedCertificatesRoute
@@ -242,6 +262,7 @@ export interface FileRoutesByFullPath {
   '/vantage': typeof AuthenticatedVantageRoute
   '/wallet': typeof AuthenticatedWalletRoute
   '/work': typeof AuthenticatedWorkRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/founder/$id': typeof FounderIdRoute
   '/join/$code': typeof AuthenticatedJoinCodeRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
@@ -249,14 +270,16 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/communities': typeof CommunitiesRoute
   '/help': typeof HelpRoute
   '/investors': typeof InvestorsRoute
   '/journey': typeof JourneyRoute
   '/platform': typeof PlatformRoute
+  '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/academy': typeof AuthenticatedAcademyRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/certificates': typeof AuthenticatedCertificatesRoute
@@ -276,6 +299,7 @@ export interface FileRoutesByTo {
   '/vantage': typeof AuthenticatedVantageRoute
   '/wallet': typeof AuthenticatedWalletRoute
   '/work': typeof AuthenticatedWorkRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/founder/$id': typeof FounderIdRoute
   '/join/$code': typeof AuthenticatedJoinCodeRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
@@ -285,14 +309,16 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/about': typeof AboutRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/communities': typeof CommunitiesRoute
   '/help': typeof HelpRoute
   '/investors': typeof InvestorsRoute
   '/journey': typeof JourneyRoute
   '/platform': typeof PlatformRoute
+  '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/_authenticated/academy': typeof AuthenticatedAcademyRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/certificates': typeof AuthenticatedCertificatesRoute
@@ -312,6 +338,7 @@ export interface FileRoutesById {
   '/_authenticated/vantage': typeof AuthenticatedVantageRoute
   '/_authenticated/wallet': typeof AuthenticatedWalletRoute
   '/_authenticated/work': typeof AuthenticatedWorkRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/founder/$id': typeof FounderIdRoute
   '/_authenticated/join/$code': typeof AuthenticatedJoinCodeRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
@@ -327,8 +354,10 @@ export interface FileRouteTypes {
     | '/investors'
     | '/journey'
     | '/platform'
+    | '/privacy'
     | '/reset-password'
     | '/sitemap.xml'
+    | '/terms'
     | '/academy'
     | '/admin'
     | '/certificates'
@@ -348,6 +377,7 @@ export interface FileRouteTypes {
     | '/vantage'
     | '/wallet'
     | '/work'
+    | '/auth/callback'
     | '/founder/$id'
     | '/join/$code'
     | '/api/public/webhooks/paystack'
@@ -361,8 +391,10 @@ export interface FileRouteTypes {
     | '/investors'
     | '/journey'
     | '/platform'
+    | '/privacy'
     | '/reset-password'
     | '/sitemap.xml'
+    | '/terms'
     | '/academy'
     | '/admin'
     | '/certificates'
@@ -382,6 +414,7 @@ export interface FileRouteTypes {
     | '/vantage'
     | '/wallet'
     | '/work'
+    | '/auth/callback'
     | '/founder/$id'
     | '/join/$code'
     | '/api/public/webhooks/paystack'
@@ -396,8 +429,10 @@ export interface FileRouteTypes {
     | '/investors'
     | '/journey'
     | '/platform'
+    | '/privacy'
     | '/reset-password'
     | '/sitemap.xml'
+    | '/terms'
     | '/_authenticated/academy'
     | '/_authenticated/admin'
     | '/_authenticated/certificates'
@@ -417,6 +452,7 @@ export interface FileRouteTypes {
     | '/_authenticated/vantage'
     | '/_authenticated/wallet'
     | '/_authenticated/work'
+    | '/auth/callback'
     | '/founder/$id'
     | '/_authenticated/join/$code'
     | '/api/public/webhooks/paystack'
@@ -426,20 +462,29 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AboutRoute: typeof AboutRoute
-  AuthRoute: typeof AuthRoute
+  AuthRoute: typeof AuthRouteWithChildren
   CommunitiesRoute: typeof CommunitiesRoute
   HelpRoute: typeof HelpRoute
   InvestorsRoute: typeof InvestorsRoute
   JourneyRoute: typeof JourneyRoute
   PlatformRoute: typeof PlatformRoute
+  PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  TermsRoute: typeof TermsRoute
   FounderIdRoute: typeof FounderIdRoute
   ApiPublicWebhooksPaystackRoute: typeof ApiPublicWebhooksPaystackRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sitemap.xml': {
       id: '/sitemap.xml'
       path: '/sitemap.xml'
@@ -452,6 +497,13 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/platform': {
@@ -523,6 +575,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/founder/$id'
       preLoaderRoute: typeof FounderIdRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof AuthRoute
     }
     '/_authenticated/work': {
       id: '/_authenticated/work'
@@ -723,18 +782,30 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface AuthRouteChildren {
+  AuthCallbackRoute: typeof AuthCallbackRoute
+}
+
+const AuthRouteChildren: AuthRouteChildren = {
+  AuthCallbackRoute: AuthCallbackRoute,
+}
+
+const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AboutRoute: AboutRoute,
-  AuthRoute: AuthRoute,
+  AuthRoute: AuthRouteWithChildren,
   CommunitiesRoute: CommunitiesRoute,
   HelpRoute: HelpRoute,
   InvestorsRoute: InvestorsRoute,
   JourneyRoute: JourneyRoute,
   PlatformRoute: PlatformRoute,
+  PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  TermsRoute: TermsRoute,
   FounderIdRoute: FounderIdRoute,
   ApiPublicWebhooksPaystackRoute: ApiPublicWebhooksPaystackRoute,
 }
