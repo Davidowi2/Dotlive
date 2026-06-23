@@ -49,7 +49,10 @@ export async function walletRoutes(app: FastifyInstance) {
   });
 
   /** POST /api/wallet/transfer */
-  app.post("/wallet/transfer", { preHandler: app.authenticate }, async (req, reply) => {
+  app.post("/wallet/transfer", {
+    preHandler: app.authenticate,
+    config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
+  }, async (req, reply) => {
     const { sub } = req.user as { sub: string };
     const parsed = transferSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: "Invalid input" });

@@ -19,7 +19,7 @@ export async function statsRoutes(app: FastifyInstance) {
       SELECT
         (SELECT COUNT(*)::int FROM users) AS users,
         (SELECT COUNT(*)::int FROM ventures) AS ventures,
-        (SELECT COUNT(DISTINCT country)::int FROM users WHERE country IS NOT NULL) AS countries,
+        (SELECT COUNT(DISTINCT country)::int FROM ventures WHERE country IS NOT NULL) AS countries,
         (SELECT COALESCE(SUM(balance), 0)::text FROM wallets) AS dot_in_circulation
     ` as { users: number; ventures: number; countries: number; dot_in_circulation: string }[];
     const row = counts[0];

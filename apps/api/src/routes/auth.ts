@@ -30,7 +30,9 @@ const loginSchema = z.object({
 
 export async function authRoutes(app: FastifyInstance) {
   /** POST /api/auth/signup */
-  app.post("/auth/signup", async (req, reply) => {
+  app.post("/auth/signup", {
+    config: { rateLimit: { max: 5, timeWindow: "1 minute" } },
+  }, async (req, reply) => {
     const parsed = signupSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: "Invalid input", details: parsed.error.flatten() });
 
@@ -49,7 +51,9 @@ export async function authRoutes(app: FastifyInstance) {
   });
 
   /** POST /api/auth/login */
-  app.post("/auth/login", async (req, reply) => {
+  app.post("/auth/login", {
+    config: { rateLimit: { max: 5, timeWindow: "1 minute" } },
+  }, async (req, reply) => {
     const parsed = loginSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: "Invalid input" });
 
@@ -101,6 +105,14 @@ export async function authRoutes(app: FastifyInstance) {
       return reply.code(503).send({ error: "Google OAuth not configured" });
     }
     const state = crypto.randomBytes(16).toString("hex");
+    // Store state in a signed httpOnly cookie for CSRF validation on callback.
+    (reply as any).setCookie("oauth_state", state, {
+      path: "/",
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 600, // 10 minutes
+    });
     const params = new URLSearchParams({
       client_id: process.env.GOOGLE_CLIENT_ID,
       redirect_uri: `${process.env.API_BASE_URL ?? "http://localhost:3001"}/api/auth/google/callback`,
@@ -119,6 +131,14 @@ export async function authRoutes(app: FastifyInstance) {
       const { code, error } = req.query;
       if (error) return reply.code(400).send({ error });
       if (!code) return reply.code(400).send({ error: "Missing code" });
+
+      // Validate OAuth state to prevent CSRF attacks.
+      const storedState = (req as any).cookies?.oauth_state;
+      const queryState = req.query.state;
+      if (!storedState || storedState !== queryState) {
+        return reply.code(400).send({ error: "Invalid OAuth state. Please try again." });
+      }
+      (reply as any).clearCookie("oauth_state", { path: "/" });
 
       // Exchange code for tokens.
       const tokenRes = await fetch("https://oauth2.googleapis.com/token", {

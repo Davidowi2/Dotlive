@@ -230,46 +230,43 @@ export async function issueConfirmToken(opts: IssueConfirmOpts): Promise<string>
 }
 
 /**
- * Validates and consumes a confirm token. Returns the stored
- * payload if valid, or null + reason if not.
+ * Validates and consumes a confirm token atomically via a single UPDATE.
+ * Eliminates the TOCTOU race — the token is marked used in the same
+ * statement that checks it, so two concurrent requests can never both succeed.
  */
 export async function consumeConfirmToken(
   token: string,
   adminId: string,
   expectedAction: string
 ): Promise<{ ok: true; payload: any; reason: string } | { ok: false; code: string; hint: string }> {
-  const rows = await db
-    .select()
-    .from(adminConfirmTokens)
+  // Single atomic UPDATE — only succeeds if token exists, belongs to this admin,
+  // matches the expected action, is unused, and has not expired.
+  const result = await db
+    .update(adminConfirmTokens)
+    .set({ usedAt: new Date() } as any)
     .where(
       and(
         eq(adminConfirmTokens.token, token),
         eq(adminConfirmTokens.adminId, adminId),
         eq(adminConfirmTokens.action, expectedAction),
-        isNull(adminConfirmTokens.usedAt)
+        isNull(adminConfirmTokens.usedAt),
+        gt(adminConfirmTokens.expiresAt, new Date())
       )
     )
-    .limit(1);
+    .returning();
 
-  if (!rows[0]) {
-    return { ok: false, code: "confirm_invalid", hint: "Confirm token is invalid, expired, or already used." };
+  if (!result[0]) {
+    return {
+      ok: false,
+      code: "confirm_invalid",
+      hint: "Confirm token is invalid, expired, or already used.",
+    };
   }
-  if (rows[0].expiresAt < new Date()) {
-    return { ok: false, code: "confirm_expired", hint: "Confirm token has expired. Re-confirm the action." };
-  }
-
-  // Mark used. The caller should also do this inside their
-  // transaction, but we do it here for the read-modify-write
-  // race window.
-  await db
-    .update(adminConfirmTokens)
-    .set({ usedAt: new Date() } as any)
-    .where(eq(adminConfirmTokens.id, rows[0].id));
 
   return {
     ok: true,
-    payload: rows[0].payload,
-    reason: rows[0].reason,
+    payload: result[0].payload,
+    reason: result[0].reason,
   };
 }
 
