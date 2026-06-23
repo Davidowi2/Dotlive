@@ -19,11 +19,8 @@ services:
     runtime: node
     region: singapore
     plan: starter
-    rootDir: apps/api
-    buildCommand: |
-      cd ../.. && \
-      npm install --no-audit --no-fund && \
-      npm --workspace apps/api run build
+    rootDir: dotlive-backend/apps/api
+    buildCommand: npm install --no-audit --no-fund && npm run build
     startCommand: node dist/server.js
     healthCheckPath: /api/health
     autoDeploy: true
