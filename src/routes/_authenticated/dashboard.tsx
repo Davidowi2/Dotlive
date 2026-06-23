@@ -21,9 +21,10 @@ import { PageHeader } from "@/components/app/PageHeader";
 import { StatCard } from "@/components/app/StatCard";
 import { PageSkeleton } from "@/components/app/PageSkeleton";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/hooks/use-auth";
+import { useDotAuth } from "@/contexts/DotAuthContext";
+import { useQuery } from "@tanstack/react-query";
+import { getBalance } from "@/api/wallet";
 import {
-  useWallet,
   useFounderProfile,
   useAssessments,
   useMyEnrollments,
@@ -45,14 +46,22 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 });
 
 function Dashboard() {
-  const { profile, primaryRole, roles } = useAuth();
-  const { data: balance = 0, isLoading: walletLoading } = useWallet();
+  const { user, primaryRole, roles } = useDotAuth();
+  const { data: walletData, isLoading: walletLoading } = useQuery({
+    queryKey: ["wallet"],
+    queryFn: getBalance,
+    staleTime: 30_000,
+  });
+  const balance = walletData?.balance ?? 0;
   const { data: founder, isLoading: founderLoading } = useFounderProfile();
   const { data: assessments = [], isLoading: assessLoading } = useAssessments();
   const { data: enrollments = [], isLoading: enrollLoading } = useMyEnrollments();
   const { data: membership } = useMyMembership();
   const { data: builderProfile } = useMyBuilderProfile();
-  const { data: builderStats } = useBuilderStats(profile?.id ?? undefined);
+  const { data: builderStats } = useBuilderStats(user?.id ?? undefined);
+
+  // Derive a profile-like object from the DotAuth user
+  const profile = user ? { name: user.name, id: user.id } : null;
 
   const isLoading = walletLoading || founderLoading || assessLoading || enrollLoading;
 
@@ -68,7 +77,7 @@ function Dashboard() {
   }
 
   const isFounder = roles.includes("founder");
-  const isBuilderOnly = roles.length > 0 && !isFounder && !roles.some((r) =>
+  const isBuilderOnly = roles.length > 0 && !isFounder && !roles.some((r: string) =>
     ["investor", "community_leader", "vendor", "capital_partner", "admin", "super_admin"].includes(r)
   );
 

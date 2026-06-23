@@ -17,10 +17,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { useWallet, useTransactions, useMyProfile } from "@/hooks/use-dot-data";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useDotAuth } from "@/contexts/DotAuthContext";
+import { getBalance, getTransactions, transfer } from "@/api/wallet";
+import { getByDotId } from "@/api/users";
+import { ApiError } from "@/types/api";
 import { initPaystackPayment, verifyPaystackPayment } from "@/lib/paystack.functions";
-import { TransferDialog } from "@/components/app/TransferDialog";
 import {
   MIN_DEPOSIT_DOT,
   DOT_RATE_NGN,
@@ -53,17 +55,29 @@ const TYPE_META: Record<string, { icon: typeof Plus; tone: string }> = {
 function WalletPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const { data: balance = 0, isLoading: walletLoading } = useWallet();
-  const { data: transactions = [], isLoading: txLoading } = useTransactions();
-  const { data: profile } = useMyProfile();
+  const { user } = useDotAuth();
+
+  const { data: walletData, isLoading: walletLoading } = useQuery({
+    queryKey: ["wallet"],
+    queryFn: getBalance,
+    staleTime: 15_000,
+  });
+  const balance = walletData?.balance ?? 0;
+
+  const { data: transactions = [], isLoading: txLoading } = useQuery({
+    queryKey: ["transactions"],
+    queryFn: getTransactions,
+    staleTime: 15_000,
+  });
+
+  const dotId = user?.dotId ?? null;
   const [amount, setAmount] = useState(MIN_DEPOSIT_DOT);
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [receipt, setReceipt] = useState<{ dot: number; naira: number; reference: string } | null>(null);
-
-  const dotId = profile?.dot_id ?? null;
+  const [transferOpen, setTransferOpen] = useState(false);
 
   function copyDotId() {
     if (!dotId) return;
@@ -220,7 +234,9 @@ function WalletPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-          <TransferDialog balance={balance} myDotId={dotId} />
+          <Button variant="outline" className="w-full" onClick={() => setTransferOpen(true)}>
+              <Send className="size-4" /> Transfer DOT
+            </Button>
           <p className="text-center text-xs text-muted-foreground">
             Send instantly by DOT ID · fund via Paystack
           </p>
@@ -244,7 +260,7 @@ function WalletPage() {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{t.description || t.type}</p>
                     <p className="text-xs text-muted-foreground">
-                      {t.type} · {new Date(t.created_at).toLocaleString()}
+                      {t.type} · {new Date(t.createdAt).toLocaleString()}
                     </p>
                   </div>
                   <span className={cn("font-display text-sm font-semibold", positive ? "text-primary" : "text-destructive")}>
@@ -257,6 +273,21 @@ function WalletPage() {
           </ul>
         )}
       </div>
+
+      {/* ── Transfer dialog ── */}
+      <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
+        <DialogContent>
+          <InlineTransferForm
+            balance={balance}
+            onSuccess={() => {
+              qc.invalidateQueries({ queryKey: ["wallet"] });
+              qc.invalidateQueries({ queryKey: ["transactions"] });
+              setTransferOpen(false);
+            }}
+            onClose={() => setTransferOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!receipt} onOpenChange={(o) => !o && setReceipt(null)}>
         <DialogContent>
@@ -292,5 +323,114 @@ function Row({ label, value, mono }: { label: string; value: string; mono?: bool
       <span className="text-muted-foreground">{label}</span>
       <span className={cn("font-medium", mono && "font-mono text-xs")}>{value}</span>
     </div>
+  );
+}
+
+/* ── Inline Transfer Form ──────────────────────────────── */
+
+function InlineTransferForm({
+  balance,
+  onSuccess,
+  onClose,
+}: {
+  balance: number;
+  onSuccess: () => void;
+  onClose: () => void;
+}) {
+  const [toDotId, setToDotId] = useState("");
+  const [amount, setAmount] = useState(100);
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [recipient, setRecipient] = useState<{ name: string | null } | null>(null);
+  const [lookingUp, setLookingUp] = useState(false);
+
+  async function lookupRecipient(dotId: string) {
+    if (dotId.length < 3) { setRecipient(null); return; }
+    setLookingUp(true);
+    try {
+      const user = await getByDotId(dotId.trim());
+      setRecipient({ name: user.name });
+    } catch {
+      setRecipient(null);
+    } finally {
+      setLookingUp(false);
+    }
+  }
+
+  async function handleTransfer(e: React.FormEvent) {
+    e.preventDefault();
+    if (amount > balance) { toast.error("Insufficient balance."); return; }
+    if (amount <= 0) { toast.error("Amount must be positive."); return; }
+    setBusy(true);
+    try {
+      await transfer(toDotId.trim(), Math.floor(amount), note.trim() || undefined);
+      toast.success(`${formatDot(amount)} DOT sent!`);
+      onSuccess();
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message
+        : err instanceof Error ? err.message
+        : "Transfer failed";
+      toast.error(msg);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>Transfer DOT</DialogTitle>
+        <DialogDescription>
+          Send DOT to another user by their DOT ID. Your balance: {formatDot(balance)} DOT
+        </DialogDescription>
+      </DialogHeader>
+      <form onSubmit={handleTransfer} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="to-dot-id">Recipient DOT ID</Label>
+          <Input
+            id="to-dot-id"
+            value={toDotId}
+            onChange={(e) => { setToDotId(e.target.value); lookupRecipient(e.target.value); }}
+            placeholder="swift-founder-24abc1"
+          />
+          {lookingUp && <p className="text-xs text-muted-foreground">Looking up…</p>}
+          {!lookingUp && recipient && (
+            <p className="text-xs text-primary">{recipient.name ?? "Unknown user"} ✓</p>
+          )}
+          {!lookingUp && toDotId.length >= 3 && !recipient && (
+            <p className="text-xs text-destructive">DOT ID not found</p>
+          )}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="transfer-amount">Amount (DOT)</Label>
+          <Input
+            id="transfer-amount"
+            type="number"
+            min={1}
+            max={balance}
+            value={amount}
+            onChange={(e) => setAmount(Number(e.target.value))}
+          />
+          <p className="text-xs text-muted-foreground">≈ {formatNaira(dotToNaira(amount))}</p>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="transfer-note">Note (optional)</Label>
+          <Input
+            id="transfer-note"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="For the logo design…"
+            maxLength={200}
+          />
+        </div>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+          <Button type="submit" variant="hero" disabled={busy || !toDotId.trim() || amount <= 0}>
+            {busy && <Loader2 className="size-4 animate-spin" />}
+            <Send className="size-4" /> Send {amount > 0 ? formatDot(amount) : ""} DOT
+          </Button>
+        </DialogFooter>
+      </form>
+    </>
   );
 }
