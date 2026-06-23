@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Rocket, Users, Briefcase, Loader2, ArrowRight, Check } from "lucide-react";
+import { Hammer, Rocket, Users, Briefcase, Loader2, ArrowRight, Check, Star } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Logo } from "@/components/site/Logo";
@@ -25,17 +25,40 @@ export const Route = createFileRoute("/_authenticated/onboarding")({
   component: Onboarding,
 });
 
-const ROLE_OPTIONS: { role: AppRole; title: string; desc: string; icon: typeof Rocket }[] = [
-  { role: "founder", title: "Founder", desc: "I'm building a venture and want to progress, learn and raise.", icon: Rocket },
-  { role: "community_leader", title: "Community Leader", desc: "I run a community and want to onboard and track founders.", icon: Users },
-  { role: "investor", title: "Investor", desc: "I want to discover and back African ventures.", icon: Briefcase },
+const ROLE_OPTIONS: { role: AppRole; title: string; desc: string; icon: typeof Rocket; badge?: string; free?: boolean }[] = [
+  {
+    role: "builder",
+    title: "Builder",
+    desc: "Offer skills, earn DOT, and access the marketplace. Your default starting role on DOT.",
+    icon: Hammer,
+    badge: "Default",
+    free: true,
+  },
+  {
+    role: "founder",
+    title: "Founder",
+    desc: "I'm building a venture and want to progress, learn and raise.",
+    icon: Rocket,
+  },
+  {
+    role: "community_leader",
+    title: "Community Leader",
+    desc: "I run a community and want to onboard and track founders.",
+    icon: Users,
+  },
+  {
+    role: "investor",
+    title: "Investor",
+    desc: "I want to discover and back African ventures.",
+    icon: Briefcase,
+  },
 ];
 
 function Onboarding() {
   const navigate = useNavigate();
   const { user, roles, profile, loading, refresh } = useAuth();
   const [step, setStep] = useState<1 | 2>(1);
-  const [role, setRole] = useState<AppRole | null>(null);
+  const [role, setRole] = useState<AppRole>("builder"); // Builder is preselected
   const [busy, setBusy] = useState(false);
 
   // founder profile
