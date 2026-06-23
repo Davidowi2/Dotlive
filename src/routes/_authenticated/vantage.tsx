@@ -28,11 +28,9 @@ import { EmptyState } from "@/components/app/EmptyState";
 import { PageSkeleton } from "@/components/app/PageSkeleton";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { useAuth } from "@/hooks/use-auth";
-import { useAssessments } from "@/hooks/use-dot-data";
-import { useQueryClient } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
-import { submitVantageAssessment } from "@/lib/vantage.server";
+import { useDotAuth } from "@/contexts/DotAuthContext";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { submitAssessment, getVantageHistory } from "@/api/vantage";
 import {
   VANTAGE_CATEGORIES,
   TOTAL_QUESTIONS,
@@ -65,10 +63,13 @@ const FLAT_QUESTIONS = VANTAGE_CATEGORIES.flatMap((c) =>
 );
 
 function VantagePage() {
-  const { user } = useAuth();
+  const { user } = useDotAuth();
   const qc = useQueryClient();
-  const { data: assessments = [], isLoading } = useAssessments();
-  const submitFn = useServerFn(submitVantageAssessment);
+  const { data: assessments = [], isLoading } = useQuery({
+    queryKey: ["assessments", user?.id],
+    enabled: !!user,
+    queryFn: getVantageHistory,
+  });
   const [taking, setTaking] = useState(false);
   const [idx, setIdx] = useState(0);
   const [answers, setAnswers] = useState<VantageAnswers>({});
@@ -79,8 +80,8 @@ function VantagePage() {
   const history = useMemo(
     () =>
       assessments.map((a) => ({
-        date: new Date(a.created_at).toLocaleDateString("en", { month: "short", day: "numeric" }),
-        vantage: a.vantage_point,
+        date: new Date(a.createdAt).toLocaleDateString("en", { month: "short", day: "numeric" }),
+        vantage: a.vantagePoint,
         fundability: a.fundability,
       })),
     [assessments],
@@ -101,8 +102,7 @@ function VantagePage() {
     if (!user || !answeredAll) return;
     setBusy(true);
     try {
-      // Scoring runs entirely server-side — client sends raw answers only
-      const result = await submitFn({ data: { answers } });
+      const result = await submitAssessment(answers as Record<string, number>);
       toast.success(`Vantage complete! You scored ${result.vantagePoint} points.`);
       qc.invalidateQueries({ queryKey: ["assessments", user.id] });
       qc.invalidateQueries({ queryKey: ["founder_profile", user.id] });
@@ -217,7 +217,7 @@ function VantagePage() {
           <div className="mt-6 grid gap-4 sm:grid-cols-3">
             <StatCard
               label="Vantage Point"
-              value={formatDot(latest.vantage_point)}
+              value={formatDot(latest.vantagePoint)}
               sub="/ 1000"
               icon={Gauge}
               accent="primary"
@@ -230,7 +230,7 @@ function VantagePage() {
             />
             <StatCard
               label="Investment Ready"
-              value={`${latest.investment_readiness}%`}
+              value={`${latest.investmentReadiness}%`}
               icon={Target}
               accent="primary"
             />
@@ -286,7 +286,7 @@ function VantagePage() {
             <h2 className="font-display text-lg font-semibold">Category breakdown</h2>
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
               {VANTAGE_CATEGORIES.map((c) => {
-                const score = (latest.category_scores as Record<string, number>)?.[c.key] ?? 0;
+                const score = (latest.categoryScores as Record<string, number>)?.[c.key] ?? 0;
                 return (
                   <div key={c.key}>
                     <div className="flex items-center justify-between text-sm">

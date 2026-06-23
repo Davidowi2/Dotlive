@@ -43,20 +43,30 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/use-auth";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useDotAuth } from "@/contexts/DotAuthContext";
 import {
-  useServices,
-  useMyServices,
-  useMyOrders,
   useMyBuilderProfile,
   useBuilderStats,
   useWallet,
-  useJobListings,
-  useMyJobListings,
-  type JobListing,
 } from "@/hooks/use-dot-data";
+import {
+  listServices,
+  createService,
+  updateService,
+  deleteService,
+  createOrder,
+  listOrders,
+  deliverOrder,
+  completeOrder,
+  cancelOrder,
+  listJobs,
+  createJob,
+  updateJob,
+  deleteJob,
+} from "@/api/marketplace";
+import { supabase } from "@/integrations/supabase/client";
+import type { Service, JobListing, ServiceOrder } from "@/types/api";
 import {
   WORK_CATEGORIES,
   ORDER_STATUS_META,
@@ -84,17 +94,6 @@ const JOB_EMPLOYMENT_TYPES = [
   { value: "internship",  label: "Internship" },
 ] as const;
 
-type Service = {
-  id: string;
-  builder_id: string;
-  title: string;
-  description: string;
-  category: string;
-  price_dot: number;
-  delivery_days: number;
-  is_active: boolean;
-};
-
 /* ═══════════════════════ PAGE SHELL ═══════════════════════ */
 function WorkPage() {
   return (
@@ -121,13 +120,16 @@ function WorkPage() {
 
 /* ═══════════════════════ GIGS TAB ═══════════════════════ */
 function GigsTab() {
-  const { user } = useAuth();
+  const { user } = useDotAuth();
   const [category, setCategory] = useState<string>("");
   const [search, setSearch] = useState("");
-  const { data: services = [], isLoading } = useServices(category || undefined, search);
+  const { data: services = [], isLoading } = useQuery({
+    queryKey: ["services", category || "all", search || ""],
+    queryFn: () => listServices({ category: category || undefined, search: search || undefined }),
+  });
   const [order, setOrder] = useState<Service | null>(null);
 
-  const visible = services.filter((s) => s.builder_id !== user?.id);
+  const visible = services.filter((s) => s.builderId !== user?.id);
 
   return (
     <div className="mt-4">
@@ -171,7 +173,7 @@ function GigsTab() {
 }
 
 function ServiceCard({ service, onOrder }: { service: Service; onOrder: () => void }) {
-  const { data: stats } = useBuilderStats(service.builder_id);
+  const { data: stats } = useBuilderStats(service.builderId);
   return (
     <div className="flex flex-col rounded-2xl border border-border bg-card p-5">
       <div className="flex items-center justify-between">
@@ -186,14 +188,14 @@ function ServiceCard({ service, onOrder }: { service: Service; onOrder: () => vo
       <p className="mt-1 line-clamp-3 flex-1 text-sm text-muted-foreground">{service.description}</p>
       <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
         <span className="flex items-center gap-1">
-          <Clock className="size-3" /> {service.delivery_days}d delivery
+          <Clock className="size-3" /> {service.deliveryDays}d delivery
         </span>
         {stats && <span>{Number(stats.orders_completed)} done</span>}
       </div>
       <div className="mt-4 flex items-center justify-between">
         <div>
-          <p className="font-display text-lg font-bold text-primary">{formatDot(service.price_dot)} DOT</p>
-          <p className="text-xs text-muted-foreground">{formatNaira(dotToNaira(service.price_dot))}</p>
+          <p className="font-display text-lg font-bold text-primary">{formatDot(service.priceDot)} DOT</p>
+          <p className="text-xs text-muted-foreground">{formatNaira(dotToNaira(service.priceDot))}</p>
         </div>
         <Button variant="hero" onClick={onOrder}>Order</Button>
       </div>
@@ -209,17 +211,13 @@ function OrderDialog({ service, onClose }: { service: Service | null; onClose: (
 
   async function placeOrder() {
     if (!service) return;
-    if (service.price_dot > balance) {
+    if (service.priceDot > balance) {
       toast.error("Insufficient DOT balance — top up your wallet first.");
       return;
     }
     setBusy(true);
     try {
-      const { error } = await supabase.rpc("create_service_order", {
-        _service_id: service.id,
-        _requirements: requirements.trim() || undefined,
-      });
-      if (error) throw error;
+      await createOrder(service.id, requirements.trim() || undefined);
       qc.invalidateQueries({ queryKey: ["wallet"] });
       qc.invalidateQueries({ queryKey: ["transactions"] });
       qc.invalidateQueries({ queryKey: ["orders", "client"] });
@@ -240,7 +238,7 @@ function OrderDialog({ service, onClose }: { service: Service | null; onClose: (
           <DialogTitle>Order: {service?.title}</DialogTitle>
           <DialogDescription>
             {service && (
-              <>{formatDot(service.price_dot)} DOT will be held from your wallet and released to the builder when you confirm the work is done.</>
+              <>{formatDot(service.priceDot)} DOT will be held from your wallet and released to the builder when you confirm the work is done.</>
             )}
           </DialogDescription>
         </DialogHeader>
@@ -258,7 +256,7 @@ function OrderDialog({ service, onClose }: { service: Service | null; onClose: (
         <DialogFooter>
           <Button variant="hero" onClick={placeOrder} disabled={busy}>
             {busy && <Loader2 className="size-4 animate-spin" />}
-            Pay {service ? formatDot(service.price_dot) : ""} DOT
+            Pay {service ? formatDot(service.priceDot) : ""} DOT
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -268,19 +266,22 @@ function OrderDialog({ service, onClose }: { service: Service | null; onClose: (
 
 /* ═══════════════════════ JOBS TAB ═══════════════════════ */
 function JobsTab() {
-  const { roles } = useAuth();
+  const { roles } = useDotAuth();
   const isFounder = roles.includes("founder");
   const [category, setCategory] = useState("");
   const [search, setSearch] = useState("");
   const [minSalary, setMinSalary] = useState("");
   const [employmentType, setEmploymentType] = useState("");
-  const { data: jobs = [], isLoading } = useJobListings(category || undefined, search);
+  const { data: jobs = [], isLoading } = useQuery({
+    queryKey: ["job_listings", category || "all", search || ""],
+    queryFn: () => listJobs({ category: category || undefined, search: search || undefined }),
+  });
   const [selectedJob, setSelectedJob] = useState<JobListing | null>(null);
   const [showPostForm, setShowPostForm] = useState(false);
 
   const filtered = jobs.filter((j) => {
-    if (employmentType && j.employment_type !== employmentType) return false;
-    if (minSalary && j.salary_dot < Number(minSalary)) return false;
+    if (employmentType && j.employmentType !== employmentType) return false;
+    if (minSalary && j.salaryDot < Number(minSalary)) return false;
     return true;
   });
 
@@ -372,7 +373,7 @@ function JobsTab() {
 }
 
 function JobCard({ job, onView }: { job: JobListing; onView: () => void }) {
-  const typeLabel = JOB_EMPLOYMENT_TYPES.find((t) => t.value === job.employment_type)?.label ?? job.employment_type;
+  const typeLabel = JOB_EMPLOYMENT_TYPES.find((t) => t.value === job.employmentType)?.label ?? job.employmentType;
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0 flex-1">
@@ -383,12 +384,12 @@ function JobCard({ job, onView }: { job: JobListing; onView: () => void }) {
         </div>
         <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{job.description}</p>
         <p className="mt-2 text-xs text-muted-foreground">
-          Posted {new Date(job.created_at).toLocaleDateString()}
+          Posted {new Date(job.createdAt).toLocaleDateString()}
         </p>
       </div>
       <div className="flex shrink-0 flex-col items-end gap-2 sm:items-end">
-        <p className="font-display text-lg font-bold text-primary">{formatDot(job.salary_dot)} DOT</p>
-        <p className="text-xs text-muted-foreground">{formatNaira(dotToNaira(job.salary_dot))}</p>
+        <p className="font-display text-lg font-bold text-primary">{formatDot(job.salaryDot)} DOT</p>
+        <p className="text-xs text-muted-foreground">{formatNaira(dotToNaira(job.salaryDot))}</p>
         <Button variant="hero" size="sm" onClick={onView}>View job</Button>
       </div>
     </div>
@@ -396,7 +397,7 @@ function JobCard({ job, onView }: { job: JobListing; onView: () => void }) {
 }
 
 function JobDetailDialog({ job, onClose }: { job: JobListing | null; onClose: () => void }) {
-  const typeLabel = JOB_EMPLOYMENT_TYPES.find((t) => t.value === job?.employment_type)?.label ?? job?.employment_type;
+  const typeLabel = JOB_EMPLOYMENT_TYPES.find((t) => t.value === job?.employmentType)?.label ?? job?.employmentType;
   return (
     <Dialog open={!!job} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-lg">
@@ -406,7 +407,7 @@ function JobDetailDialog({ job, onClose }: { job: JobListing | null; onClose: ()
             <span className="inline-flex flex-wrap gap-2">
               <Badge variant="outline">{job?.category}</Badge>
               <Badge variant="secondary">{typeLabel}</Badge>
-              <span className="font-semibold text-primary">{job ? formatDot(job.salary_dot) : ""} DOT / mo</span>
+              <span className="font-semibold text-primary">{job ? formatDot(job.salaryDot) : ""} DOT / mo</span>
             </span>
           </DialogDescription>
         </DialogHeader>
@@ -431,19 +432,17 @@ function JobDetailDialog({ job, onClose }: { job: JobListing | null; onClose: ()
 }
 
 function JobFormDialog({ job, onClose }: { job?: JobListing; onClose: () => void }) {
-  const { user } = useAuth();
   const qc = useQueryClient();
   const [title, setTitle] = useState(job?.title ?? "");
   const [description, setDescription] = useState(job?.description ?? "");
   const [category, setCategory] = useState(job?.category ?? WORK_CATEGORIES[0]);
-  const [salary, setSalary] = useState(job?.salary_dot ?? 5000);
-  const [empType, setEmpType] = useState(job?.employment_type ?? "full_time");
+  const [salary, setSalary] = useState(job?.salaryDot ?? 5000);
+  const [empType, setEmpType] = useState(job?.employmentType ?? "full_time");
   const [requirements, setRequirements] = useState(job?.requirements ?? "");
-  const [isOpen, setIsOpen] = useState(job?.is_open ?? true);
+  const [isOpen, setIsOpen] = useState(job?.isOpen ?? true);
   const [busy, setBusy] = useState(false);
 
   async function save() {
-    if (!user) return;
     if (!title.trim() || !description.trim()) {
       toast.error("Title and description are required.");
       return;
@@ -455,21 +454,19 @@ function JobFormDialog({ job, onClose }: { job?: JobListing; onClose: () => void
     setBusy(true);
     try {
       const payload = {
-        venture_id: user.id,
         title: title.trim(),
         description: description.trim(),
         category,
-        salary_dot: Math.floor(salary),
-        employment_type: empType,
-        requirements: requirements.trim() || null,
-        is_open: isOpen,
+        salaryDot: Math.floor(salary),
+        employmentType: empType,
+        requirements: requirements.trim() || undefined,
+        isOpen,
       };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const sb = supabase as any;
-      const { error } = job
-        ? await sb.from("job_listings").update(payload).eq("id", job.id)
-        : await sb.from("job_listings").insert(payload);
-      if (error) throw error;
+      if (job) {
+        await updateJob(job.id, payload);
+      } else {
+        await createJob(payload);
+      }
       qc.invalidateQueries({ queryKey: ["job_listings"] });
       qc.invalidateQueries({ queryKey: ["my_job_listings"] });
       toast.success(job ? "Job updated." : "Job posted.");
@@ -543,18 +540,34 @@ function JobFormDialog({ job, onClose }: { job?: JobListing; onClose: () => void
 
 /* ═══════════════════════ ORDERS TAB ═══════════════════════ */
 function OrdersTab() {
-  const { data: orders = [], isLoading } = useMyOrders("client");
+  const { user } = useDotAuth();
   const qc = useQueryClient();
+  const { data: orders = [], isLoading } = useQuery({
+    queryKey: ["orders", "client", user?.id],
+    enabled: !!user,
+    queryFn: () => listOrders("client"),
+  });
   const [review, setReview] = useState<{ id: string; title: string } | null>(null);
 
-  async function run(call: PromiseLike<{ error: unknown }>, ok: string) {
+  async function handleComplete(orderId: string) {
     try {
-      const { error } = await call;
-      if (error) throw error;
+      await completeOrder(orderId);
       qc.invalidateQueries({ queryKey: ["orders", "client"] });
       qc.invalidateQueries({ queryKey: ["wallet"] });
       qc.invalidateQueries({ queryKey: ["transactions"] });
-      toast.success(ok);
+      toast.success("Order completed — builder paid.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Action failed");
+    }
+  }
+
+  async function handleCancel(orderId: string) {
+    try {
+      await cancelOrder(orderId);
+      qc.invalidateQueries({ queryKey: ["orders", "client"] });
+      qc.invalidateQueries({ queryKey: ["wallet"] });
+      qc.invalidateQueries({ queryKey: ["transactions"] });
+      toast.success("Order cancelled — you were refunded.");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Action failed");
     }
@@ -575,25 +588,23 @@ function OrdersTab() {
               <div className="min-w-0">
                 <p className="truncate font-medium">{o.title}</p>
                 <p className="text-xs text-muted-foreground">
-                  {formatDot(Number(o.amount_dot))} DOT · {new Date(o.created_at).toLocaleDateString()}
+                  {formatDot(Number(o.amountDot))} DOT · {new Date(o.createdAt).toLocaleDateString()}
                 </p>
               </div>
               <Badge variant="secondary" className={cn("shrink-0", meta.tone)}>{meta.label}</Badge>
             </div>
-            {o.delivery_note && (
+            {o.deliveryNote && (
               <p className="mt-3 rounded-lg bg-muted/50 p-3 text-sm">
-                <span className="font-medium">Delivery: </span>{o.delivery_note}
+                <span className="font-medium">Delivery: </span>{o.deliveryNote}
               </p>
             )}
             <div className="mt-4 flex flex-wrap gap-2">
               {(o.status === "in_progress" || o.status === "delivered") && (
                 <>
-                  <Button variant="hero" size="sm"
-                    onClick={() => run(supabase.rpc("complete_service_order", { _order_id: o.id }), "Order completed — builder paid.")}>
+                  <Button variant="hero" size="sm" onClick={() => handleComplete(o.id)}>
                     <CheckCircle2 className="size-4" /> Confirm & pay
                   </Button>
-                  <Button variant="outline" size="sm"
-                    onClick={() => run(supabase.rpc("cancel_service_order", { _order_id: o.id }), "Order cancelled — you were refunded.")}>
+                  <Button variant="outline" size="sm" onClick={() => handleCancel(o.id)}>
                     Cancel
                   </Button>
                 </>
@@ -673,25 +684,33 @@ function ReviewDialog({ order, onClose }: { order: { id: string; title: string }
 
 /* ═══════════════════════ SELL TAB ═══════════════════════ */
 function SellTab() {
-  const { user, roles } = useAuth();
+  const { user, roles } = useDotAuth();
   const isFounder = roles.includes("founder");
   const { data: profile, isLoading: pLoading } = useMyBuilderProfile();
-  const { data: services = [] } = useMyServices();
-  const { data: orders = [] } = useMyOrders("builder");
-  const { data: myJobs = [] } = useMyJobListings();
+  const { data: services = [] } = useQuery({
+    queryKey: ["my_services", user?.id],
+    enabled: !!user,
+    queryFn: () => listServices(),
+  });
+  const { data: orders = [] } = useQuery({
+    queryKey: ["orders", "builder", user?.id],
+    enabled: !!user,
+    queryFn: () => listOrders("builder"),
+  });
+  const { data: myJobs = [] } = useQuery({
+    queryKey: ["my_job_listings", user?.id],
+    enabled: !!user,
+    queryFn: () => listJobs(),
+  });
   const { data: stats } = useBuilderStats(user?.id);
   const qc = useQueryClient();
   const [editService, setEditService] = useState<Service | null | "new">(null);
   const [editJob, setEditJob] = useState<JobListing | null | "new">(null);
   const [deliveryOrder, setDeliveryOrder] = useState<{ id: string; title: string } | null>(null);
 
-  async function deliver(orderId: string, note: string) {
+  async function handleDeliver(orderId: string, note: string) {
     try {
-      const { error } = await supabase.rpc("deliver_service_order", {
-        _order_id: orderId,
-        _note: note || undefined,
-      });
-      if (error) throw error;
+      await deliverOrder(orderId, note || undefined);
       qc.invalidateQueries({ queryKey: ["orders", "builder"] });
       toast.success("Marked as delivered.");
     } catch (e) {
@@ -699,10 +718,9 @@ function SellTab() {
     }
   }
 
-  async function deleteService(id: string) {
+  async function handleDeleteService(id: string) {
     try {
-      const { error } = await supabase.from("services").delete().eq("id", id);
-      if (error) throw error;
+      await deleteService(id);
       qc.invalidateQueries({ queryKey: ["my_services"] });
       qc.invalidateQueries({ queryKey: ["services"] });
       toast.success("Service removed.");
@@ -711,11 +729,9 @@ function SellTab() {
     }
   }
 
-  async function deleteJob(id: string) {
+  async function handleDeleteJob(id: string) {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error } = await (supabase as any).from("job_listings").delete().eq("id", id);
-      if (error) throw error;
+      await deleteJob(id);
       qc.invalidateQueries({ queryKey: ["job_listings"] });
       qc.invalidateQueries({ queryKey: ["my_job_listings"] });
       toast.success("Job listing removed.");
@@ -734,6 +750,10 @@ function SellTab() {
     );
   }
 
+  // Filter to only my own services for the sell tab
+  const myServices = services.filter((s) => s.builderId === user?.id);
+  // Filter my jobs
+  const myOwnJobs = myJobs.filter((j) => j.ventureId === user?.id);
   const activeOrders = orders.filter((o) => o.status === "in_progress" || o.status === "delivered");
 
   return (
@@ -761,25 +781,25 @@ function SellTab() {
             <Plus className="size-4" /> New service
           </Button>
         </div>
-        {services.length === 0 ? (
+        {myServices.length === 0 ? (
           <EmptyState icon={Store} title="No services yet" description="Create a service to start earning DOT."
             action={<Button variant="hero" size="sm" onClick={() => setEditService("new")}><Plus className="size-4" /> New service</Button>}
           />
         ) : (
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {services.map((s) => (
+            {myServices.map((s) => (
               <div key={s.id} className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
                 <div className="min-w-0">
                   <p className="truncate font-medium">{s.title}</p>
                   <p className="text-xs text-muted-foreground">
-                    {s.category} · {formatDot(s.price_dot)} DOT {!s.is_active && "· hidden"}
+                    {s.category} · {formatDot(s.priceDot)} DOT {!s.isActive && "· hidden"}
                   </p>
                 </div>
                 <div className="flex shrink-0 gap-1">
-                  <Button variant="ghost" size="icon" onClick={() => setEditService(s as Service)} aria-label="Edit service">
+                  <Button variant="ghost" size="icon" onClick={() => setEditService(s)} aria-label="Edit service">
                     <Pencil className="size-4" />
                   </Button>
-                  <Button variant="ghost" size="icon" onClick={() => deleteService(s.id)} aria-label="Delete service">
+                  <Button variant="ghost" size="icon" onClick={() => handleDeleteService(s.id)} aria-label="Delete service">
                     <Trash2 className="size-4 text-destructive" />
                   </Button>
                 </div>
@@ -798,25 +818,25 @@ function SellTab() {
               <Plus className="size-4" /> Post a job
             </Button>
           </div>
-          {myJobs.length === 0 ? (
+          {myOwnJobs.length === 0 ? (
             <EmptyState icon={Briefcase} title="No job listings yet" description="Post a job to find full-time, part-time, or contract talent."
               action={<Button variant="hero" size="sm" onClick={() => setEditJob("new")}><Plus className="size-4" /> Post a job</Button>}
             />
           ) : (
             <div className="mt-4 space-y-3">
-              {myJobs.map((j) => (
+              {myOwnJobs.map((j) => (
                 <div key={j.id} className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
                   <div className="min-w-0">
                     <p className="truncate font-medium">{j.title}</p>
                     <p className="text-xs text-muted-foreground">
-                      {j.category} · {formatDot(j.salary_dot)} DOT {!j.is_open && "· closed"}
+                      {j.category} · {formatDot(j.salaryDot)} DOT {!j.isOpen && "· closed"}
                     </p>
                   </div>
                   <div className="flex shrink-0 gap-1">
                     <Button variant="ghost" size="icon" onClick={() => setEditJob(j)} aria-label="Edit job">
                       <Pencil className="size-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => deleteJob(j.id)} aria-label="Delete job">
+                    <Button variant="ghost" size="icon" onClick={() => handleDeleteJob(j.id)} aria-label="Delete job">
                       <Trash2 className="size-4 text-destructive" />
                     </Button>
                   </div>
@@ -841,9 +861,9 @@ function SellTab() {
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
                       <p className="truncate font-medium">{o.title}</p>
-                      <p className="text-xs text-muted-foreground">{formatDot(Number(o.amount_dot))} DOT</p>
+                      <p className="text-xs text-muted-foreground">{formatDot(Number(o.amountDot))} DOT</p>
                     </div>
-                    <Badge variant="secondary" className={cn("shrink-0", meta.tone)}>{meta.label}</Badge>
+                    <Badge variant="secondary" className={cn("shrink-0", meta.tone)}>{meta.tone && meta.label}</Badge>
                   </div>
                   {o.requirements && (
                     <p className="mt-3 rounded-lg bg-muted/50 p-3 text-sm">
@@ -873,7 +893,7 @@ function SellTab() {
         orderId={deliveryOrder?.id ?? null}
         orderTitle={deliveryOrder?.title ?? ""}
         onClose={() => setDeliveryOrder(null)}
-        onDeliver={deliver}
+        onDeliver={handleDeliver}
       />
     </div>
   );
@@ -881,7 +901,7 @@ function SellTab() {
 
 /* ═══════════════════════ SHARED FORMS ═══════════════════════ */
 function BuilderProfileForm({ existing }: { existing?: { headline: string; bio: string | null; skills: string[]; available: boolean } }) {
-  const { user } = useAuth();
+  const { user } = useDotAuth();
   const qc = useQueryClient();
   const [headline, setHeadline] = useState(existing?.headline ?? "");
   const [bio, setBio] = useState(existing?.bio ?? "");
@@ -942,18 +962,16 @@ function BuilderProfileForm({ existing }: { existing?: { headline: string; bio: 
 }
 
 function ServiceFormDialog({ service, onClose }: { service: Service | null; onClose: () => void }) {
-  const { user } = useAuth();
   const qc = useQueryClient();
   const [title, setTitle] = useState(service?.title ?? "");
   const [description, setDescription] = useState(service?.description ?? "");
   const [category, setCategory] = useState(service?.category ?? WORK_CATEGORIES[0]);
-  const [price, setPrice] = useState(service?.price_dot ?? 1000);
-  const [days, setDays] = useState(service?.delivery_days ?? 3);
-  const [active, setActive] = useState(service?.is_active ?? true);
+  const [price, setPrice] = useState(service?.priceDot ?? 1000);
+  const [days, setDays] = useState(service?.deliveryDays ?? 3);
+  const [active, setActive] = useState(service?.isActive ?? true);
   const [busy, setBusy] = useState(false);
 
   async function save() {
-    if (!user) return;
     if (!title.trim() || !description.trim()) {
       toast.error("Title and description are required.");
       return;
@@ -965,18 +983,18 @@ function ServiceFormDialog({ service, onClose }: { service: Service | null; onCl
     setBusy(true);
     try {
       const payload = {
-        builder_id: user.id,
         title: title.trim(),
         description: description.trim(),
         category,
-        price_dot: Math.floor(price),
-        delivery_days: Math.floor(days),
-        is_active: active,
+        priceDot: Math.floor(price),
+        deliveryDays: Math.floor(days),
+        isActive: active,
       };
-      const { error } = service
-        ? await supabase.from("services").update(payload).eq("id", service.id)
-        : await supabase.from("services").insert(payload);
-      if (error) throw error;
+      if (service) {
+        await updateService(service.id, payload);
+      } else {
+        await createService(payload);
+      }
       qc.invalidateQueries({ queryKey: ["my_services"] });
       qc.invalidateQueries({ queryKey: ["services"] });
       toast.success(service ? "Service updated." : "Service published.");
