@@ -1,0 +1,783 @@
+/**
+ * Admin routes — /api/admin/*
+ *
+ * Layered security:
+ *   1. requireAdmin / requireSuperAdmin middleware
+ *   2. withIdempotency({ action }) preHandler on every write
+ *   3. requireConfirmHeader on destructive actions; the action
+ *      body must also include a non-empty 'reason' string
+ *   4. auditTx inside the same DB transaction as the mutation
+ *
+ * All write endpoints:
+ *   - require Idempotency-Key
+ *   - require a free-text 'reason' in the body
+ *   - emit an audit row inside the same transaction
+ *
+ * Destructive endpoints additionally:
+ *   - require X-Admin-Confirm header (issued by POST /admin/confirm)
+ *   - require super_admin role
+ *
+ * The two-factor confirm flow is what stops "I clicked the wrong
+ * button" and "someone sat at my unlocked laptop" both at once.
+ */
+
+import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
+import { z } from "zod";
+import { randomBytes } from "node:crypto";
+import { sql, eq, and, desc, asc, count, ilike, gte, lte, isNull, inArray, or } from "drizzle-orm";
+import { createHmac } from "node:crypto";
+
+import { db } from "../db/client.js";
+import {
+  users,
+  userRoles,
+  userBans,
+  wallets,
+  transactions,
+  ventures,
+  services,
+  jobListings,
+  serviceOrders,
+  payments,
+  paymentsAudit,
+  featureFlags,
+  adminAuditLog,
+  adminConfirmTokens,
+  adminImpersonationTokens,
+} from "../db/schema.js";
+import {
+  requireAdmin,
+  requireSuperAdmin,
+  banCheck,
+  withIdempotency,
+  commitIdempotency,
+  issueConfirmToken,
+  consumeConfirmToken,
+  auditTx,
+  reqAuditCtx,
+} from "../lib/admin.js";
+
+const REASON_MIN = 8;
+
+function reasonSchema() {
+  return z.string().min(REASON_MIN).max(500);
+}
+
+function requireReason(reason: unknown): { ok: true; reason: string } | { ok: false; code: string } {
+  const parsed = reasonSchema().safeParse(reason);
+  if (!parsed.success) {
+    return { ok: false, code: `reason must be ${REASON_MIN}-500 chars` };
+  }
+  return { ok: true, reason: parsed.data };
+}
+
+export async function adminRoutes(app: FastifyInstance) {
+  /* ============================== ME ============================== */
+
+  app.get(
+    "/me",
+    { preHandler: [app.authenticate, requireAdmin] },
+    async (req, reply) => {
+      const sub = (req as any).user.sub;
+      const u = await db
+        .select({
+          id: users.id,
+          email: users.email,
+          name: users.name,
+          dotId: users.dotId,
+        })
+        .from(users)
+        .where(eq(users.id, sub))
+        .limit(1);
+      if (!u[0]) return reply.code(404).send({ error: "not_found" });
+      const roles = (req as any).adminRoles as string[];
+      return reply.send({
+        admin: { ...u[0], roles, isSuperAdmin: roles.includes("super_admin") },
+        permissions: derivePermissions(roles),
+      });
+    }
+  );
+
+  /* ============================== CONFIRM ============================== */
+
+  const confirmBodySchema = z.object({
+    action: z.string().min(3).max(64),
+    reason: z.string().min(REASON_MIN).max(500),
+    targetType: z.string().optional(),
+    targetId: z.string().optional(),
+    payload: z.any().optional(),
+    /** TTL in seconds. Default 300. */
+    ttlSeconds: z.number().min(30).max(900).optional(),
+  });
+
+  /**
+   * POST /api/admin/confirm
+   *
+   * Issue a single-use confirm token. Rate-limited at 1 per 5s
+   * per admin (in-process map for now; the audit log gives us a
+   * perma-record we can re-rate-limit from if we want).
+   *
+   * The token returned here must be passed in the X-Admin-Confirm
+   * header of the actual action request.
+   */
+  app.post(
+    "/confirm",
+    {
+      preHandler: [app.authenticate, requireAdmin],
+    },
+    async (req, reply) => {
+      const parsed = confirmBodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: "Invalid confirm request", code: "bad_input" });
+      }
+      const adminId = (req as any).user.sub;
+      const token = await issueConfirmToken({
+        adminId,
+        action: parsed.data.action,
+        reason: parsed.data.reason,
+        targetType: parsed.data.targetType,
+        targetId: parsed.data.targetId,
+        payload: parsed.data.payload,
+        ttlSeconds: parsed.data.ttlSeconds,
+      });
+      const row = await db
+        .select({ expiresAt: adminConfirmTokens.expiresAt })
+        .from(adminConfirmTokens)
+        .where(eq(adminConfirmTokens.token, token))
+        .limit(1);
+      return reply.send({ token, expiresAt: row[0]?.expiresAt });
+    }
+  );
+
+  /* ============================== USERS ============================== */
+
+  app.get(
+    "/users",
+    { preHandler: [app.authenticate, requireAdmin] },
+    async (req, reply) => {
+      const q = z
+        .object({
+          search: z.string().optional(),
+          role: z.string().optional(),
+          banned: z.enum(["yes", "no"]).optional(),
+          sort: z.enum(["created_desc", "created_asc", "name_asc"]).default("created_desc"),
+          limit: z.coerce.number().min(1).max(100).default(25),
+          cursor: z.string().optional(), // ISO date cursor for pagination
+        })
+        .safeParse(req.query);
+      if (!q.success) return reply.code(400).send({ error: "bad_query" });
+      const { search, role, banned, sort, limit, cursor } = q.data;
+
+      const conditions: any[] = [];
+      if (search) {
+        conditions.push(or(ilike(users.email, `%${search}%`), ilike(users.name, `%${search}%`), ilike(users.dotId, `%${search}%`)));
+      }
+      if (cursor) {
+        if (sort === "created_asc") conditions.push(gte(users.createdAt, new Date(cursor)));
+        else conditions.push(lte(users.createdAt, new Date(cursor)));
+      }
+      if (banned === "yes") {
+        const bannedIds = await db
+          .select({ id: userBans.userId })
+          .from(userBans)
+          .where(isNull(userBans.revokedAt));
+        if (bannedIds.length) {
+          conditions.push(inArray(users.id, bannedIds.map((r) => r.id)));
+        } else {
+          return reply.send({ users: [], nextCursor: null });
+        }
+      }
+
+      const order = sort === "created_asc" ? asc(users.createdAt) : sort === "name_asc" ? asc(users.name) : desc(users.createdAt);
+
+      const rows = await db
+        .select({
+          id: users.id,
+          email: users.email,
+          name: users.name,
+          dotId: users.dotId,
+          onboardingIntent: users.onboardingIntent,
+          createdAt: users.createdAt,
+        })
+        .from(users)
+        .where(conditions.length ? and(...conditions) : undefined)
+        .orderBy(order)
+        .limit(limit + 1);
+
+      const hasMore = rows.length > limit;
+      const slice = hasMore ? rows.slice(0, limit) : rows;
+      const nextCursor = hasMore ? slice[slice.length - 1].createdAt.toISOString() : null;
+
+      // Optionally filter by role
+      let filtered = slice;
+      if (role) {
+        const userIds = slice.map((u) => u.id);
+        const roleRows = await db
+          .select({ userId: userRoles.userId })
+          .from(userRoles)
+          .where(and(eq(userRoles.role, role as any), inArray(userRoles.userId, userIds)));
+        const allowed = new Set(roleRows.map((r) => r.userId));
+        filtered = slice.filter((u) => allowed.has(u.id));
+      }
+
+      return reply.send({ users: filtered, nextCursor });
+    }
+  );
+
+  app.get(
+    "/users/:id",
+    { preHandler: [app.authenticate, requireAdmin] },
+    async (req, reply) => {
+      const { id } = req.params as { id: string };
+      const u = await db.select().from(users).where(eq(users.id, id)).limit(1);
+      if (!u[0]) return reply.code(404).send({ error: "not_found" });
+      const w = await db.select().from(wallets).where(eq(wallets.userId, id)).limit(1);
+      const r = await db
+        .select({ role: userRoles.role })
+        .from(userRoles)
+        .where(eq(userRoles.userId, id));
+      const ban = await db.select().from(userBans).where(eq(userBans.userId, id)).limit(1);
+      const txns = await db
+        .select()
+        .from(transactions)
+        .where(eq(transactions.userId, id))
+        .orderBy(desc(transactions.createdAt))
+        .limit(50);
+      return reply.send({
+        user: u[0],
+        wallet: w[0] ?? null,
+        roles: r.map((x) => x.role),
+        ban: ban[0] ?? null,
+        recentTransactions: txns,
+      });
+    }
+  );
+
+  /* ---------- USER ACTIONS (destructive) ---------- */
+
+  app.post(
+    "/users/:id/ban",
+    {
+      preHandler: [app.authenticate, requireSuperAdmin, withIdempotency({ action: "user.ban" })],
+    },
+    async (req, reply) => {
+      const { id } = req.params as { id: string };
+      const body = z
+        .object({ reason: reasonSchema(), expiresInHours: z.number().min(1).max(8760).optional() })
+        .safeParse(req.body);
+      if (!body.success) return reply.code(400).send({ error: "bad_input", code: "bad_input" });
+      const token = (req as any)._confirmToken as string | undefined;
+      if (!token) {
+        return reply.code(400).send({ error: "X-Admin-Confirm required", code: "confirm_required" });
+      }
+      const c = await consumeConfirmToken(token, (req as any).user.sub, "user.ban");
+      if (c.ok !== true) return reply.code(400).send({ error: c.hint, code: c.code });
+
+      const target = await db.select().from(users).where(eq(users.id, id)).limit(1);
+      if (!target[0]) return reply.code(404).send({ error: "not_found" });
+      const before = { banned: false };
+      const expiresAt = body.data.expiresInHours
+        ? new Date(Date.now() + body.data.expiresInHours * 3600 * 1000)
+        : null;
+
+      await db.transaction(async (tx) => {
+        await tx
+          .insert(userBans)
+          .values({
+            userId: id,
+            bannedBy: (req as any).user.sub,
+            reason: c.reason,
+            expiresAt,
+          } as any)
+          .onConflictDoUpdate({
+            target: userBans.userId,
+            set: { reason: c.reason, expiresAt, revokedAt: null, revokedBy: null } as any,
+          });
+        await auditTx(tx, {
+          ...reqAuditCtx(req),
+          action: "user.ban",
+          targetType: "user",
+          targetId: id,
+          before,
+          after: { banned: true, expiresAt },
+          reason: c.reason,
+        });
+      });
+
+      const response = { ok: true, banned: true, expiresAt };
+      await commitIdempotency(req, 200, response);
+      return reply.send(response);
+    }
+  );
+
+  app.post(
+    "/users/:id/unban",
+    {
+      preHandler: [app.authenticate, requireSuperAdmin, withIdempotency({ action: "user.unban" })],
+    },
+    async (req, reply) => {
+      const { id } = req.params as { id: string };
+      const body = z.object({ reason: reasonSchema() }).safeParse(req.body);
+      if (!body.success) return reply.code(400).send({ error: "bad_input" });
+
+      const before = await db.select().from(userBans).where(eq(userBans.userId, id)).limit(1);
+      await db.transaction(async (tx) => {
+        await tx
+          .update(userBans)
+          .set({ revokedAt: new Date(), revokedBy: (req as any).user.sub } as any)
+          .where(and(eq(userBans.userId, id), isNull(userBans.revokedAt)));
+        await auditTx(tx, {
+          ...reqAuditCtx(req),
+          action: "user.unban",
+          targetType: "user",
+          targetId: id,
+          before: before[0] ?? null,
+          after: { banned: false },
+          reason: body.data.reason,
+        });
+      });
+      const response = { ok: true, unbanned: true };
+      await commitIdempotency(req, 200, response);
+      return reply.send(response);
+    }
+  );
+
+  app.post(
+    "/users/:id/adjust-balance",
+    {
+      preHandler: [app.authenticate, requireSuperAdmin, withIdempotency({ action: "wallet.adjust" })],
+    },
+    async (req, reply) => {
+      const { id } = req.params as { id: string };
+      const body = z
+        .object({
+          reason: reasonSchema(),
+          amount: z.number().int().refine((n) => n !== 0, "amount must be non-zero"),
+          description: z.string().min(3).max(200),
+        })
+        .safeParse(req.body);
+      if (!body.success) return reply.code(400).send({ error: "bad_input" });
+      const token = (req as any)._confirmToken as string | undefined;
+      if (!token) return reply.code(400).send({ code: "confirm_required" });
+      const c = await consumeConfirmToken(token, (req as any).user.sub, "wallet.adjust");
+      if (c.ok !== true) return reply.code(400).send({ error: c.hint, code: c.code });
+
+      const w = await db.select().from(wallets).where(eq(wallets.userId, id)).limit(1);
+      if (!w[0]) return reply.code(404).send({ error: "wallet not found" });
+      const before = { balance: w[0].balance };
+      const afterBalance = (Number(w[0].balance) + body.data.amount).toFixed(2);
+
+      await db.transaction(async (tx) => {
+        await tx
+          .update(wallets)
+          .set({ balance: afterBalance as any, updatedAt: new Date() } as any)
+          .where(eq(wallets.userId, id));
+        await tx.insert(transactions).values({
+          userId: id,
+          amount: body.data.amount.toString(),
+          type: body.data.amount > 0 ? "credit" : "debit",
+          description: `[ADMIN] ${body.data.description}`,
+        } as any);
+        await auditTx(tx, {
+          ...reqAuditCtx(req),
+          action: "wallet.adjust",
+          targetType: "user",
+          targetId: id,
+          before,
+          after: { balance: afterBalance, delta: body.data.amount },
+          reason: c.reason,
+        });
+      });
+      const response = { ok: true, balance: afterBalance };
+      await commitIdempotency(req, 200, response);
+      return reply.send(response);
+    }
+  );
+
+  app.post(
+    "/users/:id/impersonate",
+    {
+      preHandler: [app.authenticate, requireSuperAdmin, withIdempotency({ action: "user.impersonate" })],
+    },
+    async (req, reply) => {
+      const { id } = req.params as { id: string };
+      const body = z.object({ reason: reasonSchema() }).safeParse(req.body);
+      if (!body.success) return reply.code(400).send({ error: "bad_input" });
+      const token = (req as any)._confirmToken as string | undefined;
+      if (!token) return reply.code(400).send({ code: "confirm_required" });
+      const c = await consumeConfirmToken(token, (req as any).user.sub, "user.impersonate");
+      if (c.ok !== true) return reply.code(400).send({ error: c.hint, code: c.code });
+
+      const target = await db.select().from(users).where(eq(users.id, id)).limit(1);
+      if (!target[0]) return reply.code(404).send({ error: "not_found" });
+
+      const jti = randomBytes(16).toString("hex");
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 min
+      await db.insert(adminImpersonationTokens).values({
+        jti,
+        adminId: (req as any).user.sub,
+        targetUserId: id,
+        reason: c.reason,
+        expiresAt,
+      } as any);
+
+      // Build a short-lived JWT. We sign with JWT_SECRET (same as
+      // regular sessions) but include 'impersonator' + 'impersonation_jti'
+      // claims. The auth middleware will treat this as a session.
+      const jwt = await issueImpersonationJwt(jti, id, (req as any).user.sub, expiresAt);
+
+      await db.transaction(async (tx) => {
+        await auditTx(tx, {
+          ...reqAuditCtx(req),
+          action: "user.impersonate",
+          targetType: "user",
+          targetId: id,
+          after: { jti, expiresAt },
+          reason: c.reason,
+        });
+      });
+
+      const response = { ok: true, token: jwt, expiresAt, target: { id: target[0].id, email: target[0].email, dotId: target[0].dotId } };
+      await commitIdempotency(req, 200, response);
+      return reply.send(response);
+    }
+  );
+
+  app.post(
+    "/users/:id/promote",
+    {
+      preHandler: [app.authenticate, requireSuperAdmin, withIdempotency({ action: "user.promote" })],
+    },
+    async (req, reply) => {
+      const { id } = req.params as { id: string };
+      const body = z
+        .object({
+          reason: reasonSchema(),
+          role: z.enum(["admin", "super_admin", "founder", "investor", "community_leader", "vendor", "capital_partner"]),
+        })
+        .safeParse(req.body);
+      if (!body.success) return reply.code(400).send({ error: "bad_input" });
+
+      const target = await db.select().from(users).where(eq(users.id, id)).limit(1);
+      if (!target[0]) return reply.code(404).send({ error: "not_found" });
+      const before = await db.select({ role: userRoles.role }).from(userRoles).where(eq(userRoles.userId, id));
+
+      await db.transaction(async (tx) => {
+        await tx
+          .insert(userRoles)
+          .values({ userId: id, role: body.data.role as any } as any)
+          .onConflictDoNothing();
+        await auditTx(tx, {
+          ...reqAuditCtx(req),
+          action: "user.promote",
+          targetType: "user",
+          targetId: id,
+          before: { roles: before.map((r) => r.role) },
+          after: { role: body.data.role },
+          reason: body.data.reason,
+        });
+      });
+      const response = { ok: true, role: body.data.role };
+      await commitIdempotency(req, 200, response);
+      return reply.send(response);
+    }
+  );
+
+  /* ============================== VENTURES ============================== */
+
+  app.get(
+    "/ventures",
+    { preHandler: [app.authenticate, requireAdmin] },
+    async (req, reply) => {
+      const q = z
+        .object({
+          search: z.string().optional(),
+          stage: z.string().optional(),
+          industry: z.string().optional(),
+          limit: z.coerce.number().min(1).max(100).default(25),
+        })
+        .safeParse(req.query);
+      if (!q.success) return reply.code(400).send({ error: "bad_query" });
+      const conds: any[] = [];
+      if (q.data.search) conds.push(ilike(ventures.name, `%${q.data.search}%`));
+      if (q.data.stage) conds.push(eq(ventures.stage, q.data.stage as any));
+      if (q.data.industry) conds.push(eq(ventures.industry, q.data.industry));
+      const rows = await db
+        .select()
+        .from(ventures)
+        .where(conds.length ? and(...conds) : undefined)
+        .orderBy(desc(ventures.createdAt))
+        .limit(q.data.limit);
+      return reply.send({ ventures: rows });
+    }
+  );
+
+  app.post(
+    "/ventures/:id/takedown",
+    {
+      preHandler: [app.authenticate, requireAdmin, withIdempotency({ action: "venture.takedown" })],
+    },
+    async (req, reply) => {
+      const { id } = req.params as { id: string };
+      const body = z.object({ reason: reasonSchema() }).safeParse(req.body);
+      if (!body.success) return reply.code(400).send({ error: "bad_input" });
+
+      const before = await db.select().from(ventures).where(eq(ventures.id, id)).limit(1);
+      if (!before[0]) return reply.code(404).send({ error: "not_found" });
+
+      // The ventures table doesn't have isPublic yet — the
+      // /api/ventures list query will be updated to filter out
+      // hidden ventures. For now we only audit-log.
+      await db.transaction(async (tx) => {
+        await auditTx(tx, {
+          ...reqAuditCtx(req),
+          action: "venture.takedown",
+          targetType: "venture",
+          targetId: id,
+          before: { name: before[0].name, industry: before[0].industry },
+          after: { hidden: true },
+          reason: body.data.reason,
+        });
+      });
+      const response = { ok: true };
+      await commitIdempotency(req, 200, response);
+      return reply.send(response);
+    }
+  );
+
+  /* ============================== PAYMENTS ============================== */
+
+  app.get(
+    "/payments",
+    { preHandler: [app.authenticate, requireAdmin] },
+    async (req, reply) => {
+      const q = z
+        .object({
+          provider: z.enum(["paystack", "whop"]).optional(),
+          status: z.string().optional(),
+          limit: z.coerce.number().min(1).max(100).default(25),
+        })
+        .safeParse(req.query);
+      if (!q.success) return reply.code(400).send({ error: "bad_query" });
+      const conds: any[] = [];
+      if (q.data.provider) conds.push(eq(paymentsAudit.provider, q.data.provider));
+      if (q.data.status) conds.push(eq(paymentsAudit.status, q.data.status));
+      const rows = await db
+        .select()
+        .from(paymentsAudit)
+        .where(conds.length ? and(...conds) : undefined)
+        .orderBy(desc(paymentsAudit.createdAt))
+        .limit(q.data.limit);
+      return reply.send({ payments: rows });
+    }
+  );
+
+  app.post(
+    "/payments/:id/replay",
+    {
+      preHandler: [app.authenticate, requireSuperAdmin, withIdempotency({ action: "payment.replay" })],
+    },
+    async (req, reply) => {
+      const { id } = req.params as { id: string };
+      const body = z.object({ reason: reasonSchema() }).safeParse(req.body);
+      if (!body.success) return reply.code(400).send({ error: "bad_input" });
+
+      // Replay is "set status back to received" so the webhook
+      // handler picks it up on next sweep. We don't directly
+      // re-run the wallet update — that path goes through
+      // webhooks.paystack to keep the audit chain intact.
+      const before = await db.select().from(paymentsAudit).where(eq(paymentsAudit.id, id)).limit(1);
+      if (!before[0]) return reply.code(404).send({ error: "not_found" });
+
+      await db.transaction(async (tx) => {
+        await tx
+          .update(paymentsAudit)
+          .set({ status: "received", failureReason: null, processedAt: null } as any)
+          .where(eq(paymentsAudit.id, id));
+        await auditTx(tx, {
+          ...reqAuditCtx(req),
+          action: "payment.replay",
+          targetType: "payment",
+          targetId: id,
+          before: { status: before[0].status },
+          after: { status: "received" },
+          reason: body.data.reason,
+        });
+      });
+      const response = { ok: true, status: "received" };
+      await commitIdempotency(req, 200, response);
+      return reply.send(response);
+    }
+  );
+
+  /* ============================== FEATURE FLAGS ============================== */
+
+  app.get(
+    "/feature-flags",
+    { preHandler: [app.authenticate, requireAdmin] },
+    async (_req, reply) => {
+      const rows = await db.select().from(featureFlags).orderBy(asc(featureFlags.key));
+      return reply.send({ flags: rows });
+    }
+  );
+
+  app.put(
+    "/feature-flags/:key",
+    {
+      preHandler: [app.authenticate, requireSuperAdmin, withIdempotency({ action: "feature_flag.upsert" })],
+    },
+    async (req, reply) => {
+      const { key } = req.params as { key: string };
+      const body = z
+        .object({
+          reason: reasonSchema(),
+          enabled: z.boolean(),
+          rolloutPercent: z.number().min(0).max(100).nullable().optional(),
+          allowList: z.array(z.string()).nullable().optional(),
+          description: z.string().max(500).optional(),
+        })
+        .safeParse(req.body);
+      if (!body.success) return reply.code(400).send({ error: "bad_input" });
+
+      const before = await db.select().from(featureFlags).where(eq(featureFlags.key, key)).limit(1);
+
+      await db.transaction(async (tx) => {
+        await tx
+          .insert(featureFlags)
+          .values({
+            key,
+            enabled: body.data.enabled,
+            rolloutPercent: body.data.rolloutPercent ?? null,
+            allowList: body.data.allowList ?? null,
+            description: body.data.description ?? null,
+            updatedBy: (req as any).user.sub,
+          } as any)
+          .onConflictDoUpdate({
+            target: featureFlags.key,
+            set: {
+              enabled: body.data.enabled,
+              rolloutPercent: body.data.rolloutPercent ?? null,
+              allowList: body.data.allowList ?? null,
+              description: body.data.description ?? null,
+              updatedBy: (req as any).user.sub,
+              updatedAt: new Date(),
+            } as any,
+          });
+        await auditTx(tx, {
+          ...reqAuditCtx(req),
+          action: "feature_flag.upsert",
+          targetType: "feature_flag",
+          targetId: key,
+          before: before[0] ?? null,
+          after: { enabled: body.data.enabled, rolloutPercent: body.data.rolloutPercent },
+          reason: body.data.reason,
+        });
+      });
+      const response = { ok: true, key };
+      await commitIdempotency(req, 200, response);
+      return reply.send(response);
+    }
+  );
+
+  /* ============================== AUDIT LOG ============================== */
+
+  app.get(
+    "/audit",
+    { preHandler: [app.authenticate, requireAdmin] },
+    async (req, reply) => {
+      const q = z
+        .object({
+          actorId: z.string().optional(),
+          action: z.string().optional(),
+          targetId: z.string().optional(),
+          limit: z.coerce.number().min(1).max(200).default(50),
+          cursor: z.string().optional(), // ISO createdAt
+        })
+        .safeParse(req.query);
+      if (!q.success) return reply.code(400).send({ error: "bad_query" });
+      const conds: any[] = [];
+      if (q.data.actorId) conds.push(eq(adminAuditLog.actorId, q.data.actorId));
+      if (q.data.action) conds.push(ilike(adminAuditLog.action, `%${q.data.action}%`));
+      if (q.data.targetId) conds.push(eq(adminAuditLog.targetId, q.data.targetId));
+      if (q.data.cursor) conds.push(lte(adminAuditLog.createdAt, new Date(q.data.cursor)));
+      const rows = await db
+        .select()
+        .from(adminAuditLog)
+        .where(conds.length ? and(...conds) : undefined)
+        .orderBy(desc(adminAuditLog.createdAt))
+        .limit(q.data.limit);
+      return reply.send({
+        entries: rows,
+        nextCursor: rows.length === q.data.limit ? rows[rows.length - 1].createdAt.toISOString() : null,
+      });
+    }
+  );
+
+  /* ============================== STATS ============================== */
+
+  app.get(
+    "/stats",
+    { preHandler: [app.authenticate, requireAdmin] },
+    async (_req, reply) => {
+      const [u] = (await db.execute(sql`SELECT count(*)::int AS n FROM users`)) as any;
+      const [b] = (await db.execute(sql`SELECT count(*)::int AS n FROM user_bans WHERE revoked_at IS NULL`)) as any;
+      const [v] = (await db.execute(sql`SELECT count(*)::int AS n FROM ventures`)) as any;
+      const [s] = (await db.execute(sql`SELECT count(*)::int AS n FROM services WHERE is_active = true`)) as any;
+      const [j] = (await db.execute(sql`SELECT count(*)::int AS n FROM job_listings WHERE is_active = true`)) as any;
+      const [tx2] = (await db.execute(sql`SELECT count(*)::int AS n FROM transactions`)) as any;
+      const [fa] = (await db.execute(sql`SELECT count(*)::int AS n FROM feature_flags WHERE enabled = true`)) as any;
+      return reply.send({
+        users: Number(u?.n ?? 0),
+        bannedUsers: Number(b?.n ?? 0),
+        ventures: Number(v?.n ?? 0),
+        activeServices: Number(s?.n ?? 0),
+        activeJobs: Number(j?.n ?? 0),
+        transactions: Number(tx2?.n ?? 0),
+        activeFeatureFlags: Number(fa?.n ?? 0),
+      });
+    }
+  );
+}
+
+/* ============================== helpers ============================== */
+
+function derivePermissions(roles: string[]) {
+  const isSuper = roles.includes("super_admin");
+  const isAdmin = isSuper || roles.includes("admin");
+  return {
+    canReadUsers: isAdmin,
+    canReadVentures: isAdmin,
+    canReadPayments: isAdmin,
+    canReadAudit: isAdmin,
+    canBan: isSuper,
+    canAdjustBalance: isSuper,
+    canImpersonate: isSuper,
+    canPromote: isSuper,
+    canToggleFeatureFlags: isSuper,
+    canReplayPayments: isSuper,
+  };
+}
+
+/**
+ * Sign an impersonation JWT. We piggy-back on the existing
+ * JWT_SECRET so the auth middleware can verify it. The token
+ * carries a special 'impersonator' claim and a 'ijti' (impersonation
+ * JTI) so the auth middleware can check the revocation table.
+ */
+async function issueImpersonationJwt(jti: string, targetUserId: string, adminId: string, expiresAt: Date) {
+  const secret = process.env.JWT_SECRET ?? "dev-secret-change-me";
+  const header = { alg: "HS256", typ: "JWT" };
+  const now = Math.floor(Date.now() / 1000);
+  const exp = Math.floor(expiresAt.getTime() / 1000);
+  const payload = {
+    sub: targetUserId,
+    ijti: jti,
+    impersonator: adminId,
+    iat: now,
+    exp,
+  };
+  const b64 = (o: any) => Buffer.from(JSON.stringify(o)).toString("base64url");
+  const data = `${b64(header)}.${b64(payload)}`;
+  const sig = createHmac("sha256", secret).update(data).digest("base64url");
+  return `${data}.${sig}`;
+}

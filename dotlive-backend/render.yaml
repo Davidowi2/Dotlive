@@ -1,0 +1,56 @@
+# Render Blueprint — DOT API
+#
+# Deploy this to Render by either:
+#   1. Connecting the GitHub repo (https://render.com → New →
+#      Blueprint → select this repo). Render auto-detects this file.
+#   2. Creating a Web Service manually and pointing it at apps/api.
+#
+# Workspace install note:
+#   Because the API shares a node_modules with apps/web via npm
+#   workspaces, we install at the repo root first, then build
+#   only apps/api. Render's buildCommand runs from the rootDir
+#   we set below, so we `cd ../..` to reach the repo root.
+#
+# Region: Singapore (closest to Neon ap-southeast-2 + most African users)
+
+services:
+  - type: web
+    name: dotlive-api
+    runtime: node
+    region: singapore
+    plan: starter
+    rootDir: apps/api
+    buildCommand: |
+      cd ../.. && \
+      npm install --no-audit --no-fund && \
+      npm --workspace apps/api run build
+    startCommand: node dist/server.js
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3001"
+      - key: DATABASE_URL
+        sync: false   # set this in the Render dashboard to your Neon pooler URL
+      - key: JWT_SECRET
+        generateValue: true
+      - key: FRONTEND_URL
+        value: https://dotlive-web.vercel.app
+      - key: API_BASE_URL
+        value: https://dotlive-api.onrender.com
+      - key: CLOUDINARY_CLOUD_NAME
+        value: dccqvg23z
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: PAYSTACK_SECRET_KEY
+        sync: false
+      - key: WHOP_WEBHOOK_SECRET
+        sync: false
