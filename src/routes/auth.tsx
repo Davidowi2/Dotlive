@@ -4,9 +4,9 @@ import {
   Mail, Loader2, ArrowLeft, KeyRound, BookOpen, Coins, Lightbulb,
   TrendingUp, Users, Compass, Check, ChevronRight, Eye, EyeOff,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
-import { useAuth } from "@/hooks/use-auth";
+import { useDotAuth } from "@/contexts/DotAuthContext";
+import { getGoogleAuthUrl } from "@/api/auth";
+import { ApiError } from "@/types/api";
 import { Logo } from "@/components/site/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -131,12 +131,12 @@ const AFRICAN_COUNTRIES_SHORT = [
 
 function AuthPage() {
   const navigate = useNavigate();
-  const { user, loading } = useAuth();
+  const { user, isLoading } = useDotAuth();
   const [mode, setMode] = useState<AuthMode>("signin");
 
   useEffect(() => {
-    if (!loading && user) navigate({ to: "/dashboard" });
-  }, [user, loading, navigate]);
+    if (!isLoading && user) navigate({ to: "/dashboard" });
+  }, [user, isLoading, navigate]);
 
   if (mode === "signup") {
     return <SignupFlow onSwitchToSignin={() => setMode("signin")} />;
@@ -172,76 +172,51 @@ function SigninForm({
   onSignup: () => void;
 }) {
   const navigate = useNavigate();
+  const { login } = useDotAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [otp, setOtp] = useState("");
   const [busy, setBusy] = useState(false);
 
-  async function handleGoogle() {
-    setBusy(true);
-    try {
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin + "/dashboard",
-      });
-      if (result.error) { toast.error("Google sign-in failed."); setBusy(false); return; }
-      if (result.redirected) return;
-      navigate({ to: "/dashboard" });
-    } catch { toast.error("Google sign-in failed."); setBusy(false); }
+  function handleGoogle() {
+    // Redirect to the backend OAuth flow
+    window.location.href = getGoogleAuthUrl();
   }
 
   async function handleSignin(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+      await login(email, password);
       toast.success("Welcome back!");
       navigate({ to: "/dashboard" });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Sign-in failed");
+      const msg = err instanceof ApiError ? err.message
+        : err instanceof Error ? err.message
+        : "Sign-in failed";
+      toast.error(msg);
     } finally { setBusy(false); }
   }
 
   async function handleForgot(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin + "/reset-password",
-      });
-      if (error) throw error;
-      toast.success("Password reset link sent to your email.");
-      setMode("signin");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not send reset link");
-    } finally { setBusy(false); }
+    // Password reset is not yet on the new API — show a helpful message
+    toast.info("Password reset is coming soon. Contact support@dot.africa for help.");
+    setBusy(false);
+    setMode("signin");
   }
 
+  // OTP sign-in is Supabase-specific — not supported on the new API yet.
+  // We keep the UI but show a notice pointing to email/password.
   async function handleSendOtp(e: React.FormEvent) {
     e.preventDefault();
-    setBusy(true);
-    try {
-      const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
-      if (error) throw error;
-      toast.success("We sent a 6-digit code to your email.");
-      setMode("otp-verify");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not send code");
-    } finally { setBusy(false); }
+    toast.info("Magic link sign-in is coming soon. Use email + password for now.");
   }
 
-  async function handleVerifyOtp(value: string) {
-    setBusy(true);
-    try {
-      const { error } = await supabase.auth.verifyOtp({ email, token: value, type: "email" });
-      if (error) throw error;
-      toast.success("Signed in!");
-      navigate({ to: "/dashboard" });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Invalid code");
-      setBusy(false);
-    }
+  async function handleVerifyOtp(_value: string) {
+    toast.info("Magic link sign-in is coming soon.");
   }
 
   if (mode === "otp-verify") {
@@ -374,6 +349,7 @@ function SigninForm({
 
 function SignupFlow({ onSwitchToSignin }: { onSwitchToSignin: () => void }) {
   const navigate = useNavigate();
+  const { signup } = useDotAuth();
   const [step, setStep] = useState<SignupStep>(1);
   const [busy, setBusy] = useState(false);
 
@@ -437,26 +413,25 @@ function SignupFlow({ onSwitchToSignin }: { onSwitchToSignin: () => void }) {
   async function submitSignup(chosenIntent: SignupIntent, chips: string[]) {
     setBusy(true);
     try {
-      const { error } = await supabase.auth.signUp({
+      await signup({
         email,
         password,
-        options: {
-          emailRedirectTo: window.location.origin + "/dashboard",
-          data: {
-            name,
-            intent: chosenIntent,
-            skills: chips,
-            business_stage: businessStage || null,
-            invest_range: investRange || null,
-            country: country || null,
-          },
+        name: name.trim(),
+        intent: chosenIntent,
+        metadata: {
+          skills: chips,
+          business_stage: businessStage || null,
+          invest_range: investRange || null,
+          country: country || null,
         },
       });
-      if (error) throw error;
       toast.success("Account created! Welcome to DOT.");
       navigate({ to: "/onboarding" });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not create account");
+      const msg = err instanceof ApiError ? err.message
+        : err instanceof Error ? err.message
+        : "Could not create account";
+      toast.error(msg);
     } finally {
       setBusy(false);
     }
@@ -495,12 +470,8 @@ function SignupFlow({ onSwitchToSignin }: { onSwitchToSignin: () => void }) {
                 <p className="mt-1 text-sm text-muted-foreground">Free to join. No credit card needed.</p>
               </div>
 
-              <Button variant="outline" className="w-full" onClick={async () => {
-                setBusy(true);
-                try {
-                  const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin + "/dashboard" });
-                  if (result.error) { toast.error("Google sign-in failed."); setBusy(false); return; }
-                } catch { toast.error("Google sign-in failed."); setBusy(false); }
+              <Button variant="outline" className="w-full" onClick={() => {
+                window.location.href = getGoogleAuthUrl();
               }} disabled={busy}>
                 <GoogleIcon /> Continue with Google
               </Button>
