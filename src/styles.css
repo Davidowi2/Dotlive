@@ -5,7 +5,9 @@
 /* ─── Editorial fonts ───────────────────────────────────────── */
 /* Fraunces: sophisticated optical-size serif for display headings */
 /* Inter: clean, modern sans for body text                        */
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=Inter:wght@300;400;500;600;700&display=swap');
+/* Google Fonts link lives in index.html (not in CSS) — Tailwind v4's */
+/* CSS-first compiler moves @import url() rules and breaks the @import */
+/* ordering rule when placed in user CSS. */
 
 @custom-variant dark (&:is(.dark *));
 
