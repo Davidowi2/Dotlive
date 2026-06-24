@@ -1,7 +1,25 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Wallet, ArrowDownToLine, Loader2, Plus, Minus, Gift, Settings2, ShoppingBag, CalendarDays, CheckCircle2, Send, Copy, Check } from "lucide-react";
+import {
+  ArrowDownToLine,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Plus,
+  Minus,
+  Gift,
+  Settings2,
+  ShoppingBag,
+  CalendarDays,
+  CheckCircle2,
+  Send,
+  Copy,
+  Check,
+  Loader2,
+  Wallet as WalletIcon,
+  TrendingUp,
+  TrendingDown,
+} from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
 import { PageSkeleton } from "@/components/app/PageSkeleton";
@@ -38,19 +56,50 @@ export const Route = createFileRoute("/_authenticated/wallet")({
   component: WalletPage,
 });
 
-const TYPE_META: Record<string, { icon: typeof Plus; tone: string }> = {
-  Deposit: { icon: ArrowDownToLine, tone: "text-primary" },
-  Reward: { icon: Gift, tone: "text-gold" },
-  "Academy Reward": { icon: Gift, tone: "text-gold" },
-  Spend: { icon: Minus, tone: "text-destructive" },
-  Transfer: { icon: Send, tone: "text-foreground" },
-  "Marketplace Spend": { icon: ShoppingBag, tone: "text-destructive" },
-  "Marketplace Earnings": { icon: Plus, tone: "text-primary" },
-  "Event Payment": { icon: CalendarDays, tone: "text-destructive" },
-  Refund: { icon: Plus, tone: "text-primary" },
-  "Admin Adjustment": { icon: Settings2, tone: "text-muted-foreground" },
-  "Admin Credit": { icon: Settings2, tone: "text-primary" },
+const TYPE_META: Record<
+  string,
+  {
+    icon: typeof ArrowUpRight;
+    tone: string;
+    /** true = money in, false = money out */
+    inbound: boolean;
+  }
+> = {
+  Deposit: { icon: ArrowDownLeft, tone: "text-primary", inbound: true },
+  Reward: { icon: Gift, tone: "text-gold", inbound: true },
+  "Academy Reward": { icon: Gift, tone: "text-gold", inbound: true },
+  Spend: { icon: ArrowUpRight, tone: "text-destructive", inbound: false },
+  Transfer: { icon: ArrowUpRight, tone: "text-destructive", inbound: false },
+  "Marketplace Spend": { icon: ShoppingBag, tone: "text-destructive", inbound: false },
+  "Marketplace Earnings": { icon: ArrowDownLeft, tone: "text-primary", inbound: true },
+  "Event Payment": { icon: CalendarDays, tone: "text-destructive", inbound: false },
+  Refund: { icon: ArrowDownLeft, tone: "text-primary", inbound: true },
+  "Admin Adjustment": { icon: Settings2, tone: "text-muted-foreground", inbound: true },
+  "Admin Credit": { icon: Settings2, tone: "text-primary", inbound: true },
 };
+
+/* ── Date-grouping helpers ─────────────────────────────────────────── */
+
+function startOfDay(d: Date): Date {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+function dateGroupKey(d: Date): string {
+  const now = new Date();
+  const today = startOfDay(now);
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  const weekAgo = new Date(today);
+  weekAgo.setDate(today.getDate() - 6); // "This week" = today + last 6 days
+
+  const target = startOfDay(d);
+  if (target.getTime() === today.getTime()) return "Today";
+  if (target.getTime() === yesterday.getTime()) return "Yesterday";
+  if (target.getTime() >= weekAgo.getTime()) return "This week";
+  return "Earlier";
+}
 
 function WalletPage() {
   const qc = useQueryClient();
@@ -78,6 +127,17 @@ function WalletPage() {
   const [verifying, setVerifying] = useState(false);
   const [receipt, setReceipt] = useState<{ dot: number; naira: number; reference: string } | null>(null);
   const [transferOpen, setTransferOpen] = useState(false);
+
+  /* Last-30-day delta — derived from already-fetched transactions. */
+  const last30Delta = useMemo(() => {
+    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    let delta = 0;
+    for (const t of transactions) {
+      const ts = new Date(t.createdAt).getTime();
+      if (ts >= cutoff) delta += Number(t.amount) || 0;
+    }
+    return delta;
+  }, [transactions]);
 
   function copyDotId() {
     if (!dotId) return;
@@ -150,45 +210,36 @@ function WalletPage() {
     );
   }
 
+  const deltaUp = last30Delta >= 0;
+  const DeltaIcon = deltaUp ? TrendingUp : TrendingDown;
+
+  /* Group transactions for sectioned list. */
+  const groupedTransactions = useMemo(() => {
+    const groups: Array<{ label: string; items: typeof transactions }> = [
+      { label: "Today", items: [] },
+      { label: "Yesterday", items: [] },
+      { label: "This week", items: [] },
+      { label: "Earlier", items: [] },
+    ];
+    for (const t of transactions) {
+      const key = dateGroupKey(new Date(t.createdAt));
+      const bucket = groups.find((g) => g.label === key) ?? groups[groups.length - 1];
+      bucket.items.push(t);
+    }
+    return groups.filter((g) => g.items.length > 0);
+  }, [transactions]);
+
   return (
     <AppShell>
       <PageHeader
-        title="DOT Wallet"
-        subtitle={`Your internal ecosystem credits · 1 DOT = ${formatNaira(DOT_RATE_NGN)}`}
-      />
-
-      {verifying && (
-        <div className="mt-4 flex items-center gap-2 rounded-xl border border-border bg-card p-4 text-sm">
-          <Loader2 className="size-4 animate-spin text-primary" /> Verifying your payment…
-        </div>
-      )}
-
-      <div className="mt-6 grid gap-4 sm:grid-cols-3">
-        <div className="rounded-2xl border border-border bg-card p-6 sm:col-span-2 [background-image:var(--gradient-primary)]">
-          <div className="flex items-center gap-2 text-primary-foreground/80">
-            <Wallet className="size-5" />
-            <span className="text-sm font-medium">Available balance</span>
-          </div>
-          <p className="mt-4 font-display text-5xl font-bold text-primary-foreground">
-            {formatDot(balance)} <span className="text-2xl font-medium">DOT</span>
-          </p>
-          <p className="mt-1 text-sm text-primary-foreground/80">≈ {formatNaira(dotToNaira(balance))}</p>
-          {dotId && (
-            <button
-              onClick={copyDotId}
-              className="mt-5 inline-flex items-center gap-2 rounded-full bg-primary-foreground/10 px-3 py-1.5 text-xs font-medium text-primary-foreground transition hover:bg-primary-foreground/20"
-            >
-              <span className="text-primary-foreground/70">Your DOT ID</span>
-              <span className="font-mono font-semibold">{dotId}</span>
-              {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-            </button>
-          )}
-        </div>
-        <div className="flex flex-col justify-center gap-3 rounded-2xl border border-border bg-card p-6">
+        eyebrow="Wallet"
+        title="Your DOT balance"
+        subtitle="Deposit, transfer, and track transactions"
+        action={
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button variant="hero" className="w-full">
-                <ArrowDownToLine className="size-4" /> Deposit DOT
+              <Button variant="default" size="default">
+                <Plus className="size-4" /> Deposit DOT
               </Button>
             </DialogTrigger>
             <DialogContent>
@@ -217,8 +268,10 @@ function WalletPage() {
                       key={v}
                       onClick={() => setAmount(v)}
                       className={cn(
-                        "rounded-full border px-3 py-1 text-sm",
-                        amount === v ? "border-primary bg-primary/10 text-primary" : "border-border",
+                        "rounded-full border px-3 py-1 text-sm transition-colors",
+                        amount === v
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border hover:bg-muted",
                       )}
                     >
                       {formatDot(v)}
@@ -227,58 +280,310 @@ function WalletPage() {
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="hero" onClick={handleDeposit} disabled={busy}>
+                <Button variant="default" onClick={handleDeposit} disabled={busy}>
                   {busy && <Loader2 className="size-4 animate-spin" />}
                   Pay with Paystack
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
-          <Button variant="outline" className="w-full" onClick={() => setTransferOpen(true)}>
-              <Send className="size-4" /> Transfer DOT
-            </Button>
-          <p className="text-center text-xs text-muted-foreground">
-            Send instantly by DOT ID · fund via Paystack
-          </p>
-        </div>
-      </div>
+        }
+      />
 
-      <h2 className="mt-10 font-display text-lg font-semibold">Transaction history</h2>
-      <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-card">
-        {transactions.length === 0 ? (
-          <p className="p-8 text-center text-sm text-muted-foreground">No transactions yet.</p>
-        ) : (
-          <ul className="divide-y divide-border">
-            {transactions.map((t) => {
-              const meta = TYPE_META[t.type] ?? TYPE_META["Admin Adjustment"];
-              const positive = Number(t.amount) >= 0;
-              return (
-                <li key={t.id} className="flex items-center gap-4 p-4">
-                  <span className={cn("flex size-9 items-center justify-center rounded-lg bg-muted", meta.tone)}>
-                    <meta.icon className="size-4" />
+      {verifying && (
+        <div className="mt-6 flex items-center gap-2 rounded-xl border border-border bg-card p-4 text-sm">
+          <Loader2 className="size-4 animate-spin text-primary" /> Verifying your payment…
+        </div>
+      )}
+
+      {/* ── Section 1: Balance ─────────────────────────────────────── */}
+      <section className="mt-10">
+        <div className="relative overflow-hidden rounded-2xl border border-gold/40 bg-gold/5 p-6 shadow-soft sm:p-8">
+          {/* Decorative gold rail */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-gold/70 via-gold to-gold/70"
+          />
+
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 text-xs tracking-editorial text-gold-foreground/80">
+                <WalletIcon className="size-4 text-gold" />
+                <span>Available balance</span>
+              </div>
+              <p className="mt-4 font-display text-5xl font-light tracking-tight text-foreground tabular sm:text-6xl">
+                {formatDot(balance)}{" "}
+                <span className="text-2xl font-medium text-muted-foreground">DOT</span>
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground tabular">
+                ≈ {formatNaira(dotToNaira(balance))}
+              </p>
+            </div>
+
+            {/* 30-day delta */}
+            <div
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium",
+                deltaUp
+                  ? "border-primary/30 bg-primary/10 text-primary"
+                  : "border-destructive/30 bg-destructive/10 text-destructive",
+              )}
+            >
+              <DeltaIcon className="size-3" />
+              {deltaUp ? "+" : ""}
+              {formatDot(last30Delta)} DOT
+              <span className="ml-1 text-muted-foreground font-normal">last 30 days</span>
+            </div>
+          </div>
+
+          {/* DOT ID chip + copy */}
+          {dotId && (
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              <button
+                onClick={copyDotId}
+                className="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-background/60 px-3 py-1.5 text-xs font-medium text-foreground transition hover:border-gold/60 hover:bg-background"
+                aria-label="Copy your DOT ID"
+              >
+                <span className="tracking-editorial text-gold-foreground/80">Your DOT ID</span>
+                <span className="font-mono font-semibold">@{dotId}</span>
+                {copied ? (
+                  <Check className="size-3.5 text-primary" />
+                ) : (
+                  <Copy className="size-3.5 text-muted-foreground" />
+                )}
+              </button>
+              <span className="text-xs text-muted-foreground">
+                Send to <span className="font-mono text-foreground/80">@{dotId}</span> to receive DOT instantly.
+              </span>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* ── Section divider ───────────────────────────────────────── */}
+      <div className="mt-10 border-t border-border" />
+
+      {/* ── Section 2: Actions ────────────────────────────────────── */}
+      <section className="mt-10">
+        <div className="mb-4 flex items-end justify-between gap-4">
+          <div>
+            <h2 className="font-display text-xl font-light tracking-tight">Quick actions</h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              Deposit via Paystack or send DOT to another member by their DOT ID.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          {/* Deposit — primary CTA (filled green) */}
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <button
+                type="button"
+                className="group flex items-center justify-between gap-4 rounded-xl border border-primary/30 bg-primary p-5 text-left text-primary-foreground shadow-soft transition hover:shadow-glow hover:-translate-y-0.5"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="flex size-10 items-center justify-center rounded-lg bg-primary-foreground/15">
+                    <ArrowDownToLine className="size-5" />
                   </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{t.description || t.type}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {t.type} · {new Date(t.createdAt).toLocaleString()}
+                  <div>
+                    <p className="font-display text-lg font-light">Deposit DOT</p>
+                    <p className="text-xs text-primary-foreground/80">
+                      Pay with Paystack · min {formatDot(MIN_DEPOSIT_DOT)} DOT
                     </p>
                   </div>
-                  <span className={cn("font-display text-sm font-semibold", positive ? "text-primary" : "text-destructive")}>
-                    {positive ? "+" : ""}
-                    {formatDot(Number(t.amount))} DOT
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
+                </div>
+                <span className="text-xs font-medium text-primary-foreground/90 group-hover:translate-x-0.5 transition-transform">
+                  Fund →
+                </span>
+              </button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Deposit DOT</DialogTitle>
+                <DialogDescription>
+                  Minimum {formatDot(MIN_DEPOSIT_DOT)} DOT. 1 DOT = {formatNaira(DOT_RATE_NGN)}.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3">
+                <Label htmlFor="amount">Amount (DOT)</Label>
+                <Input
+                  id="amount"
+                  type="number"
+                  min={MIN_DEPOSIT_DOT}
+                  step={100}
+                  value={amount}
+                  onChange={(e) => setAmount(Number(e.target.value))}
+                />
+                <p className="text-sm text-muted-foreground">
+                  You'll pay {formatNaira(dotToNaira(amount || 0))}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {[2000, 5000, 10000, 20000].map((v) => (
+                    <button
+                      key={v}
+                      onClick={() => setAmount(v)}
+                      className={cn(
+                        "rounded-full border px-3 py-1 text-sm transition-colors",
+                        amount === v
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border hover:bg-muted",
+                      )}
+                    >
+                      {formatDot(v)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="default" onClick={handleDeposit} disabled={busy}>
+                  {busy && <Loader2 className="size-4 animate-spin" />}
+                  Pay with Paystack
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Withdraw / Transfer — ghost */}
+          <button
+            type="button"
+            onClick={() => setTransferOpen(true)}
+            className="group flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-5 text-left transition hover:border-primary/40 hover:bg-card/80 hover:shadow-soft"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Send className="size-5" />
+              </span>
+              <div>
+                <p className="font-display text-lg font-light">Withdraw / Send</p>
+                <p className="text-xs text-muted-foreground">
+                  Transfer instantly by DOT ID
+                </p>
+              </div>
+            </div>
+            <span className="text-xs font-medium text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all">
+              Open →
+            </span>
+          </button>
+        </div>
+      </section>
+
+      {/* ── Section divider ───────────────────────────────────────── */}
+      <div className="mt-10 border-t border-border" />
+
+      {/* ── Section 3: Transactions ───────────────────────────────── */}
+      <section className="mt-10">
+        <div className="mb-4 flex items-end justify-between gap-4">
+          <div>
+            <h2 className="font-display text-xl font-light tracking-tight">Transaction history</h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              Your DOT movements — deposits, transfers, earnings, and refunds.
+            </p>
+          </div>
+          {transactions.length > 0 && (
+            <span className="text-xs text-muted-foreground tabular">
+              {transactions.length} {transactions.length === 1 ? "entry" : "entries"}
+            </span>
+          )}
+        </div>
+
+        <div className="overflow-hidden rounded-2xl border border-border bg-card">
+          {transactions.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-2 p-10 text-center">
+              <span className="flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <ArrowUpRight className="size-4" />
+              </span>
+              <p className="text-sm font-medium">No transactions yet</p>
+              <p className="text-xs text-muted-foreground">
+                Your deposits, transfers, and earnings will appear here.
+              </p>
+            </div>
+          ) : (
+            <div>
+              {groupedTransactions.map((group, gi) => (
+                <div key={group.label}>
+                  {/* Group header */}
+                  <div className="flex items-center gap-3 bg-muted/30 px-5 py-2 border-b border-border">
+                    <span className="text-[10px] tracking-widest uppercase font-semibold text-muted-foreground">
+                      {group.label}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground/60 tabular">
+                      {group.items.length}
+                    </span>
+                    <span className="ml-auto h-px flex-1 bg-border" />
+                  </div>
+
+                  {/* Rows with alternating background */}
+                  <ul>
+                    {group.items.map((t, idx) => {
+                      const meta = TYPE_META[t.type] ?? TYPE_META["Admin Adjustment"];
+                      const positive = (meta.inbound || Number(t.amount) >= 0) && Number(t.amount) >= 0;
+                      const amountNum = Number(t.amount) || 0;
+                      return (
+                        <li
+                          key={t.id}
+                          className={cn(
+                            "flex items-center gap-4 px-5 py-4 border-b border-border last:border-0",
+                            idx % 2 === 1 && "bg-muted/30",
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "flex size-9 shrink-0 items-center justify-center rounded-lg",
+                              positive
+                                ? "bg-primary/10 text-primary"
+                                : "bg-destructive/10 text-destructive",
+                              meta.tone === "text-gold" &&
+                                "bg-gold/10 text-gold",
+                            )}
+                          >
+                            <meta.icon className="size-4" />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium text-foreground">
+                              {t.description || t.type}
+                            </p>
+                            <p className="text-xs text-muted-foreground tabular">
+                              {t.type} · {new Date(t.createdAt).toLocaleString()}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p
+                              className={cn(
+                                "font-display text-sm font-medium tabular",
+                                positive ? "text-primary" : "text-destructive",
+                                meta.tone === "text-gold" && "text-gold",
+                              )}
+                            >
+                              {positive ? "+" : ""}
+                              {formatDot(Math.abs(amountNum))} DOT
+                            </p>
+                            <p className="text-xs text-muted-foreground tabular">
+                              {formatNaira(dotToNaira(Math.abs(amountNum)))}
+                            </p>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+
+                  {/* Spacer between groups (visual rhythm) */}
+                  {gi < groupedTransactions.length - 1 && (
+                    <div className="h-2 bg-background/40" />
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
 
       {/* ── Transfer dialog ── */}
       <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
         <DialogContent>
           <InlineTransferForm
             balance={balance}
+            myDotId={dotId}
             onSuccess={() => {
               qc.invalidateQueries({ queryKey: ["wallet"] });
               qc.invalidateQueries({ queryKey: ["transactions"] });
@@ -307,7 +612,7 @@ function WalletPage() {
             </div>
           )}
           <DialogFooter>
-            <Button variant="hero" className="w-full" onClick={() => setReceipt(null)}>
+            <Button variant="default" className="w-full" onClick={() => setReceipt(null)}>
               Done
             </Button>
           </DialogFooter>
@@ -330,10 +635,12 @@ function Row({ label, value, mono }: { label: string; value: string; mono?: bool
 
 function InlineTransferForm({
   balance,
+  myDotId,
   onSuccess,
   onClose,
 }: {
   balance: number;
+  myDotId?: string | null;
   onSuccess: () => void;
   onClose: () => void;
 }) {
@@ -345,7 +652,10 @@ function InlineTransferForm({
   const [lookingUp, setLookingUp] = useState(false);
 
   async function lookupRecipient(dotId: string) {
-    if (dotId.length < 3) { setRecipient(null); return; }
+    if (dotId.length < 3) {
+      setRecipient(null);
+      return;
+    }
     setLookingUp(true);
     try {
       const user = await getByDotId(dotId.trim());
@@ -359,17 +669,26 @@ function InlineTransferForm({
 
   async function handleTransfer(e: React.FormEvent) {
     e.preventDefault();
-    if (amount > balance) { toast.error("Insufficient balance."); return; }
-    if (amount <= 0) { toast.error("Amount must be positive."); return; }
+    if (amount > balance) {
+      toast.error("Insufficient balance.");
+      return;
+    }
+    if (amount <= 0) {
+      toast.error("Amount must be positive.");
+      return;
+    }
     setBusy(true);
     try {
       await transfer(toDotId.trim(), Math.floor(amount), note.trim() || undefined);
       toast.success(`${formatDot(amount)} DOT sent!`);
       onSuccess();
     } catch (err) {
-      const msg = err instanceof ApiError ? err.message
-        : err instanceof Error ? err.message
-        : "Transfer failed";
+      const msg =
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Transfer failed";
       toast.error(msg);
     } finally {
       setBusy(false);
@@ -387,15 +706,26 @@ function InlineTransferForm({
       <form onSubmit={handleTransfer} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="to-dot-id">Recipient DOT ID</Label>
-          <Input
-            id="to-dot-id"
-            value={toDotId}
-            onChange={(e) => { setToDotId(e.target.value); lookupRecipient(e.target.value); }}
-            placeholder="swift-founder-24abc1"
-          />
-          {lookingUp && <p className="text-xs text-muted-foreground">Looking up…</p>}
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+              @
+            </span>
+            <Input
+              id="to-dot-id"
+              value={toDotId}
+              onChange={(e) => {
+                setToDotId(e.target.value);
+                lookupRecipient(e.target.value);
+              }}
+              placeholder="swift-founder-24abc1"
+              className="pl-7 font-mono"
+            />
+          </div>
+          {lookingUp && (
+            <p className="text-xs text-muted-foreground">Looking up…</p>
+          )}
           {!lookingUp && recipient && (
-            <p className="text-xs text-primary">{recipient.name ?? "Unknown user"} ✓</p>
+            <p className="text-xs text-primary">@{toDotId} · {recipient.name ?? "Unknown user"} ✓</p>
           )}
           {!lookingUp && toDotId.length >= 3 && !recipient && (
             <p className="text-xs text-destructive">DOT ID not found</p>
@@ -411,7 +741,9 @@ function InlineTransferForm({
             value={amount}
             onChange={(e) => setAmount(Number(e.target.value))}
           />
-          <p className="text-xs text-muted-foreground">≈ {formatNaira(dotToNaira(amount))}</p>
+          <p className="text-xs text-muted-foreground">
+            ≈ {formatNaira(dotToNaira(amount))}
+          </p>
         </div>
         <div className="space-y-2">
           <Label htmlFor="transfer-note">Note (optional)</Label>
@@ -424,8 +756,14 @@ function InlineTransferForm({
           />
         </div>
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-          <Button type="submit" variant="hero" disabled={busy || !toDotId.trim() || amount <= 0}>
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            variant="default"
+            disabled={busy || !toDotId.trim() || amount <= 0}
+          >
             {busy && <Loader2 className="size-4 animate-spin" />}
             <Send className="size-4" /> Send {amount > 0 ? formatDot(amount) : ""} DOT
           </Button>
