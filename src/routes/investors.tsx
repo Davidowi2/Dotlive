@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageShell } from "@/components/site/PageShell";
 import { Search, FileText, CalendarRange, Briefcase, Layers, Wallet, ShieldCheck, ArrowUpRight } from "lucide-react";
+import { Seo } from "@/components/seo/Seo";
 
 export const Route = createFileRoute("/investors")({
   head: () => ({
@@ -90,6 +91,10 @@ function InvestorsPage() {
       title="Discover and fund Africa's most ready ventures"
       intro="DOT Demo connects capital partners with fundable ventures, ranked and verified by Vantage intelligence."
     >
+      <Seo
+        title="Investors & Capital Partners"
+        description="Discover fundable African ventures on DOT Demo. Filter by Vantage Point, review reports, request meetings and track your pipeline."
+      />
       <div className="space-y-24">
         {/* 01 — Overview */}
         <section className="space-y-10">

@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageShell } from "@/components/site/PageShell";
 import { Layers, GitBranch, GraduationCap, Calendar, Trophy, Briefcase, Users2, Database } from "lucide-react";
+import { Seo } from "@/components/seo/Seo";
 
 export const Route = createFileRoute("/platform")({
   head: () => ({
@@ -89,6 +90,10 @@ function PlatformPage() {
       title="Six integrated pillars built for venture progression"
       intro="DOT combines venture intelligence, education, access, competition, capital discovery and community-led distribution into a single network."
     >
+      <Seo
+        title="The Platform"
+        description="The six pillars of DOT: Vantage, DOT Academy, Founder Sessions, Pitchathons, DOT Demo and the Community Operating System."
+      />
       <div className="space-y-24">
         {/* 01 — Overview */}
         <section className="space-y-10">

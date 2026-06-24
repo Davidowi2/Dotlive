@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageShell } from "@/components/site/PageShell";
 import { Wallet, Compass, Wrench, BarChart3, Mic2, Handshake, Rocket } from "lucide-react";
+import { Seo } from "@/components/seo/Seo";
 
 export const Route = createFileRoute("/journey")({
   head: () => ({
@@ -146,6 +147,10 @@ function JourneyPage() {
       title="From idea to funded, in seven measurable stages"
       intro="Every founder follows the same progression — and DOT measures movement at every step."
     >
+      <Seo
+        title="The Founder Journey"
+        description="Assess, Learn, Improve, Validate, Pitch, Fund, Scale — the seven measurable stages every DOT founder moves through."
+      />
       <div className="space-y-24">
         {/* 01 — Why stages */}
         <section className="space-y-10">

@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Target, Users, Zap, Globe, MapPin, Mail } from "lucide-react";
 import { PageShell } from "@/components/site/PageShell";
 import { Button } from "@/components/ui/button";
+import { Seo } from "@/components/seo/Seo";
 
 export const Route = createFileRoute("/about")({
   head: () => ({
@@ -38,6 +39,10 @@ function AboutPage() {
       title="Building Africa's venture progression infrastructure"
       intro="DOT is the operating system for African venture creation — combining intelligence, education, community and capital access into one measurable network."
     >
+      <Seo
+        title="About DOT — Africa's Venture Progression Network"
+        description="DOT is building Africa's venture progression infrastructure — measurable, scalable, community-led."
+      />
       <div className="space-y-24">
         {/* 01 — Mission */}
         <section className="space-y-10">

@@ -20,6 +20,7 @@ import { Route as HelpRouteImport } from './routes/help'
 import { Route as CommunitiesRouteImport } from './routes/communities'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AboutRouteImport } from './routes/about'
+import { Route as SplatRouteImport } from './routes/$'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as FounderIdRouteImport } from './routes/founder.$id'
@@ -99,6 +100,11 @@ const AuthRoute = AuthRouteImport.update({
 const AboutRoute = AboutRouteImport.update({
   id: '/about',
   path: '/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SplatRoute = SplatRouteImport.update({
+  id: '/$',
+  path: '/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
@@ -232,6 +238,7 @@ const ApiPublicWebhooksPaystackRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/$': typeof SplatRoute
   '/about': typeof AboutRoute
   '/auth': typeof AuthRouteWithChildren
   '/communities': typeof CommunitiesRoute
@@ -269,6 +276,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/$': typeof SplatRoute
   '/about': typeof AboutRoute
   '/auth': typeof AuthRouteWithChildren
   '/communities': typeof CommunitiesRoute
@@ -308,6 +316,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/$': typeof SplatRoute
   '/about': typeof AboutRoute
   '/auth': typeof AuthRouteWithChildren
   '/communities': typeof CommunitiesRoute
@@ -347,6 +356,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/$'
     | '/about'
     | '/auth'
     | '/communities'
@@ -384,6 +394,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/$'
     | '/about'
     | '/auth'
     | '/communities'
@@ -422,6 +433,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_authenticated'
+    | '/$'
     | '/about'
     | '/auth'
     | '/communities'
@@ -461,6 +473,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  SplatRoute: typeof SplatRoute
   AboutRoute: typeof AboutRoute
   AuthRoute: typeof AuthRouteWithChildren
   CommunitiesRoute: typeof CommunitiesRoute
@@ -553,6 +566,13 @@ declare module '@tanstack/react-router' {
       path: '/about'
       fullPath: '/about'
       preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$': {
+      id: '/$'
+      path: '/$'
+      fullPath: '/$'
+      preLoaderRoute: typeof SplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -795,6 +815,7 @@ const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  SplatRoute: SplatRoute,
   AboutRoute: AboutRoute,
   AuthRoute: AuthRouteWithChildren,
   CommunitiesRoute: CommunitiesRoute,

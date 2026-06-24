@@ -100,6 +100,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:description", content: "DOT is Africa's venture-building network that helps builders learn skills, join teams, launch startups, and access opportunities." },
       { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/izLwHKTn5oRTgqHxFz7cy3Kvtlg1/social-images/social-1781945909310-ChatGPT_Image_Jun_20,_2026,_09_58_17_AM.webp" },
       { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/izLwHKTn5oRTgqHxFz7cy3Kvtlg1/social-images/social-1781945909310-ChatGPT_Image_Jun_20,_2026,_09_58_17_AM.webp" },
+      { name: "theme-color", content: "#0A4627", media: "(prefers-color-scheme: light)" },
+      { name: "theme-color", content: "#08110C", media: "(prefers-color-scheme: dark)" },
+      { name: "color-scheme", content: "light dark" },
     ],
     links: [
       {
@@ -111,6 +114,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "icon",
         type: "image/x-icon",
         href: "/favicon.ico",
+      },
+      {
+        rel: "apple-touch-icon",
+        href: "/apple-touch-icon.svg",
+      },
+      {
+        rel: "manifest",
+        href: "/site.webmanifest",
       },
       {
         rel: "preconnect",

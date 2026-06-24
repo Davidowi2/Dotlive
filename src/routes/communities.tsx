@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageShell } from "@/components/site/PageShell";
 import { Link2, LayoutDashboard, Award, MessageSquare, Users2, BarChart3, Wallet } from "lucide-react";
+import { Seo } from "@/components/seo/Seo";
 
 export const Route = createFileRoute("/communities")({
   head: () => ({
@@ -102,6 +103,10 @@ function CommunitiesPage() {
       title="Community-led growth, measured end to end"
       intro="Community Leaders recruit, activate and progress founders — and earn DOT for the value they create."
     >
+      <Seo
+        title="Communities"
+        description="The Community Operating System powers community-led founder acquisition with referral links, dashboards, community Vantage and DOT leader rewards."
+      />
       <div className="space-y-24">
         {/* 01 — Overview */}
         <section className="space-y-10">

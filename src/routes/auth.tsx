@@ -16,6 +16,7 @@ import {
   InputOTPGroup,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
+import { Seo } from "@/components/seo/Seo";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -146,11 +147,23 @@ function AuthPage() {
   }, [user, isLoading, navigate]);
 
   if (mode === "signup") {
-    return <SignupFlow onSwitchToSignin={() => setMode("signin")} />;
+    return (
+      <>
+        <Seo
+          title="Create your account"
+          description="Sign up for DOT — Africa's venture progression network. Get 500 DOT on signup, score your venture with Vantage, and access DOT Academy."
+        />
+        <SignupFlow onSwitchToSignin={() => setMode("signin")} />
+      </>
+    );
   }
 
   return (
     <div className="flex min-h-screen flex-col bg-muted/30">
+      <Seo
+        title="Sign in"
+        description="Sign in to DOT — Africa's venture progression network. Pick up where you left off on Vantage, DOT Academy, Pitchathons and DOT Demo."
+      />
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4 py-12">
         <Link to="/" className="mb-8 flex justify-center">
           <Logo />
