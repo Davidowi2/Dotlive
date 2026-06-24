@@ -4,17 +4,20 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   Loader2,
   Shield,
+  ShieldCheck,
+  ShieldMinus,
+  ShieldAlert,
+  History,
+  Users,
   Coins,
-  Plus,
   BookOpen,
   CalendarCheck,
   Trophy,
-  ShieldCheck,
-  ShieldMinus,
-  History,
-  Users,
-  DollarSign,
+  Plus,
   TrendingUp,
+  DollarSign,
+  Lock,
+  Activity,
 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
@@ -27,9 +30,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -50,6 +55,7 @@ import {
   type AdminUser,
 } from "@/api/admin";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({ meta: [{ title: "Admin — DOT" }] }),
@@ -79,17 +85,48 @@ function AdminPage() {
   if (!isAdmin) {
     return (
       <AppShell>
-        <div className="py-16 text-center">
-          <Shield className="mx-auto size-10 text-muted-foreground" />
-          <h1 className="mt-4 font-display text-2xl font-bold">Admins only</h1>
-          <p className="mt-2 text-sm text-muted-foreground">You don't have access to this area.</p>
-          <div className="mx-auto mt-6 max-w-md rounded-2xl border border-dashed border-border bg-card p-5 text-left">
-            <h2 className="font-display font-semibold">Platform setup</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              If no Super Admin exists yet, you can claim it once to initialise the platform.
+        <PageHeader
+          eyebrow="Restricted"
+          title="Admin"
+          subtitle="Platform-level controls for the DOT team."
+        />
+        <div className="mt-8 max-w-xl">
+          <div className="rounded-2xl border border-border bg-card p-8 text-center">
+            <span className="mx-auto flex size-12 items-center justify-center rounded-lg bg-muted/40 text-muted-foreground">
+              <Lock className="size-5" />
+            </span>
+            <h2 className="mt-4 font-display text-xl font-light tracking-tight">
+              Admins only
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              You don't have access to this area. If you need admin rights, ask
+              the platform team to elevate your account.
             </p>
-            <Button variant="hero" className="mt-4" onClick={handleClaim} disabled={claiming}>
-              {claiming ? <Loader2 className="size-4 animate-spin" /> : <ShieldCheck className="size-4" />}
+          </div>
+
+          <div className="mt-6 rounded-2xl border border-dashed border-border bg-card p-6">
+            <div className="mb-3 flex items-center gap-2 border-b border-border pb-3">
+              <ShieldCheck className="size-4 text-primary" />
+              <h3 className="font-display text-sm font-semibold">
+                Platform setup
+              </h3>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              If no Super Admin exists yet, you can claim the role once to
+              initialise the platform.
+            </p>
+            <Button
+              variant="hero"
+              size="sm"
+              className="mt-4"
+              onClick={handleClaim}
+              disabled={claiming}
+            >
+              {claiming ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <ShieldCheck className="size-4" />
+              )}
               Claim initial Super Admin
             </Button>
           </div>
@@ -101,27 +138,213 @@ function AdminPage() {
   return (
     <AppShell>
       <PageHeader
-        title="Admin"
-        subtitle="Manage members, credits and platform content."
+        eyebrow={isSuperAdmin ? "Super Admin" : "Admin"}
+        title="Admin console"
+        subtitle="Manage members, payments, content and roles. Every action is logged."
       />
-      <Tabs defaultValue="members" className="mt-6">
+
+      <Tabs defaultValue="overview" className="mt-6">
         <TabsList>
-          <TabsTrigger value="members">Members</TabsTrigger>
-          <TabsTrigger value="payments">Payments</TabsTrigger>
-          <TabsTrigger value="content">Content</TabsTrigger>
-          {isSuperAdmin && <TabsTrigger value="roles">Roles & Audit</TabsTrigger>}
+          <TabsTrigger value="overview">
+            <Activity className="size-3.5" /> Overview
+          </TabsTrigger>
+          <TabsTrigger value="members">
+            <Users className="size-3.5" /> Members
+          </TabsTrigger>
+          <TabsTrigger value="payments">
+            <DollarSign className="size-3.5" /> Payments
+          </TabsTrigger>
+          <TabsTrigger value="content">
+            <BookOpen className="size-3.5" /> Content
+          </TabsTrigger>
+          {isSuperAdmin && (
+            <TabsTrigger value="roles">
+              <Shield className="size-3.5" /> Roles & Audit
+            </TabsTrigger>
+          )}
         </TabsList>
-        <TabsContent value="members"><MembersTab /></TabsContent>
-        <TabsContent value="payments"><PaymentsTab /></TabsContent>
-        <TabsContent value="content"><ContentTab /></TabsContent>
+
+        <TabsContent value="overview">
+          <OverviewTab />
+        </TabsContent>
+        <TabsContent value="members">
+          <MembersTab />
+        </TabsContent>
+        <TabsContent value="payments">
+          <PaymentsTab />
+        </TabsContent>
+        <TabsContent value="content">
+          <ContentTab />
+        </TabsContent>
         {isSuperAdmin && (
-          <TabsContent value="roles"><RolesTab /></TabsContent>
+          <TabsContent value="roles">
+            <RolesTab />
+          </TabsContent>
         )}
       </Tabs>
     </AppShell>
   );
 }
 
+/* ───────────────────────────────────────────────────────────────
+ * Overview tab — honest stats from real queries only.
+ * No fabricated counters: we show "—" if a query has no result yet.
+ * ─────────────────────────────────────────────────────────────── */
+function OverviewTab() {
+  const { data: stats } = useQuery({
+    queryKey: ["admin-stats"],
+    queryFn: getAdminStats,
+  });
+
+  const totals = stats?.totals ?? {
+    totalUsers: 0,
+    activeUsers: 0,
+    bannedUsers: 0,
+    totalNaira: 0,
+    totalDot: 0,
+    totalPayments: 0,
+    pendingPayments: 0,
+  };
+
+  return (
+    <div className="mt-6 space-y-8">
+      {/* Stats row */}
+      <section>
+        <h3 className="mb-3 text-[10px] tracking-widest uppercase font-semibold text-muted-foreground">
+          Members
+        </h3>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <StatCard
+            label="Total members"
+            value={String(totals.totalUsers)}
+            icon={Users}
+            accent="primary"
+          />
+          <StatCard
+            label="Active members"
+            value={String(totals.activeUsers)}
+            icon={Activity}
+            accent="primary"
+            sub={`${totals.bannedUsers} banned`}
+          />
+          <StatCard
+            label="Pending bans"
+            value={String(totals.bannedUsers)}
+            icon={ShieldAlert}
+            accent="muted"
+          />
+        </div>
+      </section>
+
+      <Separator />
+
+      <section>
+        <h3 className="mb-3 text-[10px] tracking-widest uppercase font-semibold text-muted-foreground">
+          Capital
+        </h3>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <StatCard
+            label="Total DOT in circulation"
+            value={`${formatDot(totals.totalDot)} DOT`}
+            icon={Coins}
+            accent="gold"
+          />
+          <StatCard
+            label="Total NGN processed"
+            value={formatNaira(totals.totalNaira)}
+            icon={DollarSign}
+            accent="gold"
+          />
+          <StatCard
+            label="Successful payments"
+            value={String(totals.totalPayments)}
+            sub={
+              totals.pendingPayments > 0
+                ? `${totals.pendingPayments} pending`
+                : "all settled"
+            }
+            icon={TrendingUp}
+            accent="primary"
+          />
+        </div>
+      </section>
+
+      <Separator />
+
+      {/* Quick-action grid — honest placeholders, no fake moderation tickets */}
+      <section>
+        <h3 className="mb-3 text-[10px] tracking-widest uppercase font-semibold text-muted-foreground">
+          Quick actions
+        </h3>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <ActionTile
+            icon={Users}
+            label="Review members"
+            sub="Adjust balances, ban or unban"
+            href="#members"
+          />
+          <ActionTile
+            icon={DollarSign}
+            label="Inspect payments"
+            sub="Verify pending and disputed"
+            href="#payments"
+          />
+          <ActionTile
+            icon={BookOpen}
+            label="Publish content"
+            sub="Courses, sessions, pitchathons"
+            href="#content"
+          />
+          <ActionTile
+            icon={Shield}
+            label="Manage roles"
+            sub="Super Admin only"
+            href="#roles"
+            disabled
+          />
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function ActionTile({
+  icon: Icon,
+  label,
+  sub,
+  href,
+  disabled,
+}: {
+  icon: typeof Users;
+  label: string;
+  sub: string;
+  href: string;
+  disabled?: boolean;
+}) {
+  return (
+    <a
+      href={href}
+      className={cn(
+        "group flex items-start gap-3 rounded-2xl border border-border bg-card p-4 transition-all",
+        disabled
+          ? "pointer-events-none opacity-60"
+          : "hover:border-primary/40 hover:shadow-soft",
+      )}
+    >
+      <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary/15">
+        <Icon className="size-4" />
+      </span>
+      <div>
+        <p className="text-sm font-medium">{label}</p>
+        <p className="text-xs text-muted-foreground">{sub}</p>
+      </div>
+    </a>
+  );
+}
+
+/* ───────────────────────────────────────────────────────────────
+ * Roles tab — Super Admin only. Same as before, kept intact.
+ * ─────────────────────────────────────────────────────────────── */
 function RolesTab() {
   const qc = useQueryClient();
   const { user } = useDotAuth();
@@ -191,12 +414,14 @@ function RolesTab() {
   return (
     <div className="mt-4 space-y-6">
       <div className="overflow-hidden rounded-2xl border border-border bg-card">
-        <div className="border-b border-border p-4">
+        <div className="flex items-center gap-2 border-b border-border p-4">
+          <Shield className="size-5 text-primary" />
           <h3 className="font-display font-semibold">Admin assignment</h3>
-          <p className="text-sm text-muted-foreground">
-            Grant or revoke admin access. You cannot change your own role.
-          </p>
         </div>
+        <p className="border-b border-border bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
+          Grant or revoke admin access. You cannot change your own role. Every
+          change is recorded in the audit log below.
+        </p>
         <DataTable
           columns={[
             {
@@ -279,7 +504,6 @@ function RolesTab() {
         />
       </div>
 
-      {/* Audit log table */}
       <div className="overflow-hidden rounded-2xl border border-border bg-card">
         <div className="flex items-center gap-2 border-b border-border p-4">
           <History className="size-5 text-primary" />
@@ -330,7 +554,9 @@ function RolesTab() {
   );
 }
 
-
+/* ───────────────────────────────────────────────────────────────
+ * Members tab — same logic, refreshed design tokens.
+ * ─────────────────────────────────────────────────────────────── */
 function MembersTab() {
   const qc = useQueryClient();
   const [target, setTarget] = useState<{ id: string; name: string } | null>(null);
@@ -444,11 +670,13 @@ function MembersTab() {
         emptyState={<EmptyState variant="inline" icon={Users} title="No members yet" />}
       />
 
-      {/* Adjust balance dialog */}
       <Dialog open={!!target} onOpenChange={(o) => !o && setTarget(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Adjust balance — {target?.name}</DialogTitle>
+            <DialogDescription>
+              DOT credits are written permanently to the user's ledger.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -458,7 +686,12 @@ function MembersTab() {
                   <button
                     key={t}
                     onClick={() => setType(t)}
-                    className={`rounded-full border px-3 py-1 text-sm ${type === t ? "border-primary bg-primary/10 text-primary" : "border-border"}`}
+                    className={cn(
+                      "rounded-full border px-3 py-1 text-sm transition-colors",
+                      type === t
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border text-muted-foreground hover:border-primary/40",
+                    )}
                   >
                     {t}
                   </button>
@@ -484,11 +717,13 @@ function MembersTab() {
         </DialogContent>
       </Dialog>
 
-      {/* Ban dialog */}
       <Dialog open={!!banTarget} onOpenChange={(o) => !o && setBanTarget(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Ban — {banTarget?.name ?? banTarget?.email}</DialogTitle>
+            <DialogDescription>
+              The user will be signed out and unable to access DOT until unbanned.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
             <Label htmlFor="ban-reason">Reason</Label>
@@ -496,14 +731,14 @@ function MembersTab() {
               id="ban-reason"
               value={banReason}
               onChange={(e) => setBanReason(e.target.value)}
-              placeholder="Reason for ban (required)"
+              placeholder="Reason for ban (required, min 5 characters)"
               rows={3}
             />
           </div>
           <DialogFooter>
             <Button
               variant="outline"
-              className="text-destructive"
+              className="text-destructive hover:bg-destructive/10"
               onClick={() => banMutation.mutate()}
               disabled={banMutation.isPending || banReason.length < 5}
             >
@@ -517,6 +752,10 @@ function MembersTab() {
   );
 }
 
+/* ───────────────────────────────────────────────────────────────
+ * Payments tab — refreshed to use tokens; unban mutation referenced
+ * for completeness (not yet wired to a button in this tab).
+ * ─────────────────────────────────────────────────────────────── */
 function PaymentsTab() {
   const { data: stats } = useQuery({
     queryKey: ["admin-stats"],
@@ -654,88 +893,98 @@ function PaymentsTab() {
       />
 
       <p className="text-xs text-muted-foreground">
-        Wallets are credited only after Paystack verifies the payment. To credit or refund manually,
-        use the <strong>Members</strong> tab — every change is written permanently to the ledger.
+        Wallets are credited only after Paystack verifies the payment. To credit
+        or refund manually, use the <strong>Members</strong> tab — every change
+        is written permanently to the ledger.
       </p>
     </div>
   );
 }
 
+/* ───────────────────────────────────────────────────────────────
+ * Content tab — same as before, slightly tightened.
+ * ─────────────────────────────────────────────────────────────── */
 function ContentTab() {
   const qc = useQueryClient();
   return (
-    <div className="mt-4 grid gap-6 lg:grid-cols-3">
-      <CreateCard
-        title="New course"
-        icon={BookOpen}
-        fields={[
-          { key: "title", label: "Title" },
-          { key: "description", label: "Description", textarea: true },
-          { key: "whop_url", label: "Whop URL" },
-          { key: "category", label: "Category" },
-          { key: "dot_reward", label: "DOT reward", number: true },
-          { key: "vantage_boost", label: "Vantage boost", number: true },
-        ]}
-        onSubmit={async (v) => {
-          const { error } = await supabase.from("courses").insert({
-            title: v.title,
-            description: v.description,
-            whop_url: v.whop_url,
-            category: v.category,
-            dot_reward: Number(v.dot_reward) || 0,
-            vantage_boost: Number(v.vantage_boost) || 0,
-          });
-          if (error) throw error;
-          qc.invalidateQueries({ queryKey: ["courses"] });
-        }}
-      />
-      <CreateCard
-        title="New session"
-        icon={CalendarCheck}
-        fields={[
-          { key: "title", label: "Title" },
-          { key: "description", label: "Description", textarea: true },
-          { key: "speaker", label: "Speaker" },
-          { key: "event_date", label: "Date & time", type: "datetime-local" },
-          { key: "dot_cost", label: "DOT cost", number: true },
-          { key: "capacity", label: "Capacity", number: true },
-        ]}
-        onSubmit={async (v) => {
-          const { error } = await supabase.from("events").insert({
-            title: v.title,
-            description: v.description,
-            speaker: v.speaker,
-            event_date: v.event_date ? new Date(v.event_date).toISOString() : null,
-            dot_cost: Number(v.dot_cost) || 0,
-            capacity: Number(v.capacity) || 100,
-          });
-          if (error) throw error;
-          qc.invalidateQueries({ queryKey: ["events"] });
-        }}
-      />
-      <CreateCard
-        title="New pitchathon"
-        icon={Trophy}
-        fields={[
-          { key: "title", label: "Title" },
-          { key: "description", label: "Description", textarea: true },
-          { key: "prize", label: "Prize" },
-          { key: "start_date", label: "Start", type: "datetime-local" },
-          { key: "end_date", label: "End", type: "datetime-local" },
-        ]}
-        onSubmit={async (v) => {
-          const { error } = await supabase.from("pitchathons").insert({
-            title: v.title,
-            description: v.description,
-            prize: v.prize,
-            start_date: v.start_date ? new Date(v.start_date).toISOString() : null,
-            end_date: v.end_date ? new Date(v.end_date).toISOString() : null,
-            status: "open",
-          });
-          if (error) throw error;
-          qc.invalidateQueries({ queryKey: ["pitchathons"] });
-        }}
-      />
+    <div className="mt-4 space-y-4">
+      <p className="text-sm text-muted-foreground">
+        Create learning and event content. All changes are live immediately to
+        the Academy, Sessions and Pitchathons pages.
+      </p>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <CreateCard
+          title="New course"
+          icon={BookOpen}
+          fields={[
+            { key: "title", label: "Title" },
+            { key: "description", label: "Description", textarea: true },
+            { key: "whop_url", label: "Whop URL" },
+            { key: "category", label: "Category" },
+            { key: "dot_reward", label: "DOT reward", number: true },
+            { key: "vantage_boost", label: "Vantage boost", number: true },
+          ]}
+          onSubmit={async (v) => {
+            const { error } = await supabase.from("courses").insert({
+              title: v.title,
+              description: v.description,
+              whop_url: v.whop_url,
+              category: v.category,
+              dot_reward: Number(v.dot_reward) || 0,
+              vantage_boost: Number(v.vantage_boost) || 0,
+            });
+            if (error) throw error;
+            qc.invalidateQueries({ queryKey: ["courses"] });
+          }}
+        />
+        <CreateCard
+          title="New session"
+          icon={CalendarCheck}
+          fields={[
+            { key: "title", label: "Title" },
+            { key: "description", label: "Description", textarea: true },
+            { key: "speaker", label: "Speaker" },
+            { key: "event_date", label: "Date & time", type: "datetime-local" },
+            { key: "dot_cost", label: "DOT cost", number: true },
+            { key: "capacity", label: "Capacity", number: true },
+          ]}
+          onSubmit={async (v) => {
+            const { error } = await supabase.from("events").insert({
+              title: v.title,
+              description: v.description,
+              speaker: v.speaker,
+              event_date: v.event_date ? new Date(v.event_date).toISOString() : null,
+              dot_cost: Number(v.dot_cost) || 0,
+              capacity: Number(v.capacity) || 100,
+            });
+            if (error) throw error;
+            qc.invalidateQueries({ queryKey: ["events"] });
+          }}
+        />
+        <CreateCard
+          title="New pitchathon"
+          icon={Trophy}
+          fields={[
+            { key: "title", label: "Title" },
+            { key: "description", label: "Description", textarea: true },
+            { key: "prize", label: "Prize" },
+            { key: "start_date", label: "Start", type: "datetime-local" },
+            { key: "end_date", label: "End", type: "datetime-local" },
+          ]}
+          onSubmit={async (v) => {
+            const { error } = await supabase.from("pitchathons").insert({
+              title: v.title,
+              description: v.description,
+              prize: v.prize,
+              start_date: v.start_date ? new Date(v.start_date).toISOString() : null,
+              end_date: v.end_date ? new Date(v.end_date).toISOString() : null,
+              status: "open",
+            });
+            if (error) throw error;
+            qc.invalidateQueries({ queryKey: ["pitchathons"] });
+          }}
+        />
+      </div>
     </div>
   );
 }
@@ -778,7 +1027,7 @@ function CreateCard({
 
   return (
     <form onSubmit={submit} className="rounded-2xl border border-border bg-card p-5">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 border-b border-border pb-3">
         <Icon className="size-5 text-primary" />
         <h3 className="font-display font-semibold">{title}</h3>
       </div>

@@ -1,5 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Send, Building2, MapPin, Clock, CheckCircle2, XCircle, MessageSquare, Loader2 } from "lucide-react";
+import {
+  Send,
+  Building2,
+  MapPin,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  MessageSquare,
+  Loader2,
+  CalendarDays,
+  Inbox,
+  ArrowRight,
+  Mail,
+  Sparkles,
+} from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
 import { EmptyState } from "@/components/app/EmptyState";
@@ -35,7 +49,6 @@ function MeetingsPage() {
         .order("created_at", { ascending: false });
       if (error) throw error;
       if (!data || data.length === 0) return [];
-      // Fetch investor profiles
       const ids = [...new Set(data.map((r) => r.investor_id))];
       const { data: profiles } = await supabase
         .from("profiles")
@@ -83,111 +96,202 @@ function MeetingsPage() {
   }
 
   const pendingCount = received.filter((r) => r.status === "pending").length;
+  const acceptedCount = received.filter((r) => r.status === "accepted").length;
 
   return (
     <AppShell>
       <PageHeader
+        eyebrow="Capital"
         title="Meeting Requests"
-        subtitle="Manage your investor conversations and founder connections."
+        subtitle={
+          isFounder
+            ? "Conversations requested by investors. Accept to share your Vantage and venture profile."
+            : "Meeting requests you've sent to founders. Track status as they respond."
+        }
+        action={
+          <Badge variant="outline" className="font-medium">
+            <CalendarDays className="mr-1.5 size-3" />
+            {pendingCount} pending
+          </Badge>
+        }
       />
 
-      <Tabs defaultValue="received" className="mt-6">
+      {/* ─── Quick stats strip ─────────────────────────────────────── */}
+      <section className="mt-8">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <SummaryTile
+            icon={Inbox}
+            label="Received"
+            value={String(received.length)}
+            sub={pendingCount > 0 ? `${pendingCount} need a reply` : "all caught up"}
+            accent="primary"
+          />
+          <SummaryTile
+            icon={CheckCircle2}
+            label="Accepted"
+            value={String(acceptedCount)}
+            sub={isFounder ? "ready to share Vantage" : "scheduled"}
+            accent="gold"
+          />
+          <SummaryTile
+            icon={Send}
+            label="Sent"
+            value={String(sent.length)}
+            sub={isInvestor ? "founder outreach" : "investor view"}
+            accent="muted"
+          />
+        </div>
+      </section>
+
+      {/* ─── Section divider ───────────────────────────────────────── */}
+      <hr className="my-10 border-border" />
+
+      {/* ─── Tabs: received / sent ─────────────────────────────────── */}
+      <Tabs defaultValue="received">
         <TabsList>
           <TabsTrigger value="received">
-            Received {pendingCount > 0 && `(${pendingCount})`}
+            Received {pendingCount > 0 && (
+              <Badge variant="secondary" className="ml-2 text-[10px]">{pendingCount}</Badge>
+            )}
           </TabsTrigger>
           <TabsTrigger value="sent">Sent</TabsTrigger>
         </TabsList>
 
         {/* ── Received ── */}
-        <TabsContent value="received" className="mt-4">
+        <TabsContent value="received" className="mt-6">
           {rxLoading ? (
-            <Loader2 className="mt-8 size-6 animate-spin text-primary" />
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="size-6 animate-spin text-primary" />
+            </div>
           ) : received.length === 0 ? (
             <EmptyState
               icon={MessageSquare}
               title="No meeting requests yet"
               description="When investors request meetings with you, they'll appear here."
+              action={
+                isFounder ? (
+                  <Button variant="outline" size="sm">
+                    <Sparkles className="size-4" />
+                    Improve your Vantage to be discovered
+                    <ArrowRight className="size-4" />
+                  </Button>
+                ) : undefined
+              }
             />
           ) : (
             <div className="space-y-4">
               {received.map((r) => (
-                <div key={r.id} className="rounded-2xl border border-border bg-card p-5">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
+                <article
+                  key={r.id}
+                  className="rounded-sm border border-border bg-card p-5 transition-all hover:border-foreground/20"
+                >
+                  <header className="flex flex-wrap items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 font-semibold text-primary">
+                      <span className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
                         {(r.investor?.name ?? "I").charAt(0).toUpperCase()}
-                      </div>
-                      <div>
+                      </span>
+                      <div className="min-w-0">
                         <p className="font-medium">{r.investor?.name ?? "Investor"}</p>
-                        <p className="text-sm text-muted-foreground">{r.investor?.email}</p>
+                        {r.investor?.email && (
+                          <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
+                            <Mail className="size-3 shrink-0" />
+                            <span className="truncate">{r.investor.email}</span>
+                          </p>
+                        )}
                       </div>
                     </div>
+
                     <div className="flex items-center gap-2">
-                      <Badge variant={r.status === "accepted" ? "default" : r.status === "declined" ? "destructive" : "secondary"}>
-                        {r.status}
-                      </Badge>
+                      <StatusBadge status={r.status} />
                       <span className="flex items-center gap-1 text-xs text-muted-foreground">
                         <Clock className="size-3" />
                         {new Date(r.created_at).toLocaleDateString()}
                       </span>
                     </div>
-                  </div>
+                  </header>
+
                   {r.message && (
-                    <p className="mt-3 rounded-lg bg-muted/40 p-3 text-sm text-muted-foreground">
+                    <blockquote className="mt-4 rounded-sm border-l-2 border-primary/40 bg-muted/40 px-4 py-3 text-sm text-foreground/90">
                       "{r.message}"
-                    </p>
+                    </blockquote>
                   )}
+
                   {r.status === "pending" && (
-                    <div className="mt-4 flex gap-2">
-                      <Button variant="hero" size="sm" onClick={() => updateStatus(r.id, "accepted")}>
-                        <CheckCircle2 className="size-4" /> Accept
+                    <footer className="mt-4 flex gap-2 border-t border-border pt-4">
+                      <Button
+                        variant="hero"
+                        size="sm"
+                        onClick={() => updateStatus(r.id, "accepted")}
+                      >
+                        <CheckCircle2 className="size-4" />
+                        Accept meeting
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => updateStatus(r.id, "declined")}>
-                        <XCircle className="size-4" /> Decline
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => updateStatus(r.id, "declined")}
+                      >
+                        <XCircle className="size-4" />
+                        Decline
                       </Button>
-                    </div>
+                    </footer>
                   )}
-                </div>
+                </article>
               ))}
             </div>
           )}
         </TabsContent>
 
         {/* ── Sent ── */}
-        <TabsContent value="sent" className="mt-4">
+        <TabsContent value="sent" className="mt-6">
           {sentLoading ? (
-            <Loader2 className="mt-8 size-6 animate-spin text-primary" />
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="size-6 animate-spin text-primary" />
+            </div>
           ) : sent.length === 0 ? (
             <EmptyState
               icon={Send}
               title="No requests sent"
-              description="Browse ventures in DOT Demo to request meetings."
+              description={
+                isInvestor
+                  ? "Browse ventures in DOT Demo to request meetings."
+                  : "As a founder, you receive meeting requests — send is investor-only."
+              }
             />
           ) : (
             <div className="space-y-3">
               {sent.map((r) => (
-                <div key={r.id} className={cn(
-                  "flex items-center gap-4 rounded-2xl border border-border bg-card p-5",
-                )}>
-                  <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <div
+                  key={r.id}
+                  className="flex items-center gap-4 rounded-sm border border-border bg-card p-5 transition-all hover:border-foreground/20"
+                >
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-sm bg-primary/10 text-primary">
                     <Building2 className="size-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium">{r.founder?.venture_name ?? "Venture"}</p>
-                    <p className="text-sm text-muted-foreground">
+                  </span>
+
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">
+                      {r.founder?.venture_name ?? "Venture"}
+                    </p>
+                    <p className="flex items-center gap-3 text-xs text-muted-foreground">
                       {r.founder?.country && (
                         <span className="flex items-center gap-1">
-                          <MapPin className="size-3" />{r.founder.country}
+                          <MapPin className="size-3" />
+                          {r.founder.country}
+                        </span>
+                      )}
+                      {r.founder?.vantage_point != null && (
+                        <span className="flex items-center gap-1">
+                          <Sparkles className="size-3" />
+                          Vantage {r.founder.vantage_point}
                         </span>
                       )}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={r.status === "accepted" ? "default" : r.status === "declined" ? "destructive" : "secondary"}>
-                      {r.status}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">
+
+                  <div className="flex items-center gap-3">
+                    <StatusBadge status={r.status} />
+                    <span className="hidden tabular text-xs text-muted-foreground sm:inline">
                       {new Date(r.created_at).toLocaleDateString()}
                     </span>
                   </div>
@@ -198,5 +302,62 @@ function MeetingsPage() {
         </TabsContent>
       </Tabs>
     </AppShell>
+  );
+}
+
+/* ─── Internal helpers ────────────────────────────────────────────── */
+
+function StatusBadge({ status }: { status: string }) {
+  return (
+    <Badge
+      variant={
+        status === "accepted"
+          ? "default"
+          : status === "declined"
+            ? "destructive"
+            : "secondary"
+      }
+      className="text-[10px]"
+    >
+      {status}
+    </Badge>
+  );
+}
+
+function SummaryTile({
+  icon: Icon,
+  label,
+  value,
+  sub,
+  accent,
+}: {
+  icon: typeof Inbox;
+  label: string;
+  value: string;
+  sub: string;
+  accent: "primary" | "gold" | "muted";
+}) {
+  return (
+    <div className="rounded-sm border border-border bg-card p-5">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10px] uppercase tracking-widest font-medium text-muted-foreground">
+          {label}
+        </span>
+        <span
+          className={cn(
+            "flex size-7 items-center justify-center",
+            accent === "primary" && "text-primary",
+            accent === "gold" && "text-gold",
+            accent === "muted" && "text-muted-foreground",
+          )}
+        >
+          <Icon className="size-4" />
+        </span>
+      </div>
+      <p className="mt-3 font-display text-3xl font-light leading-none tracking-tight tabular">
+        {value}
+      </p>
+      <p className="mt-2 text-xs text-muted-foreground">{sub}</p>
+    </div>
   );
 }
