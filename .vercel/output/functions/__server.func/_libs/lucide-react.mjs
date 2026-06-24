@@ -1259,16 +1259,6 @@ var Pencil = createLucideIcon("pencil", [["path", {
 * This source code is licensed under the ISC license.
 * See the LICENSE file in the root directory of this source tree.
 */
-var Play = createLucideIcon("play", [["path", {
-	d: "M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z",
-	key: "10ikf1"
-}]]);
-/**
-* @license lucide-react v0.575.0 - ISC
-*
-* This source code is licensed under the ISC license.
-* See the LICENSE file in the root directory of this source tree.
-*/
 var Plus = createLucideIcon("plus", [["path", {
 	d: "M5 12h14",
 	key: "1ays0h"
@@ -1876,4 +1866,4 @@ var Zap = createLucideIcon("zap", [["path", {
 	key: "1xq2db"
 }]]);
 //#endregion
-export { GraduationCap as $, Quote as A, BookmarkCheck as At, MessageSquare as B, Settings as C, ChartColumn as Ct, Save as D, Building2 as Dt, Search as E, CalendarCheck as Et, Package as F, ArrowRight as Ft, LogOut as G, Medal as H, PackageCheck as I, ArrowLeft as It, Lightbulb as J, Lock as K, Network as L, ArrowDownToLine as Lt, Play as M, Bell as Mt, Pencil as N, Award as Nt, Rocket as O, Briefcase as Ot, Palette as P, ArrowUpRight as Pt, Hammer as Q, Moon as R, ShieldCheck as S, Check as St, Send as T, CalendarDays as Tt, MapPin as U, Menu as V, Mail as W, KeyRound as X, LayoutDashboard as Y, History as Z, Star as _, CircleQuestionMark as _t, User as a, Eye as at, Shield as b, ChevronRight as bt, Trophy as c, Download as ct, TrendingDown as d, Compass as dt, Globe as et, Trash2 as f, Coins as ft, Store as g, CircleUser as gt, Sun as h, CircleX as ht, Users as i, FileText as it, Plus as j, BookOpen as jt, RefreshCw as k, Bookmark as kt, TriangleAlert as l, DollarSign as lt, Table as m, Circle as mt, X as n, Gauge as nt, UserPlus as o, EyeOff as ot, Target as p, Clock as pt, LoaderCircle as q, Wallet as r, Funnel as rt, Upload as s, ExternalLink as st, Zap as t, Gift as tt, TrendingUp as u, Copy as ut, Sparkles as v, CircleCheck as vt, Settings2 as w, Camera as wt, ShieldMinus as x, ChevronDown as xt, ShoppingBag as y, ChevronUp as yt, Minus as z };
+export { Globe as $, Quote as A, BookOpen as At, Menu as B, Settings as C, Camera as Ct, Save as D, Briefcase as Dt, Search as E, Building2 as Et, PackageCheck as F, ArrowLeft as Ft, Lock as G, MapPin as H, Network as I, ArrowDownToLine as It, LayoutDashboard as J, LoaderCircle as K, Moon as L, Pencil as M, Award as Mt, Palette as N, ArrowUpRight as Nt, Rocket as O, Bookmark as Ot, Package as P, ArrowRight as Pt, GraduationCap as Q, Minus as R, ShieldCheck as S, ChartColumn as St, Send as T, CalendarCheck as Tt, Mail as U, Medal as V, LogOut as W, History as X, KeyRound as Y, Hammer as Z, Star as _, CircleCheck as _t, User as a, EyeOff as at, Shield as b, ChevronDown as bt, Trophy as c, DollarSign as ct, TrendingDown as d, Coins as dt, Gift as et, Trash2 as f, Clock as ft, Store as g, CircleQuestionMark as gt, Sun as h, CircleUser as ht, Users as i, Eye as it, Plus as j, Bell as jt, RefreshCw as k, BookmarkCheck as kt, TriangleAlert as l, Copy as lt, Table as m, CircleX as mt, X as n, Funnel as nt, UserPlus as o, ExternalLink as ot, Target as p, Circle as pt, Lightbulb as q, Wallet as r, FileText as rt, Upload as s, Download as st, Zap as t, Gauge as tt, TrendingUp as u, Compass as ut, Sparkles as v, ChevronUp as vt, Settings2 as w, CalendarDays as wt, ShieldMinus as x, Check as xt, ShoppingBag as y, ChevronRight as yt, MessageSquare as z };

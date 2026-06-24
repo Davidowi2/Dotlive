@@ -68,72 +68,40 @@ export function EmptyState({
 }: EmptyStateProps) {
   if (variant === "inline") {
     return (
-      <div
-        className={cn(
-          "flex flex-col items-center gap-2 py-8 text-center",
-          className,
-        )}
-      >
-        <Icon className="size-7 text-muted-foreground" />
-        <p className="text-sm font-medium text-muted-foreground">{title}</p>
-        {description && (
-          <p className="max-w-xs text-xs text-muted-foreground">{description}</p>
-        )}
-        {action && <div className="mt-2">{action}</div>}
+      <div className={cn("flex flex-col items-center gap-2 py-10 text-center", className)}>
+        <Icon className="size-6 text-muted-foreground/50" />
+        <p className="text-sm font-light text-muted-foreground">{title}</p>
+        {description && <p className="max-w-xs text-xs text-muted-foreground/70 font-light">{description}</p>}
+        {action && <div className="mt-3">{action}</div>}
       </div>
     );
   }
 
   if (variant === "full-page") {
     return (
-      <div
-        className={cn(
-          "flex flex-1 flex-col items-center justify-center gap-4 py-16 text-center",
-          className,
-        )}
-      >
-        {/* Gradient icon container — one branded element per full-page state */}
-        <span
-          className="flex size-16 items-center justify-center rounded-2xl
-                     [background-image:var(--gradient-primary)] text-primary-foreground
-                     shadow-glow"
-        >
-          <Icon className="size-8" />
-        </span>
+      <div className={cn("flex flex-1 flex-col items-center justify-center gap-5 py-20 text-center", className)}>
+        <div className="flex size-14 items-center justify-center rounded-sm border border-border bg-muted/30">
+          <Icon className="size-6 text-muted-foreground" />
+        </div>
         <div className="max-w-sm">
-          <h2 className="font-display text-xl font-semibold">{title}</h2>
-          {description && (
-            <p className="mt-2 text-sm text-muted-foreground">{description}</p>
-          )}
+          <h2 className="font-display text-xl font-light tracking-tight">{title}</h2>
+          {description && <p className="mt-2 text-sm text-muted-foreground font-light">{description}</p>}
         </div>
         {action && <div className="mt-4">{action}</div>}
       </div>
     );
   }
 
-  // variant === "card" (default)
   return (
-    <div
-      className={cn(
-        "mt-6 flex flex-col items-center gap-3 rounded-2xl border border-dashed",
-        "border-border bg-card px-6 py-12 text-center",
-        className,
-      )}
-    >
-      <span className="flex size-12 items-center justify-center rounded-xl bg-muted">
-        <Icon className="size-6 text-muted-foreground" />
-      </span>
-      <div>
-        <p className="font-display text-sm font-semibold text-foreground">
-          {title}
-        </p>
-        {description && (
-          <p className="mt-1 max-w-xs text-sm text-muted-foreground">
-            {description}
-          </p>
-        )}
+    <div className={cn("mt-6 flex flex-col items-center gap-4 border border-dashed border-border bg-card px-6 py-14 text-center", className)}>
+      <div className="flex size-10 items-center justify-center rounded-sm bg-muted/40">
+        <Icon className="size-5 text-muted-foreground/60" />
       </div>
-      {action && <div className="mt-2">{action}</div>}
+      <div>
+        <p className="font-display text-sm font-light text-foreground">{title}</p>
+        {description && <p className="mt-1 max-w-xs text-xs text-muted-foreground font-light">{description}</p>}
+      </div>
+      {action && <div className="mt-3">{action}</div>}
     </div>
   );
 }

@@ -54,7 +54,7 @@ export function PageHeader({
   if (variant === "compact") {
     return (
       <div className={cn("flex items-center justify-between gap-4", className)}>
-        <h2 className="font-display text-xl font-semibold tracking-tight">{title}</h2>
+        <h2 className="font-display text-xl font-light tracking-tight">{title}</h2>
         {action && <div className="shrink-0">{action}</div>}
       </div>
     );
@@ -69,11 +69,11 @@ export function PageHeader({
     >
       <div className="min-w-0">
         {eyebrow && (
-          <p className="text-sm text-muted-foreground">{eyebrow}</p>
+          <p className="tracking-editorial text-muted-foreground">{eyebrow}</p>
         )}
-        <h1 className="font-display text-3xl font-bold tracking-tight">{title}</h1>
+        <h1 className="font-display text-4xl font-light tracking-tight">{title}</h1>
         {subtitle && (
-          <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
+          <p className="mt-1 text-sm text-muted-foreground font-light">{subtitle}</p>
         )}
       </div>
       {action && <div className="shrink-0">{action}</div>}

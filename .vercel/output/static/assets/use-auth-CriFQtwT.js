@@ -1,0 +1,1 @@
+import{f as e,l as t,r as n}from"./useRouter-CXJd0Kh0.js";var r=e(t(),1);n();var i=(0,r.createContext)(void 0);function a(){let e=(0,r.useContext)(i);if(!e)throw Error(`useAuth must be used within AuthProvider`);return e}export{a as t};

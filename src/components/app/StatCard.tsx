@@ -89,30 +89,30 @@ export function StatCard({
   const card = (
     <div
       className={cn(
-        "rounded-2xl border border-border bg-card p-5 transition-shadow",
-        href && "hover:shadow-soft hover:border-primary/30 cursor-pointer",
+        "rounded-sm border border-border bg-card p-5 transition-all",
+        href && "hover:shadow-soft hover:border-foreground/20 cursor-pointer",
         className,
       )}
     >
       {/* Header row: label + icon */}
       <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-medium text-muted-foreground leading-none">
+        <span className="text-[10px] tracking-widest uppercase font-medium text-muted-foreground">
           {label}
         </span>
         <span
           className={cn(
-            "flex size-8 shrink-0 items-center justify-center rounded-lg",
-            accent === "primary" && "bg-primary/10 text-primary",
-            accent === "gold" && "bg-gold/10 text-gold",
-            accent === "muted" && "bg-muted text-muted-foreground",
+            "flex size-7 shrink-0 items-center justify-center",
+            accent === "primary" && "text-primary",
+            accent === "gold" && "text-gold",
+            accent === "muted" && "text-muted-foreground",
           )}
         >
           <Icon className="size-4" />
         </span>
       </div>
 
-      {/* Value — tabular numbers to prevent layout shift */}
-      <p className="mt-4 font-display text-3xl font-bold leading-none tabular">
+      {/* Value — oversized editorial number */}
+      <p className="mt-3 font-display text-4xl font-light leading-none tracking-tight tabular">
         {value}
         {sub && (
           <span className="ml-1.5 text-sm font-normal text-muted-foreground">
@@ -126,13 +126,10 @@ export function StatCard({
         <div className="mt-3 flex items-center gap-1.5">
           <span
             className={cn(
-              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
-              trend.direction === "up" &&
-                "bg-success/10 text-success",
-              trend.direction === "down" &&
-                "bg-destructive/10 text-destructive",
-              trend.direction === "neutral" &&
-                "bg-muted text-muted-foreground",
+              "inline-flex items-center gap-1 text-xs font-medium",
+              trend.direction === "up" && "text-success",
+              trend.direction === "down" && "text-destructive",
+              trend.direction === "neutral" && "text-muted-foreground",
             )}
           >
             <TrendIcon className="size-3" />

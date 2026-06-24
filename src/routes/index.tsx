@@ -20,12 +20,10 @@ import {
   UserPlus,
   Rocket,
   ChevronRight,
-  Play,
   Quote,
 } from "lucide-react";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { SiteFooter } from "@/components/site/SiteFooter";
-import { Button } from "@/components/ui/button";
 import heroImg from "@/assets/hero-dot.jpg";
 
 export const Route = createFileRoute("/")({
@@ -224,74 +222,59 @@ function LandingPage() {
 
 function HeroSection() {
   return (
-    <section className="relative overflow-hidden">
-      {/* Background image + gradient overlay */}
-      <div className="absolute inset-0 -z-10">
+    <section className="relative min-h-[90vh] overflow-hidden bg-background flex items-center">
+      <div className="mx-auto max-w-7xl w-full px-6 py-24 lg:px-12 lg:py-32">
+        {/* Eyebrow */}
+        <div className="flex items-center gap-4 mb-10">
+          <div className="h-px w-10 bg-primary/50" />
+          <span className="tracking-editorial text-primary">Africa's Venture Network</span>
+        </div>
+
+        {/* Giant serif headline — left aligned */}
+        <h1 className="font-display font-light leading-[0.92] tracking-[-0.04em] text-foreground max-w-5xl"
+          style={{ fontSize: "clamp(3rem, 9vw, 7.5rem)" }}>
+          From idea<br />
+          to funded.<br />
+          <span className="italic text-primary">Measurably.</span>
+        </h1>
+
+        {/* Subhead */}
+        <p className="mt-10 max-w-md text-lg text-muted-foreground leading-relaxed font-light">
+          DOT moves founders through a single, measurable journey — combining venture intelligence,
+          education and capital access.
+        </p>
+
+        {/* Editorial CTAs */}
+        <div className="mt-12 flex flex-col gap-4 sm:flex-row sm:items-center">
+          <Link
+            to="/auth"
+            search={{ mode: "signup" }}
+            className="inline-flex items-center gap-3 border border-primary text-primary px-8 py-3.5 text-xs tracking-widest uppercase font-medium hover:bg-primary hover:text-primary-foreground transition-all duration-200"
+          >
+            Begin your journey <ArrowRight className="size-3" />
+          </Link>
+          <Link
+            to="/platform"
+            className="inline-flex items-center gap-2 text-xs tracking-widest uppercase text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Explore the platform
+          </Link>
+        </div>
+
+        {/* Trust line */}
+        <p className="mt-16 text-[10px] tracking-widest uppercase text-muted-foreground/60">
+          Trusted by 12,000+ founders across 47 countries
+        </p>
+      </div>
+
+      {/* Background image — subtle, right side */}
+      <div className="absolute inset-0 -z-10 pointer-events-none">
         <img
           src={heroImg}
           alt=""
-          width={1920}
-          height={1080}
-          className="h-full w-full object-cover opacity-90 dark:opacity-100"
+          className="absolute right-0 top-0 h-full w-1/2 object-cover opacity-10 dark:opacity-5"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-background via-background/88 to-background/40" />
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
-        {/* Subtle radial glow from top-left */}
-        <div className="absolute -left-40 -top-40 size-[600px] rounded-full bg-primary/8 blur-3xl" />
-        <div className="absolute right-0 top-20 size-[400px] rounded-full bg-gold/5 blur-3xl" />
-      </div>
-
-      <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8 lg:py-40">
-        <div className="max-w-3xl">
-          {/* Eyebrow badge */}
-          <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur">
-            <span className="size-1.5 rounded-full bg-primary" />
-            Africa's Venture Progression Network
-          </span>
-
-          {/* Headline */}
-          <h1
-            className="mt-6 font-display text-5xl font-extrabold leading-[1.05] tracking-[-0.04em] sm:text-7xl lg:text-8xl"
-          >
-            From idea to funded.{" "}
-            <span className="text-gradient">Measurably.</span>
-          </h1>
-
-          {/* Subheadline */}
-          <p className="mt-6 max-w-2xl text-xl leading-relaxed text-muted-foreground">
-            DOT moves founders through a single, measurable journey — Assess, Learn, Improve,
-            Validate, Pitch, Fund and Scale — combining venture intelligence, education and
-            capital access.
-          </p>
-
-          {/* CTAs */}
-          <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Button variant="hero" size="lg" asChild>
-              <Link to="/auth" search={{ mode: "signup" }}>
-                Start your assessment
-                <ArrowRight className="size-4" />
-              </Link>
-            </Button>
-            <Button variant="outline" size="lg" asChild>
-              <Link to="/platform">Explore the platform</Link>
-            </Button>
-            <Button variant="ghost" size="lg" asChild>
-              <Link to="/platform" className="flex items-center gap-2">
-                <span className="flex size-8 items-center justify-center rounded-full border border-border bg-card/60">
-                  <Play className="size-3 translate-x-0.5 text-primary" />
-                </span>
-                Watch demo
-              </Link>
-            </Button>
-          </div>
-
-          {/* Trust bar */}
-          <p className="mt-8 text-sm text-muted-foreground">
-            Used by{" "}
-            <span className="font-semibold text-foreground">12,000+ founders</span>{" "}
-            across Africa
-          </p>
-        </div>
+        <div className="absolute inset-0 bg-gradient-to-r from-background via-background/95 to-background/20" />
       </div>
     </section>
   );
@@ -301,17 +284,15 @@ function HeroSection() {
 
 function TrustedBySection() {
   return (
-    <section className="border-y border-border/40 bg-card/30">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <p className="text-center text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-          As seen in
-        </p>
-        <div className="mt-5 flex flex-wrap items-center justify-center gap-8 lg:gap-14">
+    <section className="border-t border-border">
+      <div className="mx-auto max-w-7xl px-6 py-12 lg:px-12">
+        <div className="flex flex-wrap items-center gap-2 mb-6">
+          <div className="h-px w-8 bg-border" />
+          <span className="tracking-editorial text-muted-foreground/60">As seen in</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-8 lg:gap-14">
           {trustedBy.map((name) => (
-            <span
-              key={name}
-              className="font-display text-sm font-semibold uppercase tracking-widest text-muted-foreground/50 transition-colors hover:text-muted-foreground"
-            >
+            <span key={name} className="text-[10px] tracking-widest uppercase font-medium text-muted-foreground/40 hover:text-muted-foreground transition-colors">
               {name}
             </span>
           ))}
@@ -325,25 +306,25 @@ function TrustedBySection() {
 
 function ByTheNumbersSection() {
   return (
-    <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
-      <div className="text-center">
-        <span className="text-sm font-semibold text-primary">By the numbers</span>
-        <h2 className="mt-3 font-display text-3xl font-bold sm:text-4xl">
-          Real traction. Real results.
-        </h2>
-      </div>
-      <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {byTheNumbers.map((s) => (
-          <div
-            key={s.label}
-            className={`rounded-2xl border border-border bg-gradient-to-br ${s.accentFrom} ${s.accentTo} p-7 text-center transition-all hover:-translate-y-0.5 hover:shadow-soft`}
-          >
-            <p className={`display-number font-display text-5xl font-extrabold tabular ${s.textClass}`}>
-              {s.value}
-            </p>
-            <p className="mt-2 text-sm font-medium text-muted-foreground">{s.label}</p>
+    <section className="border-t border-border">
+      <div className="mx-auto max-w-7xl px-6 py-20 lg:px-12 lg:py-28">
+        <div className="flex items-start gap-8 mb-14">
+          <span className="font-display text-7xl font-light text-muted-foreground/15 leading-none select-none">05</span>
+          <div>
+            <span className="tracking-editorial text-muted-foreground">Traction</span>
+            <h2 className="mt-1 font-display text-3xl font-light tracking-tight">By the numbers</h2>
           </div>
-        ))}
+        </div>
+        <div className="grid gap-0 border border-border sm:grid-cols-2 lg:grid-cols-4">
+          {byTheNumbers.map((s, i) => (
+            <div key={s.label} className={`p-10 ${i < byTheNumbers.length - 1 ? "border-r border-border" : ""}`}>
+              <p className={`font-display text-6xl font-light tracking-tight tabular ${s.textClass}`}>
+                {s.value}
+              </p>
+              <p className="mt-3 text-xs tracking-widest uppercase text-muted-foreground font-medium">{s.label}</p>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -541,13 +522,14 @@ function BuilderJourneySection() {
         </div>
       </div>
 
-      <div className="mt-12 text-center">
-        <Button variant="hero" size="lg" asChild>
-          <Link to="/auth" search={{ mode: "signup" }}>
-            Start at Step 1 — it's free
-            <ArrowRight className="size-4" />
-          </Link>
-        </Button>
+      <div className="mt-14 text-center">
+        <Link
+          to="/auth"
+          search={{ mode: "signup" }}
+          className="inline-flex items-center gap-3 border border-primary text-primary px-8 py-3.5 text-xs tracking-widest uppercase font-medium hover:bg-primary hover:text-primary-foreground transition-all duration-200"
+        >
+          Start at Step 1 — it's free <ArrowRight className="size-3" />
+        </Link>
       </div>
     </section>
   );
@@ -557,32 +539,23 @@ function BuilderJourneySection() {
 
 function JourneySection() {
   return (
-    <section className="border-y border-border/60 bg-card/30">
-      <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
-        <div className="max-w-2xl">
-          <h2 className="font-display text-3xl font-bold sm:text-4xl">
-            One progression. Seven measurable stages.
-          </h2>
-          <p className="mt-4 text-muted-foreground">
-            Every founder follows the same path — and DOT measures movement at every step.
-          </p>
+    <section className="border-t border-border">
+      <div className="mx-auto max-w-7xl px-6 py-20 lg:px-12 lg:py-28">
+        <div className="flex items-start gap-8 mb-14">
+          <span className="font-display text-7xl font-light text-muted-foreground/15 leading-none select-none">01</span>
+          <div>
+            <span className="tracking-editorial text-muted-foreground">The Platform</span>
+            <h2 className="mt-1 font-display text-3xl font-light tracking-tight">One progression. Seven stages.</h2>
+          </div>
         </div>
-        <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-7">
+        <div className="grid gap-px bg-border sm:grid-cols-2 lg:grid-cols-7">
           {journey.map((step, i) => (
-            <div
-              key={step.label}
-              className="group relative rounded-2xl border border-border bg-card p-5 transition-all hover:-translate-y-1 hover:border-primary/40 hover:shadow-soft"
-            >
-              <div className="flex items-center justify-between">
-                <span className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-primary/5">
-                  <step.icon className="size-5 text-primary" />
-                </span>
-                <span className="display-number text-sm font-bold text-muted-foreground/40">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-              </div>
-              <h3 className="mt-4 font-display text-base font-semibold">{step.label}</h3>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{step.desc}</p>
+            <div key={step.label} className="bg-card p-6 hover:bg-accent/30 transition-colors">
+              <span className="text-[10px] tracking-widest uppercase text-muted-foreground/50">
+                {String(i + 1).padStart(2, "0")}
+              </span>
+              <h3 className="mt-3 font-display text-base font-light">{step.label}</h3>
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground/70">{step.desc}</p>
             </div>
           ))}
         </div>
@@ -595,34 +568,29 @@ function JourneySection() {
 
 function PillarsSection() {
   return (
-    <section className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8">
-      <div className="max-w-2xl">
-        <span className="text-sm font-semibold text-primary">Six pillars, one ecosystem</span>
-        <h2 className="mt-3 font-display text-3xl font-bold sm:text-4xl">
-          Everything a venture needs to progress
-        </h2>
-      </div>
-      <div className="mt-14 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {pillars.map((p) => {
-          const cls = accentIcon[p.accent];
-          const borderClass = p.accent === "teal" ? "hover:border-teal/40"
-                            : p.accent === "gold" ? "hover:border-gold/40"
-                            : p.accent === "purple" ? "hover:border-purple/40"
-                            : "hover:border-primary/40";
-          return (
-            <div
-              key={p.name}
-              className={`group rounded-2xl border border-border bg-card p-7 transition-all hover:-translate-y-0.5 hover:shadow-soft ${borderClass}`}
-            >
-              <span className={`flex size-14 items-center justify-center rounded-xl bg-gradient-to-br ${cls.split("text-")[0]} border border-border/40`}>
-                <p.icon className={`size-7 ${cls.split(" ").find(x => x.startsWith("text-"))}`} />
-              </span>
-              <h3 className="mt-5 font-display text-xl font-semibold">{p.name}</h3>
-              <p className={`mt-1 text-sm font-medium ${cls.split(" ").find(x => x.startsWith("text-"))}`}>{p.tagline}</p>
-              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{p.desc}</p>
-            </div>
-          );
-        })}
+    <section className="border-t border-border">
+      <div className="mx-auto max-w-7xl px-6 py-20 lg:px-12 lg:py-28">
+        <div className="flex items-start gap-8 mb-14">
+          <span className="font-display text-7xl font-light text-muted-foreground/15 leading-none select-none">02</span>
+          <div>
+            <span className="tracking-editorial text-muted-foreground">Six pillars</span>
+            <h2 className="mt-1 font-display text-3xl font-light tracking-tight">Everything a venture needs</h2>
+          </div>
+        </div>
+        <div className="grid gap-px bg-border md:grid-cols-2 lg:grid-cols-3">
+          {pillars.map((p) => {
+            const cls = accentIcon[p.accent];
+            const textCls = cls.split(" ").find(x => x.startsWith("text-")) ?? "text-primary";
+            return (
+              <div key={p.name} className="bg-card p-8 hover:bg-accent/20 transition-colors">
+                <p.icon className={`size-5 ${textCls} mb-5`} />
+                <h3 className="font-display text-lg font-light">{p.name}</h3>
+                <p className={`mt-1 text-xs tracking-widest uppercase ${textCls} opacity-70`}>{p.tagline}</p>
+                <p className="mt-3 text-sm leading-relaxed text-muted-foreground font-light">{p.desc}</p>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </section>
   );
@@ -632,32 +600,27 @@ function PillarsSection() {
 
 function PilotStatsSection() {
   return (
-    <section className="border-y border-border/60 bg-grid">
-      <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
-        <div className="rounded-3xl border border-border bg-card/80 p-8 shadow-soft backdrop-blur sm:p-12">
-          <div className="max-w-2xl">
-            <span className="text-sm font-semibold text-gold">Pilot program</span>
-            <h2 className="mt-3 font-display text-3xl font-bold sm:text-4xl">
-              Built to scale from 10K to 10M founders
-            </h2>
-            <p className="mt-4 text-muted-foreground">
-              A modular, multi-tenant architecture designed to grow across four phases without a redesign.
-            </p>
-          </div>
-          <div className="mt-10 grid grid-cols-2 gap-6 lg:grid-cols-4">
-            {pilotStats.map((s) => {
-              const cls = accentIcon[s.accent];
-              const textCls = cls.split(" ").find(x => x.startsWith("text-")) ?? "text-primary";
-              return (
-                <div key={s.label} className="space-y-1">
-                  <p className={`display-number font-display text-4xl font-bold tabular ${textCls}`}>
-                    {s.value}
-                  </p>
-                  <p className="text-sm text-muted-foreground">{s.label}</p>
-                </div>
-              );
-            })}
-          </div>
+    <section className="border-t border-border bg-primary text-primary-foreground">
+      <div className="mx-auto max-w-7xl px-6 py-20 lg:px-12 lg:py-28">
+        <div className="max-w-xl mb-14">
+          <span className="tracking-editorial opacity-60">Pilot program</span>
+          <h2 className="mt-2 font-display text-4xl font-light tracking-tight">
+            Built to scale from 10K to 10M founders
+          </h2>
+        </div>
+        <div className="grid grid-cols-2 gap-0 border border-primary-foreground/20 lg:grid-cols-4">
+          {pilotStats.map((s, i) => {
+            const cls = accentIcon[s.accent];
+            const textCls = cls.split(" ").find(x => x.startsWith("text-")) ?? "text-primary-foreground";
+            return (
+              <div key={s.label} className={`p-8 ${i < pilotStats.length - 1 ? "border-r border-primary-foreground/20" : ""}`}>
+                <p className="font-display text-5xl font-light tracking-tight tabular text-primary-foreground">
+                  {s.value}
+                </p>
+                <p className="mt-2 text-[10px] tracking-widest uppercase text-primary-foreground/60">{s.label}</p>
+              </div>
+            );
+          })}
         </div>
       </div>
     </section>
@@ -668,38 +631,34 @@ function PilotStatsSection() {
 
 function TestimonialsSection() {
   return (
-    <section className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8">
-      <div className="text-center">
-        <span className="text-sm font-semibold text-primary">Social proof</span>
-        <h2 className="mt-3 font-display text-3xl font-bold sm:text-4xl">
-          Why builders love DOT
-        </h2>
-      </div>
-
-      <div className="mt-14 grid gap-6 md:grid-cols-3">
-        {testimonials.map((t) => (
-          <div
-            key={t.name}
-            className="relative flex flex-col rounded-2xl border border-border bg-card/40 p-8 backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:border-border hover:shadow-soft"
-          >
-            {/* Large quote mark */}
-            <Quote className="absolute right-6 top-6 size-8 text-border" aria-hidden />
-
-            <p className="flex-1 text-sm leading-relaxed text-muted-foreground">
-              "{t.quote}"
-            </p>
-
-            <div className="mt-6 flex items-center gap-3 border-t border-border/50 pt-5">
-              <span className={`flex size-10 shrink-0 items-center justify-center rounded-full text-xs font-bold ${t.accentClass}`}>
-                {t.initials}
-              </span>
-              <div className="min-w-0">
-                <p className="truncate font-semibold text-sm">{t.name}</p>
-                <p className="text-xs text-muted-foreground">{t.venture} · {t.location}</p>
+    <section className="border-t border-border">
+      <div className="mx-auto max-w-7xl px-6 py-20 lg:px-12 lg:py-28">
+        <div className="flex items-start gap-8 mb-14">
+          <span className="font-display text-7xl font-light text-muted-foreground/15 leading-none select-none">06</span>
+          <div>
+            <span className="tracking-editorial text-muted-foreground">Voices</span>
+            <h2 className="mt-1 font-display text-3xl font-light tracking-tight">Why builders love DOT</h2>
+          </div>
+        </div>
+        <div className="grid gap-px bg-border md:grid-cols-3">
+          {testimonials.map((t) => (
+            <div key={t.name} className="bg-card p-8 flex flex-col">
+              <Quote className="size-6 text-border mb-6" aria-hidden />
+              <p className="flex-1 text-sm leading-relaxed text-muted-foreground font-light">
+                "{t.quote}"
+              </p>
+              <div className="mt-8 pt-6 border-t border-border flex items-center gap-3">
+                <span className={`flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${t.accentClass}`}>
+                  {t.initials}
+                </span>
+                <div className="min-w-0">
+                  <p className="font-medium text-sm">{t.name}</p>
+                  <p className="text-xs text-muted-foreground">{t.venture} · {t.location}</p>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -730,29 +689,26 @@ const audiences = [
 
 function AudiencesSection() {
   return (
-    <section className="border-t border-border/40 bg-card/20">
-      <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8">
-        <h2 className="font-display text-3xl font-bold sm:text-4xl">Built for the whole network</h2>
-        <div className="mt-12 grid gap-6 md:grid-cols-3">
+    <section className="border-t border-border">
+      <div className="mx-auto max-w-7xl px-6 py-20 lg:px-12 lg:py-28">
+        <div className="flex items-start gap-8 mb-14">
+          <span className="font-display text-7xl font-light text-muted-foreground/15 leading-none select-none">07</span>
+          <div>
+            <span className="tracking-editorial text-muted-foreground">The network</span>
+            <h2 className="mt-1 font-display text-3xl font-light tracking-tight">Built for the whole network</h2>
+          </div>
+        </div>
+        <div className="grid gap-px bg-border md:grid-cols-3">
           {audiences.map((a) => {
             const cls = accentIcon[a.accent];
             const textCls = cls.split(" ").find(x => x.startsWith("text-")) ?? "text-primary";
-            const borderHover = a.accent === "teal" ? "hover:border-teal/40"
-                              : a.accent === "gold" ? "hover:border-gold/40"
-                              : "hover:border-primary/40";
             return (
-              <div
-                key={a.title}
-                className={`rounded-2xl border border-border bg-card p-7 transition-all hover:-translate-y-0.5 hover:shadow-soft ${borderHover}`}
-              >
-                <span className={`flex size-12 items-center justify-center rounded-xl bg-gradient-to-br ${cls.split("text-")[0]} border border-border/40`}>
-                  <a.icon className={`size-5 ${textCls}`} />
-                </span>
-                <h3 className="mt-5 font-display text-xl font-semibold">{a.title}</h3>
-                <ul className="mt-4 space-y-2">
+              <div key={a.title} className="bg-card p-8">
+                <h3 className={`font-display text-xl font-light ${textCls}`}>{a.title}</h3>
+                <ul className="mt-5 space-y-2.5">
                   {a.points.map((pt) => (
-                    <li key={pt} className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <span className={`size-1.5 shrink-0 rounded-full ${a.accent === "teal" ? "bg-teal" : a.accent === "gold" ? "bg-gold" : "bg-primary"}`} />
+                    <li key={pt} className="flex items-center gap-3 text-sm text-muted-foreground font-light">
+                      <span className="h-px w-4 bg-border shrink-0" />
                       {pt}
                     </li>
                   ))}
@@ -770,40 +726,37 @@ function AudiencesSection() {
 
 function FinalCtaSection() {
   return (
-    <section className="mx-auto max-w-7xl px-4 pb-24 sm:px-6 lg:px-8">
-      {/* Section separator */}
-      <div className="mb-12 h-px w-full bg-gradient-to-r from-transparent via-border to-transparent" />
-
-      <div className="relative overflow-hidden rounded-3xl border border-border [background-image:var(--gradient-primary)] p-10 text-center shadow-elegant sm:p-16">
-        {/* Subtle inner glow blobs */}
-        <div className="pointer-events-none absolute -left-20 -top-20 size-64 rounded-full bg-white/5 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-20 -right-20 size-64 rounded-full bg-gold/10 blur-3xl" />
-
-        <span className="relative inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium text-primary-foreground/80">
-          <span className="size-1.5 rounded-full bg-primary-foreground" />
-          Free to start. No credit card needed.
-        </span>
-        <h2 className="relative mt-5 font-display text-3xl font-bold text-primary-foreground sm:text-5xl">
-          Ready to move your venture forward?
-        </h2>
-        <p className="relative mx-auto mt-4 max-w-xl text-primary-foreground/80">
-          Join the pilot. Complete your Vantage assessment and unlock your founder roadmap.
-        </p>
-        <div className="relative mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <Button variant="gold" size="lg" asChild>
-            <Link to="/auth">
-              Get started free
-              <ArrowRight className="size-4" />
+    <section className="border-t border-border">
+      <div className="mx-auto max-w-7xl px-6 py-28 lg:px-12 lg:py-36">
+        <div className="max-w-3xl">
+          <div className="flex items-center gap-4 mb-10">
+            <div className="h-px w-10 bg-primary/50" />
+            <span className="tracking-editorial text-primary">Begin</span>
+          </div>
+          <h2 className="font-display font-light tracking-[-0.04em] text-foreground"
+            style={{ fontSize: "clamp(2.5rem, 7vw, 6rem)", lineHeight: "0.95" }}>
+            Move your<br />
+            venture<br />
+            <span className="italic text-primary">forward.</span>
+          </h2>
+          <div className="mt-12 flex flex-col gap-4 sm:flex-row sm:items-center">
+            <Link
+              to="/auth"
+              search={{ mode: "signup" }}
+              className="inline-flex items-center gap-3 border border-primary text-primary px-8 py-3.5 text-xs tracking-widest uppercase font-medium hover:bg-primary hover:text-primary-foreground transition-all duration-200"
+            >
+              Get started free <ArrowRight className="size-3" />
             </Link>
-          </Button>
-          <Button
-            variant="ghost"
-            size="lg"
-            className="text-primary-foreground/80 hover:bg-white/10 hover:text-primary-foreground"
-            asChild
-          >
-            <Link to="/platform">See how it works</Link>
-          </Button>
+            <Link
+              to="/platform"
+              className="text-xs tracking-widest uppercase text-muted-foreground hover:text-foreground transition-colors"
+            >
+              See the platform
+            </Link>
+          </div>
+          <p className="mt-8 text-[10px] tracking-widest uppercase text-muted-foreground/50">
+            Free to start. No credit card needed.
+          </p>
         </div>
       </div>
     </section>

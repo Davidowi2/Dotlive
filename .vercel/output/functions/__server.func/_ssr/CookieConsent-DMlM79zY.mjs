@@ -3,7 +3,7 @@ import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { s as require_jsx_runtime } from "../_libs/@radix-ui/react-arrow+[...].mjs";
 import { n as cn, t as Button } from "./button-CWBSyrer.mjs";
 import { g as Link } from "../_libs/@tanstack/react-router+[...].mjs";
-import { C as Settings, St as Check, n as X } from "../_libs/lucide-react.mjs";
+import { C as Settings, n as X, xt as Check } from "../_libs/lucide-react.mjs";
 //#region node_modules/.nitro/vite/services/ssr/assets/CookieConsent-DMlM79zY.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
