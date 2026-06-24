@@ -18,6 +18,7 @@ import {
   Bell,
   Award,
   Settings,
+  type LucideIcon,
 } from "lucide-react";
 import { Logo } from "@/components/site/Logo";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
@@ -28,29 +29,46 @@ import { ROLE_LABELS, type AppRole } from "@/lib/constants";
 interface NavItem {
   label: string;
   to: string;
-  icon: typeof LayoutDashboard;
+  icon: LucideIcon;
   roles?: AppRole[];
+  /** Logical section for sidebar grouping */
+  section?: "main" | "growth" | "community" | "capital" | "admin";
 }
 
+/* Section order is fixed; sections without items get hidden automatically. */
 const NAV_ITEMS: NavItem[] = [
-  { label: "Dashboard",      to: "/dashboard",    icon: LayoutDashboard },
-  { label: "Discover",       to: "/discover",     icon: Search },
-  { label: "Vantage",        to: "/vantage",      icon: Gauge,       roles: ["founder"] },
-  { label: "Wallet",         to: "/wallet",       icon: Wallet },
-  { label: "DOT Work",       to: "/work",         icon: Hammer },
-  { label: "Academy",        to: "/academy",      icon: BookOpen,    roles: ["founder"] },
-  { label: "Sessions",       to: "/sessions",     icon: CalendarCheck },
-  { label: "Pitchathons",    to: "/pitchathons",  icon: Trophy,      roles: ["founder"] },
-  { label: "DOT Demo",       to: "/demo",         icon: Building2 },
-  { label: "Community",      to: "/community",    icon: Users,       roles: ["community_leader"] },
-  { label: "Investor Portal",to: "/investor",     icon: Briefcase,   roles: ["investor"] },
-  { label: "Judge Portal",   to: "/judge",        icon: Trophy,      roles: ["investor", "admin"] },
-  { label: "Meetings",       to: "/meetings",     icon: Bell,        roles: ["investor", "founder"] },
-  { label: "Certificates",   to: "/certificates", icon: Award,       roles: ["founder"] },
-  { label: "Notifications",  to: "/notifications",icon: Bell },
-  { label: "Settings",       to: "/settings",     icon: Settings },
-  { label: "Admin",          to: "/admin",        icon: Shield,      roles: ["admin"] },
+  /* main */
+  { label: "Dashboard",     to: "/dashboard",     icon: LayoutDashboard, section: "main" },
+  { label: "Discover",      to: "/discover",      icon: Search,          section: "main" },
+  { label: "Notifications", to: "/notifications", icon: Bell,            section: "main" },
+  /* growth — founder progression */
+  { label: "Vantage",       to: "/vantage",       icon: Gauge,       roles: ["founder"],                 section: "growth" },
+  { label: "Wallet",        to: "/wallet",        icon: Wallet,                                     section: "growth" },
+  { label: "DOT Work",      to: "/work",          icon: Hammer,                                     section: "growth" },
+  { label: "Academy",       to: "/academy",       icon: BookOpen,    roles: ["founder"],                 section: "growth" },
+  { label: "Sessions",      to: "/sessions",      icon: CalendarCheck,                              section: "growth" },
+  { label: "Pitchathons",   to: "/pitchathons",   icon: Trophy,      roles: ["founder"],                 section: "growth" },
+  { label: "Certificates",  to: "/certificates",  icon: Award,       roles: ["founder"],                 section: "growth" },
+  /* community */
+  { label: "Community",     to: "/community",     icon: Users,       roles: ["community_leader"],        section: "community" },
+  /* capital */
+  { label: "DOT Demo",      to: "/demo",          icon: Building2,                                  section: "capital" },
+  { label: "Investor Portal", to: "/investor",    icon: Briefcase,   roles: ["investor"],                section: "capital" },
+  { label: "Judge Portal",  to: "/judge",         icon: Trophy,      roles: ["investor", "admin"],       section: "capital" },
+  { label: "Meetings",      to: "/meetings",      icon: Bell,        roles: ["investor", "founder"],     section: "capital" },
+  /* admin */
+  { label: "Admin",         to: "/admin",         icon: Shield,      roles: ["admin"],                   section: "admin" },
+  /* always */
+  { label: "Settings",      to: "/settings",      icon: Settings,                                   section: "main" },
 ];
+
+const SECTION_META: Record<string, { label: string }> = {
+  main:      { label: "Workspace" },
+  growth:    { label: "Growth" },
+  community: { label: "Community" },
+  capital:   { label: "Capital" },
+  admin:     { label: "Admin" },
+};
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, roles, primaryRole, isLoading, logout } = useDotAuth();
@@ -79,25 +97,39 @@ export function AppShell({ children }: { children: ReactNode }) {
   const items = NAV_ITEMS.filter((i) => !i.roles || i.roles.some((r) => roles.includes(r)));
   const initial = (user?.name || user?.email || "?").charAt(0).toUpperCase();
 
+  /* Group items by section, drop empty sections */
+  const sections = (Object.keys(SECTION_META) as Array<keyof typeof SECTION_META>)
+    .map((key) => ({
+      key,
+      label: SECTION_META[key].label,
+      items: items.filter((i) => (i.section ?? "main") === key),
+    }))
+    .filter((s) => s.items.length > 0);
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       {/* Top header */}
       <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Logo />
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <ThemeToggle />
             {primaryRole && (
-              <span className="hidden text-[10px] tracking-widest uppercase text-muted-foreground sm:inline">
+              <span className="hidden text-[10px] tracking-widest uppercase font-semibold text-primary sm:inline-flex sm:items-center sm:gap-1.5">
+                <span className="size-1.5 rounded-full bg-primary" />
                 {ROLE_LABELS[primaryRole as AppRole] ?? primaryRole}
               </span>
             )}
-            <span className="flex size-7 items-center justify-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground">
+            <Link
+              to="/settings"
+              aria-label="Account"
+              className="flex size-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
               {initial}
-            </span>
+            </Link>
             <button
               onClick={handleSignOut}
-              className="text-muted-foreground transition-colors hover:text-foreground"
+              className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               aria-label="Sign out"
             >
               <LogOut className="size-4" />
@@ -107,27 +139,51 @@ export function AppShell({ children }: { children: ReactNode }) {
       </header>
 
       <div className="mx-auto flex w-full max-w-7xl flex-1 gap-0 px-4 py-6 sm:px-6 lg:px-8">
-        {/* Sidebar — editorial, hairline border */}
-        <aside className="hidden w-48 shrink-0 border-r border-border pr-6 lg:block">
-          <nav className="sticky top-20 space-y-0">
-            {items.map((item) => {
-              const active = pathname === item.to;
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  className={cn(
-                    "flex items-center gap-2.5 py-2 text-sm transition-colors",
-                    active
-                      ? "text-primary font-medium"
-                      : "text-muted-foreground hover:text-foreground font-normal",
-                  )}
-                >
-                  <item.icon className={cn("size-3.5 shrink-0", active ? "text-primary" : "text-muted-foreground/50")} />
-                  {item.label}
-                </Link>
-              );
-            })}
+        {/* Sidebar — sectioned, with active indicator */}
+        <aside className="hidden w-56 shrink-0 border-r border-border pr-6 lg:block">
+          <nav className="sticky top-20 space-y-6">
+            {sections.map((section) => (
+              <div key={section.key}>
+                <div className="mb-2 px-2">
+                  <span className="text-[10px] tracking-widest uppercase font-semibold text-muted-foreground/70">
+                    {section.label}
+                  </span>
+                </div>
+                <ul className="space-y-0.5">
+                  {section.items.map((item) => {
+                    const active = pathname === item.to || pathname.startsWith(item.to + "/");
+                    return (
+                      <li key={item.to}>
+                        <Link
+                          to={item.to}
+                          className={cn(
+                            "group relative flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors",
+                            active
+                              ? "bg-primary/10 text-primary font-medium"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                          )}
+                        >
+                          {/* Active left bar */}
+                          <span
+                            className={cn(
+                              "absolute left-0 top-1/2 -translate-y-1/2 h-5 w-0.5 rounded-r-full bg-primary transition-opacity",
+                              active ? "opacity-100" : "opacity-0",
+                            )}
+                          />
+                          <item.icon
+                            className={cn(
+                              "size-4 shrink-0 transition-colors",
+                              active ? "text-primary" : "text-muted-foreground/60 group-hover:text-foreground",
+                            )}
+                          />
+                          {item.label}
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ))}
           </nav>
         </aside>
 

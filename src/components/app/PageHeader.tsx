@@ -28,9 +28,6 @@ interface PageHeaderProps {
  * PageHeader
  *
  * Standardised page-level header for all authenticated app routes.
- * Replaces the repeated pattern of:
- *   <h1 className="font-display text-3xl font-bold">...</h1>
- *   <p className="mt-1 text-sm text-muted-foreground">...</p>
  *
  * Usage (default):
  *   <PageHeader
@@ -54,7 +51,10 @@ export function PageHeader({
   if (variant === "compact") {
     return (
       <div className={cn("flex items-center justify-between gap-4", className)}>
-        <h2 className="font-display text-xl font-light tracking-tight">{title}</h2>
+        <div className="min-w-0">
+          <h2 className="font-display text-xl font-light tracking-tight">{title}</h2>
+          {subtitle && <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>}
+        </div>
         {action && <div className="shrink-0">{action}</div>}
       </div>
     );
@@ -63,17 +63,20 @@ export function PageHeader({
   return (
     <div
       className={cn(
-        "flex flex-col justify-between gap-4 sm:flex-row sm:items-end",
+        "flex flex-col justify-between gap-6 pb-8 border-b border-border sm:flex-row sm:items-end",
         className,
       )}
     >
       <div className="min-w-0">
         {eyebrow && (
-          <p className="tracking-editorial text-muted-foreground">{eyebrow}</p>
+          <div className="mb-3 flex items-center gap-3">
+            <span className="h-px w-8 bg-primary/60" />
+            <span className="tracking-editorial text-primary">{eyebrow}</span>
+          </div>
         )}
         <h1 className="font-display text-4xl font-light tracking-tight">{title}</h1>
         {subtitle && (
-          <p className="mt-1 text-sm text-muted-foreground font-light">{subtitle}</p>
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground font-light">{subtitle}</p>
         )}
       </div>
       {action && <div className="shrink-0">{action}</div>}
