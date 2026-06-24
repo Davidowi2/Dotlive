@@ -12,6 +12,14 @@
 /*
  * DOT — Africa's Venture Progression Network
  * Design system. All colors in oklch. Semantic tokens only.
+ *
+ * PALETTE DIRECTION (locked Jun 24 2026): Editorial neutrals + green accent.
+ * Green appears on CTAs and brand moments only — ~4-5 times per page maximum.
+ * Each section has its own mood via the editorial palette (sage/forest/sand/cream).
+ *
+ * THEMES:
+ *   :root  → Light mode (warm cream paper #F7F2E3 — NOT inverted dark)
+ *   .dark  → Dark mode (warm green-tinted near-black #0A1410 — NOT cold #000808)
  */
 
 @theme inline {
@@ -50,7 +58,6 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
-  /* New: info (blue) and warning (amber) semantic tokens */
   --color-info: var(--info);
   --color-info-foreground: var(--info-foreground);
   --color-warning: var(--warning);
@@ -72,7 +79,7 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  /* ── Editorial palette ── */
+  /* ── Editorial palette (no duplicates — clean declarations) ── */
   --color-sage: var(--sage);
   --color-sage-foreground: var(--sage-foreground);
   --color-forest: var(--forest);
@@ -89,161 +96,123 @@
   --color-ink-foreground: var(--ink-foreground);
   --color-slate-editorial: var(--slate-editorial);
   --color-slate-editorial-foreground: var(--slate-editorial-foreground);
-  --color-sage: var(--sage);
-  --color-sage-foreground: var(--sage-foreground);
-  --color-moss: var(--moss);
-  --color-moss-foreground: var(--moss-foreground);
-  --color-terracotta: var(--terracotta);
-  --color-terracotta-foreground: var(--terracotta-foreground);
-  --color-cream: var(--cream);
-  --color-cream-foreground: var(--cream-foreground);
-  --color-ink: var(--ink);
-  --color-ink-foreground: var(--ink-foreground);
 }
 
+/*
+ * ─── LIGHT THEME — Editorial Cream Paper ──────────────────────────
+ * The warm cream surface (#F7F2E3) is DOT's "paper" — gives the whole
+ * interface an editorial feel. Body text uses ink (#2D2D2D-ish), NOT pure
+ * black. Borders are warm hairlines, NOT grey.
+ *
+ * Editorial palette (LIGHT) — distinct from background, NOT dead duplicates:
+ *   --forest  → darker than primary green (use for borders on cream)
+ *   --cream   → LIGHTER than --background (use for lifted surfaces)
+ *   --ink     → near-black body text color, distinct from --background-dark
+ */
 :root {
   --radius: 0.75rem;
 
-  --background: oklch(0.96 0.02 90);
-  --foreground: oklch(0.12 0.02 200);
+  /* Surfaces */
+  --background: oklch(0.96 0.02 90);        /* #F7F2E3 — warm cream paper */
+  --foreground: oklch(0.18 0.02 200);       /* ink-dark for body text */
 
-  --card: oklch(0.98 0.01 90);
-  --card-foreground: oklch(0.15 0.02 200);
+  --card: oklch(0.98 0.01 90);              /* #FBF8EE — lifted cream */
+  --card-foreground: oklch(0.18 0.02 200);
 
   --popover: oklch(0.98 0.01 90);
-  --popover-foreground: oklch(0.15 0.02 200);
+  --popover-foreground: oklch(0.18 0.02 200);
 
-  --primary: oklch(0.35 0.08 155);
+  /* Brand: deep forest green */
+  --primary: oklch(0.35 0.08 155);          /* #0A4627 */
   --primary-foreground: oklch(0.98 0.01 155);
-  --primary-glow: oklch(0.55 0.12 155);
+  --primary-glow: oklch(0.55 0.12 155);     /* #258651 */
 
-  --secondary: oklch(0.88 0.03 90);
+  /* Secondary = sand surface (NOT another color, a panel) */
+  --secondary: oklch(0.88 0.04 75);         /* #E7D4BB — sand panel */
   --secondary-foreground: oklch(0.20 0.02 200);
 
-  --muted: oklch(0.88 0.03 90);
+  --muted: oklch(0.92 0.02 90);
   --muted-foreground: oklch(0.45 0.02 200);
 
-  --accent: oklch(0.92 0.03 140);
+  /* Accent = sage-tinted panel */
+  --accent: oklch(0.85 0.05 140);           /* #BDD6B8 — sage */
   --accent-foreground: oklch(0.20 0.04 155);
 
-  --gold: oklch(0.75 0.10 75);
+  /* Editorial accents — used SPARINGLY */
+  --gold: oklch(0.75 0.10 75);              /* #D3A563 */
   --gold-foreground: oklch(0.15 0.05 75);
 
-  --teal: oklch(0.55 0.10 185);
+  --teal: oklch(0.55 0.10 185);             /* #008479 */
   --teal-foreground: oklch(0.98 0.01 185);
 
-  --purple: oklch(0.55 0.14 280);
+  --purple: oklch(0.55 0.14 280);           /* #6365C1 */
   --purple-foreground: oklch(0.98 0.01 280);
 
+  --terracotta: oklch(0.65 0.12 35);        /* #CD725C */
+  --terracotta-foreground: oklch(0.98 0.01 35);
+
+  /* Semantic */
   --success: oklch(0.50 0.13 150);
   --success-foreground: oklch(0.98 0.01 150);
-
   --destructive: oklch(0.55 0.20 25);
   --destructive-foreground: oklch(0.98 0.01 25);
-
   --info: oklch(0.52 0.12 240);
   --info-foreground: oklch(0.98 0.01 240);
-
   --warning: oklch(0.70 0.14 55);
   --warning-foreground: oklch(0.15 0.04 55);
 
+  /* Borders — warm hairline */
   --border: oklch(0.82 0.02 90);
   --input: oklch(0.92 0.02 90);
   --ring: oklch(0.35 0.08 155);
 
+  /* Charts */
   --chart-1: oklch(0.35 0.08 155);
   --chart-2: oklch(0.75 0.10 75);
   --chart-3: oklch(0.55 0.10 185);
   --chart-4: oklch(0.65 0.12 35);
   --chart-5: oklch(0.55 0.14 280);
 
+  /* Sidebar — sand surface */
   --sidebar: oklch(0.95 0.02 90);
   --sidebar-foreground: oklch(0.20 0.02 200);
   --sidebar-primary: oklch(0.35 0.08 155);
   --sidebar-primary-foreground: oklch(0.98 0.01 155);
-  --sidebar-accent: oklch(0.88 0.03 140);
+  --sidebar-accent: oklch(0.85 0.05 140);
   --sidebar-accent-foreground: oklch(0.20 0.04 155);
   --sidebar-border: oklch(0.82 0.02 90);
   --sidebar-ring: oklch(0.35 0.08 155);
 
-  /* ── Editorial palette ─────────────────────────────────────
-   * Sophisticated tones for a premium, editorial feel.
-   * Use sparingly alongside the primary green.
-   * ─────────────────────────────────────────────────────── */
-  --sage:                 oklch(0.85 0.05 140);
-  --sage-foreground:      oklch(0.15 0.02 140);
-  --forest:               oklch(0.35 0.08 155);
+  /* Editorial palette — distinct values, NO MORE dead duplicates */
+  --sage:                 oklch(0.85 0.05 140);   /* #BDD6B8 */
+  --sage-foreground:      oklch(0.20 0.04 155);
+  --forest:               oklch(0.28 0.10 155);   /* darker than primary — was duplicate */
   --forest-foreground:    oklch(0.98 0.01 155);
-  --moss:                 oklch(0.55 0.12 145);
+  --moss:                 oklch(0.55 0.12 145);   /* #3E8343 */
   --moss-foreground:      oklch(0.98 0.01 145);
-  --cream:                oklch(0.96 0.02 90);
-  --cream-foreground:     oklch(0.12 0.02 200);
-  --sand:                 oklch(0.88 0.04 75);
-  --sand-foreground:      oklch(0.15 0.04 75);
-  --terracotta:           oklch(0.65 0.12 35);
+  --cream:                oklch(0.98 0.01 90);    /* LIGHTER than --bg — was duplicate */
+  --cream-foreground:     oklch(0.20 0.02 200);
+  --sand:                 oklch(0.88 0.04 75);    /* #E7D4BB */
+  --sand-foreground:      oklch(0.20 0.04 75);
+  --terracotta:           oklch(0.65 0.12 35);    /* #CD725C */
   --terracotta-foreground: oklch(0.98 0.01 35);
-  --ink:                  oklch(0.12 0.02 200);
-  --ink-foreground:       oklch(0.96 0.02 90);
+  --ink:                  oklch(0.18 0.02 200);   /* distinct from --bg-dark */
+  --ink-foreground:       oklch(0.98 0.01 90);
   --slate-editorial:      oklch(0.45 0.03 220);
-  --slate-editorial-foreground: oklch(0.96 0.01 220);
+  --slate-editorial-foreground: oklch(0.98 0.01 220);
 
-  --gradient-hero: linear-gradient(135deg, oklch(0.35 0.08 155) 0%, oklch(0.50 0.10 155) 50%, oklch(0.75 0.10 75) 100%);
+  /* Gradients */
+  --gradient-hero:    linear-gradient(135deg, oklch(0.35 0.08 155) 0%, oklch(0.50 0.10 155) 50%, oklch(0.75 0.10 75) 100%);
   --gradient-primary: linear-gradient(135deg, oklch(0.30 0.08 157), oklch(0.48 0.10 158));
-  --gradient-gold: linear-gradient(135deg, oklch(0.75 0.10 75), oklch(0.68 0.12 55));
+  --gradient-gold:    linear-gradient(135deg, oklch(0.75 0.10 75), oklch(0.68 0.12 55));
   --gradient-surface: linear-gradient(180deg, oklch(0.98 0.01 90), oklch(0.94 0.02 90));
 
-  /*
-   * DOT Elevation System — 4 levels
-   *
-   * Level 0 — No shadow      → Default resting state of all cards.
-   *                             Use: rounded-2xl border border-border bg-card
-   *                             Never add a shadow to a card that isn't interactive.
-   *
-   * Level 1 — shadow-sm      → Subtle lift for buttons at rest, small tooltips,
-   *                             dropdown triggers. Single-layer, very soft.
-   *
-   * Level 2 — shadow-soft    → Cards on hover (hover:shadow-soft), open dialogs/modals,
-   *   (= shadow-md)             the balance card in Wallet, active hero cards.
-   *
-   * Level 3 — shadow-elegant → Landing page hero sections only. Not for app pages.
-   *   (= shadow-lg)             Use sparingly — one per marketing screen maximum.
-   *
-   * Level 4 — shadow-glow    → Gradient buttons on :hover (hero, gold variants),
-   *                             the Vantage score ring, wallet balance card.
-   *                             One glow element per screen maximum.
-   */
-  --shadow-sm:      0 1px 3px oklch(0.3 0.04 160 / 0.08),
-                    0 1px 2px oklch(0.3 0.04 160 / 0.06);
-  --shadow-md:      0 4px 16px -4px oklch(0.4 0.06 160 / 0.14),
-                    0 2px 6px -2px oklch(0.3 0.04 160 / 0.08);
-  --shadow-lg:      0 20px 50px -16px oklch(0.4 0.08 160 / 0.26),
-                    0 8px 20px -8px oklch(0.3 0.04 160 / 0.12);
-  --shadow-glow:    0 0 0 1px oklch(0.65 0.16 160 / 0.15),
-                    0 0 32px -4px oklch(0.65 0.16 160 / 0.4);
+  /* Shadows — warm tinted */
+  --shadow-sm:   0 1px 3px oklch(0.30 0.04 75 / 0.10), 0 1px 2px oklch(0.30 0.04 75 / 0.06);
+  --shadow-md:   0 4px 16px -4px oklch(0.35 0.06 75 / 0.18), 0 2px 6px -2px oklch(0.30 0.04 75 / 0.10);
+  --shadow-lg:   0 20px 50px -16px oklch(0.35 0.08 75 / 0.28), 0 8px 20px -8px oklch(0.30 0.04 75 / 0.14);
+  --shadow-glow: 0 0 0 1px oklch(0.55 0.16 155 / 0.18), 0 0 32px -4px oklch(0.55 0.16 155 / 0.45);
 
-  /*
-   * DOT Spacing Scale — 8px base grid
-   *
-   * Rule: ALL spacing decisions should land on a multiple of 0.5rem (8px).
-   * Exceptions: icon padding (p-1 = 4px), tight text leading.
-   *
-   * These tokens exist for documentation clarity and custom CSS contexts.
-   * In JSX, use the equivalent Tailwind class directly.
-   *
-   * --space-1  = 0.5rem  =  8px  → Tight: icon gaps (gap-2), badge padding (px-2 py-0.5)
-   * --space-2  = 1rem    = 16px  → Base: form field gaps (gap-4), list items (p-4)
-   * --space-3  = 1.5rem  = 24px  → Comfortable: card inner padding (p-6)
-   * --space-4  = 2rem    = 32px  → Loose: between card sections (mt-8)
-   * --space-6  = 3rem    = 48px  → Section: between page sections
-   * --space-8  = 4rem    = 64px  → Page: top breathing room on large screens
-   * --space-12 = 6rem    = 96px  → Hero: large section padding on marketing pages
-   *
-   * CARD PADDING RULE — enforce these consistently:
-   *   Stat cards, compact cards:   p-5  (1.25rem)
-   *   Standard content cards:      p-6  (1.5rem  = space-3)
-   *   Hero / featured cards:       p-8  (2rem    = space-4)
-   *   Card inner section gap:      mt-4 or mt-5  (not mt-3 or mt-6 inside cards)
-   */
   --space-1:  0.5rem;
   --space-2:  1rem;
   --space-3:  1.5rem;
@@ -253,100 +222,122 @@
   --space-12: 6rem;
 }
 
+/*
+ * ─── DARK THEME — Warm Green-Tinted Near-Black ────────────────────
+ * Background is #0A1410 — slight green tint at hue 155, NOT the old
+ * cold #000808 (cyan-tinted) that made the page feel like a void.
+ *
+ * Section panels for layered editorial backgrounds:
+ *   --background     → #0A1410 — default page surface (dark forest-at-night)
+ *   --secondary      → #032110 — deep-forest panel (for stat sections)
+ *   --accent         → #1A2618 — sage-tinted panel (for content sections)
+ *   --card           → #0F1812 — slightly lifted from bg
+ *   --sidebar        → darker near-black for app shell
+ *
+ * Editorial palette (DARK) — distinct from background, NOT dead duplicates:
+ *   --forest  → very dark green (deeper than --primary), use for borders
+ *   --cream   → warm cream FOREGROUND color (light text on dark)
+ *   --ink     → bright cream FOREGROUND color, distinct from --bg-light
+ */
 .dark {
-  --background: oklch(0.12 0.02 200);
+  /* Surfaces — warm green-tinted near-black */
+  --background: oklch(0.16 0.02 155);       /* #0A1410 — slight green tint */
   --foreground: oklch(0.94 0.02 90);
 
-  --card: oklch(0.16 0.02 200);
+  --card: oklch(0.20 0.02 155);             /* #0F1812 — lifted from bg */
   --card-foreground: oklch(0.94 0.02 90);
 
-  --popover: oklch(0.15 0.02 200);
+  --popover: oklch(0.18 0.02 155);
   --popover-foreground: oklch(0.94 0.02 90);
 
-  --primary: oklch(0.65 0.10 155);
-  --primary-foreground: oklch(0.12 0.02 155);
+  /* Brand: brighter forest green for dark */
+  --primary: oklch(0.65 0.10 155);          /* #59A174 */
+  --primary-foreground: oklch(0.10 0.02 155);
   --primary-glow: oklch(0.75 0.12 158);
 
-  --secondary: oklch(0.20 0.02 200);
-  --secondary-foreground: oklch(0.90 0.01 120);
+  /* Secondary = deep-forest panel */
+  --secondary: oklch(0.22 0.04 155);        /* #032110 — deep-forest */
+  --secondary-foreground: oklch(0.90 0.02 90);
 
-  --muted: oklch(0.22 0.02 200);
-  --muted-foreground: oklch(0.65 0.02 140);
+  --muted: oklch(0.22 0.02 155);
+  --muted-foreground: oklch(0.65 0.04 140);
 
-  --accent: oklch(0.25 0.04 155);
-  --accent-foreground: oklch(0.90 0.02 150);
+  /* Accent = sage-tinted panel */
+  --accent: oklch(0.28 0.04 145);           /* #1A2618 — sage-tinted */
+  --accent-foreground: oklch(0.88 0.04 140);
 
+  /* Editorial accents — boosted for dark visibility */
   --gold: oklch(0.78 0.11 78);
-  --gold-foreground: oklch(0.15 0.04 70);
+  --gold-foreground: oklch(0.14 0.04 70);
 
-  --teal: oklch(0.65 0.11 182);
-  --teal-foreground: oklch(0.14 0.02 182);
+  --teal: oklch(0.68 0.11 182);
+  --teal-foreground: oklch(0.12 0.02 182);
 
-  --purple: oklch(0.68 0.16 278);
-  --purple-foreground: oklch(0.14 0.02 278);
+  --purple: oklch(0.70 0.16 278);
+  --purple-foreground: oklch(0.12 0.02 278);
 
-  --success: oklch(0.65 0.14 152);
-  --success-foreground: oklch(0.14 0.02 152);
+  --terracotta: oklch(0.68 0.13 35);
+  --terracotta-foreground: oklch(0.14 0.02 35);
 
-  --destructive: oklch(0.62 0.20 25);
-  --destructive-foreground: oklch(0.98 0.01 150);
+  /* Semantic */
+  --success: oklch(0.68 0.14 152);
+  --success-foreground: oklch(0.12 0.02 152);
+  --destructive: oklch(0.65 0.20 25);
+  --destructive-foreground: oklch(0.96 0.01 25);
+  --info: oklch(0.65 0.13 237);
+  --info-foreground: oklch(0.12 0.02 237);
+  --warning: oklch(0.78 0.14 58);
+  --warning-foreground: oklch(0.14 0.04 50);
 
-  --info: oklch(0.62 0.13 237);
-  --info-foreground: oklch(0.14 0.02 237);
-
-  --warning: oklch(0.76 0.14 58);
-  --warning-foreground: oklch(0.16 0.04 50);
-
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 14%);
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 12%);
   --ring: oklch(0.65 0.10 155);
 
   --chart-1: oklch(0.65 0.10 155);
   --chart-2: oklch(0.78 0.11 78);
-  --chart-3: oklch(0.65 0.11 182);
+  --chart-3: oklch(0.68 0.11 182);
   --chart-4: oklch(0.68 0.13 35);
-  --chart-5: oklch(0.68 0.16 278);
+  --chart-5: oklch(0.70 0.16 278);
 
-  --sidebar: oklch(0.14 0.02 200);
+  /* Sidebar — deep-forest surface */
+  --sidebar: oklch(0.13 0.02 155);
   --sidebar-foreground: oklch(0.90 0.02 90);
   --sidebar-primary: oklch(0.65 0.10 155);
-  --sidebar-primary-foreground: oklch(0.12 0.02 155);
-  --sidebar-accent: oklch(0.22 0.03 155);
-  --sidebar-accent-foreground: oklch(0.90 0.02 150);
-  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-primary-foreground: oklch(0.10 0.02 155);
+  --sidebar-accent: oklch(0.22 0.04 155);
+  --sidebar-accent-foreground: oklch(0.88 0.04 140);
+  --sidebar-border: oklch(1 0 0 / 8%);
   --sidebar-ring: oklch(0.65 0.10 155);
 
-  /* ── Editorial palette (dark mode) ── */
-  --sage:                 oklch(0.32 0.05 140);
-  --sage-foreground:      oklch(0.90 0.02 140);
-  --forest:               oklch(0.55 0.10 155);
-  --forest-foreground:    oklch(0.98 0.01 155);
-  --moss:                 oklch(0.60 0.13 145);
-  --moss-foreground:      oklch(0.98 0.01 145);
-  --cream:                oklch(0.20 0.02 90);
-  --cream-foreground:     oklch(0.92 0.02 90);
-  --sand:                 oklch(0.28 0.03 75);
-  --sand-foreground:      oklch(0.90 0.03 75);
+  /* Editorial palette — distinct dark variants */
+  --sage:                 oklch(0.30 0.04 140);
+  --sage-foreground:      oklch(0.88 0.04 140);
+  --forest:               oklch(0.18 0.06 155);   /* darker than primary */
+  --forest-foreground:    oklch(0.94 0.02 155);
+  --moss:                 oklch(0.62 0.13 145);
+  --moss-foreground:      oklch(0.96 0.01 145);
+  --cream:                oklch(0.92 0.02 90);    /* warm foreground */
+  --cream-foreground:     oklch(0.20 0.02 200);
+  --sand:                 oklch(0.78 0.05 75);    /* sand-tinted panel */
+  --sand-foreground:      oklch(0.20 0.04 75);
   --terracotta:           oklch(0.68 0.13 35);
-  --terracotta-foreground: oklch(0.16 0.02 35);
-  --ink:                  oklch(0.92 0.01 200);
-  --ink-foreground:       oklch(0.14 0.02 200);
-  --slate-editorial:      oklch(0.60 0.04 220);
-  --slate-editorial-foreground: oklch(0.96 0.01 220);
+  --terracotta-foreground: oklch(0.14 0.02 35);
+  --ink:                  oklch(0.96 0.01 90);    /* bright foreground — distinct from --bg-dark */
+  --ink-foreground:       oklch(0.16 0.02 155);
+  --slate-editorial:      oklch(0.62 0.04 220);
+  --slate-editorial-foreground: oklch(0.94 0.01 220);
 
-  --gradient-hero: linear-gradient(135deg, oklch(0.65 0.10 155) 0%, oklch(0.72 0.12 158) 50%, oklch(0.78 0.11 78) 100%);
-  --gradient-primary: linear-gradient(135deg, oklch(0.58 0.10 157), oklch(0.72 0.12 158));
-  --gradient-gold: linear-gradient(135deg, oklch(0.78 0.11 78), oklch(0.72 0.14 55));
-  --gradient-surface: linear-gradient(180deg, oklch(0.16 0.02 200), oklch(0.13 0.02 200));
+  /* Gradients */
+  --gradient-hero:    linear-gradient(135deg, oklch(0.65 0.10 155) 0%, oklch(0.72 0.12 158) 50%, oklch(0.78 0.11 78) 100%);
+  --gradient-primary: linear-gradient(135deg, oklch(0.55 0.10 157), oklch(0.72 0.12 158));
+  --gradient-gold:    linear-gradient(135deg, oklch(0.78 0.11 78), oklch(0.72 0.14 55));
+  --gradient-surface: linear-gradient(180deg, oklch(0.18 0.02 155), oklch(0.14 0.02 155));
 
-  --shadow-sm:      0 1px 3px oklch(0 0 0 / 0.25),
-                    0 1px 2px oklch(0 0 0 / 0.2);
-  --shadow-md:      0 4px 16px -4px oklch(0 0 0 / 0.45),
-                    0 2px 6px -2px oklch(0 0 0 / 0.3);
-  --shadow-lg:      0 20px 50px -16px oklch(0 0 0 / 0.55),
-                    0 8px 20px -8px oklch(0 0 0 / 0.35);
-  --shadow-glow:    0 0 0 1px oklch(0.7 0.16 160 / 0.2),
-                    0 0 32px -4px oklch(0.7 0.16 160 / 0.35);
+  /* Shadows */
+  --shadow-sm:   0 1px 3px oklch(0 0 0 / 0.30), 0 1px 2px oklch(0 0 0 / 0.22);
+  --shadow-md:   0 4px 16px -4px oklch(0 0 0 / 0.50), 0 2px 6px -2px oklch(0 0 0 / 0.32);
+  --shadow-lg:   0 20px 50px -16px oklch(0 0 0 / 0.60), 0 8px 20px -8px oklch(0 0 0 / 0.38);
+  --shadow-glow: 0 0 0 1px oklch(0.72 0.16 158 / 0.22), 0 0 32px -4px oklch(0.72 0.16 158 / 0.40);
 
   --space-1:  0.5rem;
   --space-2:  1rem;
