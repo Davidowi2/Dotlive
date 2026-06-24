@@ -28,6 +28,8 @@ import {
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { Logo, DotLogoMark } from "@/components/site/Logo";
+import { MobileCta } from "@/components/site/MobileCta";
+import { CountUp, FadeIn, Lift } from "@/components/ui/motion";
 
 export const Route = createFileRoute("/")({
   ssr: false,
@@ -173,40 +175,41 @@ function LandingPage() {
       <main className="flex-1">
 
         {/* ── HERO ─────────────────────────────────────────── */}
-        <HeroSection />
+        <FadeIn delay={0}><HeroSection /></FadeIn>
 
         {/* ── BUILT WITH ───────────────────────────────────── */}
-        <BuiltWithSection />
+        <FadeIn delay={0.1}><BuiltWithSection /></FadeIn>
 
         {/* ── BY THE NUMBERS ───────────────────────────────── */}
-        <ByTheNumbersSection />
+        <FadeIn delay={0.2}><ByTheNumbersSection /></FadeIn>
 
         {/* ── WHAT YOU GET AS A BUILDER ────────────────────── */}
-        <BuilderValueSection />
+        <FadeIn delay={0.3}><BuilderValueSection /></FadeIn>
 
         {/* ── HOW DOT WORKS ────────────────────────────────── */}
-        <HowItWorksSection />
+        <FadeIn delay={0.4}><HowItWorksSection /></FadeIn>
 
         {/* ── THE BUILDER JOURNEY ──────────────────────────── */}
-        <BuilderJourneySection />
+        <FadeIn delay={0.5}><BuilderJourneySection /></FadeIn>
 
         {/* ── 7-STAGE PROGRESSION ──────────────────────────── */}
-        <JourneySection />
+        <FadeIn delay={0.6}><JourneySection /></FadeIn>
 
         {/* ── SIX PILLARS ──────────────────────────────────── */}
-        <PillarsSection />
+        <FadeIn delay={0.7}><PillarsSection /></FadeIn>
 
         {/* ── PILOT PROGRAM ────────────────────────────────── */}
-        <PilotProgramSection />
+        <FadeIn delay={0.8}><PilotProgramSection /></FadeIn>
 
         {/* ── BUILT FOR THE NETWORK ────────────────────────── */}
-        <AudiencesSection />
+        <FadeIn delay={0.9}><AudiencesSection /></FadeIn>
 
         {/* ── FINAL CTA ────────────────────────────────────── */}
-        <FinalCtaSection />
+        <FadeIn delay={1.0}><FinalCtaSection /></FadeIn>
 
       </main>
       <SiteFooter />
+      <MobileCta />
     </div>
   );
 }
@@ -215,7 +218,7 @@ function LandingPage() {
 
 function HeroSection() {
   return (
-    <section className="relative overflow-hidden">
+    <section id="hero" className="relative overflow-hidden">
       {/* Layered editorial background */}
       <div className="absolute inset-0 -z-10 pointer-events-none">
         {/* Radial bloom — primary glow, top-right */}
@@ -356,7 +359,9 @@ function HeroCardMockup() {
               <span className="text-[10px] tracking-widest uppercase text-primary">Vantage</span>
               <Gauge className="size-3.5 text-primary" />
             </div>
-            <p className="font-display text-3xl font-light mt-2 tabular text-primary">642 <span className="text-muted-foreground text-base">/ 1000</span></p>
+            <p className="font-display text-3xl font-light mt-2 tabular text-primary">
+              <CountUp value={642} suffix="/ 1000" />
+            </p>
             <div className="mt-3 h-1.5 bg-primary/10 rounded-full overflow-hidden">
               <div className="h-full bg-primary rounded-full" style={{ width: "64.2%" }} />
             </div>
@@ -488,9 +493,9 @@ function BuilderValueSection() {
 
         <div className="grid gap-6 md:grid-cols-3">
           {cards.map((c) => (
-            <div
+            <Lift
               key={c.title}
-              className="group rounded-2xl border border-border bg-card p-7 transition-all hover:-translate-y-1 hover:shadow-soft"
+              className="group rounded-2xl border border-border bg-card p-7 transition-shadow hover:shadow-soft"
             >
               <div className="flex items-start justify-between mb-5">
                 <span className={`flex size-12 items-center justify-center rounded-xl bg-gradient-to-br border ${accentBg[c.accent]}`}>
@@ -503,7 +508,7 @@ function BuilderValueSection() {
               </div>
               <h3 className="font-display text-xl font-semibold">{c.title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{c.desc}</p>
-            </div>
+            </Lift>
           ))}
         </div>
       </div>
