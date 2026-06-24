@@ -3,16 +3,33 @@
 //   - tanstackStart, viteReact, tailwindcss, tsConfigPaths, nitro (build-only using cloudflare as a default target),
 //     componentTagger (dev-only), VITE_* env injection, @ path alias, React/TanStack dedupe,
 //     error logger plugins, and sandbox detection (port/host/strictPort).
-// You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
+// Supabase packages and tslib must not be inlined into the SSR bundle.
+// They rely on runtime module resolution and tslib in particular is missing
+// from Nitro's bundled output, causing "Cannot find package 'tslib'" on Vercel.
+const SUPABASE_EXTERNALS = [
+  "tslib",
+  "@supabase/supabase-js",
+  "@supabase/auth-js",
+  "@supabase/functions-js",
+  "@supabase/storage-js",
+  "@supabase/realtime-js",
+  "@supabase/postgrest-js",
+];
+
 export default defineConfig({
-  // nitro: true forces the Nitro deploy plugin to run with the Vercel preset,
-  // generating .vercel/output — the format Vercel requires for SSR deployments.
-  nitro: { preset: "vercel" },
+  nitro: {
+    preset: "vercel",
+    externals: {
+      // Keep Supabase and tslib as external — load from node_modules at runtime
+      external: SUPABASE_EXTERNALS,
+    },
+    rollupConfig: {
+      external: SUPABASE_EXTERNALS,
+    },
+  },
   tanstackStart: {
-    // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
-    // nitro/vite builds from this
     server: { entry: "server" },
   },
 });

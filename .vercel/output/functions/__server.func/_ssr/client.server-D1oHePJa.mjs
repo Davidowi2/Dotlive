@@ -1,4 +1,4 @@
-import { t as createClient } from "../_libs/supabase__supabase-js.mjs";
+import { createClient } from "@supabase/supabase-js";
 //#region node_modules/.nitro/vite/services/ssr/assets/client.server-D1oHePJa.js
 function createSupabaseAdminClient() {
 	const SUPABASE_URL = process.env.SUPABASE_URL;

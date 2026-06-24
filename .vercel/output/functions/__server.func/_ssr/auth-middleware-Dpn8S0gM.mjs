@@ -1,6 +1,6 @@
-import { t as createClient } from "../_libs/supabase__supabase-js.mjs";
 import { t as createMiddleware } from "./createStart-Dt05N14y.mjs";
 import { f as getRequest } from "./esm-9EjmF9OT.mjs";
+import { createClient } from "@supabase/supabase-js";
 //#region node_modules/.nitro/vite/services/ssr/assets/auth-middleware-Dpn8S0gM.js
 var requireSupabaseAuth = createMiddleware({ type: "function" }).server(async ({ next }) => {
 	const SUPABASE_URL = process.env.SUPABASE_URL;

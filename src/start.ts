@@ -1,7 +1,11 @@
 import { createStart, createMiddleware } from "@tanstack/react-start";
-
 import { renderErrorPage } from "./lib/error-page";
-import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
+
+// NOTE: attachSupabaseAuth is intentionally removed from the server entry.
+// It pulled in the entire @supabase/supabase-js tree at the SSR entry point,
+// causing "Cannot find package 'tslib'" on Vercel.
+// Server functions that need auth now use the JWT-based requireSupabaseAuth
+// middleware directly in each function file.
 
 const errorMiddleware = createMiddleware().server(async ({ next }) => {
   try {
@@ -19,6 +23,6 @@ const errorMiddleware = createMiddleware().server(async ({ next }) => {
 });
 
 export const startInstance = createStart(() => ({
-  functionMiddleware: [attachSupabaseAuth],
+  // No global functionMiddleware — server fns attach auth individually
   requestMiddleware: [errorMiddleware],
 }));
