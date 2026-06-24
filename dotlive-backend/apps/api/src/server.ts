@@ -101,8 +101,27 @@ app.addContentTypeParser(
 /* ── Plugins ─────────────────────────────────────────────────── */
 
 await app.register(cors, {
-  origin: process.env.FRONTEND_URL ?? "http://localhost:5173",
+  origin: (origin, cb) => {
+    const allowed = [
+      "http://localhost:5173",
+      "http://localhost:3000",
+      "http://localhost:8081",
+      "https://dotlive-lake.vercel.app",
+    ];
+    // Allow all vercel.app previews and exact matches
+    if (
+      !origin ||
+      allowed.includes(origin) ||
+      origin.endsWith(".vercel.app") ||
+      origin.endsWith(".onrender.com")
+    ) {
+      cb(null, true);
+    } else {
+      cb(new Error("Not allowed by CORS"), false);
+    }
+  },
   credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 });
 
 // Cookie plugin — required for OAuth state CSRF protection.

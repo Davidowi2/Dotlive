@@ -20,6 +20,9 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/auth")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    mode: (search.mode as string | undefined) ?? "signin",
+  }),
   head: () => ({
     meta: [
       { title: "Sign in — DOT" },
@@ -132,7 +135,11 @@ const AFRICAN_COUNTRIES_SHORT = [
 function AuthPage() {
   const navigate = useNavigate();
   const { user, isLoading } = useDotAuth();
-  const [mode, setMode] = useState<AuthMode>("signin");
+  const search = Route.useSearch();
+  // If ?mode=signup is in the URL, start on the signup flow
+  const [mode, setMode] = useState<AuthMode>(
+    search.mode === "signup" ? "signup" : "signin"
+  );
 
   useEffect(() => {
     if (!isLoading && user) navigate({ to: "/dashboard" });

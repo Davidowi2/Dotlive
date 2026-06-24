@@ -41,7 +41,7 @@ export function SiteHeader() {
             <Link to="/auth">Sign in</Link>
           </Button>
           <Button variant="hero" size="sm" asChild>
-            <Link to="/auth">Get started</Link>
+            <Link to="/auth" search={{ mode: "signup" }}>Get started</Link>
           </Button>
         </div>
 

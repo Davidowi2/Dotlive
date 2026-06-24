@@ -2,6 +2,11 @@
 @source "../src";
 @import "tw-animate-css";
 
+/* ─── Editorial fonts ───────────────────────────────────────── */
+/* Fraunces: sophisticated optical-size serif for display headings */
+/* Inter: clean, modern sans for body text                        */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=Inter:wght@300;400;500;600;700&display=swap');
+
 @custom-variant dark (&:is(.dark *));
 
 /*
@@ -17,8 +22,8 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
 
-  --font-display: "Clash Display", "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
-  --font-sans: "Satoshi", "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces", "Clash Display", "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter", "Satoshi", "DM Sans", ui-sans-serif, system-ui, sans-serif;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -66,6 +71,24 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* ── Editorial palette ── */
+  --color-sage: var(--sage);
+  --color-sage-foreground: var(--sage-foreground);
+  --color-forest: var(--forest);
+  --color-forest-foreground: var(--forest-foreground);
+  --color-moss: var(--moss);
+  --color-moss-foreground: var(--moss-foreground);
+  --color-cream: var(--cream);
+  --color-cream-foreground: var(--cream-foreground);
+  --color-sand: var(--sand);
+  --color-sand-foreground: var(--sand-foreground);
+  --color-terracotta: var(--terracotta);
+  --color-terracotta-foreground: var(--terracotta-foreground);
+  --color-ink: var(--ink);
+  --color-ink-foreground: var(--ink-foreground);
+  --color-slate-editorial: var(--slate-editorial);
+  --color-slate-editorial-foreground: var(--slate-editorial-foreground);
 }
 
 :root {
@@ -141,6 +164,27 @@
   --sidebar-accent-foreground: oklch(0.3 0.05 160);
   --sidebar-border: oklch(0.9 0.01 150);
   --sidebar-ring: oklch(0.55 0.13 158);
+
+  /* ── Editorial palette ─────────────────────────────────────
+   * Sophisticated tones for a premium, editorial feel.
+   * Use sparingly alongside the primary green.
+   * ─────────────────────────────────────────────────────── */
+  --sage:                 oklch(0.85 0.05 140);
+  --sage-foreground:      oklch(0.15 0.02 140);
+  --forest:               oklch(0.35 0.08 155);
+  --forest-foreground:    oklch(0.98 0.01 155);
+  --moss:                 oklch(0.55 0.12 145);
+  --moss-foreground:      oklch(0.98 0.01 145);
+  --cream:                oklch(0.96 0.02 90);
+  --cream-foreground:     oklch(0.15 0.02 90);
+  --sand:                 oklch(0.88 0.04 75);
+  --sand-foreground:      oklch(0.15 0.04 75);
+  --terracotta:           oklch(0.65 0.12 35);
+  --terracotta-foreground: oklch(0.98 0.01 35);
+  --ink:                  oklch(0.12 0.02 200);
+  --ink-foreground:       oklch(0.96 0.01 200);
+  --slate-editorial:      oklch(0.45 0.03 220);
+  --slate-editorial-foreground: oklch(0.96 0.01 220);
 
   --gradient-hero: linear-gradient(135deg, oklch(0.55 0.13 158) 0%, oklch(0.72 0.16 160) 50%, oklch(0.78 0.13 78) 100%);
   --gradient-primary: linear-gradient(135deg, oklch(0.5 0.13 160), oklch(0.68 0.16 162));
@@ -271,6 +315,24 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.7 0.15 160);
 
+  /* ── Editorial palette (dark mode) ── */
+  --sage:                 oklch(0.35 0.05 140);
+  --sage-foreground:      oklch(0.92 0.02 140);
+  --forest:               oklch(0.55 0.10 155);
+  --forest-foreground:    oklch(0.98 0.01 155);
+  --moss:                 oklch(0.65 0.13 145);
+  --moss-foreground:      oklch(0.98 0.01 145);
+  --cream:                oklch(0.22 0.02 90);
+  --cream-foreground:     oklch(0.94 0.02 90);
+  --sand:                 oklch(0.28 0.03 75);
+  --sand-foreground:      oklch(0.90 0.03 75);
+  --terracotta:           oklch(0.70 0.14 35);
+  --terracotta-foreground: oklch(0.16 0.02 35);
+  --ink:                  oklch(0.92 0.01 200);
+  --ink-foreground:       oklch(0.15 0.02 200);
+  --slate-editorial:      oklch(0.60 0.04 220);
+  --slate-editorial-foreground: oklch(0.96 0.01 220);
+
   --gradient-hero: linear-gradient(135deg, oklch(0.7 0.15 160) 0%, oklch(0.78 0.16 162) 50%, oklch(0.8 0.13 80) 100%);
   --gradient-primary: linear-gradient(135deg, oklch(0.62 0.15 160), oklch(0.78 0.16 162));
   --gradient-gold: linear-gradient(135deg, oklch(0.8 0.13 80), oklch(0.72 0.14 55));
@@ -304,11 +366,21 @@
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    font-feature-settings: "kern", "liga", "calt";
   }
 
   h1, h2, h3, h4, h5 {
     font-family: var(--font-display);
-    letter-spacing: -0.02em;
+    letter-spacing: -0.025em;
+    font-feature-settings: "kern", "liga", "ss01";
+  }
+
+  /* Editorial small-caps utility for eyebrow labels */
+  .label-caps {
+    font-variant-caps: small-caps;
+    letter-spacing: 0.08em;
+    font-size: 0.75rem;
+    font-weight: 600;
   }
 }
 
@@ -384,4 +456,25 @@
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
   letter-spacing: -0.03em;
+}
+
+/* ─── Editorial utilities ────────────────────────────────────── */
+
+@utility font-serif-display {
+  font-family: "Fraunces", Georgia, serif;
+  font-optical-sizing: auto;
+}
+
+@utility text-editorial {
+  font-family: "Fraunces", Georgia, serif;
+  font-optical-sizing: auto;
+  letter-spacing: -0.03em;
+  font-weight: 300;
+}
+
+@utility tracking-editorial {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  font-weight: 600;
 }

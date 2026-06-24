@@ -267,7 +267,7 @@ function HeroSection() {
           {/* CTAs */}
           <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
             <Button variant="hero" size="lg" asChild>
-              <Link to="/auth">
+              <Link to="/auth" search={{ mode: "signup" }}>
                 Start your assessment
                 <ArrowRight className="size-4" />
               </Link>
@@ -543,7 +543,7 @@ function BuilderJourneySection() {
 
       <div className="mt-12 text-center">
         <Button variant="hero" size="lg" asChild>
-          <Link to="/auth">
+          <Link to="/auth" search={{ mode: "signup" }}>
             Start at Step 1 — it's free
             <ArrowRight className="size-4" />
           </Link>
