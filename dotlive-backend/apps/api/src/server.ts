@@ -35,6 +35,7 @@ import { uploadRoutes }     from "./routes/upload.js";
 import { webhookRoutes }    from "./routes/webhooks.js";
 import { statsRoutes }      from "./routes/stats.js";
 import { onboardingRoutes } from "./routes/onboarding.js";
+import { osRoutes }          from "./routes/os.js";
 import { adminRoutes }      from "./routes/admin.js";
 
 /* ── Env validation ─────────────────────────────────────────── */
@@ -242,6 +243,7 @@ await app.register(webhookRoutes,     { prefix: "/api" });
 await app.register(statsRoutes,       { prefix: "/api" });
 await app.register(investorRoutes,   { prefix: "/api" });
 await app.register(onboardingRoutes,  { prefix: "/api" });
+  await app.register(osRoutes,           { prefix: "/api" });
 await app.register(adminRoutes,       { prefix: "/api/admin" });
 
 /* ── Error handler ───────────────────────────────────────────── */

@@ -46,6 +46,7 @@ const NAV_ITEMS: NavItem[] = [
   /* growth — founder progression */
   { label: "Vantage",       to: "/vantage",       icon: Gauge,       roles: ["founder"],                 section: "growth" },
   { label: "Wallet",        to: "/wallet",        icon: Wallet,                                     section: "growth" },
+  { label: "Builder Arena", to: "/builder",       icon: Trophy,      roles: ["builder"],                 section: "growth" },
   { label: "DOT Work",      to: "/work",          icon: Hammer,                                     section: "growth" },
   { label: "Academy",       to: "/academy",       icon: BookOpen,    roles: ["founder"],                 section: "growth" },
   { label: "Sessions",      to: "/sessions",      icon: CalendarCheck,                              section: "growth" },
@@ -53,6 +54,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Certificates",  to: "/certificates",  icon: Award,       roles: ["founder"],                 section: "growth" },
   /* community */
   { label: "Community",     to: "/community",     icon: Users,       roles: ["community_leader"],        section: "community" },
+  { label: "Comm. Dashboard", to: "/community/dashboard", icon: BarChart3, roles: ["community_leader"], section: "community" },
   /* capital */
   { label: "DOT Demo",      to: "/demo",          icon: Building2,                                  section: "capital" },
   { label: "Investor Portal", to: "/investor",    icon: Briefcase,   roles: ["investor"],                section: "capital" },

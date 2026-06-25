@@ -354,3 +354,126 @@ export function useMyJobListings() {
     },
   });
 }
+
+/* ====================================================================== *
+ * DOT OS hooks (reputation, level, challenges, achievements, activity,
+ * advisor, valuation). All powered by Render API.
+ * ====================================================================== */
+
+export interface BuilderLevel {
+  level: number;
+  label: string;
+  reputation: number;
+  promotedAt: string | null;
+  nextLevel: { level: number; gates: any };
+}
+
+export function useBuilderLevel() {
+  const { user, token } = useDotAuth();
+  return useQuery({
+    queryKey: ["builder_level", user?.id],
+    enabled: !!user && !!token,
+    queryFn: async () => {
+      return dotApi.get<BuilderLevel>("/api/builder/level");
+    },
+  });
+}
+
+export function useBuilderArena() {
+  const { user, token } = useDotAuth();
+  return useQuery({
+    queryKey: ["builder_arena", user?.id],
+    enabled: !!user && !!token,
+    queryFn: async () => {
+      return dotApi.get<{ challenges: any[]; mySubmissions: any[]; level: BuilderLevel }>("/api/builder/arena");
+    },
+  });
+}
+
+export function useChallenges(skill?: string) {
+  return useQuery({
+    queryKey: ["challenges", skill ?? "all"],
+    queryFn: async () => {
+      const qs = skill ? `?skill=${encodeURIComponent(skill)}` : "";
+      const res = await dotApi.get<{ challenges: any[] }>(`/api/challenges${qs}`);
+      return res.challenges ?? [];
+    },
+  });
+}
+
+export function useMyChallenges() {
+  const { user, token } = useDotAuth();
+  return useQuery({
+    queryKey: ["my_challenges", user?.id],
+    enabled: !!user && !!token,
+    queryFn: async () => {
+      return dotApi.get<{ posted: any[]; submissions: any[] }>("/api/challenges/mine");
+    },
+  });
+}
+
+export function useActivity() {
+  const { user, token } = useDotAuth();
+  return useQuery({
+    queryKey: ["activity", user?.id],
+    enabled: !!user && !!token,
+    queryFn: async () => {
+      const { activities } = await dotApi.get<{ activities: any[] }>("/api/activity/me");
+      return activities ?? [];
+    },
+  });
+}
+
+export function useAchievements() {
+  const { user, token } = useDotAuth();
+  return useQuery({
+    queryKey: ["achievements", user?.id],
+    enabled: !!user && !!token,
+    queryFn: async () => {
+      const { achievements } = await dotApi.get<{ achievements: any[] }>("/api/achievements/me");
+      return achievements ?? [];
+    },
+  });
+}
+
+export function useAdvisor() {
+  const { user, token } = useDotAuth();
+  return useQuery({
+    queryKey: ["advisor", user?.id],
+    enabled: !!user && !!token,
+    queryFn: async () => {
+      const { recommendations } = await dotApi.get<{ recommendations: any[] }>("/api/ai/advisor");
+      return recommendations ?? [];
+    },
+  });
+}
+
+export function useReputation() {
+  const { user, token } = useDotAuth();
+  return useQuery({
+    queryKey: ["reputation", user?.id],
+    enabled: !!user && !!token,
+    queryFn: async () => {
+      return dotApi.get<{ score: number; events: any[] }>("/api/reputation/me");
+    },
+  });
+}
+
+export function useVentureValuation(ventureId: string | undefined) {
+  return useQuery({
+    queryKey: ["venture_valuation", ventureId],
+    enabled: !!ventureId,
+    queryFn: async () => {
+      return dotApi.get<{
+        ventureId: string;
+        valuation_ngn: number;
+        confidence: number;
+        fundability: number;
+        investment_readiness: number;
+        currency: string;
+        stage: string;
+        vantage: number;
+      }>(`/api/ventures/${ventureId}/valuation`);
+    },
+  });
+}

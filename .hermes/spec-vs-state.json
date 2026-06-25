@@ -1,0 +1,150 @@
+{
+  "identity_layer": {
+    "spec": "Universal profile with photo, name, location, roles, reputation level. Multiple roles per user.",
+    "have": [
+      "\u2713 Auth with email/password + JWT",
+      "\u2713 Multi-role support (user_roles table, 4 roles: builder, founder, community_leader, investor)",
+      "\u2713 Onboarding flow with role selection",
+      "\u2713 DOT ID system (e.g. quick-founder-26jq18it)",
+      "\u2713 Welcome bonus 500 DOT"
+    ],
+    "gaps": [
+      "\u2717 Reputation score not computed",
+      "\u2717 Profile header is bare (no photo upload UI, no reputation badge)",
+      "\u2717 Achievement system doesn't exist",
+      "\u2717 Activity feed doesn't exist",
+      "\u2717 Profile 'Identity / Skills / Experience / Portfolio / Achievements / Activity' sections not built"
+    ]
+  },
+  "builder_loop": {
+    "spec": "Passport (skills + portfolio + reputation) \u2192 Membership $20 \u2192 Arena (opportunities) \u2192 Level Engine 1-5",
+    "have": [
+      "\u2713 Builder profile table (id, headline, bio, skills, available)",
+      "\u2713 builder-stats endpoint (active services, orders, avg rating, total earned)",
+      "\u2713 /work route with gigs/jobs/orders tabs",
+      "\u2713 Service marketplace (CRUD via /api/services, /api/orders)",
+      "\u2713 Service reviews (POST /api/orders/:id/review)"
+    ],
+    "gaps": [
+      "\u2717 Builder Membership payment ($20) \u2014 Paystack not wired",
+      "\u2717 Builder Arena as a dedicated route (currently scattered in /work)",
+      "\u2717 Builder Level Engine \u2014 5 levels with gating logic",
+      "\u2717 Builder Passport UI (currently just a profile)",
+      "\u2717 Challenge system (the spec says 'Complete challenge \u2192 earn DOT')",
+      "\u2717 DOT Starter Pack concept not implemented"
+    ]
+  },
+  "founder_venture_loop": {
+    "spec": "Venture Profile \u2192 Valuation Engine (\u20a6 + confidence + fundability) \u2192 Stages (Idea/Prototype/Growth) \u2192 Marketplace",
+    "have": [
+      "\u2713 Ventures table + POST/GET /api/ventures",
+      "\u2713 Vantage assessment (POST /api/vantage/submit, /me)",
+      "\u2713 founder_profiles table with venture metadata",
+      "\u2713 /founder/$id public profile (snake_case showcase)",
+      "\u2713 /api/founder-profiles listing for investor discovery"
+    ],
+    "gaps": [
+      "\u2717 'DOT Venture Valuation' UI (client wants \u20a6 valuation, not just vantage points)",
+      "\u2717 Confidence % display",
+      "\u2717 Stage machine (Idea \u2192 Prototype \u2192 Growth with $1,000 milestone release)",
+      "\u2717 Deal Room (investor view of full venture + reports)",
+      "\u2717 AI Venture Advisor",
+      "\u2717 Builder matching (auto-recommend builders to a venture)",
+      "\u2717 Challenge completion tied to venture stage advancement"
+    ]
+  },
+  "community_loop": {
+    "spec": "Community Dashboard (members, active, avg valuation) + Hub at dotlive.cv/community/name + Onboarding $2,000",
+    "have": [
+      "\u2713 Communities + community_members tables",
+      "\u2713 POST /api/communities (create)",
+      "\u2713 GET /api/communities (list)",
+      "\u2713 POST /api/communities/join (referral code)",
+      "\u2713 GET /api/communities/by-referral/:code",
+      "\u2713 /api/community/membership",
+      "\u2713 /join/$code invite flow",
+      "\u2713 Role: community_leader"
+    ],
+    "gaps": [
+      "\u2717 Community Dashboard with metrics (members, active, avg valuation)",
+      "\u2717 Public community hub URL (no route /community/$slug yet)",
+      "\u2717 Community revenue tracking ($2,000 onboarding fee)",
+      "\u2717 Member ranking inside community",
+      "\u2717 Leaderboard UI"
+    ]
+  },
+  "capital_loop": {
+    "spec": "Investor Dashboard (pipeline 120/40/12) + Filters + Deal Room + DOT Demo + Funding pipeline",
+    "have": [
+      "\u2713 /api/investor/saves (CRUD)",
+      "\u2713 /api/investor/meetings (request, accept/decline)",
+      "\u2713 /investor route with filters + save buttons",
+      "\u2713 /api/founder-profiles showcase listing",
+      "\u2713 /meetings route"
+    ],
+    "gaps": [
+      "\u2717 Investor Dashboard with pipeline counts",
+      "\u2717 Deal Room (full venture + founder + reports view)",
+      "\u2717 DOT Demo event system (applications, judges, scores, rankings)",
+      "\u2717 Funding pool tracking",
+      "\u2717 Investor access fee ($2,000)"
+    ]
+  },
+  "dot_economy": {
+    "spec": "Internal credit. Builder $20 + Community $2,000 + Investor $2,000. Used for tasks, courses, access, rewards.",
+    "have": [
+      "\u2713 Wallets + transactions tables (ledger-based)",
+      "\u2713 Credit/debit/transfer lib functions",
+      "\u2713 Welcome bonus 500 DOT on signup",
+      "\u2713 Service escrow + refund flow",
+      "\u2713 Wallet endpoints (balance, transactions, transfer, spend)"
+    ],
+    "gaps": [
+      "\u2717 Membership fee flows (builder $20, community $2,000, investor $2,000)",
+      "\u2717 Subscription model (recurring?)",
+      "\u2717 Pricing tier display in onboarding"
+    ]
+  },
+  "admin_command_center": {
+    "spec": "Overview (100k users, 500M DOT circulation) + Users/Ventures/Capital/Reserve management + Audit log",
+    "have": [
+      "\u2713 Admin route with Overview/Roles/Members/Payments/Content tabs",
+      "\u2713 User search, ban/unban, adjust-balance, impersonate",
+      "\u2713 Feature flags toggle",
+      "\u2713 Audit log endpoint",
+      "\u2713 Admin stats endpoint",
+      "\u2713 Courses/events/pitchathons creation",
+      "\u2713 User edit (name, email, avatar, roles)"
+    ],
+    "gaps": [
+      "\u2717 Ecosystem Reserve wallet (100B DOT fund for grants/rewards)",
+      "\u2717 Wallet freeze/unfreeze action",
+      "\u2717 Featured ventures management",
+      "\u2717 DOT circulation metric on Overview tab",
+      "\u2717 DOT Demo management"
+    ]
+  },
+  "ai_layer": {
+    "spec": "AI Venture Advisor ('your next best action'), builder recommendations, investor recommendations",
+    "have": [
+      "\u2717 None \u2014 no AI integration yet"
+    ],
+    "gaps": [
+      "\u2717 AI recommendations engine",
+      "\u2717 LLM integration (or rules-based MVP)"
+    ]
+  },
+  "tech_stack": {
+    "spec": "Frontend: Next.js. Backend: Supabase/Lovable Cloud + PostgreSQL. Integrations: Paystack, Whop, WhatsApp, Calendar.",
+    "actual": [
+      "Frontend: TanStack Start (not Next.js, but same React stack)",
+      "Backend: Fastify on Render + Neon Postgres (not Supabase)",
+      "Auth: custom JWT (not Supabase auth)",
+      "Storage: Cloudinary (not Supabase Storage)",
+      "Payments: Paystack not yet wired",
+      "Whop: not wired",
+      "WhatsApp: not wired",
+      "Calendar: not wired"
+    ]
+  }
+}

@@ -254,6 +254,24 @@ export const pitchathonApplications = pgTable("pitchathon_applications", {
       pitchathon_applications_founder_idx: index("pitchathon_applications_founder_idx").on(t.founderId),
   }));
 
+/* --------------------------- Pitchathon judging --------------- */
+export const pitchathonScores = pgTable(
+  "pitchathon_scores",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    pitchathonId: uuid("pitchathon_id").notNull().references(() => pitchathons.id, { onDelete: "cascade" }),
+    applicationId: uuid("application_id").notNull().references(() => pitchathonApplications.id, { onDelete: "cascade" }),
+    judgeId: text("judge_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    score: integer("score").notNull(),     // 1-10
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    judgeAppUniq: unique("pitchathon_score_unique").on(t.pitchathonId, t.applicationId, t.judgeId),
+    appIdx: index("pitch_score_app_idx").on(t.applicationId),
+  }),
+);
+
 /* --------------------------- Communities ----------------------- */
 export const communities = pgTable("communities", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -612,6 +630,115 @@ export const userBans = pgTable(
   (t) => ({
     userIdx: index("bans_user_idx").on(t.userId),
   })
+);
+
+/* --------------------------- DOT OS additions (Jun 25 2026) --------------- *
+ * These power the four actor loops in the spec.
+ */
+
+export const challenges = pgTable(
+  "challenges",
+  {
+    id: text("id").primaryKey(),
+    postedBy: text("posted_by").notNull(),     // user_id (founder or admin)
+    title: text("title").notNull(),
+    description: text("description").notNull(),
+    skill: text("skill").notNull(),           // "AI", "Design", "Coding", etc.
+    rewardDot: text("reward_dot").notNull(),  // DOT credit on approval
+    deadline: timestamp("deadline", { withTimezone: true }),
+    maxSubmissions: integer("max_submissions").default(1),
+    status: text("status").notNull().default("open"), // open / closed / completed
+    ventureId: text("venture_id"),            // optional venture link
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    statusIdx: index("challenges_status_idx").on(t.status),
+    skillIdx: index("challenges_skill_idx").on(t.skill),
+    postedByIdx: index("challenges_posted_by_idx").on(t.postedBy),
+  }),
+);
+
+export const challengeSubmissions = pgTable(
+  "challenge_submissions",
+  {
+    id: text("id").primaryKey(),
+    challengeId: text("challenge_id").notNull(),
+    builderId: text("builder_id").notNull(),
+    content: text("content").notNull(),
+    link: text("link"),
+    status: text("status").notNull().default("pending"), // pending / approved / rejected
+    submittedAt: timestamp("submitted_at", { withTimezone: true }).notNull().defaultNow(),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewNote: text("review_note"),
+  },
+  (t) => ({
+    challengeIdx: index("cs_challenge_idx").on(t.challengeId),
+    builderIdx: index("cs_builder_idx").on(t.builderId),
+    statusIdx: index("cs_status_idx").on(t.status),
+  }),
+);
+
+export const achievements = pgTable(
+  "achievements",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    kind: text("kind").notNull(),   // "first_task", "level_up", "challenge_won", etc.
+    label: text("label").notNull(),
+    description: text("description"),
+    icon: text("icon"),             // lucide icon name
+    earnedAt: timestamp("earned_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    userIdx: index("ach_user_idx").on(t.userId),
+    kindIdx: index("ach_kind_idx").on(t.kind),
+  }),
+);
+
+export const activities = pgTable(
+  "activities",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    actorId: text("actor_id"),      // who did it (could be self or system)
+    kind: text("kind").notNull(),   // "task_completed", "venture_created", "reputation_gained"
+    title: text("title").notNull(),
+    body: text("body"),
+    refType: text("ref_type"),      // "challenge", "order", "venture"
+    refId: text("ref_id"),
+    pointsDelta: integer("points_delta").default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    userIdx: index("act_user_idx").on(t.userId),
+    createdIdx: index("act_created_idx").on(t.createdAt),
+  }),
+);
+
+export const reputationEvents = pgTable(
+  "reputation_events",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    delta: integer("delta").notNull(),
+    reason: text("reason").notNull(),
+    refType: text("ref_type"),
+    refId: text("ref_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    userIdx: index("rep_user_idx").on(t.userId),
+  }),
+);
+
+export const builderLevels = pgTable(
+  "builder_levels",
+  {
+    userId: text("user_id").primaryKey(),
+    level: integer("level").notNull().default(1),
+    label: text("label").notNull().default("Explorer"),
+    promotedAt: timestamp("promoted_at", { withTimezone: true }),
+  },
 );
 
 export type AdminAuditLogRow = typeof adminAuditLog.$inferSelect;

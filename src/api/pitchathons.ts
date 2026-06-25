@@ -59,3 +59,11 @@ export async function getMyApplications(): Promise<PitchathonApplication[]> {
   );
   return res.applications ?? [];
 }
+
+export async function scoreSubmission(
+  pitchathonId: string,
+  data: { applicationId: string; score: number; note?: string }
+): Promise<any> {
+  const res = await dotApi.post<{ score: any }>(`/api/pitchathons/${pitchathonId}/score`, data);
+  return res.score;
+}

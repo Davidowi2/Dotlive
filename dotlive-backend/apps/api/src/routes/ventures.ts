@@ -8,6 +8,7 @@ import { eq, and, desc, ilike, sql } from "drizzle-orm";
 
 import { db } from "../db/client.js";
 import { ventures } from "../db/schema.js";
+import { userHasRole } from "../lib/auth.js";
 
 const STAGES = ["Assess", "Validate", "Build", "Fund", "Scale"] as const;
 
@@ -109,6 +110,24 @@ export async function ventureRoutes(app: FastifyInstance) {
       return reply.send({ venture: serialize(updated[0]) });
     }
   );
+  /** GET /api/ventures/:id/valuation — DOT Venture Valuation (₦ + confidence + fundability). */
+  app.get<{ Params: { id: string } }>("/ventures/:id/valuation", async (req, reply) => {
+    const v = await db.select().from(ventures).where(eq(ventures.id, req.params.id)).limit(1);
+    if (v.length === 0) return reply.code(404).send({ error: "Not found" });
+    const { computeVentureValuation } = await import("../lib/os-engine.js");
+    const out = computeVentureValuation({
+      stage: v[0].stage ?? "Idea",
+      vantage: Number(v[0].vantagePoint ?? 50),
+      fundability: Number(v[0].fundability ?? 50),
+    });
+    return reply.send({
+      ventureId: v[0].id,
+      ...out,
+      stage: v[0].stage,
+      vantage: Number(v[0].vantagePoint ?? 50),
+      fundability: Number(v[0].fundability ?? 50),
+    });
+  });
 }
 
 function serialize(v: any) {

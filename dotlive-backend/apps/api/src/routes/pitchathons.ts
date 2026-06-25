@@ -10,8 +10,9 @@ import { z } from "zod";
 import { eq, and, desc } from "drizzle-orm";
 
 import { db, sql } from "../db/client.js";
-import { events, eventRegistrations, pitchathons, pitchathonApplications } from "../db/schema.js";
+import { events, eventRegistrations, pitchathons, pitchathonApplications, pitchathonScores } from "../db/schema.js";
 import { debitWallet } from "../lib/dot.js";
+import { userHasRole } from "../lib/auth.js";
 
 export async function pitchathonRoutes(app: FastifyInstance) {
   /* ---------- Events ---------- */
@@ -109,6 +110,70 @@ export async function pitchathonRoutes(app: FastifyInstance) {
         return reply.code(500).send({ error: e instanceof Error ? e.message : "Apply failed" });
       }
     }
+  );
+  /* ---------- Judge scoring (DOT Demo) ---------- */
+
+  /** POST /api/pitchathons/:id/score — judges score an application (1-10). */
+  app.post<{ Params: { id: string } }>(
+    "/pitchathons/:id/score",
+    { preHandler: app.authenticate },
+    async (req, reply) => {
+      const { sub } = req.user as { sub: string };
+      const isJudge = await userHasRole(sub, "capital_partner");
+      const isAdmin = await userHasRole(sub, "admin");
+      if (!isJudge && !isAdmin) return reply.code(403).send({ error: "Judges only" });
+
+      const parsed = z
+        .object({
+          applicationId: z.string().uuid(),
+          score: z.number().int().min(1).max(10),
+          note: z.string().max(2000).optional(),
+        })
+        .safeParse(req.body);
+      if (!parsed.success) return reply.code(400).send({ error: "Invalid input" });
+
+      try {
+        const inserted = await db
+          .insert(pitchathonScores)
+          .values({
+            pitchathonId: req.params.id,
+            applicationId: parsed.data.applicationId,
+            judgeId: sub,
+            score: parsed.data.score,
+            note: parsed.data.note ?? null,
+          } as any)
+          .returning();
+        return reply.send({ score: inserted[0] });
+      } catch {
+        return reply.code(409).send({ error: "Already scored this application" });
+      }
+    },
+  );
+
+  /** GET /api/pitchathons/:id/leaderboard — ranked applications by avg score. */
+  app.get<{ Params: { id: string } }>(
+    "/pitchathons/:id/leaderboard",
+    async (req, reply) => {
+      // Get all applications with their average score
+      const apps = await db
+        .select()
+        .from(pitchathonApplications)
+        .where(eq(pitchathonApplications.pitchathonId, req.params.id));
+
+      const rows: any[] = [];
+      for (const a of apps) {
+        const scores = await db
+          .select()
+          .from(pitchathonScores)
+          .where(eq(pitchathonScores.applicationId, a.id));
+        const avg = scores.length
+          ? Math.round((scores.reduce((s, r) => s + r.score, 0) / scores.length) * 10) / 10
+          : 0;
+        rows.push({ application: a, scoreCount: scores.length, avgScore: avg });
+      }
+      rows.sort((x, y) => y.avgScore - x.avgScore);
+      return reply.send({ leaderboard: rows });
+    },
   );
 }
 // @ts-nocheck

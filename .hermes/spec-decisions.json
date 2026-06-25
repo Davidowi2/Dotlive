@@ -1,0 +1,165 @@
+{
+  "reputation": {
+    "what": "Points-based reputation, 0-1000 scale, displayed as 'Specialist / Expert / Master'",
+    "formula": "tasks_done * 10 + avg_rating * 50 + venture_contributions * 100 + challenges_completed * 25",
+    "tiers": [
+      {
+        "min": 0,
+        "label": "Newcomer"
+      },
+      {
+        "min": 100,
+        "label": "Explorer"
+      },
+      {
+        "min": 300,
+        "label": "Contributor"
+      },
+      {
+        "min": 600,
+        "label": "Specialist"
+      },
+      {
+        "min": 850,
+        "label": "Elite"
+      }
+    ],
+    "why": "Spec mentions 'Builder Level: Specialist' so points->label makes sense"
+  },
+  "venture_valuation": {
+    "what": "DOT Venture Valuation = \u20a6 estimate based on stage + vantage + fundability",
+    "formula": "valuation_ngn = base(stage) * (1 + vantage/100) * (fundability/100)",
+    "stage_bases": {
+      "Idea": 5000000,
+      "Prototype": 15000000,
+      "Growth": 60000000,
+      "Scale": 200000000
+    },
+    "why": "Spec shows \u20a615M for an Idea-stage venture with 72% confidence; our existing vantage_point + stage already encode this"
+  },
+  "membership_fees": {
+    "builder_membership_dot": 2000,
+    "community_onboarding_dot": 200000,
+    "investor_access_dot": 200000,
+    "rate_note": "Spec assumes $1 = \u20a61500 and 1 DOT = \u20a615, so $20 \u2248 1333 DOT. We round up for clean UX.",
+    "why": "Spec is in USD but our unit is DOT. Need a stable conversion."
+  },
+  "level_engine": {
+    "what": "5-tier builder level system with hard requirements to advance",
+    "levels": [
+      {
+        "level": 1,
+        "name": "Explorer",
+        "reqs": [
+          "profile_complete",
+          "skills_added"
+        ]
+      },
+      {
+        "level": 2,
+        "name": "Contributor",
+        "reqs": [
+          "1_task_completed"
+        ]
+      },
+      {
+        "level": 3,
+        "name": "Specialist",
+        "reqs": [
+          "5_tasks_completed",
+          "avg_rating_4"
+        ]
+      },
+      {
+        "level": 4,
+        "name": "Core Builder",
+        "reqs": [
+          "1_venture_contributed",
+          "reputation_500"
+        ]
+      },
+      {
+        "level": 5,
+        "name": "Elite Builder",
+        "reqs": [
+          "reputation_850",
+          "3_ventures_contributed"
+        ]
+      }
+    ],
+    "why": "Spec says 5 levels, lists 'paid tasks / premium / leadership / investor visibility' as unlock gates"
+  },
+  "stage_machine": {
+    "what": "4-stage venture progression with milestone releases",
+    "stages": [
+      {
+        "name": "Idea",
+        "funding_dot": 0,
+        "requires": []
+      },
+      {
+        "name": "Prototype",
+        "funding_dot": 66000,
+        "requires": [
+          "mvp_designed",
+          "validation_done"
+        ],
+        "why": "Spec says $1,000 milestone for Prototype stage \u2248 66k DOT"
+      },
+      {
+        "name": "Growth",
+        "funding_dot": 660000,
+        "requires": [
+          "users_100",
+          "revenue_100k_ngn"
+        ]
+      },
+      {
+        "name": "Scale",
+        "funding_dot": 0,
+        "requires": [
+          "users_10k",
+          "revenue_10m_ngn"
+        ]
+      }
+    ],
+    "why": "Spec explicitly says 'Funding: $1,000' for Prototype. We make it a milestone release tied to stage advance."
+  },
+  "challenges": {
+    "what": "Tasks founders can post; builders complete them for DOT rewards",
+    "examples": [
+      "Validate customer problem",
+      "Design landing page",
+      "Build MVP feature",
+      "Run 10 user interviews"
+    ],
+    "flow": "Founder posts \u2192 builders apply \u2192 admin approves \u2192 builder submits \u2192 founder reviews \u2192 DOT released",
+    "why": "Spec mentions 'Challenges' 4 times across Builder Arena + Community + Admin. Central concept."
+  },
+  "ai_layer": {
+    "what": "Rule-based advisor v1 (no LLM cost), LLM-ready interface for v2",
+    "v1_rules": {
+      "founder_low_validation": "If customer_validation_score < 50 \u2192 recommend 'Complete customer discovery course'",
+      "builder_no_gigs": "If no skills listed \u2192 recommend 'Add 3+ skills to your passport'",
+      "investor_high_pipeline": "If 5+ saved ventures \u2192 recommend 'Schedule meetings with top 3 by Vantage'"
+    },
+    "why": "Spec wants 'next best action' recommendations. v1 deterministic, v2 swap to OpenAI later."
+  },
+  "ecosystem_reserve": {
+    "what": "Special system wallet with a fixed DOT allocation for grants/rewards",
+    "implementation": "users table with email='ecosystem@dot' as the reserve owner; admin-only mutations",
+    "starting_balance_dot": "100_000_000",
+    "why": "Need a real wallet that holds DOT and can credit users. System user pattern is the cleanest way."
+  },
+  "tech_stack_alignment": {
+    "frontend": "TanStack Start (NOT Next.js) \u2014 same React, file-based routing, SSR. Same DX, different name. Will note this to client.",
+    "backend": "Fastify on Render + Neon Postgres (NOT Supabase auth) \u2014 auth is custom JWT. Better for our custom migration. Will note this to client.",
+    "rationale": "Spec says 'Keep existing' stack. We've built it as TanStack Start + Render + Neon. Telling the client this now saves a rewrite later."
+  },
+  "dot_demo": {
+    "what": "Pitch competition events. Ventures apply, judges score, top ventures get featured.",
+    "flow": "Admin creates pitchathon \u2192 ventures apply \u2192 admin picks finalists \u2192 judges score \u2192 rankings published \u2192 featured in marketplace",
+    "tables": "pitchathons + pitchathon_applications already exist in schema. Just need UI + judges.",
+    "why": "Spec calls this a 'Funding Pipeline' stage. Capital partners see Demo winners first."
+  }
+}

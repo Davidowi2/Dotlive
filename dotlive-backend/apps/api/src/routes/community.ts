@@ -154,5 +154,87 @@ export async function communityRoutes(app: FastifyInstance) {
     },
   );
 
+  /** GET /api/communities/:id/dashboard — leader-only metrics. */
+  app.get<{ Params: { id: string } }>(
+    "/communities/:id/dashboard",
+    { preHandler: app.authenticate },
+    async (req, reply) => {
+      const { sub } = req.user as { sub: string };
+      const comm = await db.select().from(communities).where(eq(communities.id, req.params.id)).limit(1);
+      if (comm.length === 0) return reply.code(404).send({ error: "Not found" });
+      if (comm[0].leaderId !== sub) return reply.code(403).send({ error: "Not the leader" });
+
+      const members = await db
+        .select()
+        .from(communityMembers)
+        .where(eq(communityMembers.communityId, req.params.id));
+
+      // Cross-reference founder profiles for member average valuation
+      const { founderProfiles, builderProfiles, challenges } = await import("../db/schema.js");
+      const { computeVentureValuation } = await import("../lib/os-engine.js");
+
+      const memberIds = members.map((m: any) => m.founderId || m.userId).filter(Boolean);
+
+      let valuations: number[] = [];
+      if (memberIds.length > 0) {
+        const profiles = await db
+          .select()
+          .from(founderProfiles)
+          .where(sql`${founderProfiles.userId} = ANY(${memberIds})`);
+        valuations = profiles.map((p: any) =>
+          computeVentureValuation({
+            stage: p.stage || "Idea",
+            vantage: Number(p.vantagePoint || 50),
+            fundability: Number(p.fundability || 50),
+          }).valuation_ngn,
+        );
+      }
+
+      const openChallenges = await db
+        .select()
+        .from(challenges)
+        .where(eq(challenges.status, "open"));
+
+      return reply.send({
+        community: comm[0],
+        metrics: {
+          members: members.length,
+          active: members.filter((m: any) => m.status === "active").length,
+          avgValuationNgn: valuations.length
+            ? Math.round(valuations.reduce((s, v) => s + v, 0) / valuations.length)
+            : 0,
+          totalValuationNgn: valuations.reduce((s, v) => s + v, 0),
+        },
+        openChallenges: openChallenges.length,
+        leader: { id: sub },
+      });
+    },
+  );
+
+  /** GET /api/communities/:id/hub — public hub data (anyone can read). */
+  app.get<{ Params: { id: string } }>(
+    "/communities/:id/hub",
+    async (req, reply) => {
+      const comm = await db.select().from(communities).where(eq(communities.id, req.params.id)).limit(1);
+      if (comm.length === 0) return reply.code(404).send({ error: "Not found" });
+
+      const members = await db
+        .select({ userId: communityMembers.founderId })
+        .from(communityMembers)
+        .where(eq(communityMembers.communityId, req.params.id))
+        .limit(100);
+
+      return reply.send({
+        community: {
+          id: comm[0].id,
+          name: comm[0].name,
+          description: comm[0].description,
+          referralCode: comm[0].referralCode,
+          createdAt: comm[0].createdAt,
+        },
+        memberCount: members.length,
+      });
+    },
+  );
 }
 // @ts-nocheck
