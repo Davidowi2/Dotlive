@@ -601,25 +601,27 @@ function SignupFlow({ onSwitchToSignin }: { onSwitchToSignin: () => void }) {
                   Pick what fits you best right now. You can always change this later.
                 </p>
               </div>
-              <div className="space-y-2">
+              {/* 2-column grid of intent cards — more visual, less list-y.
+               * Each card is its own compact card (not a tall row). */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {INTENT_OPTIONS.map((opt) => (
                   <button
                     key={opt.id}
                     onClick={() => handleStep2(opt.id)}
                     disabled={busy}
                     className={cn(
-                      "flex w-full items-center gap-4 rounded-xl border p-4 text-left transition-all disabled:opacity-60",
+                      "group relative flex flex-col items-start gap-2 rounded-lg border p-3.5 text-left transition-all disabled:opacity-60 hover:border-foreground/30",
                       opt.accentClass,
                     )}
                   >
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-current/20 bg-current/10">
-                      <opt.icon className="size-5" />
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-current/20 bg-current/10">
+                      <opt.icon className="size-4" />
                     </span>
-                    <span className="flex-1">
-                      <span className="block font-semibold text-sm">{opt.label}</span>
-                      <span className="block text-xs opacity-70 mt-0.5">{opt.sub}</span>
-                    </span>
-                    {busy ? <Loader2 className="size-4 animate-spin shrink-0" /> : <ChevronRight className="size-4 shrink-0 opacity-50" />}
+                    <div className="flex-1 min-w-0 w-full">
+                      <span className="block font-semibold text-sm leading-tight">{opt.label}</span>
+                      <span className="block text-[11px] opacity-70 mt-1 leading-snug">{opt.sub}</span>
+                    </div>
+                    <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 size-3.5 opacity-30 group-hover:opacity-70 group-hover:translate-x-0.5 transition-all" />
                   </button>
                 ))}
               </div>

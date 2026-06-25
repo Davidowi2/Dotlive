@@ -446,3 +446,20 @@
   border-width: 1px;
   border-color: var(--color-border);
 }
+
+/* ─── Motion: CSS-only fade-in (used by FadeIn component) ─────────
+ * Compositor-thread animation, ~zero JS on scroll. Replaces framer-motion
+ * for landing-page section fades.
+ * ----------------------------------------------------------------- */
+@keyframes dot-fadein {
+  from { opacity: 0; transform: translateY(var(--fadein-y, 16px)); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

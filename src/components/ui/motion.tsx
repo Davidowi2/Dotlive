@@ -1,66 +1,81 @@
-import { type ReactNode, useEffect, useRef } from "react";
-import { animate, motion, useInView, type Variants } from "framer-motion";
-import { useReducedMotion } from "@/hooks/use-reduced-motion";
+/**
+ * CSS-only motion primitives. ZERO JS on scroll, ZERO framer-motion
+ * dependency for landing animations.
+ *
+ * Why: framer-motion's useInView hooks run IntersectionObservers on every
+ * section. With 11 sections on the landing page, that creates scroll jank.
+ * CSS animations on `view-timeline` (or simple @keyframes with delay) are
+ * vastly faster — they run on the compositor thread.
+ *
+ * Each component still respects prefers-reduced-motion: when on, all
+ * elements render at their final state immediately, no animation.
+ */
 
-/* ─────────────────────────── FadeIn ─────────────────────────── */
+import { type ReactNode } from "react";
 
 /**
- * <FadeIn delay={0} y={20}>
- *   Fades up into place when it scrolls into view. Once-only by default.
- *
- * Respects prefers-reduced-motion — when on, renders plain children with
- * no animation wrapper, no transforms, no opacity gating.
+ * Hook to detect prefers-reduced-motion. Returns `true` when the user
+ * has requested reduced motion. Synchronous on the client.
  */
+function usePrefersReducedMotion(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  } catch {
+    return false;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ * FadeIn — pure CSS view-transition fade-up.
+ *
+ * Uses CSS animation-delay so children cascade naturally without any JS.
+ * The animation fires once when the page loads (we set animation-fill-mode:
+ * both). When reduced motion is on, the wrapper renders with no
+ * animation class, so the final state is instant.
+ * ────────────────────────────────────────────────────────────────── */
 type FadeInProps = {
   children: ReactNode;
+  /** Delay in ms. Default 0. */
   delay?: number;
+  /** Y offset in px to animate from. Default 16. */
   y?: number;
+  /** Duration in ms. Default 600. */
   duration?: number;
-  /** If true, replays every time it re-enters the viewport. Default false. */
-  repeat?: boolean;
   className?: string;
 };
 
 export function FadeIn({
   children,
   delay = 0,
-  y = 20,
-  duration = 0.6,
-  repeat = false,
+  y = 16,
+  duration = 600,
   className,
 }: FadeInProps) {
-  const reduced = useReducedMotion();
-  const ref = useRef<HTMLDivElement | null>(null);
-  const inView = useInView(ref, { once: !repeat, amount: 0.15 });
+  const reduced = usePrefersReducedMotion();
 
   if (reduced) {
     return <div className={className}>{children}</div>;
   }
 
+  const style = {
+    animation: `dot-fadein ${duration}ms cubic-bezier(0.22, 1, 0.36, 1) ${delay}ms both`,
+    // CSS custom property for y-offset
+    ["--fadein-y" as any]: `${y}px`,
+  };
+
   return (
-    <motion.div
-      ref={ref}
-      className={className}
-      initial={{ opacity: 0, y }}
-      animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y }}
-      transition={{ duration, delay, ease: [0.22, 1, 0.36, 1] }}
-    >
+    <div className={className} style={style}>
       {children}
-    </motion.div>
+    </div>
   );
 }
 
-/* ─────────────────────────── Lift ─────────────────────────── */
-
-/**
- * <Lift>
- *   Hover lift wrapper for cards. Translates up 4px on hover with a soft
- *   shadow transition. Pointer-events:pass-through; keeps any onClick the
- *   child declares.
+/* ──────────────────────────────────────────────────────────────────
+ * Lift — pure CSS hover lift.
  *
- *   Respects prefers-reduced-motion — when on, renders plain div, no hover
- *   transform applied.
- */
+ * Uses CSS transform on hover. No JS event handlers needed.
+ * ────────────────────────────────────────────────────────────────── */
 type LiftProps = {
   children: ReactNode;
   className?: string;
@@ -69,52 +84,45 @@ type LiftProps = {
 };
 
 export function Lift({ children, className, y = 4 }: LiftProps) {
-  const reduced = useReducedMotion();
-
+  const reduced = usePrefersReducedMotion();
   if (reduced) {
     return <div className={className}>{children}</div>;
   }
-
   return (
-    <motion.div
+    <div
       className={className}
-      whileHover={{ y: -y, transition: { duration: 0.2, ease: "easeOut" } }}
-      whileTap={{ y: 0, transition: { duration: 0.1 } }}
+      style={{
+        transition: `transform 200ms ease-out`,
+      }}
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLElement).style.transform = `translateY(-${y}px)`;
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLElement).style.transform = "";
+      }}
     >
       {children}
-    </motion.div>
+    </div>
   );
 }
 
-/* ─────────────────────────── CountUp ─────────────────────────── */
-
-/**
- * <CountUp value={642} suffix="/ 1000" duration={1.6} />
+/* ──────────────────────────────────────────────────────────────────
+ * CountUp — RAF-based number tween.
  *
- * Eases from 0 → value on first viewport entry. Uses framer-motion's
- * imperative `animate()` so the digits tween smoothly without re-rendering
- * the parent on every frame. Tabular numerals recommended on the consumer
- * (add the `tabular` className).
- *
- * Respects prefers-reduced-motion — when on, renders the final value
- * immediately, no animation.
- */
+ * Uses a single requestAnimationFrame loop on mount. Fires once.
+ * No framer-motion `animate()` import, no observer setup.
+ * Tabular numerals recommended on the consumer (add the `tabular` className).
+ * ────────────────────────────────────────────────────────────────── */
 type CountUpProps = {
   value: number;
-  /** Text appended after the number. e.g. "/ 1000" or "DOT". */
   suffix?: string;
-  /** Text prepended before the number. e.g. "$". */
   prefix?: string;
-  /** Animation duration in seconds. Default 1.6. */
-  duration?: number;
-  /** Decimal places to show. Default 0. */
+  duration?: number; // seconds
   decimals?: number;
-  /** Optional className applied to the wrapping span. */
   className?: string;
 };
 
 function formatNum(n: number, decimals: number): string {
-  // Locale-grouped thousands; respects user locale for separators.
   return n.toLocaleString(undefined, {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
@@ -125,45 +133,60 @@ export function CountUp({
   value,
   suffix,
   prefix,
-  duration = 1.6,
+  duration = 1.4,
   decimals = 0,
   className,
 }: CountUpProps) {
-  const reduced = useReducedMotion();
+  const reduced = usePrefersReducedMotion();
+  const final = `${prefix ?? ""}${formatNum(value, decimals)}${suffix ?? ""}`;
+
+  // Server-render the final value so SSR shows the right number, then
+  // animate from 0 on the client (only if not reduced-motion).
+  if (typeof window === "undefined" || reduced) {
+    return <span className={className}>{final}</span>;
+  }
+
+  // Client-side: animate from 0 → value on mount via a ref'd span
+  return <CountUpClient value={value} suffix={suffix} prefix={prefix} duration={duration} decimals={decimals} className={className} />;
+}
+
+import { useEffect, useRef } from "react";
+
+function CountUpClient({
+  value,
+  suffix,
+  prefix,
+  duration,
+  decimals,
+  className,
+}: CountUpProps) {
   const ref = useRef<HTMLSpanElement | null>(null);
-  const inView = useInView(ref, { once: true, amount: 0.5 });
   const hasAnimated = useRef(false);
 
   useEffect(() => {
-    if (reduced) return; // No-op: render final value below.
-    if (!inView) return;
-    if (hasAnimated.current) return;
-    if (!ref.current) return;
-
+    if (!ref.current || hasAnimated.current) return;
     hasAnimated.current = true;
+
     const node = ref.current;
+    const start = performance.now();
+    let raf = 0;
 
-    const controls = animate(0, value, {
-      duration,
-      ease: [0.22, 1, 0.36, 1],
-      onUpdate(latest) {
-        node.textContent = `${prefix ?? ""}${formatNum(latest, decimals)}${suffix ?? ""}`;
-      },
-    });
+    const tick = (now: number) => {
+      const elapsed = (now - start) / 1000;
+      const t = Math.min(elapsed / duration, 1);
+      // ease-out cubic
+      const eased = 1 - Math.pow(1 - t, 3);
+      const current = value * eased;
+      node.textContent = `${prefix ?? ""}${formatNum(current, decimals)}${suffix ?? ""}`;
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value, duration, decimals, prefix, suffix]);
 
-    return () => controls.stop();
-  }, [inView, value, duration, decimals, prefix, suffix, reduced]);
-
-  const final = `${prefix ?? ""}${formatNum(value, decimals)}${suffix ?? ""}`;
-  // Before inView OR when reduced motion is on, just show the final value.
-  // (Once animated, framer-motion's onUpdate keeps the DOM in sync.)
   return (
     <span ref={ref} className={className}>
-      {reduced ? final : `${prefix ?? ""}${formatNum(0, decimals)}${suffix ?? ""}`}
+      {`${prefix ?? ""}${formatNum(0, decimals)}${suffix ?? ""}`}
     </span>
   );
 }
-
-/* ─────────────────────── re-export helpers ──────────────────── */
-
-export type { Variants };
