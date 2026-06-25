@@ -23,7 +23,6 @@ import {
   Lock,
   Zap,
   ArrowUpRight,
-  CircleDollarSign,
   UserPlus,
 } from "lucide-react";
 import { SiteHeader } from "@/components/site/SiteHeader";
@@ -358,74 +357,152 @@ function HeroSection() {
 }
 
 /* Mockup of the actual app — gives the hero visual weight */
+/* ──────────────────────── HERO CARD MOCKUP ──────────────────────── */
+/* Modern 2025-style dashboard preview. Two stacked cards:
+ *   1. Vantage Score Hero — circular ring + score (the visual hero)
+ *   2. Today Feed — 3 micro-activities with status icons
+ * Plus a floating "+12 DOT earned" toast.
+ * Sample data only — replace with real user data in production. */
+
 function HeroCardMockup() {
   return (
     <div className="relative">
-      {/* Floating backdrop card */}
-      <div className="absolute -inset-4 bg-gradient-to-br from-primary/10 via-transparent to-gold/10 blur-2xl" />
+      {/* Soft glow behind cards */}
+      <div className="absolute -inset-8 bg-gradient-to-br from-primary/20 via-transparent to-gold/15 blur-3xl" />
 
-      <div className="relative rounded-2xl border border-border bg-card shadow-elegant overflow-hidden">
-        {/* Window chrome */}
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/40">
-          <div className="flex gap-1.5">
-            <span className="size-2.5 rounded-full bg-destructive/60" />
-            <span className="size-2.5 rounded-full bg-warning/60" />
-            <span className="size-2.5 rounded-full bg-success/60" />
+      {/* Toast notification — floating top-right */}
+      <div className="absolute -top-4 -right-2 z-20 flex items-center gap-2 rounded-full border border-border bg-card/95 px-3 py-1.5 shadow-lg backdrop-blur">
+        <span className="flex size-5 items-center justify-center rounded-full bg-primary/20 text-primary">
+          <Sparkles className="size-3" />
+        </span>
+        <span className="text-[11px] font-medium">+12 DOT earned</span>
+        <span className="text-[10px] text-muted-foreground">just now</span>
+      </div>
+
+      <div className="relative space-y-4">
+        {/* ── Card 1: Vantage Score Hero ───────────────────── */}
+        <div className="relative rounded-2xl border border-border bg-card shadow-elegant overflow-hidden">
+          {/* Window chrome */}
+          <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-muted/30">
+            <div className="flex gap-1.5">
+              <span className="size-2 rounded-full bg-destructive/50" />
+              <span className="size-2 rounded-full bg-warning/50" />
+              <span className="size-2 rounded-full bg-success/50" />
+            </div>
+            <div className="flex-1 text-center">
+              <span className="text-[10px] tracking-widest uppercase text-muted-foreground">dotlive · dashboard</span>
+            </div>
           </div>
-          <div className="flex-1 text-center">
-            <span className="text-[10px] tracking-widest uppercase text-muted-foreground">dotlive / dashboard</span>
+
+          {/* Score + Greeting */}
+          <div className="p-6">
+            <div className="flex items-start justify-between mb-5">
+              <div>
+                <p className="text-[10px] tracking-widest uppercase text-muted-foreground">Today</p>
+                <p className="font-display text-base mt-0.5">Welcome back, Amara</p>
+              </div>
+              <span className="flex size-9 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
+                AO
+              </span>
+            </div>
+
+            <div className="flex items-center gap-5">
+              {/* Circular ring + score */}
+              <div className="relative size-24 shrink-0">
+                <svg viewBox="0 0 100 100" className="size-full -rotate-90">
+                  <circle cx="50" cy="50" r="44" fill="none" className="stroke-primary/15" strokeWidth="8" />
+                  <circle
+                    cx="50" cy="50" r="44"
+                    fill="none"
+                    className="stroke-primary"
+                    strokeWidth="8"
+                    strokeLinecap="round"
+                    strokeDasharray={`${2 * Math.PI * 44}`}
+                    strokeDashoffset={`${2 * Math.PI * 44 * (1 - 0.642)}`}
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <p className="font-display text-2xl font-light tabular leading-none text-primary">
+                    <CountUp value={642} />
+                  </p>
+                  <p className="text-[9px] tracking-widest uppercase text-muted-foreground mt-0.5">of 1000</p>
+                </div>
+              </div>
+
+              {/* Vantage meta */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Gauge className="size-3 text-primary" />
+                  <p className="text-[10px] tracking-widest uppercase font-semibold text-primary">Vantage</p>
+                </div>
+                <p className="text-sm font-medium">Stage: Validate</p>
+                <div className="mt-2 flex items-center gap-1.5 text-xs text-primary">
+                  <TrendingUp className="size-3" />
+                  <span className="tabular">+38</span>
+                  <span className="text-muted-foreground">this week</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Body */}
-        <div className="p-6 space-y-5">
-          {/* Greeting */}
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[10px] tracking-widest uppercase text-muted-foreground">Welcome back</p>
-              <p className="font-display text-lg mt-0.5">Amara · Builder</p>
-            </div>
-            <span className="flex size-9 items-center justify-center rounded-full bg-primary/15 text-primary text-xs font-semibold">AO</span>
-          </div>
-
-          {/* Wallet balance */}
-          <div className="rounded-xl bg-accent/60 border border-border p-4">
+        {/* ── Card 2: Today Feed ───────────────────────────── */}
+        <div className="relative ml-6 rounded-2xl border border-border bg-card shadow-soft overflow-hidden">
+          <div className="px-5 py-4 border-b border-border bg-muted/20">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] tracking-widest uppercase text-muted-foreground">Wallet</span>
-              <Wallet className="size-3.5 text-muted-foreground" />
+              <p className="text-[10px] tracking-widest uppercase font-semibold">Today</p>
+              <span className="text-[10px] tracking-widest uppercase text-muted-foreground">3 of 5 done</span>
             </div>
-            <p className="font-display text-3xl font-light mt-2 tabular">
-              1,247<span className="text-muted-foreground text-lg ml-1">DOT</span>
-            </p>
-            <p className="text-[10px] tracking-widest uppercase text-muted-foreground mt-1">≈ ₦1,247,000</p>
           </div>
 
-          {/* Vantage score */}
-          <div className="rounded-xl bg-primary/8 border border-primary/20 p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] tracking-widest uppercase text-primary">Vantage</span>
-              <Gauge className="size-3.5 text-primary" />
+          <div className="divide-y divide-border">
+            {/* Done */}
+            <div className="flex items-center gap-3 px-5 py-3">
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+                <Check className="size-3.5" />
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium truncate">Complete Vantage assessment</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">+15 DOT</p>
+              </div>
+              <span className="text-[10px] tracking-widest uppercase text-primary">Done</span>
             </div>
-            <p className="font-display text-3xl font-light mt-2 tabular text-primary">
-              <CountUp value={642} suffix="/ 1000" />
-            </p>
-            <div className="mt-3 h-1.5 bg-primary/10 rounded-full overflow-hidden">
-              <div className="h-full bg-primary rounded-full" style={{ width: "64.2%" }} />
-            </div>
-            <p className="text-[10px] tracking-widest uppercase text-muted-foreground mt-2">+38 this week</p>
-          </div>
 
-          {/* Next action */}
-          <div className="flex items-center gap-3 rounded-xl border border-border bg-background p-3">
-            <div className="size-8 rounded-lg bg-gold/15 border border-gold/30 flex items-center justify-center">
-              <CircleDollarSign className="size-4 text-gold" />
+            {/* In progress */}
+            <div className="flex items-center gap-3 px-5 py-3">
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-gold/15 text-gold">
+                <BookOpen className="size-3.5" />
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium truncate">DOT Academy — Module 3</p>
+                <div className="mt-1.5 h-1 rounded-full bg-muted overflow-hidden">
+                  <div className="h-full bg-gold rounded-full" style={{ width: "60%" }} />
+                </div>
+              </div>
+              <span className="text-[10px] tracking-widest uppercase text-gold tabular">2/5</span>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium truncate">Earn 250 DOT — Complete Academy module 3</p>
-              <p className="text-[10px] tracking-widest uppercase text-muted-foreground mt-0.5">2 of 5 lessons done</p>
+
+            {/* Up next */}
+            <div className="flex items-center gap-3 px-5 py-3">
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <Trophy className="size-3.5" />
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium truncate text-muted-foreground">Apply to Pitchathon</p>
+                <p className="text-[10px] text-muted-foreground/70 mt-0.5">Opens Friday</p>
+              </div>
+              <span className="text-[10px] tracking-widest uppercase text-muted-foreground">Soon</span>
             </div>
-            <ArrowRight className="size-3.5 text-muted-foreground" />
           </div>
+        </div>
+
+        {/* ── Floating chip: Wallet ────────────────────────── */}
+        <div className="absolute -left-3 bottom-12 z-10 hidden md:flex items-center gap-2 rounded-full border border-gold/30 bg-card/95 px-3 py-1.5 shadow-md backdrop-blur">
+          <Wallet className="size-3.5 text-gold" />
+          <span className="text-[11px]">
+            <span className="font-semibold text-foreground tabular">1,247</span>
+            <span className="text-muted-foreground ml-1">DOT</span>
+          </span>
         </div>
       </div>
     </div>
