@@ -777,7 +777,14 @@ export async function adminRoutes(app: FastifyInstance) {
             const { sub: adminId } = req.user as { sub: string };
             const roles = await getUserRoles(adminId);
             if (!roles.includes("super_admin")) {
-              return reply.code(403).send({ error: "Super-admin only" });
+              // BOOTSTRAP: allow the first super_admin to be created when none exists.
+              const existingSuperAdmins = await db.execute(
+                sql`SELECT COUNT(*)::int AS n FROM user_roles WHERE role = 'super_admin'`,
+              );
+              const n = Number((existingSuperAdmins as any).rows?.[0]?.n ?? 0);
+              if (n > 0) {
+                return reply.code(403).send({ error: "Super-admin only" });
+              }
             }
             const { id } = req.params as { id: string };
             const body = (req.body ?? {}) as { roles?: string[] };
