@@ -1,24 +1,3 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" width="180" height="180">
-  <defs>
-    <linearGradient id="dot-grad" x1="20" y1="90" x2="160" y2="90" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#1F8C58"/>
-      <stop offset="100%" stop-color="#E0B976"/>
-    </linearGradient>
-    <clipPath id="dot-clip">
-      <circle cx="90" cy="90" r="78"/>
-    </clipPath>
-  </defs>
-  <!-- Solid brand-green background so iOS renders the icon with our colour, not black -->
-  <rect width="180" height="180" fill="#0A4627"/>
-  <!-- Subtle inner border for separation from white home-screen tiles -->
-  <circle cx="90" cy="90" r="85" fill="none" stroke="#FFFFFF" stroke-opacity="0.18" stroke-width="2"/>
-  <!-- Contour lines, matching the LogoMark pattern -->
-  <g clip-path="url(#dot-clip)" stroke="url(#dot-grad)" stroke-width="6" stroke-linecap="round" fill="none">
-    <path d="M15 60 C45 55, 70 47, 90 55 C110 63, 130 55, 165 60"/>
-    <path d="M10 80 C40 72, 65 82, 90 77 C115 72, 135 82, 170 80"/>
-    <path d="M10 100 C45 105, 70 92, 90 100 C105 105, 120 102, 135 102" stroke-opacity="0.85"/>
-    <path d="M15 120 C50 125, 75 112, 95 120 C107.5 125, 117.5 122.5, 130 120" stroke-opacity="0.5"/>
-  </g>
-  <!-- Centre DOT — the literal mark -->
-  <circle cx="90" cy="90" r="14" fill="url(#dot-grad)"/>
+  <image href="/logo.png" width="180" height="180"/>
 </svg>

@@ -31,6 +31,7 @@ import { SiteFooter } from "@/components/site/SiteFooter";
 import { Logo, DotLogoMark } from "@/components/site/Logo";
 import { MobileCta } from "@/components/site/MobileCta";
 import { CountUp, FadeIn, Lift } from "@/components/ui/motion";
+import { TOOL_ICONS } from "@/components/brand/ToolIcons";
 
 export const Route = createFileRoute("/")({
   ssr: false,
@@ -220,16 +221,61 @@ function LandingPage() {
 function HeroSection() {
   return (
     <section id="hero" className="relative overflow-hidden">
-      {/* Layered editorial background */}
+      {/* Layered editorial background — depth without distraction */}
       <div className="absolute inset-0 -z-10 pointer-events-none">
-        {/* Radial bloom — primary glow, top-right */}
-        <div className="absolute -right-1/4 -top-1/4 h-[60rem] w-[60rem] rounded-full bg-primary/12 blur-3xl" />
-        {/* Counter bloom — gold, bottom-left */}
-        <div className="absolute -left-1/4 bottom-0 h-[40rem] w-[40rem] rounded-full bg-gold/8 blur-3xl" />
+        {/* Radial bloom — primary glow, top-right (big, soft, dominant) */}
+        <div className="absolute -right-1/4 -top-1/4 h-[60rem] w-[60rem] rounded-full bg-primary/15 blur-3xl" />
+        {/* Counter bloom — gold, bottom-left (smaller, warmer) */}
+        <div className="absolute -left-1/4 bottom-0 h-[40rem] w-[40rem] rounded-full bg-gold/10 blur-3xl" />
+        {/* Tertiary bloom — deep forest, mid-right */}
+        <div className="absolute right-1/3 top-1/2 h-[30rem] w-[30rem] rounded-full bg-forest/15 blur-3xl" />
+
+        {/* Faint Africa continent silhouette — symbolic, very subtle */}
+        <div className="absolute right-[8%] top-1/2 -translate-y-1/2 hidden lg:block">
+          <svg
+            viewBox="0 0 200 240"
+            className="h-[28rem] w-auto text-primary opacity-[0.04]"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            {/* Simplified Africa shape — abstracted, not geographically accurate */}
+            <path d="M85 5
+                     C 95 8, 105 12, 110 22
+                     C 118 28, 122 38, 118 50
+                     C 124 56, 128 66, 122 78
+                     C 130 88, 134 102, 128 118
+                     C 134 130, 132 144, 124 158
+                     C 128 168, 122 180, 112 188
+                     C 116 200, 108 212, 96 218
+                     C 100 228, 90 236, 78 234
+                     C 84 224, 80 212, 76 200
+                     C 68 200, 58 192, 56 180
+                     C 46 178, 38 168, 40 156
+                     C 30 150, 22 138, 28 124
+                     C 18 116, 12 102, 22 90
+                     C 14 80, 14 64, 26 56
+                     C 22 44, 30 30, 44 24
+                     C 50 12, 66 4, 85 5 Z" />
+          </svg>
+        </div>
+
+        {/* Subtle dot pattern overlay */}
+        <div
+          className="absolute inset-0 opacity-[0.18]"
+          style={{
+            backgroundImage: `radial-gradient(circle at center, currentColor 1px, transparent 1.5px)`,
+            backgroundSize: "32px 32px",
+            color: "var(--foreground)",
+            maskImage: "radial-gradient(ellipse at top, black 0%, transparent 70%)",
+            WebkitMaskImage: "radial-gradient(ellipse at top, black 0%, transparent 70%)",
+          }}
+        />
+
         {/* Grid overlay */}
-        <div className="absolute inset-0 bg-grid opacity-40" />
-        {/* Bottom gradient for legibility */}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background/40" />
+        <div className="absolute inset-0 bg-grid opacity-30" />
+
+        {/* Bottom gradient — fade to section below */}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background/60" />
       </div>
 
       <div className="mx-auto max-w-7xl w-full px-6 py-24 lg:px-12 lg:py-32">
@@ -398,12 +444,18 @@ function BuiltWithSection() {
             <span className="tracking-editorial text-muted-foreground">Built with</span>
           </div>
           <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
-            {builtWith.map((tool) => (
-              <div key={tool.name} className="flex items-baseline gap-2">
-                <span className="font-display text-sm font-medium text-foreground">{tool.name}</span>
-                <span className="text-[10px] tracking-widest uppercase text-muted-foreground/70">{tool.role}</span>
-              </div>
-            ))}
+            {builtWith.map((tool) => {
+              const Icon = TOOL_ICONS[tool.name];
+              return (
+                <div key={tool.name} className="flex items-center gap-2">
+                  <span className="text-foreground/80">
+                    {Icon && <Icon size={16} />}
+                  </span>
+                  <span className="font-display text-sm font-medium text-foreground">{tool.name}</span>
+                  <span className="text-[10px] tracking-widest uppercase text-muted-foreground/70">{tool.role}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>

@@ -1,5 +1,5 @@
 {
-  "name": "DOT — Africa's Venture Progression Network",
+  "name": "DOT \u2014 Africa's Venture Progression Network",
   "short_name": "DOT",
   "description": "Africa's venture progression network. Measure, learn, and progress your venture from idea to funded with Vantage, DOT Academy, Pitchathons and DOT Demo.",
   "start_url": "/",
@@ -8,18 +8,34 @@
   "orientation": "portrait",
   "background_color": "#08110C",
   "theme_color": "#0A4627",
-  "categories": ["business", "productivity", "education"],
+  "categories": [
+    "business",
+    "productivity",
+    "education"
+  ],
   "icons": [
     {
-      "src": "/favicon.svg",
+      "src": "/logo.png",
       "sizes": "any",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/apple-touch-icon.svg",
+      "src": "/logo.png",
       "sizes": "180x180",
-      "type": "image/svg+xml",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "any"
     }
   ]
