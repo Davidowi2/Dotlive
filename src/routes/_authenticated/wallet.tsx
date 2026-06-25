@@ -178,6 +178,22 @@ function WalletPage() {
     }
   }
 
+  /* Group transactions for sectioned list. Hook MUST be called before any early return. */
+  const groupedTransactions = useMemo(() => {
+    const groups: Array<{ label: string; items: typeof transactions }> = [
+      { label: "Today", items: [] },
+      { label: "Yesterday", items: [] },
+      { label: "This week", items: [] },
+      { label: "Earlier", items: [] },
+    ];
+    for (const t of transactions) {
+      const key = dateGroupKey(new Date(t.createdAt));
+      const bucket = groups.find((g) => g.label === key) ?? groups[groups.length - 1];
+      bucket.items.push(t);
+    }
+    return groups.filter((g) => g.items.length > 0);
+  }, [transactions]);
+
   if (walletLoading || txLoading) {
     return (
       <AppShell>
@@ -193,22 +209,6 @@ function WalletPage() {
 
   const deltaUp = last30Delta >= 0;
   const DeltaIcon = deltaUp ? TrendingUp : TrendingDown;
-
-  /* Group transactions for sectioned list. */
-  const groupedTransactions = useMemo(() => {
-    const groups: Array<{ label: string; items: typeof transactions }> = [
-      { label: "Today", items: [] },
-      { label: "Yesterday", items: [] },
-      { label: "This week", items: [] },
-      { label: "Earlier", items: [] },
-    ];
-    for (const t of transactions) {
-      const key = dateGroupKey(new Date(t.createdAt));
-      const bucket = groups.find((g) => g.label === key) ?? groups[groups.length - 1];
-      bucket.items.push(t);
-    }
-    return groups.filter((g) => g.items.length > 0);
-  }, [transactions]);
 
   return (
     <AppShell>
