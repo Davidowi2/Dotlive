@@ -3,7 +3,6 @@ import { createFileRoute, useParams, useNavigate, Link } from "@tanstack/react-r
 import { Users, Loader2, CheckCircle2 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -15,7 +14,7 @@ export const Route = createFileRoute("/_authenticated/join/$code")({
 
 function JoinPage() {
   const { code } = useParams({ from: "/_authenticated/join/$code" });
-  const { user } = useAuth();
+  const { user } = useDotAuth();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [status, setStatus] = useState<"loading" | "found" | "joined" | "error">("loading");
@@ -24,14 +23,18 @@ function JoinPage() {
 
   useEffect(() => {
     (async () => {
-      const { data, error } = await supabase.rpc("find_community_by_referral_code", { _code: code });
-      const match = Array.isArray(data) ? data[0] : data;
-      if (error || !match) {
+      try {
+        const res = await dotApi.get<{ community: any }>(`/api/communities/by-referral/${encodeURIComponent(code)}`);
+        const match = res?.community;
+        if (!match) {
+          setStatus("error");
+          return;
+        }
+        setCommunity(match);
+        setStatus("found");
+      } catch {
         setStatus("error");
-        return;
       }
-      setCommunity(match);
-      setStatus("found");
     })();
   }, [code]);
 
@@ -39,20 +42,14 @@ function JoinPage() {
     if (!user || !community) return;
     setBusy(true);
     try {
-      const { error } = await supabase
-        .from("community_members")
-        .upsert(
-          { community_id: community.id, founder_id: user.id, status: "active" },
-          { onConflict: "community_id,founder_id" },
-        );
-      if (error) throw error;
-      await supabase.from("founder_profiles").update({ community_id: community.id }).eq("user_id", user.id);
+      await dotApi.post("/api/communities/join", { referralCode: code });
+      await dotApi.post("/api/users/me/founder-profile", { communityId: community.id });
       qc.invalidateQueries({ queryKey: ["membership", user.id] });
       setStatus("joined");
       toast.success(`Joined ${community.name}!`);
       setTimeout(() => navigate({ to: "/dashboard" }), 1500);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not join");
+    } catch (err: any) {
+      toast.error(err?.message ?? "Could not join");
     } finally {
       setBusy(false);
     }

@@ -41,7 +41,6 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 // ContentTab still uses Supabase — no Fastify content-create endpoints yet
-import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useDotAuth } from "@/contexts/DotAuthContext";
 import { formatDot, formatNaira, ROLE_LABELS, type AppRole } from "@/lib/constants";
@@ -355,10 +354,9 @@ function RolesTab() {
   const { data: members = [], isLoading } = useQuery({
     queryKey: ["admin-roles-members"],
     queryFn: async () => {
-      const [{ data: profiles }, { data: roleRows }] = await Promise.all([
-        supabase.from("profiles").select("id, name, email"),
-        supabase.from("user_roles").select("user_id, role"),
-      ]);
+      const profilesRes = await dotApi.get<{ users: any[] }>("/api/admin/users?limit=1000");
+      const profiles = profilesRes?.users ?? [];
+      const roleRows: any[] = [];
       const rmap = new Map<string, AppRole[]>();
       (roleRows ?? []).forEach((r) => {
         const arr = rmap.get(r.user_id) ?? [];
@@ -765,15 +763,9 @@ function PaymentsTab() {
   const { data: payments = [], isLoading } = useQuery({
     queryKey: ["admin-payments"],
     queryFn: async () => {
-      const [{ data: rows }, { data: profiles }] = await Promise.all([
-        supabase
-          .from("payments")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(200),
-        supabase.from("profiles").select("id, name, email"),
-      ]);
-      const pmap = new Map((profiles ?? []).map((p) => [p.id, p]));
+      const res = await dotApi.get<{ payments: any[] }>("/api/admin/payments?limit=200");
+      const rows = res?.payments ?? [];
+      const profiles: any[] = [];
       return (rows ?? []).map((r) => ({ ...r, profile: pmap.get(r.user_id) }));
     },
   });

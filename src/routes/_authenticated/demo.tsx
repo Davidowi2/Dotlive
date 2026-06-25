@@ -6,7 +6,6 @@ import { EmptyState } from "@/components/app/EmptyState";
 import { PageSkeleton } from "@/components/app/PageSkeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { formatNaira } from "@/lib/constants";
@@ -42,13 +41,8 @@ function DemoPage() {
   const { data: ventures = [], isLoading } = useQuery({
     queryKey: ["showcase"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("founder_profiles")
-        .select("user_id, venture_name, industry, stage, country, bio, funding_goal, vantage_point, fundability")
-        .not("venture_name", "is", null)
-        .order("vantage_point", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as FounderShowcase[];
+      const res = await dotApi.get<{ ventures: FounderShowcase[] }>("/api/founder-profiles");
+      return res?.ventures ?? [];
     },
   });
 
@@ -56,9 +50,8 @@ function DemoPage() {
     queryKey: ["investor-saves", user?.id],
     enabled: !!user && isInvestor,
     queryFn: async () => {
-      const { data, error } = await supabase.from("investor_saves").select("founder_id").eq("investor_id", user!.id);
-      if (error) throw error;
-      return data ?? [];
+      const res = await dotApi.get<{ saves: { founderId: string }[] }>("/api/investor/saves");
+      return res?.saves ?? [];
     },
   });
   const saved = new Set(saves.map((s) => s.founder_id));
@@ -67,9 +60,9 @@ function DemoPage() {
     if (!user) return;
     try {
       if (saved.has(founderId)) {
-        await supabase.from("investor_saves").delete().eq("investor_id", user.id).eq("founder_id", founderId);
+        await dotApi.delete(`/api/investor/saves/${encodeURIComponent(founderId)}`);
       } else {
-        await supabase.from("investor_saves").insert({ investor_id: user.id, founder_id: founderId });
+        await dotApi.post("/api/investor/saves", { founderId });
       }
       qc.invalidateQueries({ queryKey: ["investor-saves", user.id] });
     } catch (err) {
@@ -80,15 +73,14 @@ function DemoPage() {
   async function requestMeeting(founderId: string) {
     if (!user) return;
     try {
-      const { error } = await supabase.from("meeting_requests").insert({
-        investor_id: user.id,
-        founder_id: founderId,
+      await dotApi.post("/api/investor/meetings", {
+        founderId,
+        topic: "Intro chat",
         message: "I'd like to learn more about your venture.",
       });
-      if (error) throw error;
       toast.success("Meeting request sent!");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not send request");
+    } catch (err: any) {
+      toast.error(err?.message ?? "Could not send request");
     }
   }
 

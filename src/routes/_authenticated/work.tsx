@@ -65,7 +65,6 @@ import {
   updateJob,
   deleteJob,
 } from "@/api/marketplace";
-import { supabase } from "@/integrations/supabase/client";
 import type { Service, JobListing, ServiceOrder } from "@/types/api";
 import {
   WORK_CATEGORIES,
@@ -632,12 +631,10 @@ function ReviewDialog({ order, onClose }: { order: { id: string; title: string }
     if (!order) return;
     setBusy(true);
     try {
-      const { error } = await supabase.rpc("review_service_order", {
-        _order_id: order.id,
-        _rating: rating,
-        _comment: comment.trim() || undefined,
+      await dotApi.post(`/api/orders/${order.id}/review`, {
+        rating,
+        comment: comment.trim() || undefined,
       });
-      if (error) throw error;
       toast.success("Thanks for your review!");
       onClose();
       setRating(5);
@@ -916,11 +913,11 @@ function BuilderProfileForm({ existing }: { existing?: { headline: string; bio: 
     }
     setBusy(true);
     try {
-      const { error } = await supabase.from("builder_profiles").upsert({
-        id: user.id,
+      const { error } = await dotApi.post("/api/users/me/builder-profile", {
         headline: headline.trim(),
         bio: bio.trim() || null,
         skills: skills.split(",").map((s) => s.trim()).filter(Boolean),
+        available: true,
       });
       if (error) throw error;
       qc.invalidateQueries({ queryKey: ["builder_profile", user.id] });

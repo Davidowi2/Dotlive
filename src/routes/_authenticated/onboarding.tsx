@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Hammer, Rocket, Users, Briefcase, Loader2, ArrowRight, Check, Star } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Logo } from "@/components/site/Logo";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
@@ -90,15 +89,14 @@ function Onboarding() {
       if (roleErr && !roleErr.message.includes("duplicate")) throw roleErr;
 
       if (r === "founder" && founderData) {
-        const { error: fpErr } = await supabase.from("founder_profiles").upsert({
-          user_id: user.id,
-          venture_name: founderData.ventureName,
+        // POST /api/users/me/founder-profile (handles upsert internally)
+        await dotApi.post("/api/users/me/founder-profile", {
+          ventureName: founderData.ventureName,
           industry: founderData.industry,
           country: founderData.country,
           bio: founderData.bio,
           stage: "Assess",
         });
-        if (fpErr) throw fpErr;
       }
       await refresh();
       toast.success("Welcome to DOT!");

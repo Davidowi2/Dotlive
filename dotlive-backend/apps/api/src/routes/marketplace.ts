@@ -7,7 +7,7 @@ import { z } from "zod";
 import { eq, and, desc, sql } from "drizzle-orm";
 
 import { db } from "../db/client.js";
-import { services, jobListings, serviceOrders } from "../db/schema.js";
+import { services, jobListings, serviceOrders, serviceReviews } from "../db/schema.js";
 import { transferDot, dotToNaira } from "../lib/dot.js";
 import { userHasRole } from "../lib/auth.js";
 
@@ -359,6 +359,43 @@ export async function marketplaceRoutes(app: FastifyInstance) {
             .orderBy(desc(jobListings.createdAt));
           return reply.send({ jobs: rows.map(serializeJob) });
         });
+        /** POST /api/orders/:id/review — rate a completed service order. */
+        app.post<{ Params: { id: string } }>(
+          "/orders/:id/review",
+          { preHandler: app.authenticate, config: { rateLimit: { max: 10, timeWindow: "1 minute" } } },
+          async (req, reply) => {
+            const { sub } = req.user as { sub: string };
+            const { rating, comment } = (req.body ?? {}) as { rating?: number; comment?: string };
+            if (typeof rating !== "number" || rating < 1 || rating > 5) {
+              return reply.code(400).send({ error: "Rating must be 1-5" });
+            }
+            const order = await db
+              .select()
+              .from(serviceOrders)
+              .where(eq(serviceOrders.id, req.params.id))
+              .limit(1);
+            if (order.length === 0) return reply.code(404).send({ error: "Order not found" });
+            if (order[0].clientId !== sub) return reply.code(403).send({ error: "Not your order" });
+            if (order[0].status !== "completed") return reply.code(400).send({ error: "Order not completed" });
+            try {
+              const inserted = await db
+                .insert(serviceReviews)
+                .values({
+                  orderId: order[0].id,
+                  builderId: order[0].builderId,
+                  clientId: sub,
+                  rating,
+                  comment: comment ?? null,
+                  createdAt: new Date(),
+                } as any)
+                .returning();
+              return reply.send({ review: inserted[0] });
+            } catch {
+              return reply.code(409).send({ error: "Already reviewed" });
+            }
+          },
+        );
+
       }
 
       function serializeService(s: any) {

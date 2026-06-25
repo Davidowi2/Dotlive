@@ -20,11 +20,11 @@ import { EmptyState } from "@/components/app/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/use-auth";
+import { useDotAuth } from "@/contexts/DotAuthContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { dotApi } from "@/api/client";
 
 export const Route = createFileRoute("/_authenticated/meetings")({
   head: () => ({ meta: [{ title: "Meeting Requests — DOT" }] }),
@@ -32,7 +32,7 @@ export const Route = createFileRoute("/_authenticated/meetings")({
 });
 
 function MeetingsPage() {
-  const { user, roles } = useAuth();
+  const { user, roles } = useDotAuth();
   const qc = useQueryClient();
   const isInvestor = roles.includes("investor");
   const isFounder = roles.includes("founder");
@@ -42,20 +42,11 @@ function MeetingsPage() {
     queryKey: ["meetings-received", user?.id],
     enabled: !!user && isFounder,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("meeting_requests")
-        .select("id, message, status, created_at, investor_id")
-        .eq("founder_id", user!.id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      if (!data || data.length === 0) return [];
-      const ids = [...new Set(data.map((r) => r.investor_id))];
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, name, email")
-        .in("id", ids);
-      const pmap = new Map((profiles ?? []).map((p) => [p.id, p]));
-      return data.map((r) => ({ ...r, investor: pmap.get(r.investor_id) }));
+      // /api/investor/meetings returns meetings where the user is the INVESTOR.
+      // For a founder, there's no equivalent endpoint yet, so return empty.
+      const res = await dotApi.get<{ meetings: any[] }>("/api/investor/meetings?role=founder");
+      const data = res?.meetings ?? [];
+      return data.map((r) => ({ ...r, investor: null }));
     },
   });
 
@@ -64,30 +55,15 @@ function MeetingsPage() {
     queryKey: ["meetings-sent", user?.id],
     enabled: !!user && isInvestor,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("meeting_requests")
-        .select("id, message, status, created_at, founder_id")
-        .eq("investor_id", user!.id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      if (!data || data.length === 0) return [];
-      const ids = [...new Set(data.map((r) => r.founder_id))];
-      const { data: fps } = await supabase
-        .from("founder_profiles")
-        .select("user_id, venture_name, vantage_point, country")
-        .in("user_id", ids);
-      const fpmap = new Map((fps ?? []).map((p) => [p.user_id, p]));
-      return data.map((r) => ({ ...r, founder: fpmap.get(r.founder_id) }));
+      const res = await dotApi.get<{ meetings: any[] }>("/api/investor/meetings");
+      const data = res?.meetings ?? [];
+      return data.map((r) => ({ ...r, founder: null }));
     },
   });
 
   async function updateStatus(id: string, status: "accepted" | "declined") {
     try {
-      const { error } = await supabase
-        .from("meeting_requests")
-        .update({ status })
-        .eq("id", id);
-      if (error) throw error;
+      await dotApi.patch(`/api/investor/meetings/${id}`, { status });
       qc.invalidateQueries({ queryKey: ["meetings-received", user?.id] });
       toast.success(status === "accepted" ? "Meeting accepted!" : "Request declined.");
     } catch (e) {

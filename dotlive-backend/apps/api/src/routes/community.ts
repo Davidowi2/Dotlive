@@ -133,5 +133,26 @@ export async function communityRoutes(app: FastifyInstance) {
       },
     });
   });
+
+  /** GET /api/communities/by-referral/:code — public lookup so /join/$code works. */
+  app.get<{ Params: { code: string } }>(
+    "/communities/by-referral/:code",
+    async (req, reply) => {
+      const rows = await db
+        .select({
+          id: communities.id,
+          name: communities.name,
+          description: communities.description,
+          leaderId: communities.leaderId,
+          referralCode: communities.referralCode,
+        })
+        .from(communities)
+        .where(eq(communities.referralCode, req.params.code))
+        .limit(1);
+      if (rows.length === 0) return reply.code(404).send({ community: null });
+      return reply.send({ community: rows[0] });
+    },
+  );
+
 }
 // @ts-nocheck
