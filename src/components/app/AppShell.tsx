@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard,
@@ -18,6 +18,8 @@ import {
   Bell,
   Award,
   Settings,
+  Menu as MenuIcon,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import { Logo } from "@/components/site/Logo";
@@ -74,12 +76,28 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { user, roles, primaryRole, isLoading, logout } = useDotAuth();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     if (!isLoading && user && roles.length === 0) {
       navigate({ to: "/onboarding" });
     }
   }, [isLoading, user, roles, navigate]);
+
+  // Close mobile sheet on route change
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
+  // Lock body scroll when sheet is open
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [mobileOpen]);
 
   function handleSignOut() {
     logout();
@@ -112,7 +130,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Logo />
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <ThemeToggle />
             {primaryRole && (
               <span className="hidden text-[10px] tracking-widest uppercase font-semibold text-primary sm:inline-flex sm:items-center sm:gap-1.5">
@@ -129,7 +147,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
             <button
               onClick={handleSignOut}
-              className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="hidden sm:flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               aria-label="Sign out"
             >
               <LogOut className="size-4" />
@@ -190,9 +208,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         <main className="min-w-0 flex-1 lg:pl-8">{children}</main>
       </div>
 
-      {/* Mobile bottom nav */}
+      {/* Mobile bottom nav — 5 most-used + "More" sheet for the rest */}
       <nav className="sticky bottom-0 z-40 flex items-center justify-around border-t border-border bg-background/95 px-2 py-1 backdrop-blur-xl lg:hidden">
-        {items.slice(0, 5).map((item) => {
+        {items.slice(0, 4).map((item) => {
           const active = pathname === item.to;
           return (
             <Link
@@ -208,7 +226,77 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
           );
         })}
+        {/* "More" button — opens a sheet with all remaining nav items */}
+        <button
+          type="button"
+          onClick={() => setMobileOpen(true)}
+          className="flex flex-1 flex-col items-center gap-0.5 py-1.5 text-[10px] text-muted-foreground transition-colors active:text-foreground"
+          aria-label="More navigation"
+        >
+          <MenuIcon className="size-5" />
+          More
+        </button>
       </nav>
+
+      {/* Mobile "More" sheet — slide-up from bottom */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setMobileOpen(false)}
+            aria-hidden
+          />
+          <div className="absolute inset-x-0 bottom-0 max-h-[80vh] overflow-y-auto rounded-t-2xl border-t border-border bg-background shadow-2xl animate-in slide-in-from-bottom">
+            {/* Drag handle */}
+            <div className="sticky top-0 z-10 flex justify-center bg-background pt-2 pb-1">
+              <span className="h-1 w-10 rounded-full bg-border" />
+            </div>
+            <div className="px-4 pb-6">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="font-display text-lg">All sections</h2>
+                <button
+                  onClick={() => setMobileOpen(false)}
+                  className="rounded-md p-1.5 text-muted-foreground hover:bg-muted"
+                  aria-label="Close"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+              {sections.map((section) => (
+                <div key={section.key} className="mb-5">
+                  <div className="mb-2 px-2">
+                    <span className="text-[10px] tracking-widest uppercase font-semibold text-muted-foreground/70">
+                      {section.label}
+                    </span>
+                  </div>
+                  <ul className="space-y-0.5">
+                    {section.items.map((item) => {
+                      const active = pathname === item.to;
+                      return (
+                        <li key={item.to}>
+                          <Link
+                            to={item.to}
+                            onClick={() => setMobileOpen(false)}
+                            className={cn(
+                              "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors",
+                              active
+                                ? "bg-primary/10 text-primary font-medium"
+                                : "text-foreground hover:bg-muted",
+                            )}
+                          >
+                            <item.icon className="size-4 shrink-0" />
+                            {item.label}
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
