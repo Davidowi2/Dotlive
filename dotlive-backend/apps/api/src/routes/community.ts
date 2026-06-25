@@ -4,7 +4,7 @@
 
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import crypto from "node:crypto";
 
 import { db } from "../db/client.js";
@@ -55,11 +55,9 @@ export async function communityRoutes(app: FastifyInstance) {
         description: communities.description,
         leaderId: communities.leaderId,
         referralCode: communities.referralCode,
-        memberCount: communityMembers.id,
         createdAt: communities.createdAt,
       })
       .from(communities)
-      .leftJoin(communityMembers, eq(communityMembers.communityId, communities.id))
       .orderBy(desc(communities.createdAt));
     return reply.send({ communities: rows });
   });
@@ -81,7 +79,6 @@ export async function communityRoutes(app: FastifyInstance) {
       id: crypto.randomUUID(),
       communityId: comm[0].id,
       founderId: sub,
-      role: "member",
       status: "active",
       joinedAt: new Date(),
     } as any).onConflictDoNothing();
@@ -91,48 +88,49 @@ export async function communityRoutes(app: FastifyInstance) {
 
   /** GET /api/communities/:id/members — list members */
   app.get<{ Params: { id: string } }>("/communities/:id/members", async (req, reply) => {
-    const rows = await db
-      .select({
-        id: communityMembers.id,
-        role: communityMembers.role,
-        status: communityMembers.status,
-        userId: users.id,
-        name: users.name,
-        dotId: users.dotId,
-        avatarUrl: users.avatarUrl,
-      })
-      .from(communityMembers)
-      .innerJoin(users, eq(users.id, communityMembers.founderId))
-      .where(eq(communityMembers.communityId, req.params.id))
-      .orderBy(desc(communityMembers.joinedAt));
-    return reply.send({ members: rows });
+    const rows = await db.execute(sql`
+      SELECT
+        m.id, m.status, m.joined_at AS "joinedAt",
+        u.id AS "userId", u.name, u.dot_id AS "dotId", u.avatar_url AS "avatarUrl"
+      FROM community_members m
+      INNER JOIN users u ON u.id = m.founder_id
+      WHERE m.community_id = ${req.params.id}
+      ORDER BY m.joined_at DESC
+    `);
+    return reply.send({ members: (rows as any).rows ?? [] });
   });
 
   /** GET /api/community/membership — current user's community membership */
   app.get("/community/membership", { preHandler: app.authenticate }, async (req, reply) => {
     const { sub } = req.user as { sub: string };
-    const rows = await db
-      .select({
-        id: communityMembers.id,
-        communityId: communityMembers.communityId,
-        founderId: communityMembers.founderId,
-        role: communityMembers.role,
-        status: communityMembers.status,
-        joinedAt: communityMembers.joinedAt,
-      })
-      .from(communityMembers)
-      .where(and(eq(communityMembers.founderId, sub), eq(communityMembers.status, "active")))
-      .limit(1);
-    const membership = rows[0];
-    if (!membership) return reply.send({ membership: null });
-
-    const comm = await db
-      .select()
-      .from(communities)
-      .where(eq(communities.id, membership.communityId))
-      .limit(1);
+    const rows = await db.execute(sql`
+      SELECT
+        m.id, m.community_id AS "communityId", m.founder_id AS "founderId",
+        m.status, m.joined_at AS "joinedAt",
+        c.id AS "commId", c.name AS "commName", c.description AS "commDescription",
+        c.referral_code AS "commReferralCode", c.leader_id AS "commLeaderId"
+      FROM community_members m
+      INNER JOIN communities c ON c.id = m.community_id
+      WHERE m.founder_id = ${sub} AND m.status = 'active'
+      LIMIT 1
+    `);
+    const row = ((rows as any).rows ?? [])[0];
+    if (!row) return reply.send({ membership: null });
     return reply.send({
-      membership: { ...membership, community: comm[0] ?? null },
+      membership: {
+        id: row.id,
+        communityId: row.communityId,
+        founderId: row.founderId,
+        status: row.status,
+        joinedAt: row.joinedAt,
+        community: {
+          id: row.commId,
+          name: row.commName,
+          description: row.commDescription,
+          referralCode: row.commReferralCode,
+          leaderId: row.commLeaderId,
+        },
+      },
     });
   });
 }

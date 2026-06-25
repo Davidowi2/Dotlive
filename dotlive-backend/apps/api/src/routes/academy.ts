@@ -4,7 +4,7 @@
 
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 
 import { db } from "../db/client.js";
 import { courses, courseEnrollments } from "../db/schema.js";
@@ -93,35 +93,30 @@ export async function academyRoutes(app: FastifyInstance) {
   /** GET /api/academy/enrollments — current user's enrollments with course info */
   app.get("/academy/enrollments", { preHandler: app.authenticate }, async (req, reply) => {
     const { sub } = req.user as { sub: string };
-    const rows = await db
-      .select({
-        id: courseEnrollments.id,
-        userId: courseEnrollments.userId,
-        courseId: courseEnrollments.courseId,
-        progressPct: courseEnrollments.progressPct,
-        completedAt: courseEnrollments.completedAt,
-        createdAt: courseEnrollments.createdAt,
-        courseTitle: courses.title,
-        courseDescription: courses.description,
-        moduleCount: courses.moduleCount,
-      })
-      .from(courseEnrollments)
-      .leftJoin(courses, eq(courses.id, courseEnrollments.courseId))
-      .where(eq(courseEnrollments.userId, sub))
-      .orderBy(desc(courseEnrollments.createdAt));
-    const enrollments = rows.map((r) => ({
+    const rows = await db.execute(sql`
+      SELECT
+        e.id, e.user_id AS "userId", e.course_id AS "courseId",
+        e.status, e.created_at AS "createdAt",
+        c.title AS "courseTitle", c.description AS "courseDescription"
+      FROM course_enrollments e
+      LEFT JOIN courses c ON c.id = e.course_id
+      WHERE e.user_id = ${sub}
+      ORDER BY e.created_at DESC
+    `);
+    const enrollments = ((rows as any).rows ?? []).map((r: any) => ({
       id: r.id,
       userId: r.userId,
       courseId: r.courseId,
-      progressPct: Number(r.progressPct ?? 0),
-      completedAt: r.completedAt,
+      progressPct: 0,
+      completedAt: null,
       createdAt: r.createdAt,
+      status: r.status,
       course: r.courseTitle
         ? {
             id: r.courseId,
             title: r.courseTitle,
             description: r.courseDescription ?? undefined,
-            moduleCount: r.moduleCount ?? 0,
+            moduleCount: 0,
           }
         : undefined,
     }));
