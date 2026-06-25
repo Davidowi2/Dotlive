@@ -1,5 +1,7 @@
 # DOT Design System Overhaul — Implementation Plan
 
+> **STATUS (Jun 25 2026):** ✅ ALL 7 PHASES + 3 BONUS ANGLES COMPLETE. 16 commits on `design-system-overhaul`. Build passes (54s, 293 files changed, 13K insertions, 86K deletions of dead code).
+
 > **For Hermes:** Use subagent-driven-development skill to implement this plan task-by-task. Each task ends with a commit.
 
 **Goal:** Overhaul the visual design of the DOT landing page, design system tokens, shared app shell, and the entire authenticated app surface — bringing it into alignment with a "dark by default + green-accent editorial" brand.
@@ -7,6 +9,8 @@
 **Architecture:** Token-first approach. Update the design tokens in `src/styles.css` first (single source of truth), then propagate changes through Tailwind utilities, then update the actual screens. AppShell is the spine; per-route content hangs off it. Light theme is rebuilt from scratch (not inverted dark).
 
 **Tech Stack:** TanStack Start 1.167, React 19, Vite 8, Tailwind CSS 4 (CSS-first config via `@theme inline`), shadcn/ui, OKLCH color tokens.
+
+**Execution Mode (locked Jun 24 2026):** Phase 1 (tokens) is a CHECKPOINT. After Phase 1 commits, pause for user preview of dark + light theme on live site before cascading into Phase 2+. Don't auto-execute the whole plan.
 
 ---
 
