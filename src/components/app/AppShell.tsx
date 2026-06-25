@@ -20,6 +20,7 @@ import {
   Settings,
   Menu as MenuIcon,
   X,
+  BarChart3,
   type LucideIcon,
 } from "lucide-react";
 import { Logo } from "@/components/site/Logo";
