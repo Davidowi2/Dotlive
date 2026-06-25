@@ -135,6 +135,44 @@ export const assessments = pgTable("assessments", {
       assessments_user_idx: index("assessments_user_idx").on(t.userId, t.createdAt),
   }));
 
+/* --------------------------- Founder profile (extra) ----------- *
+ * Supabase had this table; the Neon schema didn't. Added so the
+ * /api/users/me/founder-profile endpoint can read/write to it.
+ * PK = user_id (one profile per user). user_id is text to match users.id.
+ */
+export const founderProfiles = pgTable("founder_profiles", {
+  userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  ventureName: text("venture_name"),
+  industry: text("industry"),
+  stage: text("stage").default("Assess"),
+  country: text("country"),
+  communityId: text("community_id"),
+  bio: text("bio"),
+  website: text("website"),
+  fundingGoal: text("funding_goal"),
+  logoUrl: text("logo_url"),
+  vantagePoint: integer("vantage_point").default(0),
+  fundability: integer("fundability").default(0),
+  investmentReadiness: integer("investment_readiness").default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/* --------------------------- Builder profile ------------------- *
+ * Supabase had this table; the Neon schema didn't. Added so the
+ * /api/users/me/builder-profile endpoint can read/write to it.
+ * PK = id (the user's id, one profile per user). id is text.
+ */
+export const builderProfiles = pgTable("builder_profiles", {
+  id: text("id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  headline: text("headline").notNull().default(""),
+  bio: text("bio"),
+  skills: text("skills").array().notNull().default([]),
+  available: boolean("available").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 /* --------------------------- Courses --------------------------- */
 export const courses = pgTable("courses", {
   id: uuid("id").primaryKey().defaultRandom(),

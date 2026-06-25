@@ -61,5 +61,29 @@ export async function vantageRoutes(app: FastifyInstance) {
       .limit(20);
     return reply.send({ assessments: rows });
   });
+  /** GET /api/vantage/me — current user's vantage snapshot.
+   * Returns latest assessment score + deltas. */
+  app.get("/vantage/me", { preHandler: app.authenticate }, async (req, reply) => {
+    const { sub } = req.user as { sub: string };
+    const rows = await db
+      .select()
+      .from(assessments)
+      .where(eq(assessments.userId, sub))
+      .orderBy(desc(assessments.createdAt))
+      .limit(1);
+    if (rows.length === 0) return reply.send({ vantage: null });
+    const a = rows[0];
+    return reply.send({
+      vantage: {
+        score: Number(a.score ?? 0),
+        vantagePoint: Number(a.vantagePoint ?? 0),
+        fundability: Number(a.fundability ?? 0),
+        investmentReadiness: Number(a.investmentReadiness ?? 0),
+        stage: a.stage,
+        createdAt: a.createdAt,
+      },
+    });
+  });
+
 }
 // @ts-nocheck

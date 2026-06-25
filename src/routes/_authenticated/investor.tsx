@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Loader2, Filter, Bookmark } from "lucide-react";
+import { Filter, Bookmark } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
 import { PageSkeleton } from "@/components/app/PageSkeleton";
@@ -13,9 +13,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { supabase } from "@/integrations/supabase/client";
+import { dotApi } from "@/api/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/use-auth";
+import { useDotAuth } from "@/contexts/DotAuthContext";
 import { INDUSTRIES, JOURNEY_STAGES } from "@/lib/constants";
 import { FounderCard, type FounderShowcase } from "./demo";
 import { toast } from "sonner";
@@ -31,23 +31,21 @@ export const Route = createFileRoute("/_authenticated/investor")({
 });
 
 function InvestorPage() {
-  const { user } = useAuth();
+  const { user } = useDotAuth();
   const qc = useQueryClient();
   const [industry, setIndustry] = useState("all");
   const [stage, setStage] = useState("all");
   const [minVantage, setMinVantage] = useState(0);
   const [savedOnly, setSavedOnly] = useState(false);
 
+  /* Showcases (ventures from founder_profiles). */
   const { data: ventures = [], isLoading } = useQuery({
     queryKey: ["showcase"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("founder_profiles")
-        .select("user_id, venture_name, industry, stage, country, bio, funding_goal, vantage_point, fundability")
-        .not("venture_name", "is", null)
-        .order("vantage_point", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as FounderShowcase[];
+      const res = await dotApi.get<{ ventures: FounderShowcase[] }>(
+        "/api/founder-profiles",
+      );
+      return res?.ventures ?? [];
     },
   });
 
@@ -55,12 +53,13 @@ function InvestorPage() {
     queryKey: ["investor-saves", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase.from("investor_saves").select("founder_id").eq("investor_id", user!.id);
-      if (error) throw error;
-      return data ?? [];
+      const res = await dotApi.get<{ saves: { founderId: string }[] }>(
+        "/api/investor/saves",
+      );
+      return res?.saves ?? [];
     },
   });
-  const saved = new Set(saves.map((s) => s.founder_id));
+  const saved = new Set(saves.map((s) => s.founderId));
 
   const filtered = useMemo(
     () =>
@@ -78,28 +77,27 @@ function InvestorPage() {
     if (!user) return;
     try {
       if (saved.has(founderId)) {
-        await supabase.from("investor_saves").delete().eq("investor_id", user.id).eq("founder_id", founderId);
+        await dotApi.delete(`/api/investor/saves/${encodeURIComponent(founderId)}`);
       } else {
-        await supabase.from("investor_saves").insert({ investor_id: user.id, founder_id: founderId });
+        await dotApi.post("/api/investor/saves", { founderId });
       }
       qc.invalidateQueries({ queryKey: ["investor-saves", user.id] });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not update");
+    } catch (err: any) {
+      toast.error(err?.message ?? "Could not update");
     }
   }
 
   async function requestMeeting(founderId: string) {
     if (!user) return;
     try {
-      const { error } = await supabase.from("meeting_requests").insert({
-        investor_id: user.id,
-        founder_id: founderId,
+      await dotApi.post("/api/investor/meetings", {
+        founderId,
+        topic: "Intro chat",
         message: "I'd like to learn more about your venture.",
       });
-      if (error) throw error;
       toast.success("Meeting request sent!");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not send request");
+    } catch (err: any) {
+      toast.error(err?.message ?? "Could not send request");
     }
   }
 

@@ -8,7 +8,7 @@ import { eq, desc } from "drizzle-orm";
 
 import { db } from "../db/client.js";
 import { wallets, transactions } from "../db/schema.js";
-import { transferDot } from "../lib/dot.js";
+import { transferDot, debitWallet } from "../lib/dot.js";
 
 const transferSchema = z.object({
   toDotId: z.string().min(3),
@@ -77,5 +77,34 @@ export async function walletRoutes(app: FastifyInstance) {
       return reply.code(500).send({ error: msg });
     }
   });
+  /** POST /api/wallet/spend — generic DOT debit (e.g. session registration).
+   * Mirrors the `spend_dot` Postgres RPC that the previous Supabase schema
+   * exposed: balance check + insert transaction row + decrement balance,
+   * all atomic. */
+  app.post("/wallet/spend", { preHandler: app.authenticate, config: { rateLimit: { max: 30, timeWindow: "1 minute" } } }, async (req, reply) => {
+    const { sub } = req.user as { sub: string };
+    const schema = z.object({
+      amount: z.number().int().positive().max(1_000_000),
+      description: z.string().min(1).max(200),
+      type: z.string().min(1).max(50).optional(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: "Invalid input" });
+
+    try {
+      const result = await debitWallet({
+        userId: sub,
+        amount: parsed.data.amount,
+        type: parsed.data.type ?? "Spend",
+        description: parsed.data.description,
+      });
+      return reply.send(result);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Spend failed";
+      if (msg === "Insufficient balance") return reply.code(402).send({ error: msg });
+      return reply.code(500).send({ error: msg });
+    }
+  });
+
 }
 // @ts-nocheck

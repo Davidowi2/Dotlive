@@ -841,7 +841,44 @@ export async function adminRoutes(app: FastifyInstance) {
             `);
             return reply.send({ id });
           });
-        }
+  /* ── BUILDER STATS — GET /api/admin/builders/:id/stats ───────────── */
+
+  /** Aggregate stats for a builder profile. Available to any admin. */
+  app.get<{ Params: { id: string } }>("/builders/:id/stats", { preHandler: app.authenticate }, async (req, reply) => {
+    const adminId = (req.user as { sub: string }).sub;
+    const roles = await getUserRoles(adminId);
+    if (!roles.includes("admin") && !roles.includes("super_admin")) {
+      return reply.code(403).send({ error: "Admin only" });
+    }
+    const { id } = req.params;
+    // Aggregate from services + orders + reviews
+    const svc = await db.execute(sql`
+      SELECT
+        (SELECT COUNT(*) FROM services WHERE builder_id = ${id} AND is_active = true) AS active_services,
+        (SELECT COUNT(*) FROM services WHERE builder_id = ${id}) AS total_services,
+        (SELECT COUNT(*) FROM service_orders WHERE builder_id = ${id}) AS total_orders,
+        (SELECT COUNT(*) FROM service_orders WHERE builder_id = ${id} AND status = 'completed') AS completed_orders,
+        (SELECT COALESCE(AVG(rating), 0) FROM service_reviews WHERE builder_id = ${id}) AS avg_rating,
+        (SELECT COUNT(*) FROM service_reviews WHERE builder_id = ${id}) AS total_reviews,
+        (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ${id} AND amount > 0) AS total_earned,
+        (SELECT COALESCE(SUM(amount), 0) FROM wallets WHERE user_id = ${id}) AS wallet_balance
+    `);
+    const r = ((svc as any).rows ?? [])[0] ?? {};
+    return reply.send({
+      stats: {
+        activeServices: Number(r.active_services ?? 0),
+        totalServices: Number(r.total_services ?? 0),
+        totalOrders: Number(r.total_orders ?? 0),
+        completedOrders: Number(r.completed_orders ?? 0),
+        avgRating: Number(r.avg_rating ?? 0),
+        totalReviews: Number(r.total_reviews ?? 0),
+        totalEarned: Number(r.total_earned ?? 0),
+        walletBalance: Number(r.wallet_balance ?? 0),
+      },
+    });
+  });
+
+}
 
 /* ============================== helpers ============================== */
 
@@ -885,3 +922,4 @@ async function issueImpersonationJwt(jti: string, targetUserId: string, adminId:
   const sig = createHmac("sha256", secret).update(data).digest("base64url");
   return `${data}.${sig}`;
 }
+

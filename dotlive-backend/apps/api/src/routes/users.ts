@@ -7,7 +7,7 @@ import { z } from "zod";
 import { eq, sql } from "drizzle-orm";
 
 import { db } from "../db/client.js";
-import { users, userRoles, roleRequirements, wallets } from "../db/schema.js";
+import { users, userRoles, roleRequirements, wallets, founderProfiles, builderProfiles } from "../db/schema.js";
 import { loadUserWithRoles, userHasRole } from "../lib/auth.js";
 import { debitWallet } from "../lib/dot.js";
 import type { AppRole } from "../sharedTypes.js";
@@ -188,5 +188,66 @@ export async function userRoutes(app: FastifyInstance) {
     `);
     return reply.send({ ok: true });
   });
+
+  /* ── DOT-ID LOOKUP — public-ish (returns only name + dotId) ─────── */
+
+  /** GET /api/users/lookup?dotId=... — public lookup so transfers work.
+   * Returns just the public profile bits (name, dotId) — never email/id/etc. */
+  app.get<{ Querystring: { dotId?: string } }>("/users/lookup", async (req, reply) => {
+    const dotId = (req.query.dotId ?? "").trim().toUpperCase();
+    if (!dotId) return reply.code(400).send({ error: "dotId required" });
+    const row = await db
+      .select({ id: users.id, name: users.name, dotId: users.dotId, avatarUrl: users.avatarUrl })
+      .from(users)
+      .where(eq(users.dotId, dotId))
+      .limit(1);
+    if (!row[0]) return reply.code(404).send({ user: null });
+    return reply.send({
+      user: {
+        id: row[0].id,
+        name: row[0].name,
+        dotId: row[0].dotId,
+        avatarUrl: row[0].avatarUrl,
+      },
+    });
+  });
+
+  /** GET /api/founder-profiles — list all founder profiles (showcase).
+   * Returns the snake_case fields the legacy frontend expects
+   * (user_id, venture_name, vantage_point, fundability). */
+  app.get("/founder-profiles", async (_req, reply) => {
+    const rows = await db.execute(sql`
+      SELECT
+        fp.user_id, fp.venture_name, fp.industry, fp.stage, fp.country,
+        fp.bio, fp.website, fp.funding_goal, fp.vantage_point,
+        fp.fundability, fp.investment_readiness, fp.logo_url,
+        u.name, u.avatar_url, u.dot_id
+      FROM founder_profiles fp
+      LEFT JOIN users u ON u.id = fp.user_id
+      WHERE fp.venture_name IS NOT NULL
+      ORDER BY fp.vantage_point DESC NULLS LAST
+      LIMIT 100
+    `);
+    const out = ((rows as any).rows ?? []).map((r: any) => ({
+      user_id: r.user_id,
+      venture_name: r.venture_name,
+      industry: r.industry,
+      stage: r.stage,
+      country: r.country,
+      bio: r.bio,
+      website: r.website,
+      funding_goal: Number(r.funding_goal ?? 0),
+      vantage_point: Number(r.vantage_point ?? 0),
+      fundability: Number(r.fundability ?? 0),
+      investment_readiness: Number(r.investment_readiness ?? 0),
+      logo_url: r.logo_url,
+      name: r.name,
+      avatar_url: r.avatar_url,
+      dot_id: r.dot_id,
+    }));
+    return reply.send({ ventures: out });
+  });
+
+
 }
 // @ts-nocheck

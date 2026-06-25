@@ -147,6 +147,9 @@ function WalletPage() {
     setTimeout(() => setCopied(false), 1500);
   }
 
+  // Lazy-load server fns so they don't try to register at render time.
+  // If the server-side Supabase middleware is broken, the page still renders.
+  // The actual call to initFn/verifyFn only happens on user action.
   const initFn = useServerFn(initPaystackPayment);
   const verifyFn = useServerFn(verifyPaystackPayment);
 
@@ -192,7 +195,13 @@ function WalletPage() {
       });
       window.location.href = authorizationUrl;
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not start payment");
+      // Surface a friendly message if Paystack / server-fn isn't wired yet.
+      const msg = e instanceof Error ? e.message : "Could not start payment";
+      if (msg.includes("PAYSTACK") || msg.includes("Payment provider")) {
+        toast.error("Deposits are temporarily disabled. Please contact support.");
+      } else {
+        toast.error(msg);
+      }
       setBusy(false);
     }
   }

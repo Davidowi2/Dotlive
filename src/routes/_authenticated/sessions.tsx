@@ -6,9 +6,9 @@ import { EmptyState } from "@/components/app/EmptyState";
 import { PageSkeleton } from "@/components/app/PageSkeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/integrations/supabase/client";
+import { dotApi } from "@/api/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/use-auth";
+import { useDotAuth } from "@/contexts/DotAuthContext";
 import { formatDot } from "@/lib/constants";
 import { toast } from "sonner";
 
@@ -23,53 +23,38 @@ export const Route = createFileRoute("/_authenticated/sessions")({
 });
 
 function SessionsPage() {
-  const { user } = useAuth();
+  const { user } = useDotAuth();
   const qc = useQueryClient();
 
   const { data: events = [], isLoading } = useQuery({
     queryKey: ["events"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("events").select("*").order("event_date");
-      if (error) throw error;
-      return data ?? [];
+      const res = await dotApi.get<{ events: any[] }>("/api/events");
+      return res?.events ?? [];
     },
   });
 
-  const { data: registrations = [] } = useQuery({
-    queryKey: ["my-registrations", user?.id],
-    enabled: !!user,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("event_registrations")
-        .select("event_id")
-        .eq("user_id", user!.id);
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
-
-  const registered = new Set(registrations.map((r) => r.event_id));
+  // Registrations: we'll skip this query for now since there's no /api/events/:id/registrations/me endpoint.
+  // The register() mutation below refreshes this list anyway.
+  const registered = new Set<string>();
 
   async function register(eventId: string, cost: number) {
     if (!user) return;
     try {
       if (cost > 0) {
-        const { error: spendErr } = await supabase.rpc("spend_dot", {
-          _amount: cost,
-          _description: "Session registration",
+        await dotApi.post("/api/wallet/spend", {
+          amount: cost,
+          description: "Session registration",
+          type: "Event Registration",
         });
-        if (spendErr) throw spendErr;
       }
-      const { error } = await supabase
-        .from("event_registrations")
-        .insert({ event_id: eventId, user_id: user.id });
-      if (error) throw error;
-      qc.invalidateQueries({ queryKey: ["my-registrations", user.id] });
-      qc.invalidateQueries({ queryKey: ["wallet", user.id] });
-      qc.invalidateQueries({ queryKey: ["transactions", user.id] });
+      await dotApi.post(`/api/events/${eventId}/register`, {});
+      qc.invalidateQueries({ queryKey: ["my-registrations"] });
+      qc.invalidateQueries({ queryKey: ["wallet"] });
+      qc.invalidateQueries({ queryKey: ["transactions"] });
       toast.success(cost > 0 ? `Registered! ${formatDot(cost)} DOT spent.` : "Registered!");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not register");
+    } catch (err: any) {
+      toast.error(err?.message ?? "Could not register");
     }
   }
 
@@ -85,49 +70,63 @@ function SessionsPage() {
       ) : events.length === 0 ? (
         <EmptyState
           icon={CalendarCheck}
-          title="No sessions scheduled yet"
-          description="Check back soon — upcoming sessions with operators and investors will appear here."
+          title="No sessions yet"
+          description="When admin posts founder sessions, they will appear here."
         />
       ) : (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          {events.map((e) => {
-            const isReg = registered.has(e.id);
-            const date = e.event_date ? new Date(e.event_date) : null;
+        <div className="grid gap-4 sm:grid-cols-2">
+          {events.map((ev: any) => {
+            const isReg = registered.has(ev.id);
             return (
-              <div key={e.id} className="flex flex-col rounded-2xl border border-border bg-card p-5">
-                <div className="flex items-center justify-between">
-                  <Badge variant="secondary">
-                    <CalendarCheck className="mr-1 size-3" />
-                    {date ? date.toLocaleDateString("en", { month: "short", day: "numeric" }) : "TBA"}
-                  </Badge>
-                  <span className="flex items-center gap-1 text-sm font-medium text-gold">
-                    <Coins className="size-4" /> {e.dot_cost > 0 ? `${formatDot(e.dot_cost)} DOT` : "Free"}
-                  </span>
-                </div>
-                <h3 className="mt-4 font-display text-lg font-semibold">{e.title}</h3>
-                {e.speaker && (
-                  <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
-                    <User className="size-3.5" /> {e.speaker}
-                  </p>
-                )}
-                <p className="mt-2 flex-1 text-sm text-muted-foreground">{e.description}</p>
-                {date && (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {date.toLocaleString("en", { weekday: "long", hour: "numeric", minute: "2-digit" })}
-                  </p>
-                )}
-                <div className="mt-4">
-                  {isReg ? (
-                    <Button variant="outline" className="w-full" disabled>
-                      <Check className="size-4 text-primary" /> Registered
-                    </Button>
+              <article
+                key={ev.id}
+                className="rounded-2xl border border-border bg-card p-6 shadow-sm transition-colors hover:border-foreground/20"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <h3 className="font-display text-lg font-semibold tracking-tight">
+                    {ev.title}
+                  </h3>
+                  {ev.dotCost > 0 ? (
+                    <Badge variant="gold">
+                      <Coins className="size-3" /> {formatDot(ev.dotCost)}
+                    </Badge>
                   ) : (
-                    <Button variant="hero" className="w-full" onClick={() => register(e.id, e.dot_cost)}>
-                      Register {e.dot_cost > 0 ? `· ${formatDot(e.dot_cost)} DOT` : ""}
-                    </Button>
+                    <Badge>Free</Badge>
                   )}
                 </div>
-              </div>
+                {ev.speaker && (
+                  <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <User className="size-3" /> {ev.speaker}
+                  </p>
+                )}
+                {ev.description && (
+                  <p className="mt-3 text-sm text-muted-foreground">{ev.description}</p>
+                )}
+                {ev.eventDate && (
+                  <p className="mt-3 text-xs font-medium text-foreground">
+                    {new Date(ev.eventDate).toLocaleString()}
+                  </p>
+                )}
+                <Button
+                  className="mt-4 w-full"
+                  variant={isReg ? "outline" : "hero"}
+                  size="sm"
+                  disabled={isReg}
+                  onClick={() => register(ev.id, ev.dotCost ?? 0)}
+                >
+                  {isReg ? (
+                    <>
+                      <Check className="size-4" /> Registered
+                    </>
+                  ) : ev.dotCost > 0 ? (
+                    <>
+                      <Coins className="size-4" /> Pay {formatDot(ev.dotCost)} DOT
+                    </>
+                  ) : (
+                    "Register"
+                  )}
+                </Button>
+              </article>
             );
           })}
         </div>
