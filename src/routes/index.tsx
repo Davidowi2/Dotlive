@@ -24,6 +24,7 @@ import {
   Zap,
   ArrowUpRight,
   CircleDollarSign,
+  UserPlus,
 } from "lucide-react";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { SiteFooter } from "@/components/site/SiteFooter";
