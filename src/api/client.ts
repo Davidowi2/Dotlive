@@ -82,15 +82,60 @@ async function request<T>(
 
   if (!res.ok) {
     const err = data as ApiErrorResponse;
+    // Special-case 500: hint at common causes (Render cold start, env vars, migrations)
+    if (res.status === 500) {
+      throw new ApiError(
+        "Server error (500). If the backend is on Render free tier, it may be asleep — wait 30s and retry. Otherwise check the API logs for missing env vars or unrun migrations.",
+        500,
+        err?.code,
+        err?.details,
+      );
+    }
+    if (res.status === 502 || res.status === 503 || res.status === 504) {
+      throw new ApiError(
+        "Backend unavailable. Render free tier services sleep after 15min of inactivity — first request takes 30-60s to wake up.",
+        res.status,
+        err?.code,
+        err?.details,
+      );
+    }
+    if (res.status === 0 || res.status === 404 && contentType.includes("text/html")) {
+      throw new ApiError(
+        `Could not reach ${BASE_URL}. Check VITE_API_URL is set correctly in your Vercel env vars.`,
+        res.status,
+        "network",
+      );
+    }
     throw new ApiError(
       err?.error ?? `Request failed with status ${res.status}`,
       res.status,
       err?.code,
-      err?.details
+      err?.details,
     );
   }
 
   return data as T;
+}
+
+/* ── Network error wrapping ──────────────────────────── */
+const _originalRequest = request;
+// Wrap fetch to add network error hints
+if (typeof window !== "undefined") {
+  const origFetch = window.fetch;
+  window.fetch = async (input, init) => {
+    try {
+      return await origFetch(input as any, init);
+    } catch (err) {
+      const url = typeof input === "string" ? input : (input as Request).url ?? "";
+      if (url.includes(BASE_URL)) {
+        const reason = err instanceof Error ? err.message : "Network error";
+        throw new TypeError(
+          `Network request to ${BASE_URL} failed: ${reason}. This is usually a CORS issue, the API being down, or an incorrect VITE_API_URL.`
+        );
+      }
+      throw err;
+    }
+  };
 }
 
 /* ── Public API ────────────────────────────────────────── */

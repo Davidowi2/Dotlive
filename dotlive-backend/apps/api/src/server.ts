@@ -102,18 +102,27 @@ app.addContentTypeParser(
 
 await app.register(cors, {
   origin: (origin, cb) => {
+    // Build allowed list from env at boot
+    const envOrigins = (process.env.ALLOWED_ORIGINS ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
     const allowed = [
       "http://localhost:5173",
       "http://localhost:3000",
       "http://localhost:8081",
       "https://dotlive-lake.vercel.app",
+      "https://dotlive-web.vercel.app",
+      ...envOrigins,
     ];
-    // Allow all vercel.app previews and exact matches
+    // Allow all vercel.app previews and exact matches.
+    // In dev / curl-with-no-origin, allow through.
     if (
       !origin ||
       allowed.includes(origin) ||
       origin.endsWith(".vercel.app") ||
-      origin.endsWith(".onrender.com")
+      origin.endsWith(".onrender.com") ||
+      process.env.NODE_ENV !== "production"
     ) {
       cb(null, true);
     } else {
@@ -171,12 +180,50 @@ declare module "fastify" {
 
 /* ── Health check ────────────────────────────────────────────── */
 
-app.get("/api/health", async () => ({
-  ok: true,
-  service: "dotlive-api",
-  env: NODE_ENV,
-  time: new Date().toISOString(),
-}));
+app.get("/api/health", async () => {
+  // Test DB connectivity so cold-start failures are visible
+  let dbOk = false;
+  let dbError: string | null = null;
+  try {
+    const { sql } = await import("drizzle-orm");
+    const { db } = await import("./db/client.js");
+    await db.execute(sql`SELECT 1`);
+    dbOk = true;
+  } catch (err) {
+    dbError = err instanceof Error ? err.message : String(err);
+  }
+
+  return {
+    ok: dbOk,
+    service: "dotlive-api",
+    env: NODE_ENV,
+    time: new Date().toISOString(),
+    uptime: process.uptime(),
+    checks: {
+      database: {
+        ok: dbOk,
+        error: dbError,
+        configured: !!process.env.DATABASE_URL,
+      },
+      jwt: {
+        ok: !!process.env.JWT_SECRET && process.env.JWT_SECRET !== "dev-secret-do-not-use-in-prod",
+        configured: !!process.env.JWT_SECRET,
+      },
+      googleOAuth: {
+        ok: !!process.env.GOOGLE_CLIENT_ID && !!process.env.GOOGLE_CLIENT_SECRET,
+        configured: !!process.env.GOOGLE_CLIENT_ID,
+      },
+      paystack: {
+        ok: !!process.env.PAYSTACK_SECRET_KEY,
+        configured: !!process.env.PAYSTACK_SECRET_KEY,
+      },
+      cloudinary: {
+        ok: !!process.env.CLOUDINARY_CLOUD_NAME && !!process.env.CLOUDINARY_API_KEY,
+        configured: !!process.env.CLOUDINARY_CLOUD_NAME,
+      },
+    },
+  };
+});
 
 /* ── Routes ──────────────────────────────────────────────────── */
 

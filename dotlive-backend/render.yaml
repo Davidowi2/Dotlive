@@ -37,6 +37,10 @@ services:
         value: https://dotlive-web.vercel.app
       - key: API_BASE_URL
         value: https://dotlive-api.onrender.com
+      # Additional CORS origins (comma-separated). Any *.vercel.app previews
+      # are also accepted via the runtime CORS check in server.ts.
+      - key: ALLOWED_ORIGINS
+        value: "https://dotlive-web.vercel.app,https://dotlive-lake.vercel.app"
       - key: CLOUDINARY_CLOUD_NAME
         value: dccqvg23z
       - key: CLOUDINARY_API_KEY
