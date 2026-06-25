@@ -370,12 +370,8 @@ function RolesTab() {
   const { data: audit = [] } = useQuery({
     queryKey: ["role-audit-log"],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("role_audit_log")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(50);
-      return data ?? [];
+      const res = await dotApi.get<{ entries: any[] }>("/api/admin/audit?limit=50");
+      return res?.entries ?? [];
     },
   });
 
@@ -514,7 +510,17 @@ function RolesTab() {
               header: "When",
               cell: (a) => (
                 <span className="text-muted-foreground">
-                  {new Date(a.created_at).toLocaleString()}
+                  {new Date(a.createdAt ?? a.created_at).toLocaleString()}
+                </span>
+              ),
+            },
+            {
+              key: "actor",
+              header: "Actor",
+              hideOnMobile: true,
+              cell: (a) => (
+                <span className="text-sm text-muted-foreground">
+                  {a.actorEmail ?? a.actorId ?? "—"}
                 </span>
               ),
             },
@@ -522,22 +528,29 @@ function RolesTab() {
               key: "action",
               header: "Action",
               cell: (a) => (
-                <Badge variant={a.action === "revoked" ? "destructive" : "secondary"}>
+                <Badge variant={a.action?.includes("revoke") || a.action?.includes("ban") ? "destructive" : "secondary"}>
                   {a.action}
                 </Badge>
               ),
             },
             {
-              key: "role",
-              header: "Role",
-              cell: (a) => <span>{a.new_role}</span>,
-            },
-            {
-              key: "previous",
-              header: "Previous",
+              key: "target",
+              header: "Target",
               hideOnMobile: true,
               cell: (a) => (
-                <span className="text-muted-foreground">{a.previous_role ?? "—"}</span>
+                <span className="font-mono text-xs text-muted-foreground">
+                  {a.targetId ?? "—"}
+                </span>
+              ),
+            },
+            {
+              key: "reason",
+              header: "Reason",
+              hideOnMobile: true,
+              cell: (a) => (
+                <span className="text-sm text-muted-foreground truncate max-w-[200px] inline-block">
+                  {a.reason ?? "—"}
+                </span>
               ),
             },
           ]}
