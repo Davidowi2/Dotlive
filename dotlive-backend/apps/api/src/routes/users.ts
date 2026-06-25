@@ -139,21 +139,40 @@ export async function userRoutes(app: FastifyInstance) {
   app.post("/users/me/founder-profile", { preHandler: app.authenticate }, async (req, reply) => {
     const { sub } = req.user as { sub: string };
     const body = (req.body ?? {}) as Record<string, unknown>;
-
     await db.execute(sql`
-      INSERT INTO founder_profiles (id, user_id, bio, skills, current_stage, venture_name, venture_description, website_url, linkedin_url, twitter_url, country, city, created_at, updated_at)
-      VALUES (${sub}, ${sub}, ${(body.bio as string) ?? null}, ${(body.skills as string[]) ?? []}, ${(body.currentStage as string) ?? null}, ${(body.ventureName as string) ?? null}, ${(body.ventureDescription as string) ?? null}, ${(body.websiteUrl as string) ?? null}, ${(body.linkedinUrl as string) ?? null}, ${(body.twitterUrl as string) ?? null}, ${(body.country as string) ?? null}, ${(body.city as string) ?? null}, NOW(), NOW())
+      INSERT INTO founder_profiles (
+        user_id, venture_name, industry, stage, country,
+        bio, website, funding_goal, logo_url,
+        vantage_point, fundability, investment_readiness,
+        created_at, updated_at
+      )
+      VALUES (
+        ${sub},
+        ${(body.ventureName as string) ?? null},
+        ${(body.industry as string) ?? null},
+        ${(body.stage as string) ?? "Assess"},
+        ${(body.country as string) ?? null},
+        ${(body.bio as string) ?? null},
+        ${(body.website as string) ?? null},
+        ${(body.fundingGoal as string) ?? "0"},
+        ${(body.logoUrl as string) ?? null},
+        ${Number(body.vantagePoint ?? 0)},
+        ${Number(body.fundability ?? 0)},
+        ${Number(body.investmentReadiness ?? 0)},
+        NOW(), NOW()
+      )
       ON CONFLICT (user_id) DO UPDATE SET
-        bio = EXCLUDED.bio,
-        skills = EXCLUDED.skills,
-        current_stage = EXCLUDED.current_stage,
         venture_name = EXCLUDED.venture_name,
-        venture_description = EXCLUDED.venture_description,
-        website_url = EXCLUDED.website_url,
-        linkedin_url = EXCLUDED.linkedin_url,
-        twitter_url = EXCLUDED.twitter_url,
+        industry = EXCLUDED.industry,
+        stage = EXCLUDED.stage,
         country = EXCLUDED.country,
-        city = EXCLUDED.city,
+        bio = EXCLUDED.bio,
+        website = EXCLUDED.website,
+        funding_goal = EXCLUDED.funding_goal,
+        logo_url = EXCLUDED.logo_url,
+        vantage_point = EXCLUDED.vantage_point,
+        fundability = EXCLUDED.fundability,
+        investment_readiness = EXCLUDED.investment_readiness,
         updated_at = NOW()
     `);
     return reply.send({ ok: true });
@@ -164,7 +183,7 @@ export async function userRoutes(app: FastifyInstance) {
   app.get("/users/me/builder-profile", { preHandler: app.authenticate }, async (req, reply) => {
     const { sub } = req.user as { sub: string };
     const rows = await db.execute(sql`
-      SELECT * FROM builder_profiles WHERE user_id = ${sub} LIMIT 1
+      SELECT * FROM builder_profiles WHERE id = ${sub} LIMIT 1
     `);
     const profile = (rows as any).rows?.[0] ?? null;
     return reply.send({ profile });
@@ -174,16 +193,18 @@ export async function userRoutes(app: FastifyInstance) {
   app.post("/users/me/builder-profile", { preHandler: app.authenticate }, async (req, reply) => {
     const { sub } = req.user as { sub: string };
     const body = (req.body ?? {}) as Record<string, unknown>;
-
+    const headline = (body.headline as string) ?? "";
+    const bio = (body.bio as string) ?? null;
+    const skills = Array.isArray(body.skills) ? (body.skills as string[]) : [];
+    const available = body.available !== false;
     await db.execute(sql`
-      INSERT INTO builder_profiles (id, user_id, bio, skills, hourly_rate_dot, portfolio_url, is_available, created_at, updated_at)
-      VALUES (${sub}, ${sub}, ${(body.bio as string) ?? null}, ${(body.skills as string[]) ?? []}, ${Number(body.hourlyRateDot ?? 0)}, ${(body.portfolioUrl as string) ?? null}, ${body.isAvailable !== false}, NOW(), NOW())
-      ON CONFLICT (user_id) DO UPDATE SET
+      INSERT INTO builder_profiles (id, headline, bio, skills, available, created_at, updated_at)
+      VALUES (${sub}, ${headline}, ${bio}, ${skills as any}, ${available}, NOW(), NOW())
+      ON CONFLICT (id) DO UPDATE SET
+        headline = EXCLUDED.headline,
         bio = EXCLUDED.bio,
         skills = EXCLUDED.skills,
-        hourly_rate_dot = EXCLUDED.hourly_rate_dot,
-        portfolio_url = EXCLUDED.portfolio_url,
-        is_available = EXCLUDED.is_available,
+        available = EXCLUDED.available,
         updated_at = NOW()
     `);
     return reply.send({ ok: true });
