@@ -56,6 +56,11 @@ import {
   auditTx,
   reqAuditCtx,
 } from "../lib/admin.js";
+import {
+  loadUserWithRoles,
+  userHasRole,
+  getUserRoles,
+} from "../lib/auth.js";
 
 const REASON_MIN = 8;
 
@@ -733,11 +738,110 @@ export async function adminRoutes(app: FastifyInstance) {
         activeServices: Number(s?.n ?? 0),
         activeJobs: Number(j?.n ?? 0),
         transactions: Number(tx2?.n ?? 0),
-        activeFeatureFlags: Number(fa?.n ?? 0),
-      });
-    }
-  );
-}
+                activeFeatureFlags: Number(fa?.n ?? 0),
+              });
+            }
+          );
+
+          /* ── USER EDITING — PATCH /api/admin/users/:id ───────────────── */
+          /** Update user profile (name, email, avatar). Available to any admin. */
+          app.patch("/users/:id", { preHandler: app.authenticate, config: { rateLimit: { max: 30, timeWindow: "1 minute" } } }, async (req, reply) => {
+            const { sub: adminId } = req.user as { sub: string };
+            const roles = await getUserRoles(adminId);
+            if (!roles.includes("admin") && !roles.includes("super_admin")) {
+              return reply.code(403).send({ error: "Admin only" });
+            }
+            const { id } = req.params as { id: string };
+            const body = (req.body ?? {}) as Record<string, unknown>;
+            const updates: Record<string, unknown> = { updatedAt: new Date() };
+            if (typeof body.name === "string") updates.name = body.name;
+            if (typeof body.email === "string") updates.email = body.email.toLowerCase();
+            if (typeof body.avatarUrl === "string") updates.avatarUrl = body.avatarUrl;
+            if (typeof body.emailVerified === "boolean") updates.emailVerified = body.emailVerified;
+
+            if (Object.keys(updates).length === 1) {
+              return reply.code(400).send({ error: "No updatable fields provided" });
+            }
+            await db.execute(sql`
+              UPDATE users SET
+                ${sql.raw(Object.keys(updates).filter((k) => k !== "updatedAt").map((k) => `${k === "avatarUrl" ? "avatar_url" : k === "emailVerified" ? "email_verified" : k} = ${JSON.stringify(updates[k])}`).join(", "))},
+                updated_at = NOW()
+              WHERE id = ${id}
+            `);
+            return reply.send({ ok: true });
+          });
+
+          /* ── ROLE EDITING — PUT /api/admin/users/:id/roles ───────────── */
+          /** Replace user's roles array. Super-admin only. */
+          app.put("/users/:id/roles", { preHandler: app.authenticate }, async (req, reply) => {
+            const { sub: adminId } = req.user as { sub: string };
+            const roles = await getUserRoles(adminId);
+            if (!roles.includes("super_admin")) {
+              return reply.code(403).send({ error: "Super-admin only" });
+            }
+            const { id } = req.params as { id: string };
+            const body = (req.body ?? {}) as { roles?: string[] };
+            if (!Array.isArray(body.roles)) {
+              return reply.code(400).send({ error: "roles must be an array" });
+            }
+            // Wipe + replace
+            await db.execute(sql`DELETE FROM user_roles WHERE user_id = ${id}`);
+            for (const r of body.roles) {
+              await db.execute(sql`INSERT INTO user_roles (user_id, role, granted_at) VALUES (${id}, ${r}, NOW()) ON CONFLICT DO NOTHING`);
+            }
+            return reply.send({ ok: true });
+          });
+
+          /* ── CONTENT CREATION — admin can create courses/events/pitchathons ── */
+
+          /** POST /api/admin/courses */
+          app.post("/courses", { preHandler: app.authenticate }, async (req, reply) => {
+            const { sub: adminId } = req.user as { sub: string };
+            const roles = await getUserRoles(adminId);
+            if (!roles.includes("admin") && !roles.includes("super_admin")) {
+              return reply.code(403).send({ error: "Admin only" });
+            }
+            const body = (req.body ?? {}) as Record<string, unknown>;
+            const id = crypto.randomUUID();
+            await db.execute(sql`
+              INSERT INTO courses (id, title, description, category, whop_url, dot_reward, vantage_boost, is_published, created_at)
+              VALUES (${id}, ${(body.title as string) ?? ""}, ${(body.description as string) ?? null}, ${(body.category as string) ?? null}, ${(body.whopUrl as string) ?? null}, ${Number(body.dotReward ?? 0)}, ${Number(body.vantageBoost ?? 0)}, ${body.isPublished !== false}, NOW())
+            `);
+            return reply.send({ id });
+          });
+
+          /** POST /api/admin/events */
+          app.post("/events", { preHandler: app.authenticate }, async (req, reply) => {
+            const { sub: adminId } = req.user as { sub: string };
+            const roles = await getUserRoles(adminId);
+            if (!roles.includes("admin") && !roles.includes("super_admin")) {
+              return reply.code(403).send({ error: "Admin only" });
+            }
+            const body = (req.body ?? {}) as Record<string, unknown>;
+            const id = crypto.randomUUID();
+            await db.execute(sql`
+              INSERT INTO events (id, title, description, speaker, event_date, dot_cost, capacity, created_at)
+              VALUES (${id}, ${(body.title as string) ?? ""}, ${(body.description as string) ?? null}, ${(body.speaker as string) ?? null}, ${body.eventDate ? new Date(body.eventDate as string) : null}, ${Number(body.dotCost ?? 0)}, ${Number(body.capacity ?? 100)}, NOW())
+            `);
+            return reply.send({ id });
+          });
+
+          /** POST /api/admin/pitchathons */
+          app.post("/pitchathons", { preHandler: app.authenticate }, async (req, reply) => {
+            const { sub: adminId } = req.user as { sub: string };
+            const roles = await getUserRoles(adminId);
+            if (!roles.includes("admin") && !roles.includes("super_admin")) {
+              return reply.code(403).send({ error: "Admin only" });
+            }
+            const body = (req.body ?? {}) as Record<string, unknown>;
+            const id = crypto.randomUUID();
+            await db.execute(sql`
+              INSERT INTO pitchathons (id, title, description, prize_pool_dot, application_deadline, status, created_at, updated_at)
+              VALUES (${id}, ${(body.title as string) ?? ""}, ${(body.description as string) ?? null}, ${Number(body.prizePoolDot ?? 0)}, ${body.applicationDeadline ? new Date(body.applicationDeadline as string) : null}, ${(body.status as string) ?? "open"}, NOW(), NOW())
+            `);
+            return reply.send({ id });
+          });
+        }
 
 /* ============================== helpers ============================== */
 

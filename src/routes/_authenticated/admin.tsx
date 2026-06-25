@@ -925,15 +925,14 @@ function ContentTab() {
             { key: "vantage_boost", label: "Vantage boost", number: true },
           ]}
           onSubmit={async (v) => {
-            const { error } = await supabase.from("courses").insert({
+            await dotApi.post("/api/admin/courses", {
               title: v.title,
               description: v.description,
-              whop_url: v.whop_url,
+              whopUrl: v.whop_url,
               category: v.category,
-              dot_reward: Number(v.dot_reward) || 0,
-              vantage_boost: Number(v.vantage_boost) || 0,
+              dotReward: Number(v.dot_reward) || 0,
+              vantageBoost: Number(v.vantage_boost) || 0,
             });
-            if (error) throw error;
             qc.invalidateQueries({ queryKey: ["courses"] });
           }}
         />
@@ -949,15 +948,14 @@ function ContentTab() {
             { key: "capacity", label: "Capacity", number: true },
           ]}
           onSubmit={async (v) => {
-            const { error } = await supabase.from("events").insert({
+            await dotApi.post("/api/admin/events", {
               title: v.title,
               description: v.description,
               speaker: v.speaker,
-              event_date: v.event_date ? new Date(v.event_date).toISOString() : null,
-              dot_cost: Number(v.dot_cost) || 0,
+              eventDate: v.event_date ? new Date(v.event_date).toISOString() : null,
+              dotCost: Number(v.dot_cost) || 0,
               capacity: Number(v.capacity) || 100,
             });
-            if (error) throw error;
             qc.invalidateQueries({ queryKey: ["events"] });
           }}
         />
@@ -967,20 +965,18 @@ function ContentTab() {
           fields={[
             { key: "title", label: "Title" },
             { key: "description", label: "Description", textarea: true },
-            { key: "prize", label: "Prize" },
-            { key: "start_date", label: "Start", type: "datetime-local" },
-            { key: "end_date", label: "End", type: "datetime-local" },
+            { key: "prize", label: "Prize (DOT)", number: true },
+            { key: "start_date", label: "Opens", type: "datetime-local" },
+            { key: "end_date", label: "Closes", type: "datetime-local" },
           ]}
           onSubmit={async (v) => {
-            const { error } = await supabase.from("pitchathons").insert({
+            await dotApi.post("/api/admin/pitchathons", {
               title: v.title,
               description: v.description,
-              prize: v.prize,
-              start_date: v.start_date ? new Date(v.start_date).toISOString() : null,
-              end_date: v.end_date ? new Date(v.end_date).toISOString() : null,
+              prizePoolDot: Number(v.prize) || 0,
+              applicationDeadline: v.end_date ? new Date(v.end_date).toISOString() : null,
               status: "open",
             });
-            if (error) throw error;
             qc.invalidateQueries({ queryKey: ["pitchathons"] });
           }}
         />
