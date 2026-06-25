@@ -1,10 +1,10 @@
 /**
- * User routes: profile, role management, lookup.
+ * User routes: profile, role management, lookup, founder + builder profiles.
  */
 
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 import { db } from "../db/client.js";
 import { users, userRoles, roleRequirements, wallets } from "../db/schema.js";
@@ -122,6 +122,71 @@ export async function userRoutes(app: FastifyInstance) {
     return reply.send({
       user: { ...u, roles: roles.map((r) => r.role) },
     });
+  });
+
+  /* ── Founder profile (founder_profiles table) ─────────────── */
+  /** GET /api/users/me/founder-profile */
+  app.get("/users/me/founder-profile", { preHandler: app.authenticate }, async (req, reply) => {
+    const { sub } = req.user as { sub: string };
+    const rows = await db.execute(sql`
+      SELECT * FROM founder_profiles WHERE user_id = ${sub} LIMIT 1
+    `);
+    const profile = (rows as any).rows?.[0] ?? null;
+    return reply.send({ profile });
+  });
+
+  /** POST /api/users/me/founder-profile */
+  app.post("/users/me/founder-profile", { preHandler: app.authenticate }, async (req, reply) => {
+    const { sub } = req.user as { sub: string };
+    const body = (req.body ?? {}) as Record<string, unknown>;
+
+    await db.execute(sql`
+      INSERT INTO founder_profiles (id, user_id, bio, skills, current_stage, venture_name, venture_description, website_url, linkedin_url, twitter_url, country, city, created_at, updated_at)
+      VALUES (${sub}, ${sub}, ${(body.bio as string) ?? null}, ${(body.skills as string[]) ?? []}, ${(body.currentStage as string) ?? null}, ${(body.ventureName as string) ?? null}, ${(body.ventureDescription as string) ?? null}, ${(body.websiteUrl as string) ?? null}, ${(body.linkedinUrl as string) ?? null}, ${(body.twitterUrl as string) ?? null}, ${(body.country as string) ?? null}, ${(body.city as string) ?? null}, NOW(), NOW())
+      ON CONFLICT (user_id) DO UPDATE SET
+        bio = EXCLUDED.bio,
+        skills = EXCLUDED.skills,
+        current_stage = EXCLUDED.current_stage,
+        venture_name = EXCLUDED.venture_name,
+        venture_description = EXCLUDED.venture_description,
+        website_url = EXCLUDED.website_url,
+        linkedin_url = EXCLUDED.linkedin_url,
+        twitter_url = EXCLUDED.twitter_url,
+        country = EXCLUDED.country,
+        city = EXCLUDED.city,
+        updated_at = NOW()
+    `);
+    return reply.send({ ok: true });
+  });
+
+  /* ── Builder profile (builder_profiles table) ──────────────── */
+  /** GET /api/users/me/builder-profile */
+  app.get("/users/me/builder-profile", { preHandler: app.authenticate }, async (req, reply) => {
+    const { sub } = req.user as { sub: string };
+    const rows = await db.execute(sql`
+      SELECT * FROM builder_profiles WHERE user_id = ${sub} LIMIT 1
+    `);
+    const profile = (rows as any).rows?.[0] ?? null;
+    return reply.send({ profile });
+  });
+
+  /** POST /api/users/me/builder-profile */
+  app.post("/users/me/builder-profile", { preHandler: app.authenticate }, async (req, reply) => {
+    const { sub } = req.user as { sub: string };
+    const body = (req.body ?? {}) as Record<string, unknown>;
+
+    await db.execute(sql`
+      INSERT INTO builder_profiles (id, user_id, bio, skills, hourly_rate_dot, portfolio_url, is_available, created_at, updated_at)
+      VALUES (${sub}, ${sub}, ${(body.bio as string) ?? null}, ${(body.skills as string[]) ?? []}, ${Number(body.hourlyRateDot ?? 0)}, ${(body.portfolioUrl as string) ?? null}, ${body.isAvailable !== false}, NOW(), NOW())
+      ON CONFLICT (user_id) DO UPDATE SET
+        bio = EXCLUDED.bio,
+        skills = EXCLUDED.skills,
+        hourly_rate_dot = EXCLUDED.hourly_rate_dot,
+        portfolio_url = EXCLUDED.portfolio_url,
+        is_available = EXCLUDED.is_available,
+        updated_at = NOW()
+    `);
+    return reply.send({ ok: true });
   });
 }
 // @ts-nocheck

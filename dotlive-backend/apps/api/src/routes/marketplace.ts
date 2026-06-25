@@ -332,23 +332,63 @@ export async function marketplaceRoutes(app: FastifyInstance) {
       .update(serviceOrders)
       .set({ status: "cancelled", updatedAt: new Date() } as any)
       .where(eq(serviceOrders.id, req.params.id))
-      .returning();
-    return reply.send({ order: updated[0] });
-  });
-}
+            .returning();
+          return reply.send({ order: updated[0] });
+        });
 
-function serializeService(s: any) {
-  return {
-    id: s.id,
-    builderId: s.builderId,
-    title: s.title,
-    description: s.description,
-    category: s.category,
-    priceDot: Number(s.priceDot),
-    nairaEquivalent: dotToNaira(s.priceDot),
-    deliveryDays: s.deliveryDays,
-    isActive: s.isActive,
-    createdAt: s.createdAt,
-  };
-}
+        /* ── Convenience endpoints for "mine" queries ─────────────── */
+
+        /** GET /api/services/mine — current user's services as builder */
+        app.get("/services/mine", { preHandler: app.authenticate }, async (req, reply) => {
+          const { sub } = req.user as { sub: string };
+          const rows = await db
+            .select()
+            .from(services)
+            .where(eq(services.builderId, sub))
+            .orderBy(desc(services.createdAt));
+          return reply.send({ services: rows.map(serializeService) });
+        });
+
+        /** GET /api/jobs/mine — current user's posted job listings */
+        app.get("/jobs/mine", { preHandler: app.authenticate }, async (req, reply) => {
+          const { sub } = req.user as { sub: string };
+          const rows = await db
+            .select()
+            .from(jobListings)
+            .where(eq(jobListings.ventureId, sub))
+            .orderBy(desc(jobListings.createdAt));
+          return reply.send({ jobs: rows.map(serializeJob) });
+        });
+      }
+
+      function serializeService(s: any) {
+        return {
+          id: s.id,
+          builderId: s.builderId,
+          title: s.title,
+          description: s.description,
+          category: s.category,
+          priceDot: Number(s.priceDot),
+          nairaEquivalent: dotToNaira(s.priceDot),
+          deliveryDays: s.deliveryDays,
+          isActive: s.isActive,
+          createdAt: s.createdAt,
+        };
+      }
+
+      function serializeJob(j: any) {
+        return {
+          id: j.id,
+          ventureId: j.ventureId,
+          title: j.title,
+          description: j.description,
+          category: j.category,
+          salaryDot: Number(j.salaryDot),
+          employmentType: j.employmentType,
+          requirements: j.requirements,
+          isOpen: j.isOpen,
+          createdAt: j.createdAt,
+          updatedAt: j.updatedAt,
+        };
+      }
 // @ts-nocheck

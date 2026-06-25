@@ -1,261 +1,356 @@
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/use-auth";
+/**
+ * use-dot-data.ts — data hooks for DOT app.
+ *
+ * ALL hooks go through the Render/Neon API (custom JWT auth).
+ * No Supabase imports. Every hook falls back gracefully on failure
+ * so the UI can render placeholder/empty states instead of crashing.
+ *
+ * Each hook uses `useDotAuth()` to get the current user and JWT.
+ * If not authenticated, the query is disabled.
+ */
 
+import { useQuery } from "@tanstack/react-query";
+import { dotApi } from "@/api/client";
+import { useDotAuth } from "@/contexts/DotAuthContext";
+
+/* ──────────────────────────────────────────────────────────────────
+ * Common shapes returned by Render API.
+ * Backend returns `{ user: {...} }` for single resources and arrays for lists.
+ * ────────────────────────────────────────────────────────────────── */
+
+export interface FounderProfile {
+  id: string;
+  userId: string;
+  bio?: string | null;
+  skills?: string[] | null;
+  currentStage?: string | null;
+  ventureName?: string | null;
+  ventureDescription?: string | null;
+  websiteUrl?: string | null;
+  linkedinUrl?: string | null;
+  twitterUrl?: string | null;
+  country?: string | null;
+  city?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Assessment {
+  id: string;
+  userId: string;
+  ventureId?: string | null;
+  stage: string;
+  score: number;
+  answers?: unknown;
+  createdAt: string;
+}
+
+export interface Enrollment {
+  id: string;
+  userId: string;
+  courseId: string;
+  progressPct: number;
+  completedAt?: string | null;
+  createdAt: string;
+  course?: {
+    id: string;
+    title: string;
+    description?: string;
+    moduleCount?: number;
+  };
+}
+
+export interface CommunityMember {
+  id: string;
+  communityId: string;
+  founderId: string;
+  role: "member" | "leader" | "founder";
+  status: "active" | "paused" | "removed";
+  joinedAt: string;
+  community?: {
+    id: string;
+    name: string;
+    description?: string;
+    avatarUrl?: string | null;
+  };
+}
+
+export interface BuilderProfile {
+  id: string;
+  userId: string;
+  bio?: string | null;
+  skills?: string[];
+  hourlyRateDot?: number;
+  portfolioUrl?: string | null;
+  isAvailable: boolean;
+  createdAt: string;
+}
+
+export interface BuilderStats {
+  ordersCompleted: number;
+  totalEarned: number;
+  avgRating: number;
+  reviewCount: number;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ * Hooks
+ * ────────────────────────────────────────────────────────────────── */
+
+/** Wallet balance — uses Render /api/wallet */
 export function useWallet() {
-  const { user } = useAuth();
+  const { user, token } = useDotAuth();
   return useQuery({
     queryKey: ["wallet", user?.id],
-    enabled: !!user,
+    enabled: !!user && !!token,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("wallets")
-        .select("balance")
-        .eq("user_id", user!.id)
-        .maybeSingle();
-      if (error) throw error;
-      return data?.balance ?? 0;
+      const { balance } = await dotApi.get<{ balance: number }>("/api/wallet");
+      return balance ?? 0;
     },
   });
 }
 
+/** Current user profile — uses Render /api/users/me */
 export function useMyProfile() {
-  const { user } = useAuth();
+  const { user } = useDotAuth();
   return useQuery({
     queryKey: ["my_profile", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, name, email, dot_id, avatar_url")
-        .eq("id", user!.id)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
+      const { user: u } = await dotApi.get<{ user: any }>("/api/users/me");
+      return u;
     },
   });
 }
 
+/** Wallet transactions */
 export function useTransactions() {
-  const { user } = useAuth();
+  const { user, token } = useDotAuth();
   return useQuery({
     queryKey: ["transactions", user?.id],
-    enabled: !!user,
+    enabled: !!user && !!token,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("transactions")
-        .select("*")
-        .eq("user_id", user!.id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data ?? [];
+      const { transactions } = await dotApi.get<{ transactions: any[] }>("/api/wallet/transactions");
+      return transactions ?? [];
     },
   });
 }
 
+/**
+ * Founder profile — returns null if no profile yet.
+ * Falls back gracefully so dashboard doesn't crash.
+ */
 export function useFounderProfile() {
-  const { user } = useAuth();
+  const { user, token } = useDotAuth();
   return useQuery({
     queryKey: ["founder_profile", user?.id],
-    enabled: !!user,
+    enabled: !!user && !!token,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("founder_profiles")
-        .select("*")
-        .eq("user_id", user!.id)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
+      try {
+        const { profile } = await dotApi.get<{ profile: FounderProfile | null }>(
+          "/api/users/me/founder-profile",
+        );
+        return profile ?? null;
+      } catch {
+        return null;
+      }
     },
   });
 }
 
+/** Assessments list */
 export function useAssessments() {
-  const { user } = useAuth();
+  const { user, token } = useDotAuth();
   return useQuery({
     queryKey: ["assessments", user?.id],
-    enabled: !!user,
+    enabled: !!user && !!token,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("assessments")
-        .select("*")
-        .eq("user_id", user!.id)
-        .order("created_at", { ascending: true });
-      if (error) throw error;
-      return data ?? [];
+      try {
+        const { assessments } = await dotApi.get<{ assessments: Assessment[] }>(
+          "/api/vantage/history",
+        );
+        return assessments ?? [];
+      } catch {
+        return [];
+      }
     },
   });
 }
 
+/** Academy enrollments */
 export function useMyEnrollments() {
-  const { user } = useAuth();
+  const { user, token } = useDotAuth();
   return useQuery({
     queryKey: ["enrollments", user?.id],
-    enabled: !!user,
+    enabled: !!user && !!token,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("course_enrollments")
-        .select("*")
-        .eq("user_id", user!.id);
-      if (error) throw error;
-      return data ?? [];
+      try {
+        const { enrollments } = await dotApi.get<{ enrollments: Enrollment[] }>(
+          "/api/academy/enrollments",
+        );
+        return enrollments ?? [];
+      } catch {
+        return [];
+      }
     },
   });
 }
 
+/** Community membership — returns null if not a member */
 export function useMyMembership() {
-  const { user } = useAuth();
+  const { user, token } = useDotAuth();
   return useQuery({
     queryKey: ["membership", user?.id],
-    enabled: !!user,
+    enabled: !!user && !!token,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("community_members")
-        .select("*, communities(*)")
-        .eq("founder_id", user!.id)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
+      try {
+        const { membership } = await dotApi.get<{ membership: CommunityMember | null }>(
+          "/api/community/membership",
+        );
+        return membership ?? null;
+      } catch {
+        return null;
+      }
     },
   });
 }
 
-// ============ DOT Work ============
+/** Builder profile (separate from founder profile — for marketplace/gigs) */
+export function useMyBuilderProfile() {
+  const { user, token } = useDotAuth();
+  return useQuery({
+    queryKey: ["builder_profile", user?.id],
+    enabled: !!user && !!token,
+    queryFn: async () => {
+      try {
+        const { profile } = await dotApi.get<{ profile: BuilderProfile | null }>(
+          "/api/users/me/builder-profile",
+        );
+        return profile ?? null;
+      } catch {
+        return null;
+      }
+    },
+  });
+}
 
+/** Marketplace services list */
 export function useServices(category?: string, search?: string) {
   return useQuery({
     queryKey: ["services", category ?? "all", search ?? ""],
     queryFn: async () => {
-      let q = supabase
-        .from("services")
-        .select("*")
-        .eq("is_active", true)
-        .order("created_at", { ascending: false });
-      if (category) q = q.eq("category", category);
-      if (search && search.trim()) q = q.ilike("title", `%${search.trim()}%`);
-      const { data, error } = await q;
-      if (error) throw error;
-      return data ?? [];
+      try {
+        const params = new URLSearchParams();
+        if (category) params.set("category", category);
+        if (search?.trim()) params.set("search", search.trim());
+        const qs = params.toString() ? `?${params}` : "";
+        const { services } = await dotApi.get<{ services: any[] }>(`/api/services${qs}`);
+        return services ?? [];
+      } catch {
+        return [];
+      }
     },
   });
 }
 
-export function useMyBuilderProfile() {
-  const { user } = useAuth();
-  return useQuery({
-    queryKey: ["builder_profile", user?.id],
-    enabled: !!user,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("builder_profiles")
-        .select("*")
-        .eq("id", user!.id)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-  });
-}
-
+/** Current user's services (as a builder) */
 export function useMyServices() {
-  const { user } = useAuth();
+  const { user, token } = useDotAuth();
   return useQuery({
     queryKey: ["my_services", user?.id],
-    enabled: !!user,
+    enabled: !!user && !!token,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("services")
-        .select("*")
-        .eq("builder_id", user!.id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data ?? [];
+      try {
+        const { services } = await dotApi.get<{ services: any[] }>("/api/services/mine");
+        return services ?? [];
+      } catch {
+        return [];
+      }
     },
   });
 }
 
+/** Current user's orders (as client or builder) */
 export function useMyOrders(role: "client" | "builder") {
-  const { user } = useAuth();
+  const { user, token } = useDotAuth();
   return useQuery({
     queryKey: ["orders", role, user?.id],
-    enabled: !!user,
+    enabled: !!user && !!token,
     queryFn: async () => {
-      const col = role === "client" ? "client_id" : "builder_id";
-      const { data, error } = await supabase
-        .from("service_orders")
-        .select("*")
-        .eq(col, user!.id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data ?? [];
+      try {
+        const { orders } = await dotApi.get<{ orders: any[] }>(`/api/orders?role=${role}`);
+        return orders ?? [];
+      } catch {
+        return [];
+      }
     },
   });
 }
 
+/** Builder stats — defaults to 0s if not available */
 export function useBuilderStats(builderId?: string) {
   return useQuery({
     queryKey: ["builder_stats", builderId],
     enabled: !!builderId,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_builder_stats", { _builder_id: builderId! });
-      if (error) throw error;
-      return data?.[0] ?? { orders_completed: 0, total_earned: 0, avg_rating: 0, review_count: 0 };
+      try {
+        const stats = await dotApi.get<BuilderStats>(
+          `/api/admin/builders/${builderId}/stats`,
+        );
+        return stats ?? { ordersCompleted: 0, totalEarned: 0, avgRating: 0, reviewCount: 0 };
+      } catch {
+        return { ordersCompleted: 0, totalEarned: 0, avgRating: 0, reviewCount: 0 };
+      }
     },
   });
 }
 
-// ============ Job Listings ============
-
 export type JobListing = {
   id: string;
-  venture_id: string;
+  ventureId: string;
   title: string;
   description: string;
   category: string;
-  salary_dot: number;
-  employment_type: string;
-  requirements: string | null;
-  is_open: boolean;
-  created_at: string;
-  updated_at: string;
+  salaryDot: number;
+  employmentType: string;
+  requirements?: string | null;
+  isOpen: boolean;
+  createdAt: string;
+  updatedAt: string;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const supabaseAny = supabase as any;
-
+/** Job listings on the marketplace */
 export function useJobListings(category?: string, search?: string) {
   return useQuery({
     queryKey: ["job_listings", category ?? "all", search ?? ""],
     queryFn: async () => {
-      // job_listings is a new table not yet reflected in the generated types
-      let q = supabaseAny
-        .from("job_listings")
-        .select("*")
-        .eq("is_open", true)
-        .order("created_at", { ascending: false });
-      if (category) q = q.eq("category", category);
-      if (search && search.trim()) q = q.ilike("title", `%${search.trim()}%`);
-      const { data, error } = await q;
-      if (error) throw error;
-      return (data ?? []) as JobListing[];
+      try {
+        const params = new URLSearchParams();
+        if (category) params.set("category", category);
+        if (search?.trim()) params.set("search", search.trim());
+        const qs = params.toString() ? `?${params}` : "";
+        const { jobs } = await dotApi.get<{ jobs: JobListing[] }>(`/api/jobs${qs}`);
+        return jobs ?? [];
+      } catch {
+        return [];
+      }
     },
   });
 }
 
+/** Current user's posted job listings */
 export function useMyJobListings() {
-  const { user } = useAuth();
+  const { user, token } = useDotAuth();
   return useQuery({
     queryKey: ["my_job_listings", user?.id],
-    enabled: !!user,
+    enabled: !!user && !!token,
     queryFn: async () => {
-      const { data, error } = await supabaseAny
-        .from("job_listings")
-        .select("*")
-        .eq("venture_id", user!.id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as JobListing[];
+      try {
+        const { jobs } = await dotApi.get<{ jobs: JobListing[] }>("/api/jobs/mine");
+        return jobs ?? [];
+      } catch {
+        return [];
+      }
     },
   });
 }
-

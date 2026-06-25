@@ -53,7 +53,6 @@ export async function academyRoutes(app: FastifyInstance) {
 
   /**
    * POST /api/academy/complete
-   *
    * Idempotent: completing an already-rewarded enrollment is a
    * no-op. Reward = course.dotReward DOT credited to the wallet.
    */
@@ -89,6 +88,44 @@ export async function academyRoutes(app: FastifyInstance) {
 
     const updated = await db.select().from(courseEnrollments).where(eq(courseEnrollments.id, enroll[0].id)).limit(1);
     return reply.send({ enrollment: updated[0], reward });
+  });
+
+  /** GET /api/academy/enrollments — current user's enrollments with course info */
+  app.get("/academy/enrollments", { preHandler: app.authenticate }, async (req, reply) => {
+    const { sub } = req.user as { sub: string };
+    const rows = await db
+      .select({
+        id: courseEnrollments.id,
+        userId: courseEnrollments.userId,
+        courseId: courseEnrollments.courseId,
+        progressPct: courseEnrollments.progressPct,
+        completedAt: courseEnrollments.completedAt,
+        createdAt: courseEnrollments.createdAt,
+        courseTitle: courses.title,
+        courseDescription: courses.description,
+        moduleCount: courses.moduleCount,
+      })
+      .from(courseEnrollments)
+      .leftJoin(courses, eq(courses.id, courseEnrollments.courseId))
+      .where(eq(courseEnrollments.userId, sub))
+      .orderBy(desc(courseEnrollments.createdAt));
+    const enrollments = rows.map((r) => ({
+      id: r.id,
+      userId: r.userId,
+      courseId: r.courseId,
+      progressPct: Number(r.progressPct ?? 0),
+      completedAt: r.completedAt,
+      createdAt: r.createdAt,
+      course: r.courseTitle
+        ? {
+            id: r.courseId,
+            title: r.courseTitle,
+            description: r.courseDescription ?? undefined,
+            moduleCount: r.moduleCount ?? 0,
+          }
+        : undefined,
+    }));
+    return reply.send({ enrollments });
   });
 }
 // @ts-nocheck
