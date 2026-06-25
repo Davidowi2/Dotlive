@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import {
   ArrowDownToLine,
   ArrowUpRight,
@@ -40,7 +39,7 @@ import { useDotAuth } from "@/contexts/DotAuthContext";
 import { getBalance, getTransactions, transfer } from "@/api/wallet";
 import { getByDotId } from "@/api/users";
 import { ApiError } from "@/types/api";
-import { initPaystackPayment, verifyPaystackPayment } from "@/lib/paystack.functions";
+// Paystack server functions removed — wired via Render API when configured.
 import {
   MIN_DEPOSIT_DOT,
   DOT_RATE_NGN,
@@ -147,11 +146,7 @@ function WalletPage() {
     setTimeout(() => setCopied(false), 1500);
   }
 
-  // Lazy-load server fns so they don't try to register at render time.
-  // If the server-side Supabase middleware is broken, the page still renders.
-  // The actual call to initFn/verifyFn only happens on user action.
-  const initFn = useServerFn(initPaystackPayment);
-  const verifyFn = useServerFn(verifyPaystackPayment);
+  // Paystack integration is not wired — show "coming soon" in deposit UI.
 
   const refresh = useCallback(() => {
     qc.invalidateQueries({ queryKey: ["wallet"] });
@@ -159,29 +154,7 @@ function WalletPage() {
   }, [qc]);
 
   // Handle return from Paystack hosted checkout (?reference=... &trxref=...)
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const reference = params.get("reference") || params.get("trxref");
-    if (!reference) return;
-
-    setVerifying(true);
-    verifyFn({ data: { reference } })
-      .then((res) => {
-        if (res.status === "success") {
-          setReceipt({ dot: res.dotAmount, naira: dotToNaira(res.dotAmount), reference });
-          toast.success(`Wallet funded with ${formatDot(res.dotAmount)} DOT`);
-          refresh();
-        } else {
-          toast.error("Payment was not completed. You were not charged any DOT.");
-        }
-      })
-      .catch((e) => toast.error(e instanceof Error ? e.message : "Verification failed"))
-      .finally(() => {
-        setVerifying(false);
-        navigate({ to: "/wallet", replace: true });
-      });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Paystack return handler disabled
 
   async function handleDeposit() {
     if (amount < MIN_DEPOSIT_DOT) {
@@ -190,10 +163,9 @@ function WalletPage() {
     }
     setBusy(true);
     try {
-      const { authorizationUrl } = await initFn({
-        data: { dotAmount: Math.floor(amount), callbackUrl: `${window.location.origin}/wallet` },
-      });
-      window.location.href = authorizationUrl;
+      // Paystack integration not wired — show friendly message.
+      toast.info("Deposits via Paystack are temporarily disabled. Coming soon.");
+      return;
     } catch (e) {
       // Surface a friendly message if Paystack / server-fn isn't wired yet.
       const msg = e instanceof Error ? e.message : "Could not start payment";
