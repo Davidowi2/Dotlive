@@ -23,6 +23,9 @@ import {
   challenges,
   challengeSubmissions,
   builderLevels,
+  achievements,
+  activities,
+  reputationEvents,
 } from "../db/schema.js";
 import {
   getBuilderLevel,
@@ -334,9 +337,9 @@ export async function osRoutes(app: FastifyInstance) {
     const score = await computeReputation(sub);
     const events = await db
       .select()
-      .from((await import("../db/schema.js")).reputationEvents)
-      .where(eq((await import("../db/schema.js")).reputationEvents.userId, sub))
-      .orderBy(desc((await import("../db/schema.js")).reputationEvents.createdAt))
+      .from(reputationEvents)
+      .where(eq(reputationEvents.userId, sub))
+      .orderBy(desc(reputationEvents.createdAt))
       .limit(50);
     return reply.send({ score, events });
   });
@@ -345,9 +348,9 @@ export async function osRoutes(app: FastifyInstance) {
     const { sub } = req.user as { sub: string };
     const rows = await db
       .select()
-      .from((await import("../db/schema.js")).achievements)
-      .where(eq((await import("../db/schema.js")).achievements.userId, sub))
-      .orderBy(desc((await import("../db/schema.js")).achievements.earnedAt));
+      .from(achievements)
+      .where(eq(achievements.userId, sub))
+      .orderBy(desc(achievements.earnedAt));
     return reply.send({ achievements: rows });
   });
 
@@ -355,9 +358,9 @@ export async function osRoutes(app: FastifyInstance) {
     const { sub } = req.user as { sub: string };
     const rows = await db
       .select()
-      .from((await import("../db/schema.js")).activities)
-      .where(eq((await import("../db/schema.js")).activities.userId, sub))
-      .orderBy(desc((await import("../db/schema.js")).activities.createdAt))
+      .from(activities)
+      .where(eq(activities.userId, sub))
+      .orderBy(desc(activities.createdAt))
       .limit(50);
     return reply.send({ activities: rows });
   });
