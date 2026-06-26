@@ -772,12 +772,14 @@ export async function adminRoutes(app: FastifyInstance) {
           });
 
           /* ── ROLE EDITING — PUT /api/admin/users/:id/roles ───────────── */
-          /** Replace user's roles array. Super-admin only. */
+          /** Replace user's roles array. Super-admin only, with immutability checks. */
           app.put("/users/:id/roles", { preHandler: app.authenticate }, async (req, reply) => {
             const { sub: adminId } = req.user as { sub: string };
-            const roles = await getUserRoles(adminId);
-            if (!roles.includes("super_admin")) {
-              // BOOTSTRAP: allow the first super_admin to be created when none exists.
+            const callerRoles = await getUserRoles(adminId);
+            const isSuper = callerRoles.includes("super_admin");
+
+            // BOOTSTRAP: allow first super_admin only when none exists
+            if (!isSuper) {
               const existingSuperAdmins = await db.execute(
                 sql`SELECT COUNT(*)::int AS n FROM user_roles WHERE role = 'super_admin'`,
               );
@@ -786,11 +788,37 @@ export async function adminRoutes(app: FastifyInstance) {
                 return reply.code(403).send({ error: "Super-admin only" });
               }
             }
+
             const { id } = req.params as { id: string };
             const body = (req.body ?? {}) as { roles?: string[] };
             if (!Array.isArray(body.roles)) {
               return reply.code(400).send({ error: "roles must be an array" });
             }
+
+            const targetHasSuperBefore = (await getUserRoles(id)).includes("super_admin");
+
+            // IMMUTABILITY: cannot remove the LAST super_admin
+            if (targetHasSuperBefore && !body.roles.includes("super_admin")) {
+              const r = await db.execute(sql`SELECT COUNT(*)::int AS n FROM user_roles WHERE role = 'super_admin'`);
+              const n = Number((r as any).rows?.[0]?.n ?? 0);
+              if (n <= 1) {
+                return reply.code(409).send({
+                  error: "Cannot remove the LAST super_admin. Promote another user first.",
+                  lastSuperAdmin: true,
+                });
+              }
+            }
+
+            // Only super_admins can grant super_admin
+            if (body.roles.includes("super_admin") && !isSuper) {
+              return reply.code(403).send({ error: "Only super_admin can grant super_admin" });
+            }
+
+            // Non-super admins cannot grant admin role
+            if (body.roles.includes("admin") && !isSuper) {
+              return reply.code(403).send({ error: "Only super_admin can grant admin role" });
+            }
+
             // Wipe + replace
             await db.execute(sql`DELETE FROM user_roles WHERE user_id = ${id}`);
             for (const r of body.roles) {

@@ -760,6 +760,58 @@ export type PaymentsAuditRow = typeof paymentsAudit.$inferSelect;
 export type AdminIdempotencyKeyRow = typeof adminIdempotencyKeys.$inferSelect;
 export type UserBanRow = typeof userBans.$inferSelect;
 
+/* ============================== TOKEN SUPPLY (100B hard cap) ============================== */
+
+/**
+ * token_supply — single-row tracker for the global DOT supply cap.
+ *
+ * The client mandated: there should only ever be 100,000,000,000 DOT.
+ * Any mint operation that would exceed this cap is rejected.
+ *
+ * - max_supply_dot: the hard cap (100B = 100_000_000_000)
+ * - total_minted_dot: total DOT ever credited to users
+ * - total_burned_dot: DOT permanently removed from circulation
+ * - circulating_supply_dot: total_minted_dot - total_burned_dot (computed)
+ *
+ * Updated atomically inside the same DB transaction as any mint/burn.
+ */
+export const tokenSupply = pgTable("token_supply", {
+  id: text("id").primaryKey().default("singleton"),
+  maxSupplyDot: numeric("max_supply_dot", { precision: 20, scale: 2 }).notNull().default("100000000000"),
+  totalMintedDot: numeric("total_minted_dot", { precision: 20, scale: 2 }).notNull().default("500"), // initial 500 DOT per signup
+  totalBurnedDot: numeric("total_burned_dot", { precision: 20, scale: 2 }).notNull().default("0"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/* ============================== TOKEN OPERATIONS AUDIT ============================== */
+
+/**
+ * token_operations — append-only log of every mint/burn/transfer-by-admin.
+ * Required for auditing + regulatory compliance.
+ */
+export const tokenOperations = pgTable(
+  "token_operations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    actorId: text("actor_id"), // user id of admin who triggered, or null for system
+    actorEmail: text("actor_email"),
+    operation: text("operation").notNull(), // mint | burn | admin_transfer | refund | withdrawal_pay
+    fromUserId: text("from_user_id"), // null for mint
+    toUserId: text("to_user_id"), // null for burn
+    amountDot: numeric("amount_dot", { precision: 20, scale: 2 }).notNull(),
+    reason: text("reason").notNull(),
+    relatedId: text("related_id"), // withdrawal_id, payment_ref, etc.
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    actorIdx: index("token_ops_actor_idx").on(t.actorId, t.createdAt),
+    fromIdx: index("token_ops_from_idx").on(t.fromUserId),
+    toIdx: index("token_ops_to_idx").on(t.toUserId),
+    opIdx: index("token_ops_op_idx").on(t.operation, t.createdAt),
+  }),
+);
+
 /* ============================== WITHDRAWALS ============================== */
 
 export const withdrawalRequests = pgTable(
