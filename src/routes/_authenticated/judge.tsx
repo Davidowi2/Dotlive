@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useRoleGate } from "@/hooks/use-role-gate";
 import { useState } from "react";
+import { useRoleGate } from "@/hooks/use-role-gate";
 import { Trophy, Star, FileText, CheckCircle2, ExternalLink } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
@@ -23,20 +23,27 @@ const MOCK_APPLICATIONS = [
 ];
 
 function JudgePage() {
-  const gate = useRoleGate(["investor", "capital_partner", "admin"], { redirect: "/dashboard" });
-  
   const [scoring, setScoring] = useState<string | null>(null);
   const [score, setScore] = useState(5);
   const [feedback, setFeedback] = useState("");
 
   const pending = MOCK_APPLICATIONS.filter((a) => !a.scored).length;
 
+  const gate = useRoleGate(["investor", "capital_partner", "admin"], { redirect: "/dashboard" });
+  if (!gate.allowed) {
+    return (
+      <AppShell>
+        <div className="p-12 text-center">
+          <h2 className="text-2xl font-semibold">Judge access only</h2>
+          <p className="mt-2 text-muted-foreground">You need the investor or admin role to judge pitchathons.</p>
+        </div>
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell>
-   
-  useRoleGate(["investor", "capital_partner", "admin"], { redirect: "/dashboard" });
-  if (!gate.allowed) return null;
-   <PageHeader
+      <PageHeader
         title="Judge Portal"
         subtitle="Score pitchathon applications and help surface the best ventures."
         action={<Badge variant="secondary"><Trophy className="mr-1 size-3" />{pending} to score</Badge>}

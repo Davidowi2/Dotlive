@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
 import { useRoleGate } from "@/hooks/use-role-gate";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Trophy,
   Loader2,
@@ -63,8 +63,6 @@ export const Route = createFileRoute("/_authenticated/pitchathons")({
  * highlighted card at the top.
  */
 function PitchathonsPage() {
-  const gate = useRoleGate(["founder", "investor", "admin", "capital_partner"], { redirect: "/dashboard" });
-  
   const { user } = useDotAuth();
   const qc = useQueryClient();
   const { data: founder } = useFounderProfile();
@@ -116,12 +114,21 @@ function PitchathonsPage() {
   const closed = pitchathons.filter((p) => p.status === "closed");
   const featured: Pitchathon | undefined = open[0] ?? upcoming[0];
 
+  const gate = useRoleGate(["founder", "investor", "admin", "capital_partner"], { redirect: "/dashboard" });
+  if (!gate.allowed) {
+    return (
+      <AppShell>
+        <div className="p-12 text-center">
+          <h2 className="text-2xl font-semibold">Pitchathons access only</h2>
+          <p className="mt-2 text-muted-foreground">You need the founder, investor, or admin role to view pitchathons.</p>
+        </div>
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell>
-   
-  useRoleGate(["founder", "investor", "admin", "capital_partner"], { redirect: "/dashboard" });
-  if (!gate.allowed) return null;
-   <PageHeader
+      <PageHeader
         eyebrow="Pitch"
         title="Pitchathons"
         subtitle="Submit your venture, get scored by judges, and climb the leaderboard."

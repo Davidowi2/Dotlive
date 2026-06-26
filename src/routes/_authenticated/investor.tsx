@@ -32,15 +32,12 @@ export const Route = createFileRoute("/_authenticated/investor")({
 });
 
 function InvestorPage() {
-  const gate = useRoleGate(["investor", "capital_partner"], { redirect: "/dashboard" });
   const { user } = useDotAuth();
   const qc = useQueryClient();
   const [industry, setIndustry] = useState("all");
   const [stage, setStage] = useState("all");
   const [minVantage, setMinVantage] = useState(0);
   const [savedOnly, setSavedOnly] = useState(false);
-
-  if (!gate.allowed) return <AppShell><div className="p-12 text-center"><h2 className="text-2xl font-semibold">Investor access only</h2><p className="mt-2 text-muted-foreground">You need the investor role to view the Capital Portal.</p></div></AppShell>;
 
   /* Showcases (ventures from founder_profiles). */
   const { data: ventures = [], isLoading } = useQuery({
@@ -103,6 +100,18 @@ function InvestorPage() {
     } catch (err: any) {
       toast.error(err?.message ?? "Could not send request");
     }
+  }
+
+  const gate = useRoleGate(["investor", "capital_partner"], { redirect: "/dashboard" });
+  if (!gate.allowed) {
+    return (
+      <AppShell>
+        <div className="p-12 text-center">
+          <h2 className="text-2xl font-semibold">Investor access only</h2>
+          <p className="mt-2 text-muted-foreground">You need the investor role to view the Capital Portal.</p>
+        </div>
+      </AppShell>
+    );
   }
 
   return (
