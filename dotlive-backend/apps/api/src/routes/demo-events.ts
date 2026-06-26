@@ -211,9 +211,9 @@ export async function demoEventRoutes(app: FastifyInstance) {
   /** GET /api/votes/venture/:id/count — public vote count for any venture */
   app.get<{ Params: { id: string } }>("/votes/venture/:id/count", async (req, reply) => {
     const { id } = req.params;
-    const [row] = await db.execute(sql`
+    const row = await db.execute(sql`
       SELECT
-        COALESCE(SUM(vote_weight), 0)::int AS total_votes,
+        COALESCE(SUM(weight), 0)::int AS total_votes,
         COUNT(*)::int AS vote_count,
         COUNT(DISTINCT voter_id)::int AS unique_voters
       FROM votes
