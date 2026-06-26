@@ -48,11 +48,13 @@ import { Route as AuthenticatedCertificatesRouteImport } from './routes/_authent
 import { Route as AuthenticatedBuilderRouteImport } from './routes/_authenticated/builder'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedAcademyRouteImport } from './routes/_authenticated/academy'
+import { Route as AuthenticatedCapitalIndexRouteImport } from './routes/_authenticated/capital/index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedJoinCodeRouteImport } from './routes/_authenticated/join.$code'
 import { Route as AuthenticatedDemoIdRouteImport } from './routes/_authenticated/demo.$id'
 import { Route as AuthenticatedDealsIdRouteImport } from './routes/_authenticated/deals.$id'
 import { Route as AuthenticatedCommunityDashboardRouteImport } from './routes/_authenticated/community/dashboard'
+import { Route as AuthenticatedCapitalPortfolioRouteImport } from './routes/_authenticated/capital/portfolio'
 import { Route as AuthenticatedCIdRouteImport } from './routes/_authenticated/c.$id'
 import { Route as AuthenticatedAdminWalletsRouteImport } from './routes/_authenticated/admin/wallets'
 import { Route as AuthenticatedAdminTokensRouteImport } from './routes/_authenticated/admin/tokens'
@@ -257,6 +259,12 @@ const AuthenticatedAcademyRoute = AuthenticatedAcademyRouteImport.update({
   path: '/academy',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedCapitalIndexRoute =
+  AuthenticatedCapitalIndexRouteImport.update({
+    id: '/capital/',
+    path: '/capital/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -282,6 +290,12 @@ const AuthenticatedCommunityDashboardRoute =
     id: '/dashboard',
     path: '/dashboard',
     getParentRoute: () => AuthenticatedCommunityRoute,
+  } as any)
+const AuthenticatedCapitalPortfolioRoute =
+  AuthenticatedCapitalPortfolioRouteImport.update({
+    id: '/capital/portfolio',
+    path: '/capital/portfolio',
+    getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedCIdRoute = AuthenticatedCIdRouteImport.update({
   id: '/c/$id',
@@ -362,11 +376,13 @@ export interface FileRoutesByFullPath {
   '/admin/tokens': typeof AuthenticatedAdminTokensRoute
   '/admin/wallets': typeof AuthenticatedAdminWalletsRoute
   '/c/$id': typeof AuthenticatedCIdRoute
+  '/capital/portfolio': typeof AuthenticatedCapitalPortfolioRoute
   '/community/dashboard': typeof AuthenticatedCommunityDashboardRoute
   '/deals/$id': typeof AuthenticatedDealsIdRoute
   '/demo/$id': typeof AuthenticatedDemoIdRoute
   '/join/$code': typeof AuthenticatedJoinCodeRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
+  '/capital/': typeof AuthenticatedCapitalIndexRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
 }
 export interface FileRoutesByTo {
@@ -412,11 +428,13 @@ export interface FileRoutesByTo {
   '/admin/tokens': typeof AuthenticatedAdminTokensRoute
   '/admin/wallets': typeof AuthenticatedAdminWalletsRoute
   '/c/$id': typeof AuthenticatedCIdRoute
+  '/capital/portfolio': typeof AuthenticatedCapitalPortfolioRoute
   '/community/dashboard': typeof AuthenticatedCommunityDashboardRoute
   '/deals/$id': typeof AuthenticatedDealsIdRoute
   '/demo/$id': typeof AuthenticatedDemoIdRoute
   '/join/$code': typeof AuthenticatedJoinCodeRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
+  '/capital': typeof AuthenticatedCapitalIndexRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
 }
 export interface FileRoutesById {
@@ -465,11 +483,13 @@ export interface FileRoutesById {
   '/_authenticated/admin/tokens': typeof AuthenticatedAdminTokensRoute
   '/_authenticated/admin/wallets': typeof AuthenticatedAdminWalletsRoute
   '/_authenticated/c/$id': typeof AuthenticatedCIdRoute
+  '/_authenticated/capital/portfolio': typeof AuthenticatedCapitalPortfolioRoute
   '/_authenticated/community/dashboard': typeof AuthenticatedCommunityDashboardRoute
   '/_authenticated/deals/$id': typeof AuthenticatedDealsIdRoute
   '/_authenticated/demo/$id': typeof AuthenticatedDemoIdRoute
   '/_authenticated/join/$code': typeof AuthenticatedJoinCodeRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
+  '/_authenticated/capital/': typeof AuthenticatedCapitalIndexRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
 }
 export interface FileRouteTypes {
@@ -518,11 +538,13 @@ export interface FileRouteTypes {
     | '/admin/tokens'
     | '/admin/wallets'
     | '/c/$id'
+    | '/capital/portfolio'
     | '/community/dashboard'
     | '/deals/$id'
     | '/demo/$id'
     | '/join/$code'
     | '/admin/'
+    | '/capital/'
     | '/api/public/webhooks/paystack'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -568,11 +590,13 @@ export interface FileRouteTypes {
     | '/admin/tokens'
     | '/admin/wallets'
     | '/c/$id'
+    | '/capital/portfolio'
     | '/community/dashboard'
     | '/deals/$id'
     | '/demo/$id'
     | '/join/$code'
     | '/admin'
+    | '/capital'
     | '/api/public/webhooks/paystack'
   id:
     | '__root__'
@@ -620,11 +644,13 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/tokens'
     | '/_authenticated/admin/wallets'
     | '/_authenticated/c/$id'
+    | '/_authenticated/capital/portfolio'
     | '/_authenticated/community/dashboard'
     | '/_authenticated/deals/$id'
     | '/_authenticated/demo/$id'
     | '/_authenticated/join/$code'
     | '/_authenticated/admin/'
+    | '/_authenticated/capital/'
     | '/api/public/webhooks/paystack'
   fileRoutesById: FileRoutesById
 }
@@ -924,6 +950,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAcademyRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/capital/': {
+      id: '/_authenticated/capital/'
+      path: '/capital'
+      fullPath: '/capital/'
+      preLoaderRoute: typeof AuthenticatedCapitalIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin/': {
       id: '/_authenticated/admin/'
       path: '/'
@@ -958,6 +991,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/community/dashboard'
       preLoaderRoute: typeof AuthenticatedCommunityDashboardRouteImport
       parentRoute: typeof AuthenticatedCommunityRoute
+    }
+    '/_authenticated/capital/portfolio': {
+      id: '/_authenticated/capital/portfolio'
+      path: '/capital/portfolio'
+      fullPath: '/capital/portfolio'
+      preLoaderRoute: typeof AuthenticatedCapitalPortfolioRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/c/$id': {
       id: '/_authenticated/c/$id'
@@ -1071,8 +1111,10 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedWalletRoute: typeof AuthenticatedWalletRoute
   AuthenticatedWorkRoute: typeof AuthenticatedWorkRoute
   AuthenticatedCIdRoute: typeof AuthenticatedCIdRoute
+  AuthenticatedCapitalPortfolioRoute: typeof AuthenticatedCapitalPortfolioRoute
   AuthenticatedDealsIdRoute: typeof AuthenticatedDealsIdRoute
   AuthenticatedJoinCodeRoute: typeof AuthenticatedJoinCodeRoute
+  AuthenticatedCapitalIndexRoute: typeof AuthenticatedCapitalIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -1098,8 +1140,10 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedWalletRoute: AuthenticatedWalletRoute,
   AuthenticatedWorkRoute: AuthenticatedWorkRoute,
   AuthenticatedCIdRoute: AuthenticatedCIdRoute,
+  AuthenticatedCapitalPortfolioRoute: AuthenticatedCapitalPortfolioRoute,
   AuthenticatedDealsIdRoute: AuthenticatedDealsIdRoute,
   AuthenticatedJoinCodeRoute: AuthenticatedJoinCodeRoute,
+  AuthenticatedCapitalIndexRoute: AuthenticatedCapitalIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

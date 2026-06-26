@@ -1,33 +1,128 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
-  Compass, Search, X, Filter, Sparkles, Building2, Users, MapPin,
-  ArrowUpRight, Gauge, TrendingUp, Briefcase, Plus,
+  Compass, Search, X, Filter, Sparkles, Building2, MapPin,
+  ArrowUpRight, Gauge, TrendingUp, Briefcase, ChevronDown, Loader2,
+  Heart, Vote,
 } from "lucide-react";
+
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import {
-  Tabs, TabsContent, TabsList, TabsTrigger,
-} from "@/components/ui/tabs";
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { EmptyState } from "@/components/app/EmptyState";
 import { cn } from "@/lib/utils";
+import { dotApi } from "@/api/client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+
+/**
+ * /discover — Sprint B: real filters, real ventures.
+ *
+ * Filters:
+ *   - search (name)
+ *   - stage (Assess/Validate/Build/Fund/Scale)
+ *   - industry
+ *   - country
+ *   - vantage range
+ *   - fundability minimum
+ *   - sort (newest / vantage_desc / fundability_desc / alpha)
+ *
+ * Each card shows: venture name, founder name + DOT ID, stage, country,
+ * industry, vantage, fundability, and a "View profile" link to the
+ * public /founder/$dotId page.
+ */
 
 export const Route = createFileRoute("/_authenticated/discover")({
   head: () => ({ meta: [{ title: "Discover — DOT" }] }),
   component: DiscoverPage,
 });
 
-/* Discover page — real listings load from Supabase via discoverService
- * once the service is wired. Until then we show honest empty states
- * with clear "be the first" CTAs instead of fake founders. */
-const INDUSTRIES = ["All", "Fintech", "Agriculture", "Commerce", "Health", "Energy", "Education"];
-const STAGES = ["All", "Assess", "Learn", "Improve", "Validate", "Pitch", "Fund", "Scale"];
+const STAGES = ["Assess", "Validate", "Build", "Fund", "Scale"];
+const INDUSTRIES = [
+  "Fintech", "Agriculture", "Commerce", "Health",
+  "Energy", "Education", "Logistics", "Media", "Other",
+];
 
 function DiscoverPage() {
+  const qc = useQueryClient();
   const [query, setQuery] = useState("");
-  const [industry, setIndustry] = useState("All");
+  const [stage, setStage] = useState<string>("");
+  const [industry, setIndustry] = useState<string>("");
+  const [country, setCountry] = useState<string>("");
+  const [minVantage, setMinVantage] = useState<string>("");
+  const [minFundability, setMinFundability] = useState<string>("");
+  const [sort, setSort] = useState<string>("newest");
+
+  const filters = useMemo(() => ({
+    search: query || undefined,
+    stage: stage || undefined,
+    industry: industry || undefined,
+    country: country || undefined,
+    minVantage: minVantage ? Number(minVantage) : undefined,
+    minFundability: minFundability ? Number(minFundability) : undefined,
+    sort,
+    limit: 50,
+  }), [query, stage, industry, country, minVantage, minFundability, sort]);
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["discover", filters],
+    queryFn: () => dotApi.get<{ ventures: any[]; nextCursor: string | null }>("/api/ventures?" + new URLSearchParams(
+      Object.entries(filters).filter(([_, v]) => v !== undefined && v !== "").map(([k, v]) => [k, String(v)])
+    ).toString()),
+    staleTime: 30_000,
+  });
+
+  const ventures: any[] = (data as any)?.ventures ?? [];
+
+  // For each venture card, fetch founder info (cached via React Query)
+  const founderIds = useMemo(() => Array.from(new Set(ventures.map((v) => v.userId))), [ventures]);
+  const { data: foundersMap } = useQuery({
+    queryKey: ["founders-map", founderIds],
+    queryFn: async () => {
+      const map: Record<string, { name: string | null; dotId: string | null; avatarUrl: string | null }> = {};
+      await Promise.all(
+        founderIds.slice(0, 50).map(async (id) => {
+          try {
+            const r = await dotApi.get<any>(`/api/founders/${encodeURIComponent(id)}`);
+            map[id] = { name: r.founder.name, dotId: r.founder.dotId, avatarUrl: r.founder.avatarUrl };
+          } catch {}
+        })
+      );
+      return map;
+    },
+    enabled: founderIds.length > 0,
+    staleTime: 60_000,
+  });
+
+  // For each venture, fetch demo votes count
+  const { data: voteCounts } = useQuery({
+    queryKey: ["discover-votes", ventures.map(v => v.id)],
+    queryFn: async () => {
+      const map: Record<string, number> = {};
+      await Promise.all(
+        ventures.slice(0, 50).map(async (v) => {
+          try {
+            // Pull from the demo-events leaderboard API or votes — fallback to 0
+            const r = await dotApi.get<any>(`/api/votes/venture/${v.id}/count`).catch(() => ({ count: 0 }));
+            map[v.id] = r.count ?? 0;
+          } catch {
+            map[v.id] = 0;
+          }
+        })
+      );
+      return map;
+    },
+    enabled: ventures.length > 0,
+    staleTime: 60_000,
+  });
+
+  const hasActiveFilters = query || stage || industry || country || minVantage || minFundability;
 
   return (
     <AppShell>
@@ -35,187 +130,254 @@ function DiscoverPage() {
         eyebrow="Network"
         title="Discover"
         subtitle="Browse ventures, founders and communities across the DOT network."
-        action={
-          <Button variant="hero" size="sm" asChild>
-            <Link to="/vantage">
-              List your venture <ArrowUpRight className="size-3.5" />
-            </Link>
-          </Button>
-        }
       />
 
-      {/* ─── Search + filters ──────────────────────────────────────── */}
-      <section className="mt-8">
-        <div className="relative">
-          <Search className="absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search ventures, founders, communities…"
-            className="h-12 pl-12 text-base"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            disabled
+      <div className="mt-6 space-y-6">
+        {/* Search + sort */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search ventures by name..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="pl-10"
+            />
+            {query && (
+              <button
+                onClick={() => setQuery("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="size-4" />
+              </button>
+            )}
+          </div>
+          <Select value={sort} onValueChange={setSort}>
+            <SelectTrigger className="w-full sm:w-48">
+              <SelectValue placeholder="Sort by..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="newest">Newest first</SelectItem>
+              <SelectItem value="vantage_desc">Highest vantage</SelectItem>
+              <SelectItem value="fundability_desc">Most fundable</SelectItem>
+              <SelectItem value="alpha">A → Z</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Filter chips */}
+        <div className="flex flex-wrap gap-2">
+          <FilterChip
+            label="Stage"
+            value={stage}
+            onChange={setStage}
+            options={STAGES}
+            placeholder="Any stage"
           />
-        </div>
-
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            <Filter className="size-3" />
-            Industry
-          </span>
-          {INDUSTRIES.map((i) => (
-            <button
-              key={i}
-              onClick={() => setIndustry(i)}
-              disabled
-              className={cn(
-                "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-                industry === i
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-card text-muted-foreground opacity-60",
-              )}
+          <FilterChip
+            label="Industry"
+            value={industry}
+            onChange={setIndustry}
+            options={INDUSTRIES}
+            placeholder="Any industry"
+          />
+          <FilterInput
+            label="Country"
+            value={country}
+            onChange={setCountry}
+            placeholder="e.g. Nigeria"
+          />
+          <FilterInput
+            label="Min vantage"
+            value={minVantage}
+            onChange={setMinVantage}
+            placeholder="0"
+            type="number"
+          />
+          <FilterInput
+            label="Min fundability %"
+            value={minFundability}
+            onChange={setMinFundability}
+            placeholder="0"
+            type="number"
+          />
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setQuery(""); setStage(""); setIndustry(""); setCountry("");
+                setMinVantage(""); setMinFundability("");
+              }}
+              className="h-8"
             >
-              {i}
-            </button>
-          ))}
+              <X className="mr-1 size-3" /> Clear all
+            </Button>
+          )}
         </div>
-      </section>
 
-      {/* ─── Top Vantage this week ─────────────────────────────────── */}
-      <section className="mt-10">
-        <PageHeader
-          variant="compact"
-          title="Top Vantage this week"
-          subtitle="Live leaderboard activates once enough ventures reach Stage: Improve."
-          action={
-            <Badge variant="secondary" className="text-[10px]">
-              <Sparkles className="mr-1 size-3" />
-              Coming soon
-            </Badge>
-          }
-        />
-
-        <div className="mt-5 rounded-2xl border border-border bg-card p-12 text-center">
-          <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <TrendingUp className="size-7" />
+        {/* Results */}
+        {isLoading ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="size-8 animate-spin text-muted-foreground" />
           </div>
-          <h3 className="mt-5 font-display text-xl font-light">No leaderboard yet</h3>
-          <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
-            Once founders complete Vantage assessments and reach Stage: Improve, the top 3 will appear here automatically.
-          </p>
-        </div>
-      </section>
-
-      <hr className="my-12 border-border" />
-
-      {/* ─── Browse tabs ──────────────────────────────────────────── */}
-      <section>
-        <Tabs defaultValue="ventures">
-          <div className="flex items-end justify-between gap-4">
-            <TabsList>
-              <TabsTrigger value="ventures">
-                <Building2 className="mr-1.5 size-3.5" /> Ventures
-              </TabsTrigger>
-              <TabsTrigger value="communities">
-                <Users className="mr-1.5 size-3.5" /> Communities
-              </TabsTrigger>
-              <TabsTrigger value="people">
-                <Briefcase className="mr-1.5 size-3.5" /> Founders
-              </TabsTrigger>
-            </TabsList>
-          </div>
-
-          <TabsContent value="ventures" className="mt-4">
-            <EmptyStateCategory
-              icon={Building2}
-              title="No ventures listed yet"
-              body="The discover feed lights up as soon as founders complete Vantage and reach Stage: Improve. Be the first."
-              cta={{ label: "Complete Vantage assessment", to: "/vantage" }}
-            />
-          </TabsContent>
-
-          <TabsContent value="communities" className="mt-4">
-            <EmptyStateCategory
-              icon={Users}
-              title="No communities listed yet"
-              body="Community leaders can register their communities and surface to builders here."
-              cta={{ label: "Register your community", to: "/community" }}
-            />
-          </TabsContent>
-
-          <TabsContent value="people" className="mt-4">
-            <EmptyStateCategory
-              icon={Compass}
-              title="No founder profiles yet"
-              body="Public founder profiles appear here once they're at Stage: Improve or beyond."
-              cta={{ label: "See your profile", to: "/profile" }}
-            />
-          </TabsContent>
-        </Tabs>
-      </section>
-
-      <hr className="my-12 border-border" />
-
-      {/* ─── How discover works ───────────────────────────────────── */}
-      <section className="grid gap-6 md:grid-cols-3">
-        <InfoCard
-          icon={Gauge}
-          title="Filtered by Vantage"
-          body="All listings are sorted by Vantage score. Investors filter by score range and stage."
-        />
-        <InfoCard
-          icon={MapPin}
-          title="Across 54 countries"
-          body="Discover shows ventures from every African country. Filter by region, industry, or stage."
-        />
-        <InfoCard
-          icon={Sparkles}
-          title="Premium visibility"
-          body="Verified ventures (Vantage 700+) get a gold dot and surface to the top of investor searches."
-        />
-      </section>
+        ) : error ? (
+          <Card>
+            <CardContent className="py-12 text-center text-sm text-destructive">
+              Could not load ventures. {String((error as any)?.message ?? "")}
+            </CardContent>
+          </Card>
+        ) : ventures.length === 0 ? (
+          <EmptyState
+            title="No ventures match these filters"
+            subtitle={hasActiveFilters
+              ? "Try removing a filter — there are 0 ventures matching all of these."
+              : "Be the first founder on DOT."}
+            icon={Building2}
+            action={hasActiveFilters ? (
+              <Button variant="outline" onClick={() => {
+                setQuery(""); setStage(""); setIndustry(""); setCountry("");
+                setMinVantage(""); setMinFundability("");
+              }}>Clear filters</Button>
+            ) : (
+              <Button asChild>
+                <Link to="/onboarding">Create your venture</Link>
+              </Button>
+            )}
+          />
+        ) : (
+          <>
+            <div className="flex items-center justify-between text-sm text-muted-foreground">
+              <span><strong>{ventures.length}</strong> ventures</span>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {ventures.map((v) => {
+                const founder = foundersMap?.[v.userId];
+                return (
+                  <VentureCard key={v.id} venture={v} founder={founder} voteCount={voteCounts?.[v.id] ?? 0} />
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
     </AppShell>
   );
 }
 
-/* Reusable empty state for each category tab */
-function EmptyStateCategory({
-  icon: Icon, title, body, cta,
-}: {
-  icon: typeof Building2;
-  title: string;
-  body: string;
-  cta: { label: string; to: string };
+function VentureCard({ venture, founder, voteCount }: {
+  venture: any;
+  founder?: { name: string | null; dotId: string | null; avatarUrl: string | null };
+  voteCount: number;
 }) {
+  const fundingGoal = Number(venture.fundingGoal ?? 0);
   return (
-    <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-12 text-center">
-      <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-        <Icon className="size-7" />
+    <Card className="group transition-all hover:border-primary/40 hover:shadow-md">
+      <CardContent className="pt-6">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1">
+            <Link
+              to="/founder/$id"
+              params={{ id: founder?.dotId ?? venture.userId }}
+              className="font-display text-lg group-hover:text-primary"
+            >
+              {venture.name}
+            </Link>
+            {founder && (
+              <Link
+                to="/founder/$id"
+                params={{ id: founder.dotId ?? venture.userId }}
+                className="mt-0.5 block text-xs text-muted-foreground hover:text-foreground"
+              >
+                by {founder.name ?? "—"}
+                {founder.dotId && <span className="ml-1 font-mono opacity-60">({founder.dotId})</span>}
+              </Link>
+            )}
+          </div>
+          <Link
+            to="/founder/$id"
+            params={{ id: founder?.dotId ?? venture.userId }}
+            className="rounded-md p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100"
+          >
+            <ArrowUpRight className="size-4" />
+          </Link>
+        </div>
+
+        <div className="mt-3 flex flex-wrap gap-1.5 text-xs">
+          {venture.industry && (
+            <Badge variant="outline" className="text-[10px]">
+              <Briefcase className="mr-1 size-3" />{venture.industry}
+            </Badge>
+          )}
+          {venture.stage && (
+            <Badge variant="secondary" className="text-[10px]">{venture.stage}</Badge>
+          )}
+          {venture.country && (
+            <Badge variant="outline" className="text-[10px]">
+              <MapPin className="mr-1 size-3" />{venture.country}
+            </Badge>
+          )}
+        </div>
+
+        <div className="mt-4 grid grid-cols-3 gap-2 border-t pt-3">
+          <Stat icon={Gauge} label="Vantage" value={Number(venture.vantagePoint ?? 0).toLocaleString()} />
+          <Stat icon={TrendingUp} label="Fundability" value={`${Number(venture.fundability ?? 0)}%`} />
+          <Stat icon={Vote} label="Votes" value={voteCount.toLocaleString()} />
+        </div>
+
+        {fundingGoal > 0 && (
+          <div className="mt-3 flex items-center justify-between border-t pt-3 text-sm">
+            <span className="text-xs text-muted-foreground">Funding goal</span>
+            <span className="font-medium tabular-nums">{fundingGoal.toLocaleString()} DOT</span>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function Stat({ icon: Icon, label, value }: { icon: any; label: string; value: string }) {
+  return (
+    <div>
+      <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+        <Icon className="size-3" />{label}
       </div>
-      <h3 className="mt-5 font-display text-xl font-light">{title}</h3>
-      <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">{body}</p>
-      <Button variant="hero" size="sm" asChild className="mt-6">
-        <Link to={cta.to}>
-          {cta.label} <ArrowUpRight className="size-3.5" />
-        </Link>
-      </Button>
+      <div className="mt-0.5 text-sm font-medium tabular-nums">{value}</div>
     </div>
   );
 }
 
-function InfoCard({
-  icon: Icon, title, body,
-}: {
-  icon: typeof Gauge;
-  title: string;
-  body: string;
+function FilterChip({ label, value, onChange, options, placeholder }: {
+  label: string; value: string; onChange: (v: string) => void; options: string[]; placeholder: string;
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-6">
-      <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-        <Icon className="size-5" />
-      </div>
-      <h4 className="mt-4 font-display text-base font-semibold">{title}</h4>
-      <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">{body}</p>
+    <Select value={value} onValueChange={(v) => onChange(v === "__any" ? "" : v)}>
+      <SelectTrigger className="h-8 w-auto min-w-[120px] text-xs">
+        <SelectValue placeholder={`${label}: ${placeholder}`} />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="__any">{placeholder}</SelectItem>
+        {options.map((o) => (
+          <SelectItem key={o} value={o}>{o}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+function FilterInput({ label, value, onChange, placeholder, type = "text" }: {
+  label: string; value: string; onChange: (v: string) => void; placeholder: string; type?: string;
+}) {
+  return (
+    <div className="flex items-center gap-1">
+      <span className="text-xs text-muted-foreground">{label}:</span>
+      <Input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="h-8 w-24 text-xs"
+      />
     </div>
   );
 }
