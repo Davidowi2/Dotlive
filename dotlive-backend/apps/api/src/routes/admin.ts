@@ -766,33 +766,35 @@ export async function adminRoutes(app: FastifyInstance) {
     "/stats",
     { preHandler: [app.authenticate, requireAdmin] },
     async (_req, reply) => {
-      const [u] = (await db.execute(sql`SELECT count(*)::int AS n FROM users`)) as any;
-      const [b] = (await db.execute(sql`SELECT count(*)::int AS n FROM user_bans WHERE revoked_at IS NULL`)) as any;
-      const [v] = (await db.execute(sql`SELECT count(*)::int AS n FROM ventures`)) as any;
-      const [s] = (await db.execute(sql`SELECT count(*)::int AS n FROM services WHERE is_active = true`)) as any;
-      const [j] = (await db.execute(sql`SELECT count(*)::int AS n FROM job_listings WHERE is_active = true`)) as any;
-      const [tx2] = (await db.execute(sql`SELECT count(*)::int AS n FROM transactions`)) as any;
-      const [fa] = (await db.execute(sql`SELECT count(*)::int AS n FROM feature_flags WHERE enabled = true`)) as any;
-      const [rolesTotal] = (await db.execute(sql`SELECT count(*)::int AS n FROM user_roles`)) as any;
-      const [rolesSuper] = (await db.execute(sql`SELECT count(*)::int AS n FROM user_roles WHERE role = 'super_admin'`)) as any;
-      const [rolesAdmin] = (await db.execute(sql`SELECT count(*)::int AS n FROM user_roles WHERE role = 'admin'`)) as any;
-      const [balanceTotal] = (await db.execute(sql`SELECT COALESCE(SUM(balance), 0) AS s FROM wallets`)) as any;
+      const safeCount = async (q: any) => {
+        try { const r: any = await db.execute(q); const row = Array.isArray(r) ? r[0] : (r?.rows?.[0]); return Number(row?.n ?? 0); }
+        catch { return 0; }
+      };
+      const safeSum = async (q: any) => {
+        try { const r: any = await db.execute(q); const row = Array.isArray(r) ? r[0] : (r?.rows?.[0]); return Number(row?.s ?? 0); }
+        catch { return 0; }
+      };
+      const u = await safeCount(sql`SELECT count(*)::int AS n FROM users`);
+      const b = await safeCount(sql`SELECT count(*)::int AS n FROM user_bans WHERE revoked_at IS NULL`);
+      const v = await safeCount(sql`SELECT count(*)::int AS n FROM ventures`);
+      const svc = await safeCount(sql`SELECT count(*)::int AS n FROM services WHERE is_active = true`);
+      const j = await safeCount(sql`SELECT count(*)::int AS n FROM job_listings WHERE is_active = true`);
+      const tx2 = await safeCount(sql`SELECT count(*)::int AS n FROM transactions`);
+      const fa = await safeCount(sql`SELECT count(*)::int AS n FROM feature_flags WHERE enabled = true`);
+      const rolesTotal = await safeCount(sql`SELECT count(*)::int AS n FROM user_roles`);
+      const rolesSuper = await safeCount(sql`SELECT count(*)::int AS n FROM user_roles WHERE role = 'super_admin'`);
+      const rolesAdmin = await safeCount(sql`SELECT count(*)::int AS n FROM user_roles WHERE role = 'admin'`);
+      const balanceTotal = await safeSum(sql`SELECT COALESCE(SUM(balance), 0) AS s FROM wallets`);
       return reply.send({
-        users: Number(u?.n ?? 0),
-        bannedUsers: Number(b?.n ?? 0),
-        ventures: Number(v?.n ?? 0),
-        activeServices: Number(s?.n ?? 0),
-        activeJobs: Number(j?.n ?? 0),
-        transactions: Number(tx2?.n ?? 0),
-        activeFeatureFlags: Number(fa?.n ?? 0),
-        roles: {
-          total: Number(rolesTotal?.n ?? 0),
-          superAdmins: Number(rolesSuper?.n ?? 0),
-          admins: Number(rolesAdmin?.n ?? 0),
-        },
-        wallets: {
-          totalBalance: Number(balanceTotal?.s ?? 0),
-        },
+        users: u,
+        bannedUsers: b,
+        ventures: v,
+        activeServices: svc,
+        activeJobs: j,
+        transactions: tx2,
+        activeFeatureFlags: fa,
+        roles: { total: rolesTotal, superAdmins: rolesSuper, admins: rolesAdmin },
+        wallets: { totalBalance: balanceTotal },
       });
     }
   );
