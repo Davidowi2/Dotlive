@@ -247,7 +247,10 @@ await app.register(statsRoutes,       { prefix: "/api" });
 await app.register(investorRoutes,   { prefix: "/api" });
 await app.register(onboardingRoutes,  { prefix: "/api" });
   await app.register(osRoutes,           { prefix: "/api" });
-await app.register(adminRoutes,       { prefix: "/api/admin" });
+await app.register(withdrawalRoutes,    { prefix: "/api" });
+  await app.register(communityBillingRoutes, { prefix: "/api" });
+  await app.register(demoEventRoutes,        { prefix: "/api" });
+  await app.register(adminRoutes,            { prefix: "/api/admin" });
 
 /* ── Error handler ───────────────────────────────────────────── */
 
