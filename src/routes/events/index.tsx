@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { dotApi } from "@/api/client";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/demo/")({
+export const Route = createFileRoute("/events/")({
   head: () => ({ meta: [{ title: "DOT Demo Events — DOT" }] }),
   component: DemoEventsPage,
 });
@@ -119,7 +119,7 @@ function DemoEventsPage() {
               <Sparkles className="size-4 animate-pulse" />
               LIVE NOW
             </div>
-            <Link to="/demo/$slug" params={{ slug: live[0].slug }}>
+            <Link to="/events/$slug" params={{ slug: live[0].slug }}>
               <h2 className="mt-2 text-3xl font-bold">{live[0].name}</h2>
               <p className="mt-2 text-muted-foreground line-clamp-2">{live[0].description}</p>
               <div className="mt-4 flex flex-wrap items-center gap-4 text-sm">
@@ -183,7 +183,7 @@ function DemoEventsPage() {
 
 function EventCard({ event }: { event: DemoEvent }) {
   return (
-    <Link to="/demo/$slug" params={{ slug: event.slug }} className="group">
+    <Link to="/events/$slug" params={{ slug: event.slug }} className="group">
       <Card className="h-full transition group-hover:border-primary/50 group-hover:shadow-soft">
         <CardHeader>
           <div className="flex items-start justify-between gap-2">

@@ -14,7 +14,7 @@ import { useDotAuth } from "@/contexts/DotAuthContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/demo/$slug")({
+export const Route = createFileRoute("/events/$slug")({
   head: () => ({ meta: [{ title: "DOT Demo Event — DOT" }] }),
   component: DemoEventPage,
 });
@@ -47,7 +47,7 @@ interface LeaderboardRow {
 }
 
 function DemoEventPage() {
-  const { slug } = useParams({ from: "/demo/$slug" });
+  const { slug } = useParams({ from: "/events/$slug" });
   const { user } = useDotAuth();
   const qc = useQueryClient();
 
@@ -109,7 +109,7 @@ function DemoEventPage() {
   return (
     <AppShell>
       <div className="mb-4">
-        <Link to="/demo" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <Link to="/events" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="size-4" />
           All events
         </Link>

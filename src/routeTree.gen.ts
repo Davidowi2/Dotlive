@@ -23,9 +23,9 @@ import { Route as AboutRouteImport } from './routes/about'
 import { Route as SplatRouteImport } from './routes/$'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as DemoIndexRouteImport } from './routes/demo/index'
+import { Route as EventsIndexRouteImport } from './routes/events/index'
 import { Route as FounderIdRouteImport } from './routes/founder.$id'
-import { Route as DemoSlugRouteImport } from './routes/demo/$slug'
+import { Route as EventsSlugRouteImport } from './routes/events/$slug'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AuthenticatedWorkRouteImport } from './routes/_authenticated/work'
 import { Route as AuthenticatedWalletRouteImport } from './routes/_authenticated/wallet'
@@ -124,9 +124,9 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DemoIndexRoute = DemoIndexRouteImport.update({
-  id: '/demo/',
-  path: '/demo/',
+const EventsIndexRoute = EventsIndexRouteImport.update({
+  id: '/events/',
+  path: '/events/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FounderIdRoute = FounderIdRouteImport.update({
@@ -134,9 +134,9 @@ const FounderIdRoute = FounderIdRouteImport.update({
   path: '/founder/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DemoSlugRoute = DemoSlugRouteImport.update({
-  id: '/demo/$slug',
-  path: '/demo/$slug',
+const EventsSlugRoute = EventsSlugRouteImport.update({
+  id: '/events/$slug',
+  path: '/events/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
@@ -321,9 +321,9 @@ export interface FileRoutesByFullPath {
   '/wallet': typeof AuthenticatedWalletRoute
   '/work': typeof AuthenticatedWorkRoute
   '/auth/callback': typeof AuthCallbackRoute
-  '/demo/$slug': typeof DemoSlugRoute
+  '/events/$slug': typeof EventsSlugRoute
   '/founder/$id': typeof FounderIdRoute
-  '/demo/': typeof DemoIndexRoute
+  '/events/': typeof EventsIndexRoute
   '/c/$id': typeof AuthenticatedCIdRoute
   '/community/dashboard': typeof AuthenticatedCommunityDashboardRoute
   '/deals/$id': typeof AuthenticatedDealsIdRoute
@@ -351,7 +351,7 @@ export interface FileRoutesByTo {
   '/certificates': typeof AuthenticatedCertificatesRoute
   '/community': typeof AuthenticatedCommunityRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/demo': typeof DemoIndexRoute
+  '/demo': typeof AuthenticatedDemoRouteWithChildren
   '/discover': typeof AuthenticatedDiscoverRoute
   '/investor': typeof AuthenticatedInvestorRoute
   '/judge': typeof AuthenticatedJudgeRoute
@@ -367,8 +367,9 @@ export interface FileRoutesByTo {
   '/wallet': typeof AuthenticatedWalletRoute
   '/work': typeof AuthenticatedWorkRoute
   '/auth/callback': typeof AuthCallbackRoute
-  '/demo/$slug': typeof DemoSlugRoute
+  '/events/$slug': typeof EventsSlugRoute
   '/founder/$id': typeof FounderIdRoute
+  '/events': typeof EventsIndexRoute
   '/c/$id': typeof AuthenticatedCIdRoute
   '/community/dashboard': typeof AuthenticatedCommunityDashboardRoute
   '/deals/$id': typeof AuthenticatedDealsIdRoute
@@ -414,9 +415,9 @@ export interface FileRoutesById {
   '/_authenticated/wallet': typeof AuthenticatedWalletRoute
   '/_authenticated/work': typeof AuthenticatedWorkRoute
   '/auth/callback': typeof AuthCallbackRoute
-  '/demo/$slug': typeof DemoSlugRoute
+  '/events/$slug': typeof EventsSlugRoute
   '/founder/$id': typeof FounderIdRoute
-  '/demo/': typeof DemoIndexRoute
+  '/events/': typeof EventsIndexRoute
   '/_authenticated/c/$id': typeof AuthenticatedCIdRoute
   '/_authenticated/community/dashboard': typeof AuthenticatedCommunityDashboardRoute
   '/_authenticated/deals/$id': typeof AuthenticatedDealsIdRoute
@@ -462,9 +463,9 @@ export interface FileRouteTypes {
     | '/wallet'
     | '/work'
     | '/auth/callback'
-    | '/demo/$slug'
+    | '/events/$slug'
     | '/founder/$id'
-    | '/demo/'
+    | '/events/'
     | '/c/$id'
     | '/community/dashboard'
     | '/deals/$id'
@@ -508,8 +509,9 @@ export interface FileRouteTypes {
     | '/wallet'
     | '/work'
     | '/auth/callback'
-    | '/demo/$slug'
+    | '/events/$slug'
     | '/founder/$id'
+    | '/events'
     | '/c/$id'
     | '/community/dashboard'
     | '/deals/$id'
@@ -554,9 +556,9 @@ export interface FileRouteTypes {
     | '/_authenticated/wallet'
     | '/_authenticated/work'
     | '/auth/callback'
-    | '/demo/$slug'
+    | '/events/$slug'
     | '/founder/$id'
-    | '/demo/'
+    | '/events/'
     | '/_authenticated/c/$id'
     | '/_authenticated/community/dashboard'
     | '/_authenticated/deals/$id'
@@ -580,9 +582,9 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
-  DemoSlugRoute: typeof DemoSlugRoute
+  EventsSlugRoute: typeof EventsSlugRoute
   FounderIdRoute: typeof FounderIdRoute
-  DemoIndexRoute: typeof DemoIndexRoute
+  EventsIndexRoute: typeof EventsIndexRoute
   ApiPublicWebhooksPaystackRoute: typeof ApiPublicWebhooksPaystackRoute
 }
 
@@ -686,11 +688,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/demo/': {
-      id: '/demo/'
-      path: '/demo'
-      fullPath: '/demo/'
-      preLoaderRoute: typeof DemoIndexRouteImport
+    '/events/': {
+      id: '/events/'
+      path: '/events'
+      fullPath: '/events/'
+      preLoaderRoute: typeof EventsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/founder/$id': {
@@ -700,11 +702,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FounderIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/demo/$slug': {
-      id: '/demo/$slug'
-      path: '/demo/$slug'
-      fullPath: '/demo/$slug'
-      preLoaderRoute: typeof DemoSlugRouteImport
+    '/events/$slug': {
+      id: '/events/$slug'
+      path: '/events/$slug'
+      fullPath: '/events/$slug'
+      preLoaderRoute: typeof EventsSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/callback': {
@@ -1013,9 +1015,9 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,
-  DemoSlugRoute: DemoSlugRoute,
+  EventsSlugRoute: EventsSlugRoute,
   FounderIdRoute: FounderIdRoute,
-  DemoIndexRoute: DemoIndexRoute,
+  EventsIndexRoute: EventsIndexRoute,
   ApiPublicWebhooksPaystackRoute: ApiPublicWebhooksPaystackRoute,
 }
 export const routeTree = rootRouteImport
