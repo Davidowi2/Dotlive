@@ -384,6 +384,17 @@ export async function userRoutes(app: FastifyInstance) {
       .from(userRoles)
       .where(eq(userRoles.userId, sub));
     return reply.send({ userId: sub, roles: rows.map((r) => r.role) });
+
+  /** GET /api/users/me/roles — short helper that returns just the user's roles
+   * (frontend uses this for faster initial role hydration). */
+  app.get("/users/me/roles", { preHandler: app.authenticate }, async (req, reply) => {
+    const { sub } = req.user as { sub: string };
+    const rows = await db
+      .select({ role: userRoles.role })
+      .from(userRoles)
+      .where(eq(userRoles.userId, sub));
+    return reply.send({ userId: sub, roles: rows.map((r) => r.role) });
+  });
   });
 
 // @ts-nocheck
