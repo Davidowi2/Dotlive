@@ -300,7 +300,7 @@ export async function userRoutes(app: FastifyInstance) {
     // Aggregate votes across all ventures owned by this founder
     const voteStats = await db.execute(sql`
       SELECT
-        COALESCE(SUM(vote_weight), 0)::int AS total_votes,
+        COALESCE(SUM(weight), 0)::int AS total_votes,
         COUNT(*)::int AS vote_count
       FROM votes v
       JOIN ventures vt ON vt.id::text = v.target_id
