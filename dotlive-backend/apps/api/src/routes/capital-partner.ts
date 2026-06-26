@@ -50,19 +50,21 @@ export async function capitalPartnerRoutes(app: FastifyInstance) {
       return reply.code(404).send({ error: "Not a Capital Partner" });
     }
     // Aggregate stats
-    const [cStats] = await db.execute(sql`
+    const cStats = await db.execute(sql`
       SELECT
         COALESCE(SUM(amount), 0) AS total_deployed_dot
       FROM transactions
       WHERE user_id = ${u.id}
         AND description LIKE '[CAPITAL_COMMIT]%'
     `) as any;
-    const [vCount] = await db.execute(sql`
+    const cStatsRow = (cStats as any)[0] ?? (cStats as any).rows?.[0];
+    const vCount = await db.execute(sql`
       SELECT COUNT(DISTINCT (description::text))::int AS n
       FROM transactions
       WHERE user_id = ${u.id}
         AND description LIKE '[CAPITAL_COMMIT]%'
     `) as any;
+    const vCountRow = (vCount as any)[0] ?? (vCount as any).rows?.[0];
     return reply.send({
       partner: {
         id: u.id,
@@ -71,8 +73,8 @@ export async function capitalPartnerRoutes(app: FastifyInstance) {
         avatarUrl: u.avatarUrl,
         dotId: u.dotId,
         createdAt: u.createdAt,
-        totalDeployedDot: Number((cStats as any)?.rows?.[0]?.total_deployed_dot ?? cStats?.total_deployed_dot ?? 0),
-        venturesFunded: Number((vCount as any)?.rows?.[0]?.n ?? vCount?.n ?? 0),
+        totalDeployedDot: Number(cStatsRow?.total_deployed_dot ?? 0),
+        venturesFunded: Number(vCountRow?.n ?? 0),
       },
     });
   });
@@ -213,7 +215,7 @@ export async function capitalPartnerRoutes(app: FastifyInstance) {
     const featured = await db.execute(sql`
       WITH deployment AS (
         SELECT
-          SUBSTRING(t.description FROM 'venture=([^ ]+)') AS venture_id,
+          SUBSTRING(t.description FROM 'venture=([^ ]+)')::uuid AS venture_id,
           SUM(ABS(t.amount)) AS deployed_dot,
           COUNT(DISTINCT t.user_id) AS sponsor_count
         FROM transactions t
@@ -240,25 +242,28 @@ export async function capitalPartnerRoutes(app: FastifyInstance) {
   app.get("/capital/deployments", { preHandler: [app.authenticate, requireCpOrAdmin] }, async (req, reply) => {
     const id = (req.user as { sub: string }).sub;
 
-    const [committedTotal] = await db.execute(sql`
+    const committedTotal = await db.execute(sql`
       SELECT COALESCE(SUM(ABS(amount)), 0) AS s
       FROM transactions
       WHERE user_id = ${id} AND description LIKE '[CAPITAL_COMMIT]%'
     `) as any;
-    const [committedCount] = await db.execute(sql`
+    const committedCount = await db.execute(sql`
       SELECT COUNT(DISTINCT SUBSTRING(description FROM 'venture=([^ ]+)'))::int AS n
       FROM transactions
       WHERE user_id = ${id} AND description LIKE '[CAPITAL_COMMIT]%'
     `) as any;
-    const [walletRow] = await db.execute(sql`
+    const walletRow = await db.execute(sql`
       SELECT COALESCE(balance, 0) AS balance
       FROM wallets WHERE user_id = ${id} LIMIT 1
     `) as any;
+    const ctRow = (committedTotal as any)[0] ?? (committedTotal as any).rows?.[0] ?? {};
+    const ccRow = (committedCount as any)[0] ?? (committedCount as any).rows?.[0] ?? {};
+    const wRow = (walletRow as any)[0] ?? (walletRow as any).rows?.[0] ?? {};
 
     return reply.send({
-      deployedDot: Number(((committedTotal as any).rows?.[0] ?? committedTotal)?.s ?? 0),
-      venturesFunded: Number(((committedCount as any).rows?.[0] ?? committedCount)?.n ?? 0),
-      liquidDot: Number(((walletRow as any).rows?.[0] ?? walletRow)?.balance ?? 0),
+      deployedDot: Number(ctRow.s ?? 0),
+      venturesFunded: Number(ccRow.n ?? 0),
+      liquidDot: Number(wRow.balance ?? 0),
     });
   });
 
@@ -266,7 +271,7 @@ export async function capitalPartnerRoutes(app: FastifyInstance) {
 
   app.get("/capital/stats", { preHandler: [app.authenticate, requireCpOrAdmin] }, async (req, reply) => {
     const id = (req.user as { sub: string }).sub;
-    const [stats] = await db.execute(sql`
+    const stats = await db.execute(sql`
       SELECT
         COALESCE(SUM(CASE WHEN amount > 0 THEN amount END), 0) AS total_inflow,
         COALESCE(SUM(CASE WHEN amount < 0 THEN ABS(amount) END), 0) AS total_outflow,
@@ -275,12 +280,12 @@ export async function capitalPartnerRoutes(app: FastifyInstance) {
       FROM transactions
       WHERE user_id = ${id}
     `) as any;
-    const s = (stats as any).rows?.[0] ?? stats;
+    const s = (stats as any)[0] ?? (stats as any).rows?.[0] ?? {};
     return reply.send({
-      totalInflowDot: Number(s?.total_inflow ?? 0),
-      totalOutflowDot: Number(s?.total_outflow ?? 0),
-      commitCount: Number(s?.commit_count ?? 0),
-      venturesFunded: Number(s?.ventures_funded ?? 0),
+      totalInflowDot: Number(s.total_inflow ?? 0),
+      totalOutflowDot: Number(s.total_outflow ?? 0),
+      commitCount: Number(s.commit_count ?? 0),
+      venturesFunded: Number(s.ventures_funded ?? 0),
     });
   });
 

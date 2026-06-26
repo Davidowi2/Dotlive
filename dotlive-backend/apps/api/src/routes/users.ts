@@ -278,27 +278,27 @@ export async function userRoutes(app: FastifyInstance) {
 
     // Resolve user (by id OR dot_id)
     let userRow: any;
-    if (idOrDotId.startsWith("dot-") || /^[a-z]+\-[a-z]+\-/.test(idOrDotId)) {
+    if (idOrDotId.startsWith("dot-") || /^[a-z]+-[a-z]+-/.test(idOrDotId)) {
       // DOT ID format like "brave-works-26pc4x9l"
-      const [u] = await db.select().from(users).where(sql`${users.dotId} = ${idOrDotId}`).limit(1);
-      userRow = u;
+      const users1 = await db.select().from(users).where(sql`${users.dotId} = ${idOrDotId}`).limit(1);
+      userRow = users1[0];
     } else {
-      const [u] = await db.select().from(users).where(eq(users.id, idOrDotId)).limit(1);
-      userRow = u;
+      const users2 = await db.select().from(users).where(eq(users.id, idOrDotId)).limit(1);
+      userRow = users2[0];
     }
     if (!userRow) return reply.code(404).send({ error: "Founder not found" });
 
     const id = userRow.id;
 
     // Founder profile
-    const [profile] = await db.execute(sql`SELECT * FROM founder_profiles WHERE user_id = ${id} LIMIT 1`) as any;
+    const profile = await db.execute(sql`SELECT * FROM founder_profiles WHERE user_id = ${id} LIMIT 1`) as any;
     const profileRow = (profile as any)[0] ?? (profile as any).rows?.[0] ?? null;
 
     // User roles
     const userRolesList = await db.select({ role: userRoles.role }).from(userRoles).where(eq(userRoles.userId, id));
 
     // Aggregate votes across all ventures owned by this founder
-    const [voteStats] = await db.execute(sql`
+    const voteStats = await db.execute(sql`
       SELECT
         COALESCE(SUM(vote_weight), 0)::int AS total_votes,
         COUNT(*)::int AS vote_count
@@ -307,10 +307,10 @@ export async function userRoutes(app: FastifyInstance) {
       WHERE vt.user_id = ${id}
         AND v.target_type = 'venture'
     `) as any;
-    const vsRow = (voteStats as any)[0] ?? (voteStats as any).rows?.[0];
+    const vsRow = (voteStats as any)[0] ?? (voteStats as any).rows?.[0] ?? {};
 
     // Aggregate capital commitments to ventures owned by this founder
-    const [capitalStats] = await db.execute(sql`
+    const capitalStats = await db.execute(sql`
       SELECT
         COALESCE(SUM(ABS(t.amount)), 0) AS total_raised_dot,
         COUNT(DISTINCT t.user_id)::int AS sponsor_count
@@ -318,7 +318,7 @@ export async function userRoutes(app: FastifyInstance) {
       WHERE t.description LIKE '[CAPITAL_COMMIT]%'
         AND t.description LIKE ${`%${userRow.id}%`}
     `) as any;
-    const csRow = (capitalStats as any)[0] ?? (capitalStats as any).rows?.[0];
+    const csRow = (capitalStats as any)[0] ?? (capitalStats as any).rows?.[0] ?? {};
 
     // All ventures owned
     const venturesList = await db
