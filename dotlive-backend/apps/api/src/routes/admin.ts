@@ -203,29 +203,71 @@ export async function adminRoutes(app: FastifyInstance) {
           dotId: users.dotId,
           onboardingIntent: users.onboardingIntent,
           createdAt: users.createdAt,
+          avatarUrl: users.avatarUrl,
+          emailVerified: users.emailVerified,
         })
         .from(users)
         .where(conditions.length ? and(...conditions) : undefined)
         .orderBy(order)
         .limit(limit + 1);
 
+      // Batch-fetch roles + balances + bans for all users in one go
+      const userIds = rows.map((r) => r.id);
+      const [rolesRows, walletRows, banRows] = await Promise.all([
+        userIds.length
+          ? db
+              .select({ userId: userRoles.userId, role: userRoles.role })
+              .from(userRoles)
+              .where(inArray(userRoles.userId, userIds))
+          : Promise.resolve([]),
+        userIds.length
+          ? db
+              .select({ userId: wallets.userId, balance: wallets.balance })
+              .from(wallets)
+              .where(inArray(wallets.userId, userIds))
+              .catch(() => [])
+          : Promise.resolve([]),
+        userIds.length
+          ? db
+              .select({ userId: userBans.userId, revokedAt: userBans.revokedAt, reason: userBans.reason, createdAt: userBans.createdAt })
+              .from(userBans)
+              .where(inArray(userBans.userId, userIds))
+              .catch(() => [])
+          : Promise.resolve([]),
+      ]);
+      const rolesByUser = new Map<string, string[]>();
+      for (const r of rolesRows as any[]) {
+        const arr = rolesByUser.get(r.userId) ?? [];
+        arr.push(r.role);
+        rolesByUser.set(r.userId, arr);
+      }
+      const balanceByUser = new Map<string, string>();
+      for (const w of walletRows as any[]) balanceByUser.set(w.userId, String(w.balance ?? 0));
+      const banByUser = new Map<string, any>();
+      for (const b of banRows as any[]) if (!b.revokedAt) banByUser.set(b.userId, b);
+
       const hasMore = rows.length > limit;
       const slice = hasMore ? rows.slice(0, limit) : rows;
       const nextCursor = hasMore ? slice[slice.length - 1].createdAt.toISOString() : null;
 
+      // Decorate each user with roles, balance, ban info
+      const decorated = slice.map((u) => ({
+        ...u,
+        roles: rolesByUser.get(u.id) ?? [],
+        balance: balanceByUser.get(u.id) ?? "0",
+        isAdmin: (rolesByUser.get(u.id) ?? []).includes("admin"),
+        isSuperAdmin: (rolesByUser.get(u.id) ?? []).includes("super_admin"),
+        bannedAt: banByUser.get(u.id)?.createdAt ?? null,
+        banReason: banByUser.get(u.id)?.reason ?? null,
+      }));
+
       // Optionally filter by role
-      let filtered = slice;
+      let filtered = decorated;
       if (role) {
-        const userIds = slice.map((u) => u.id);
-        const roleRows = await db
-          .select({ userId: userRoles.userId })
-          .from(userRoles)
-          .where(and(eq(userRoles.role, role as any), inArray(userRoles.userId, userIds)));
-        const allowed = new Set(roleRows.map((r) => r.userId));
-        filtered = slice.filter((u) => allowed.has(u.id));
+        filtered = decorated.filter((u) => u.roles.includes(role));
       }
 
-      return reply.send({ users: filtered, nextCursor });
+      return reply.send({ users: filtered, nextCursor, total: filtered.length });
     }
   );
 
@@ -731,6 +773,10 @@ export async function adminRoutes(app: FastifyInstance) {
       const [j] = (await db.execute(sql`SELECT count(*)::int AS n FROM job_listings WHERE is_active = true`)) as any;
       const [tx2] = (await db.execute(sql`SELECT count(*)::int AS n FROM transactions`)) as any;
       const [fa] = (await db.execute(sql`SELECT count(*)::int AS n FROM feature_flags WHERE enabled = true`)) as any;
+      const [rolesTotal] = (await db.execute(sql`SELECT count(*)::int AS n FROM user_roles`)) as any;
+      const [rolesSuper] = (await db.execute(sql`SELECT count(*)::int AS n FROM user_roles WHERE role = 'super_admin'`)) as any;
+      const [rolesAdmin] = (await db.execute(sql`SELECT count(*)::int AS n FROM user_roles WHERE role = 'admin'`)) as any;
+      const [balanceTotal] = (await db.execute(sql`SELECT COALESCE(SUM(balance), 0) AS s FROM wallets`)) as any;
       return reply.send({
         users: Number(u?.n ?? 0),
         bannedUsers: Number(b?.n ?? 0),
@@ -738,10 +784,18 @@ export async function adminRoutes(app: FastifyInstance) {
         activeServices: Number(s?.n ?? 0),
         activeJobs: Number(j?.n ?? 0),
         transactions: Number(tx2?.n ?? 0),
-                activeFeatureFlags: Number(fa?.n ?? 0),
-              });
-            }
-          );
+        activeFeatureFlags: Number(fa?.n ?? 0),
+        roles: {
+          total: Number(rolesTotal?.n ?? 0),
+          superAdmins: Number(rolesSuper?.n ?? 0),
+          admins: Number(rolesAdmin?.n ?? 0),
+        },
+        wallets: {
+          totalBalance: Number(balanceTotal?.s ?? 0),
+        },
+      });
+    }
+  );
 
           /* ── USER EDITING — PATCH /api/admin/users/:id ───────────────── */
           /** Update user profile (name, email, avatar). Available to any admin. */
