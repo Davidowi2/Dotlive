@@ -49,27 +49,52 @@ export async function ventureRoutes(app: FastifyInstance) {
     return reply.send({ venture: serialize(inserted[0]) });
   });
 
-  /** GET /api/ventures — list with optional filters */
+  /** GET /api/ventures — list with optional filters (Sprint B discover) */
   app.get("/ventures", async (req, reply) => {
     const q = z
       .object({
         stage: z.enum(STAGES).optional(),
         industry: z.string().optional(),
+        country: z.string().optional(),
         search: z.string().optional(),
+        minVantage: z.coerce.number().int().min(0).max(1000).optional(),
+        maxVantage: z.coerce.number().int().min(0).max(1000).optional(),
+        minFundability: z.coerce.number().int().min(0).max(100).optional(),
+        sort: z.enum(["newest", "vantage_desc", "fundability_desc", "alpha"]).default("newest"),
         limit: z.coerce.number().int().min(1).max(100).default(20),
+        cursor: z.string().optional(),
       })
       .safeParse(req.query);
     if (!q.success) return reply.code(400).send({ error: "Invalid query" });
-    const { stage, industry, search, limit } = q.data;
+    const { stage, industry, country, search, minVantage, maxVantage, minFundability, sort, limit, cursor } = q.data;
 
-    const qb = db.select().from(ventures).$dynamic();
     const conds: any[] = [];
     if (stage) conds.push(eq(ventures.stage, stage));
-    if (industry) conds.push(eq(ventures.industry, industry));
+    if (industry) conds.push(ilike(ventures.industry, `%${industry}%`));
+    if (country) conds.push(ilike(ventures.country, `%${country}%`));
     if (search) conds.push(ilike(ventures.name, `%${search}%`));
-    if (conds.length > 0) qb.where(and(...conds) as any);
-    const rows = await qb.orderBy(desc(ventures.createdAt)).limit(limit);
-    return reply.send({ ventures: rows.map(serialize) });
+    if (minVantage != null) conds.push(sql`${ventures.vantagePoint} >= ${minVantage}`);
+    if (maxVantage != null) conds.push(sql`${ventures.vantagePoint} <= ${maxVantage}`);
+    if (minFundability != null) conds.push(sql`${ventures.fundability} >= ${minFundability}`);
+    if (cursor) conds.push(sql`${ventures.createdAt} < ${new Date(cursor)}`);
+
+    let qb = db.select().from(ventures).$dynamic();
+    if (conds.length > 0) qb = qb.where(and(...conds) as any);
+
+    // Sorting
+    if (sort === "vantage_desc") qb = qb.orderBy(desc(ventures.vantagePoint));
+    else if (sort === "fundability_desc") qb = qb.orderBy(desc(ventures.fundability));
+    else if (sort === "alpha") qb = qb.orderBy(ventures.name);
+    else qb = qb.orderBy(desc(ventures.createdAt));
+
+    const rows = await qb.limit(limit + 1);
+    const hasMore = rows.length > limit;
+    const slice = hasMore ? rows.slice(0, limit) : rows;
+
+    return reply.send({
+      ventures: slice.map(serialize),
+      nextCursor: hasMore ? slice[slice.length - 1].createdAt.toISOString() : null,
+    });
   });
 
   /** GET /api/ventures/:id */

@@ -4,10 +4,10 @@
 
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, desc } from "drizzle-orm";
 
 import { db } from "../db/client.js";
-import { users, userRoles, roleRequirements, wallets, founderProfiles, builderProfiles } from "../db/schema.js";
+import { users, userRoles, roleRequirements, wallets, founderProfiles, builderProfiles, ventures } from "../db/schema.js";
 import { loadUserWithRoles, userHasRole } from "../lib/auth.js";
 import { debitWallet } from "../lib/dot.js";
 import type { AppRole } from "../sharedTypes.js";
@@ -269,6 +269,108 @@ export async function userRoutes(app: FastifyInstance) {
     return reply.send({ ventures: out });
   });
 
+  /** GET /api/founders/:idOrDotId — public founder profile (shareable URL).
+   * Resolves by user ID OR DOT ID. Returns the full founder profile
+   * + aggregate stats (votes, commitments, vantage, fundability).
+   * No auth required — this is the "shareable venture resume" */
+  app.get<{ Params: { idOrDotId: string } }>("/founders/:idOrDotId", async (req, reply) => {
+    const { idOrDotId } = req.params;
 
+    // Resolve user (by id OR dot_id)
+    let userRow: any;
+    if (idOrDotId.startsWith("dot-") || /^[a-z]+\-[a-z]+\-/.test(idOrDotId)) {
+      // DOT ID format like "brave-works-26pc4x9l"
+      const [u] = await db.select().from(users).where(sql`${users.dotId} = ${idOrDotId}`).limit(1);
+      userRow = u;
+    } else {
+      const [u] = await db.select().from(users).where(eq(users.id, idOrDotId)).limit(1);
+      userRow = u;
+    }
+    if (!userRow) return reply.code(404).send({ error: "Founder not found" });
+
+    const id = userRow.id;
+
+    // Founder profile
+    const [profile] = await db.execute(sql`SELECT * FROM founder_profiles WHERE user_id = ${id} LIMIT 1`) as any;
+    const profileRow = (profile as any)[0] ?? (profile as any).rows?.[0] ?? null;
+
+    // User roles
+    const userRolesList = await db.select({ role: userRoles.role }).from(userRoles).where(eq(userRoles.userId, id));
+
+    // Aggregate votes across all ventures owned by this founder
+    const [voteStats] = await db.execute(sql`
+      SELECT
+        COALESCE(SUM(vote_weight), 0)::int AS total_votes,
+        COUNT(*)::int AS vote_count
+      FROM votes v
+      JOIN ventures vt ON vt.id::text = v.target_id
+      WHERE vt.user_id = ${id}
+        AND v.target_type = 'venture'
+    `) as any;
+    const vsRow = (voteStats as any)[0] ?? (voteStats as any).rows?.[0];
+
+    // Aggregate capital commitments to ventures owned by this founder
+    const [capitalStats] = await db.execute(sql`
+      SELECT
+        COALESCE(SUM(ABS(t.amount)), 0) AS total_raised_dot,
+        COUNT(DISTINCT t.user_id)::int AS sponsor_count
+      FROM transactions t
+      WHERE t.description LIKE '[CAPITAL_COMMIT]%'
+        AND t.description LIKE ${`%${userRow.id}%`}
+    `) as any;
+    const csRow = (capitalStats as any)[0] ?? (capitalStats as any).rows?.[0];
+
+    // All ventures owned
+    const venturesList = await db
+      .select()
+      .from(ventures)
+      .where(eq(ventures.userId, id))
+      .orderBy(desc(ventures.createdAt));
+
+    return reply.send({
+      founder: {
+        id: userRow.id,
+        name: userRow.name,
+        dotId: userRow.dotId,
+        avatarUrl: userRow.avatarUrl,
+        createdAt: userRow.createdAt,
+        roles: userRolesList.map((r) => r.role),
+        isFounder: userRolesList.some((r) => r.role === "founder"),
+        isBuilder: userRolesList.some((r) => r.role === "builder"),
+        isCapitalPartner: userRolesList.some((r) => r.role === "capital_partner"),
+      },
+      profile: profileRow ? {
+        ventureName: profileRow.venture_name,
+        industry: profileRow.industry,
+        stage: profileRow.stage,
+        country: profileRow.country,
+        bio: profileRow.bio,
+        website: profileRow.website,
+        fundingGoal: Number(profileRow.funding_goal ?? 0),
+        logoUrl: profileRow.logo_url,
+        vantagePoint: Number(profileRow.vantage_point ?? 0),
+        fundability: Number(profileRow.fundability ?? 0),
+        investmentReadiness: Number(profileRow.investment_readiness ?? 0),
+      } : null,
+      stats: {
+        totalVotes: Number(vsRow?.total_votes ?? 0),
+        voteCount: Number(vsRow?.vote_count ?? 0),
+        totalRaisedDot: Number(csRow?.total_raised_dot ?? 0),
+        sponsorCount: Number(csRow?.sponsor_count ?? 0),
+        venturesOwned: venturesList.length,
+      },
+      ventures: venturesList.map((v) => ({
+        id: v.id,
+        name: v.name,
+        industry: v.industry,
+        stage: v.stage,
+        country: v.country,
+        fundingGoal: Number(v.fundingGoal ?? 0),
+        vantagePoint: v.vantagePoint,
+        fundability: v.fundability,
+        createdAt: v.createdAt,
+      })),
+    });
+  });
 }
 // @ts-nocheck

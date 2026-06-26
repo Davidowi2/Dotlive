@@ -41,6 +41,7 @@ import { communityBillingRoutes } from "./routes/community-billing.js";
 import { demoEventRoutes } from "./routes/demo-events.js";
 import { adminRoutes }      from "./routes/admin.js";
 import { adminToolsRoutes } from "./routes/admin-tools.js";
+import { capitalPartnerRoutes } from "./routes/capital-partner.js";
 
 /* ── Env validation ─────────────────────────────────────────── */
 
@@ -257,6 +258,7 @@ await app.register(withdrawalRoutes,    { prefix: "/api" });
   await app.register(demoEventRoutes,        { prefix: "/api" });
   await app.register(adminRoutes,            { prefix: "/api/admin" });
   await app.register(adminToolsRoutes,         { prefix: "/api" });
+  await app.register(capitalPartnerRoutes,      { prefix: "/api" });
 
 /* ── Error handler ───────────────────────────────────────────── */
 
