@@ -120,6 +120,9 @@ await app.register(cors, {
       "http://localhost:8081",
       "https://dotlive-lake.vercel.app",
       "https://dotlive-web.vercel.app",
+      "https://dotlive.cv",
+      "https://www.dotlive.cv",
+      "http://dotlive.cv",
       ...envOrigins,
     ];
     // Allow all vercel.app previews and exact matches.
