@@ -286,25 +286,7 @@ function SigninForm({
           </div>
           {/* Demo mode shortcut — bypasses live backend for previewing the app.
            *  Set VITE_API_URL to a real backend to disable this. */}
-          <Button
-            type="button"
-            variant="ghost"
-            className="w-full text-xs tracking-widest uppercase text-muted-foreground hover:text-foreground"
-            onClick={async () => {
-              setBusy(true);
-              try {
-                await login("demo@dotlive.app", "demo");
-                toast.success("Welcome — you're in demo mode.");
-                navigate({ to: "/dashboard" });
-              } catch (err) {
-                const msg = err instanceof Error ? err.message : "Demo failed";
-                toast.error(msg);
-              } finally { setBusy(false); }
-            }}
-            disabled={busy}
-          >
-            Try the demo (no signup) →
-          </Button>
+          
           <div className="my-3 flex items-center gap-3">
             <span className="h-px flex-1 bg-border" />
             <span className="text-xs text-muted-foreground">or sign in</span>

@@ -199,10 +199,58 @@ function VantagePage() {
     if (!user || !answeredAll) return;
     setBusy(true);
     try {
-      const result = await submitAssessment(answers as Record<string, number>);
+      // Compute per-category scores (each answer is 1-5, scaled to 0-100)
+      const categoryScores: Record<string, number> = {};
+      for (const cat of VANTAGE_CATEGORIES) {
+        const items = cat.questions.map((q) => answers[q.id]).filter((v): v is number => typeof v === "number");
+        if (items.length > 0) {
+          const avg = items.reduce((a, b) => a + b, 0) / items.length; // 1-5
+          categoryScores[cat.label] = Math.round(((avg - 1) / 4) * 100); // 0-100
+        }
+      }
+
+      // Composite scores
+      const allValues = Object.values(categoryScores);
+      const score = allValues.length > 0
+        ? Math.round(allValues.reduce((a, b) => a + b, 0) / allValues.length)
+        : 0; // 0-100
+
+      // Vantage Point is the user-facing 0-1000 score
+      const vantagePoint = score * 10;
+
+      // Fundability = weighted pillar score from "fundability" categories
+      const fundabilitySources = ["revenue", "investment_readiness"];
+      const fundabilityVals = fundabilitySources
+        .map((k) => categoryScores[VANTAGE_CATEGORIES.find((c) => c.questions.some((q) => q.id === k))?.label ?? ""])
+        .filter((v): v is number => typeof v === "number");
+      const fundability = fundabilityVals.length > 0
+        ? Math.round(fundabilityVals.reduce((a, b) => a + b, 0) / fundabilityVals.length)
+        : 0;
+
+      // Investment readiness = weighted score from investment_readiness category
+      const irLabel = VANTAGE_CATEGORIES.find((c) => c.questions.some((q) => q.id === "investment_readiness"))?.label ?? "";
+      const investmentReadiness = categoryScores[irLabel] ?? 0;
+
+      // Stage from score (matches the spec)
+      let stage = "Assess";
+      if (score >= 80) stage = "Scale";
+      else if (score >= 60) stage = "Fund";
+      else if (score >= 40) stage = "Build";
+      else if (score >= 20) stage = "Validate";
+
+      const result = await submitAssessment({
+        answers: answers as Record<string, number>,
+        categoryScores,
+        score,
+        vantagePoint,
+        fundability,
+        investmentReadiness,
+        stage,
+      });
       toast.success(`Vantage complete! You scored ${result.vantagePoint} points.`);
       qc.invalidateQueries({ queryKey: ["assessments", user.id] });
       qc.invalidateQueries({ queryKey: ["founder_profile", user.id] });
+      qc.invalidateQueries({ queryKey: ["vantage"] });
       setTaking(false);
       setIdx(0);
       setAnswers({});

@@ -9,6 +9,7 @@
 
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useRoleGate } from "@/hooks/use-role-gate";
 import { Users, Activity, Trophy, Target, Copy, ExternalLink } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
@@ -28,6 +29,8 @@ export const Route = createFileRoute("/_authenticated/community/dashboard")({
 });
 
 function CommunityDashboardPage() {
+  const gate = useRoleGate(["community_leader", "admin"], { redirect: "/dashboard" });
+  if (!gate.allowed) return null;
   // For v1, fetch the first community the user leads. Multi-community support is a future enhancement.
   const dashboardQ = useQuery({
     queryKey: ["community_dashboard"],

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useRoleGate } from "@/hooks/use-role-gate";
 import {
   Trophy,
   Loader2,
@@ -62,6 +63,8 @@ export const Route = createFileRoute("/_authenticated/pitchathons")({
  * highlighted card at the top.
  */
 function PitchathonsPage() {
+  const gate = useRoleGate(["founder", "investor", "admin", "capital_partner"], { redirect: "/dashboard" });
+  if (!gate.allowed) return null;
   const { user } = useDotAuth();
   const qc = useQueryClient();
   const { data: founder } = useFounderProfile();

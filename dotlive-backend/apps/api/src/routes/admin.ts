@@ -858,31 +858,61 @@ export async function adminRoutes(app: FastifyInstance) {
       return reply.code(403).send({ error: "Admin only" });
     }
     const { id } = req.params;
-    // Aggregate from services + orders + reviews
-    const svc = await db.execute(sql`
-      SELECT
-        (SELECT COUNT(*) FROM services WHERE builder_id = ${id} AND is_active = true) AS active_services,
-        (SELECT COUNT(*) FROM services WHERE builder_id = ${id}) AS total_services,
-        (SELECT COUNT(*) FROM service_orders WHERE builder_id = ${id}) AS total_orders,
-        (SELECT COUNT(*) FROM service_orders WHERE builder_id = ${id} AND status = 'completed') AS completed_orders,
-        (SELECT COALESCE(AVG(rating), 0) FROM service_reviews WHERE builder_id = ${id}) AS avg_rating,
-        (SELECT COUNT(*) FROM service_reviews WHERE builder_id = ${id}) AS total_reviews,
-        (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ${id} AND amount > 0) AS total_earned,
-        (SELECT COALESCE(SUM(amount), 0) FROM wallets WHERE user_id = ${id}) AS wallet_balance
-    `);
-    const r = ((svc as any).rows ?? [])[0] ?? {};
-    return reply.send({
-      stats: {
-        activeServices: Number(r.active_services ?? 0),
-        totalServices: Number(r.total_services ?? 0),
-        totalOrders: Number(r.total_orders ?? 0),
-        completedOrders: Number(r.completed_orders ?? 0),
-        avgRating: Number(r.avg_rating ?? 0),
-        totalReviews: Number(r.total_reviews ?? 0),
-        totalEarned: Number(r.total_earned ?? 0),
-        walletBalance: Number(r.wallet_balance ?? 0),
-      },
-    });
+    try {
+      // Aggregate from services + orders + reviews + transactions + wallet
+      // Each subquery wrapped in COALESCE so a missing table doesn't fail the whole call.
+      const [svcStats, orderStats, reviewStats, earnStats, walletRow] = await Promise.all([
+        db.execute(sql`
+          SELECT
+            COUNT(*) FILTER (WHERE is_active = true) AS active_services,
+            COUNT(*) AS total_services
+          FROM services WHERE builder_id = ${id}
+        `).catch(() => ({ rows: [{ active_services: 0, total_services: 0 }] })),
+        db.execute(sql`
+          SELECT
+            COUNT(*) AS total_orders,
+            COUNT(*) FILTER (WHERE status = 'completed') AS completed_orders
+          FROM service_orders WHERE builder_id = ${id}
+        `).catch(() => ({ rows: [{ total_orders: 0, completed_orders: 0 }] })),
+        db.execute(sql`
+          SELECT
+            COALESCE(AVG(rating), 0) AS avg_rating,
+            COUNT(*) AS total_reviews
+          FROM service_reviews WHERE builder_id = ${id}
+        `).catch(() => ({ rows: [{ avg_rating: 0, total_reviews: 0 }] })),
+        db.execute(sql`
+          SELECT COALESCE(SUM(amount), 0) AS total_earned
+          FROM transactions WHERE user_id = ${id} AND amount > 0
+        `).catch(() => ({ rows: [{ total_earned: 0 }] })),
+        db.execute(sql`
+          SELECT COALESCE(balance, 0) AS wallet_balance
+          FROM wallets WHERE user_id = ${id} LIMIT 1
+        `).catch(() => ({ rows: [{ wallet_balance: 0 }] })),
+      ]);
+
+      const rowsOf = (r: any) => Array.isArray(r) ? r[0] : (r?.rows?.[0] ?? {});
+      const s = rowsOf(svcStats);
+      const o = rowsOf(orderStats);
+      const rv = rowsOf(reviewStats);
+      const e = rowsOf(earnStats);
+      const w = rowsOf(walletRow);
+
+      return reply.send({
+        stats: {
+          activeServices: Number(s.active_services ?? 0),
+          totalServices: Number(s.total_services ?? 0),
+          totalOrders: Number(o.total_orders ?? 0),
+          completedOrders: Number(o.completed_orders ?? 0),
+          avgRating: Number(rv.avg_rating ?? 0),
+          totalReviews: Number(rv.total_reviews ?? 0),
+          totalEarned: Number(e.total_earned ?? 0),
+          walletBalance: Number(w.wallet_balance ?? 0),
+        },
+      });
+    } catch (err) {
+      req.log.error({ err, id }, "builder stats failed");
+      return reply.code(500).send({ error: "Could not compute builder stats", details: String(err) });
+    }
   });
 
 }

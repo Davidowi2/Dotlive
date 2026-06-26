@@ -31,6 +31,8 @@ export const Route = createFileRoute("/_authenticated/investor")({
 });
 
 function InvestorPage() {
+  const gate = useRoleGate(["investor", "capital_partner"], { redirect: "/dashboard" });
+  if (!gate.allowed) return <AppShell><div className="p-12 text-center"><h2 className="text-2xl font-semibold">Investor access only</h2><p className="mt-2 text-muted-foreground">You need the investor role to view the Capital Portal.</p></div></AppShell>;
   const { user } = useDotAuth();
   const qc = useQueryClient();
   const [industry, setIndustry] = useState("all");

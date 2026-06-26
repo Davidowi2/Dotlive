@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useRoleGate } from "@/hooks/use-role-gate";
 import { useState } from "react";
 import { Trophy, Star, FileText, CheckCircle2, ExternalLink } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
@@ -22,6 +23,8 @@ const MOCK_APPLICATIONS = [
 ];
 
 function JudgePage() {
+  const gate = useRoleGate(["investor", "capital_partner", "admin"], { redirect: "/dashboard" });
+  if (!gate.allowed) return null;
   const [scoring, setScoring] = useState<string | null>(null);
   const [score, setScore] = useState(5);
   const [feedback, setFeedback] = useState("");

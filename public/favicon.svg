@@ -1,3 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
-  <image href="/logo.png" width="32" height="32"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- DOT favicon — transparent background, serif "DOT" with accent dot -->
+  <text x="50%" y="58%"
+        font-family="Georgia, 'Times New Roman', serif"
+        font-size="44"
+        font-weight="700"
+        text-anchor="middle"
+        fill="#0A4627"
+        letter-spacing="-1">DOT</text>
+  <circle cx="51" cy="49" r="3.5" fill="#C9A33B"/>
 </svg>
