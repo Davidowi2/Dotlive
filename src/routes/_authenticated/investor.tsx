@@ -16,6 +16,7 @@ import { Slider } from "@/components/ui/slider";
 import { dotApi } from "@/api/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDotAuth } from "@/contexts/DotAuthContext";
+import { useRoleGate } from "@/hooks/use-role-gate";
 import { INDUSTRIES, JOURNEY_STAGES } from "@/lib/constants";
 import { FounderCard, type FounderShowcase } from "./demo";
 import { toast } from "sonner";
