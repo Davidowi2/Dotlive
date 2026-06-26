@@ -18,6 +18,7 @@ import {
   DollarSign,
   Lock,
   Activity,
+  ArrowLeftRight,
 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
@@ -26,8 +27,11 @@ import { DataTable } from "@/components/app/DataTable";
 import { EmptyState } from "@/components/app/EmptyState";
 import { PageSkeleton } from "@/components/app/PageSkeleton";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+// Input + Label already imported above
+// Input + Label already imported above
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -44,7 +48,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useDotAuth } from "@/contexts/DotAuthContext";
 import { formatDot, formatNaira, ROLE_LABELS, type AppRole } from "@/lib/constants";
-import { elevateUser, revokeAdmin, claimSuperAdmin } from "@/lib/admin.functions";
+import {
+  getRoleHierarchy, getUserRolesInfo,
+  promoteUser, demoteUser,
+  getTokenStats, getTokenOps, mintTokens, adminTransfer,
+  type RoleHierarchy, type TokenStats, type TokenOperation,
+} from "@/api/admin-tools";
 import {
   listAdminUsers,
   adjustBalance,
@@ -176,9 +185,17 @@ function AdminPage() {
           <ContentTab />
         </TabsContent>
         {isSuperAdmin && (
+          <>
           <TabsContent value="roles">
             <RolesTab />
           </TabsContent>
+          <TabsContent value="token">
+            <TokenSupplyTab />
+          </TabsContent>
+          <TabsContent value="transfer">
+            <AdminTransferTab />
+          </TabsContent>
+          </>
         )}
       </Tabs>
     </AppShell>
@@ -1057,5 +1074,221 @@ function CreateCard({
         Create
       </Button>
     </form>
+  );
+}
+
+
+/* ───────────────────────────────────────────────────────────────
+ * Token Supply tab — shows the 100B DOT hard cap + ops history
+ * ─────────────────────────────────────────────────────────────── */
+function TokenSupplyTab() {
+  const [stats, setStats] = useState<TokenStats | null>(null);
+  const [ops, setOps] = useState<TokenOperation[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [s, o] = await Promise.all([getTokenStats(), getTokenOps({ limit: 30 })]);
+        setStats(s);
+        setOps(o.operations ?? []);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Failed to load token stats");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  if (loading) {
+    return <div className="flex justify-center py-12"><Loader2 className="size-8 animate-spin text-muted-foreground" /></div>;
+  }
+  if (!stats) return <EmptyState title="No data" subtitle="Could not load token stats." icon={Coins} />;
+
+  const capPct = stats.capReachedPercent;
+  const danger = capPct > 90;
+  const warn = capPct > 70;
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Token supply</h3>
+          <span className="text-xs text-muted-foreground">Hard cap mandated by client</span>
+        </div>
+        <div className="mt-3 grid gap-3 md:grid-cols-4">
+          <div className="rounded-xl border border-border bg-card p-5">
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">Max supply</div>
+            <div className="mt-1 text-3xl font-bold tabular-nums">{stats.display.maxSupply}</div>
+            <div className="text-xs text-muted-foreground">100 billion DOT cap</div>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-5">
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">Circulating</div>
+            <div className="mt-1 text-3xl font-bold tabular-nums text-primary">{stats.display.circulating}</div>
+            <div className="text-xs text-muted-foreground">{stats.totalMintedDot.toLocaleString()} minted - {stats.totalBurnedDot.toLocaleString()} burned</div>
+          </div>
+          <div className={cn(
+            "rounded-xl border bg-card p-5",
+            danger ? "border-destructive/50 bg-destructive/5"
+              : warn ? "border-amber-500/50 bg-amber-500/5"
+              : "border-border"
+          )}>
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">Remaining mint headroom</div>
+            <div className="mt-1 text-3xl font-bold tabular-nums">{stats.display.remaining}</div>
+            <div className="text-xs text-muted-foreground">Available before cap</div>
+          </div>
+          <div className={cn(
+            "rounded-xl border bg-card p-5",
+            danger ? "border-destructive/50" : "border-border"
+          )}>
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">Cap reached</div>
+            <div className="mt-1 text-3xl font-bold tabular-nums">{stats.display.capReachedPercent}</div>
+            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className={cn("h-full transition-all", danger ? "bg-destructive" : warn ? "bg-amber-500" : "bg-primary")}
+                style={{ width: `${Math.min(capPct, 100)}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Recent operations</h3>
+        <div className="mt-3 overflow-hidden rounded-xl border border-border bg-card">
+          {ops.length === 0 ? (
+            <div className="px-5 py-10 text-center text-sm text-muted-foreground">No operations yet. The cap has not been touched.</div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead className="border-b bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-3 text-left">Time</th>
+                  <th className="px-4 py-3 text-left">Op</th>
+                  <th className="px-4 py-3 text-left">Amount</th>
+                  <th className="px-4 py-3 text-left">From → To</th>
+                  <th className="px-4 py-3 text-left">Actor</th>
+                  <th className="px-4 py-3 text-left">Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ops.map((op) => (
+                  <tr key={op.id} className="border-b last:border-0 hover:bg-muted/20">
+                    <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(op.createdAt).toLocaleString()}</td>
+                    <td className="px-4 py-3">
+                      <span className={cn(
+                        "rounded-full px-2 py-0.5 text-xs",
+                        op.operation === "mint" && "bg-primary/10 text-primary",
+                        op.operation === "burn" && "bg-destructive/10 text-destructive",
+                        op.operation === "admin_transfer" && "bg-amber-500/10 text-amber-700",
+                      )}>{op.operation}</span>
+                    </td>
+                    <td className="px-4 py-3 font-medium tabular-nums">{Number(op.amountDot).toLocaleString()} DOT</td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">
+                      {op.fromUserId ? op.fromUserId.slice(0, 8) : "(mint)"} → {op.toUserId ? op.toUserId.slice(0, 8) : "(burn)"}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">{op.actorEmail ?? "system"}</td>
+                    <td className="px-4 py-3 text-xs">{op.reason}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ───────────────────────────────────────────────────────────────
+ * Admin Transfer tab — DOT transfer user → user by DOT ID or user ID
+ * ─────────────────────────────────────────────────────────────── */
+function AdminTransferTab() {
+  const [fromDotId, setFromDotId] = useState("");
+  const [toDotId, setToDotId] = useState("");
+  const [amount, setAmount] = useState("");
+  const [reason, setReason] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [lastResult, setLastResult] = useState<any>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const amt = Number(amount);
+    if (!amt || amt <= 0) { toast.error("Amount must be > 0"); return; }
+    if (!fromDotId || !toDotId) { toast.error("Both from and to DOT IDs required"); return; }
+    if (fromDotId === toDotId) { toast.error("Cannot transfer to same user"); return; }
+    if (!reason || reason.length < 5) { toast.error("Reason required (min 5 chars) for audit"); return; }
+    setSubmitting(true);
+    try {
+      const res = await adminTransfer({
+        fromDotId: fromDotId.trim(),
+        toDotId: toDotId.trim(),
+        amountDot: amt,
+        reason: reason.trim(),
+      });
+      setLastResult(res);
+      toast.success(`Transferred ${amt.toLocaleString()} DOT`);
+      setAmount("");
+      setReason("");
+    } catch (err: any) {
+      toast.error(err?.message ?? "Transfer failed");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm text-amber-700">
+        <strong>Admin-only.</strong> Every transfer is logged to admin_audit_log AND token_operations. Use sparingly. Use only for customer support, refunds, or as authorized by the client.
+      </div>
+
+      <form onSubmit={handleSubmit} className="rounded-xl border border-border bg-card p-6 space-y-4">
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label>From DOT ID</Label>
+            <Input value={fromDotId} onChange={(e) => setFromDotId(e.target.value)} placeholder="DOT-XXXX-NNNN" required />
+          </div>
+          <div className="space-y-2">
+            <Label>To DOT ID</Label>
+            <Input value={toDotId} onChange={(e) => setToDotId(e.target.value)} placeholder="DOT-XXXX-NNNN" required />
+          </div>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label>Amount (DOT)</Label>
+            <Input type="number" min={1} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="e.g. 10000" required />
+            <div className="text-xs text-muted-foreground">
+              ≈ ₦{amount ? (Number(amount) * 15).toLocaleString() : "0"} (at ₦15/DOT)
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Reason (required, audited)</Label>
+            <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Refund for failed service" required minLength={5} />
+          </div>
+        </div>
+        <div className="flex items-center justify-between border-t pt-4">
+          <div className="text-xs text-muted-foreground">
+            Verify both DOT IDs before submitting. The transfer is atomic — both wallets update together or not at all.
+          </div>
+          <Button type="submit" disabled={submitting}>
+            {submitting ? <Loader2 className="size-4 animate-spin" /> : <ArrowLeftRight className="size-4" />}
+            Transfer
+          </Button>
+        </div>
+      </form>
+
+      {lastResult && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Transfer successful</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <div>Transferred: <strong>{lastResult.transferred?.toLocaleString()} DOT</strong></div>
+            <div>From new balance: <strong>{lastResult.from?.newBalance?.toLocaleString()} DOT</strong></div>
+            <div>To new balance: <strong>{lastResult.to?.newBalance?.toLocaleString()} DOT</strong></div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 }

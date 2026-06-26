@@ -104,7 +104,7 @@ app.addContentTypeParser(
   }
 );
 
-/* Sprint B admin tools deploy */
+/* Sprint B admin tools deploy v2 */
 /* ── Plugins ─────────────────────────────────────────────────── */
 
 await app.register(cors, {
