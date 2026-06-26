@@ -315,8 +315,9 @@ export async function userRoutes(app: FastifyInstance) {
         COALESCE(SUM(ABS(t.amount)), 0) AS total_raised_dot,
         COUNT(DISTINCT t.user_id)::int AS sponsor_count
       FROM transactions t
+      JOIN ventures vt ON vt.id::text = SUBSTRING(t.description FROM 'venture=([^ ]+)')
       WHERE t.description LIKE '[CAPITAL_COMMIT]%'
-        AND t.description LIKE ${`%${userRow.id}%`}
+        AND vt.user_id = ${id}
     `) as any;
     const csRow = (capitalStats as any)[0] ?? (capitalStats as any).rows?.[0] ?? {};
 
