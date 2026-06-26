@@ -24,7 +24,7 @@ const MOCK_APPLICATIONS = [
 
 function JudgePage() {
   const gate = useRoleGate(["investor", "capital_partner", "admin"], { redirect: "/dashboard" });
-  if (!gate.allowed) return null;
+  
   const [scoring, setScoring] = useState<string | null>(null);
   const [score, setScore] = useState(5);
   const [feedback, setFeedback] = useState("");
@@ -33,7 +33,10 @@ function JudgePage() {
 
   return (
     <AppShell>
-      <PageHeader
+   
+  useRoleGate(["investor", "capital_partner", "admin"], { redirect: "/dashboard" });
+  if (!gate.allowed) return null;
+   <PageHeader
         title="Judge Portal"
         subtitle="Score pitchathon applications and help surface the best ventures."
         action={<Badge variant="secondary"><Trophy className="mr-1 size-3" />{pending} to score</Badge>}

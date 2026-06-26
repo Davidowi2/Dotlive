@@ -30,7 +30,7 @@ export const Route = createFileRoute("/_authenticated/community/dashboard")({
 
 function CommunityDashboardPage() {
   const gate = useRoleGate(["community_leader", "admin"], { redirect: "/dashboard" });
-  if (!gate.allowed) return null;
+  
   // For v1, fetch the first community the user leads. Multi-community support is a future enhancement.
   const dashboardQ = useQuery({
     queryKey: ["community_dashboard"],
@@ -55,7 +55,9 @@ function CommunityDashboardPage() {
 
   return (
     <AppShell>
-      <PageHeader
+   
+  if (!gate.allowed) return null;
+   <PageHeader
         title="Community OS"
         subtitle="Distribute users, accelerate member growth, track valuation impact."
         actions={

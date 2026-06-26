@@ -64,7 +64,7 @@ export const Route = createFileRoute("/_authenticated/pitchathons")({
  */
 function PitchathonsPage() {
   const gate = useRoleGate(["founder", "investor", "admin", "capital_partner"], { redirect: "/dashboard" });
-  if (!gate.allowed) return null;
+  
   const { user } = useDotAuth();
   const qc = useQueryClient();
   const { data: founder } = useFounderProfile();
@@ -118,7 +118,10 @@ function PitchathonsPage() {
 
   return (
     <AppShell>
-      <PageHeader
+   
+  useRoleGate(["founder", "investor", "admin", "capital_partner"], { redirect: "/dashboard" });
+  if (!gate.allowed) return null;
+   <PageHeader
         eyebrow="Pitch"
         title="Pitchathons"
         subtitle="Submit your venture, get scored by judges, and climb the leaderboard."
