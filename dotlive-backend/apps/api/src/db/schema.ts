@@ -922,3 +922,28 @@ export const votes = pgTable(
 /* ============================== COMMUNITIES EXTENSION ============================== */
 // (handled as ALTER TABLE in migration; new columns: tier, annual_renewal_at, subscription_status)
 
+
+/* --------------------------- Password reset tokens --------------- */
+/* Issued by POST /api/auth/forgot-password; consumed by reset-password. */
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  token: text("token").notNull().unique(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  usedAt: timestamp("used_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  prtUserIdx: index("prt_user_idx").on(t.userId),
+  prtTokenIdx: index("prt_token_idx").on(t.token),
+}));
+
+/* --------------------------- Community referral codes ------------ */
+/* Public join codes; 6-char alpha upper + 2-digit. */
+export const communityReferralCodes = pgTable("community_referral_codes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  communityId: uuid("community_id").notNull().references(() => communities.id, { onDelete: "cascade" }),
+  code: text("code").notNull().unique(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  crcCommunityIdx: index("crc_community_idx").on(t.communityId),
+}));

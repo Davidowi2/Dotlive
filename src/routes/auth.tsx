@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { useDotAuth } from "@/contexts/DotAuthContext";
 import { getGoogleAuthUrl } from "@/api/auth";
+import { dotApi } from "@/api/client";
 import { ApiError } from "@/types/api";
 import { Logo } from "@/components/site/Logo";
 import { Button } from "@/components/ui/button";
@@ -135,15 +136,40 @@ const AFRICAN_COUNTRIES_SHORT = [
 
 function AuthPage() {
   const navigate = useNavigate();
-  const { user, isLoading } = useDotAuth();
+  const { user, isLoading, refresh } = useDotAuth();
   const search = Route.useSearch();
   // If ?mode=signup is in the URL, start on the signup flow
   const [mode, setMode] = useState<AuthMode>(
     search.mode === "signup" ? "signup" : "signin"
   );
 
+  // ── OAuth callback handler ──
+  // Backend redirects here with ?token=<jwt>&user=<email> after Google OAuth completes.
+  // We just need to save the token and refresh the auth state.
   useEffect(() => {
-    if (!isLoading && user) navigate({ to: "/dashboard" });
+    const params = new URLSearchParams(window.location.search);
+    const oauthToken = params.get("token");
+    const oauthError = params.get("error");
+    if (oauthToken) {
+      import("@/api/client").then(({ setToken }) => {
+        setToken(oauthToken);
+        // Clean URL
+        window.history.replaceState({}, "", window.location.pathname);
+        refresh().then(() => navigate({ to: "/dashboard" }));
+      });
+    } else if (oauthError) {
+      // Surface the error from Google
+      import("sonner").then(({ toast }) => {
+        toast.error(`Google sign-in failed: ${oauthError}`);
+        window.history.replaceState({}, "", window.location.pathname);
+      });
+    }
+  }, [navigate, refresh]);
+
+  useEffect(() => {
+    if (!isLoading && user && !new URLSearchParams(window.location.search).get("token")) {
+      navigate({ to: "/dashboard" });
+    }
   }, [user, isLoading, navigate]);
 
   if (mode === "signup") {
@@ -198,6 +224,17 @@ function SigninForm({
   const [showPw, setShowPw] = useState(false);
   const [otp, setOtp] = useState("");
   const [busy, setBusy] = useState(false);
+  const [resetToken, setResetToken] = useState("");
+
+  // Detect ?resetToken=... in URL → switch to reset mode
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const t = params.get("resetToken");
+    if (t) {
+      setResetToken(t);
+      setMode("forgot");
+    }
+  }, []);
 
   function handleGoogle() {
     // Redirect to the backend OAuth flow
@@ -222,10 +259,36 @@ function SigninForm({
   async function handleForgot(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
-    // Password reset is not yet on the new API — show a helpful message
-    toast.info("Password reset is coming soon. Contact support@dot.africa for help.");
-    setBusy(false);
-    setMode("signin");
+    try {
+      await dotApi.post("/api/auth/forgot-password", { email });
+      toast.success("If an account exists for that email, we've sent a reset link.");
+      setMode("signin");
+    } catch (err: any) {
+      toast.error(err?.message ?? "Could not send reset email");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleReset(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await dotApi.post("/api/auth/reset-password", {
+        token: resetToken,
+        newPassword: password,
+      });
+      toast.success("Password reset. Sign in with your new password.");
+      setMode("signin");
+      setResetToken("");
+      setPassword("");
+      // Clean URL
+      window.history.replaceState({}, "", window.location.pathname);
+    } catch (err: any) {
+      toast.error(err?.message ?? "Could not reset password");
+    } finally {
+      setBusy(false);
+    }
   }
 
   // OTP sign-in is Supabase-specific — not supported on the new API yet.
@@ -295,7 +358,21 @@ function SigninForm({
         </>
       )}
 
-      {mode === "forgot" ? (
+      {mode === "forgot" && resetToken ? (
+        <form onSubmit={handleReset} className="space-y-4">
+          <div className="rounded-lg bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-400">
+            Reset link is valid. Enter a new password.
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="np">New password</Label>
+            <Input id="np" type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 8 characters" />
+          </div>
+          <Button type="submit" variant="hero" className="w-full" disabled={busy}>
+            {busy && <Loader2 className="size-4 animate-spin" />}
+            Reset password
+          </Button>
+        </form>
+      ) : mode === "forgot" ? (
         <form onSubmit={handleForgot} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
