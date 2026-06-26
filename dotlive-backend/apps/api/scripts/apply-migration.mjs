@@ -1,29 +1,40 @@
-import { Pool } from "@neondatabase/serverless";
-import fs from "node:fs";
 
-const url = process.env.DATABASE_URL;
-const file = process.argv[2];
-if (!url) { console.error("No DATABASE_URL"); process.exit(1); }
-if (!file) { console.error("No file"); process.exit(1); }
-const sql = fs.readFileSync(file, "utf8");
-const pool = new Pool({ connectionString: url });
+import { neon, neonConfig } from "@neondatabase/serverless";
+import ws from "ws";
+neonConfig.webSocketConstructor = ws;
 
-const statements = sql.split("--> statement-breakpoint").map(s => s.trim()).filter(Boolean);
-console.log(`Running ${statements.length} statements...`);
-let i = 0, skipped = 0, failed = 0;
-for (const stmt of statements) {
+const fs = await import("fs");
+const sqlText = fs.readFileSync(process.argv[2], "utf8");
+
+const lines = sqlText.split("\n").filter(l => !l.trim().startsWith("--"));
+const cleaned = lines.join("\n");
+
+// Mask $$...$$ blocks so semicolons inside don't split us
+const masked = cleaned.replace(/\$\$[\s\S]*?\$\$/g, m => m.replace(/;/g, "§§§"));
+
+// Split on ;
+const parts = masked.split(";")
+  .map(s => s.replace(/§§§/g, ";").trim())
+  .filter(s => s.length > 0);
+
+console.log(`Running ${parts.length} statements...`);
+
+const db = neon(process.env.DATABASE_URL);
+let ok = 0, skipped = 0, failed = 0;
+for (let idx = 0; idx < parts.length; idx++) {
+  const stmt = parts[idx];
   try {
-    await pool.query(stmt);
-    i++;
+    await db(stmt);
+    ok++;
   } catch (e) {
-    const msg = String(e?.message || e);
-    if (/already exists|does not exist/i.test(msg)) {
+    const msg = String(e?.message ?? e);
+    if (msg.includes("already exists") || msg.includes("does not exist") || msg.includes("duplicate")) {
       skipped++;
     } else {
       failed++;
-      console.error(`  FAIL: ${msg.slice(0,200)}`);
+      console.error(`FAIL #${idx}: ${stmt.slice(0, 70).replace(/\n/g, " ")}...`);
+      console.error(`  → ${msg.split("\n")[0]}`);
     }
   }
 }
-console.log(`Done: ${i} ok, ${skipped} skipped, ${failed} failed`);
-await pool.end();
+console.log(`Done: ${ok} ok, ${skipped} skipped, ${failed} failed`);

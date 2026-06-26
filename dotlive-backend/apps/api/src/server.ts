@@ -36,6 +36,9 @@ import { webhookRoutes }    from "./routes/webhooks.js";
 import { statsRoutes }      from "./routes/stats.js";
 import { onboardingRoutes } from "./routes/onboarding.js";
 import { osRoutes }          from "./routes/os.js";
+import { withdrawalRoutes } from "./routes/withdrawals.js";
+import { communityBillingRoutes } from "./routes/community-billing.js";
+import { demoEventRoutes } from "./routes/demo-events.js";
 import { adminRoutes }      from "./routes/admin.js";
 
 /* ── Env validation ─────────────────────────────────────────── */

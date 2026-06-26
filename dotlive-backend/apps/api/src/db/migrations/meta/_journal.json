@@ -15,6 +15,20 @@
       "when": 1782425940588,
       "tag": "0001_nappy_the_renegades",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1782478128620,
+      "tag": "0002_first_kang",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1782478380355,
+      "tag": "0003_grey_miss_america",
+      "breakpoints": true
     }
   ]
 }

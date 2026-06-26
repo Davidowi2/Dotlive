@@ -19,6 +19,7 @@ import {
   unique,
   check,
   index,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -281,11 +282,18 @@ export const communities = pgTable("communities", {
   region: text("region"),
   category: text("category"),
   referralCode: text("referral_code").notNull().unique(),
+  tier: text("tier").notNull().default("free"), // free | verified | campus | enterprise
+  annualRenewalAt: timestamp("annual_renewal_at", { withTimezone: true }),
+  subscriptionStatus: text("subscription_status").notNull().default("active"), // active | grace | expired | cancelled
+  paidThroughAt: timestamp("paid_through_at", { withTimezone: true }),
+  verifiedAt: timestamp("verified_at", { withTimezone: true }),
+  memberCount: integer("member_count").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 },
   (t) => ({
       communities_leader_idx: index("communities_leader_idx").on(t.leaderId),
+      communities_tier_idx: index("communities_tier_idx").on(t.tier),
   }));
 
 /* --------------------------- Community members ---------------- */
@@ -640,7 +648,9 @@ export const challenges = pgTable(
   "challenges",
   {
     id: text("id").primaryKey(),
-    postedBy: text("posted_by").notNull(),     // user_id (founder or admin)
+    postedBy: text("posted_by").notNull(),     // user_id of the poster
+    posterType: text("poster_type").notNull().default("founder"), // founder | community | capital_partner | university | company | admin
+    posterOrgId: text("poster_org_id"),       // communityId | ventureId | capitalPartnerId, nullable
     title: text("title").notNull(),
     description: text("description").notNull(),
     skill: text("skill").notNull(),           // "AI", "Design", "Coding", etc.
@@ -655,6 +665,7 @@ export const challenges = pgTable(
     statusIdx: index("challenges_status_idx").on(t.status),
     skillIdx: index("challenges_skill_idx").on(t.skill),
     postedByIdx: index("challenges_posted_by_idx").on(t.postedBy),
+    posterTypeIdx: index("challenges_poster_type_idx").on(t.posterType),
   }),
 );
 
@@ -748,3 +759,114 @@ export type FeatureFlagRow = typeof featureFlags.$inferSelect;
 export type PaymentsAuditRow = typeof paymentsAudit.$inferSelect;
 export type AdminIdempotencyKeyRow = typeof adminIdempotencyKeys.$inferSelect;
 export type UserBanRow = typeof userBans.$inferSelect;
+
+/* ============================== WITHDRAWALS ============================== */
+
+export const withdrawalRequests = pgTable(
+  "withdrawal_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    amountDot: numeric("amount_dot", { precision: 14, scale: 2 }).notNull(),
+    amountNgn: numeric("amount_ngn", { precision: 14, scale: 2 }).notNull(),
+    bankInfo: jsonb("bank_info").notNull(), // { accountName, accountNumber, bankCode, bankName }
+    kycTier: text("kyc_tier").notNull().default("tier1"), // tier1=email, tier2=bvn, tier3=nin+id
+    status: text("status").notNull().default("pending"), // pending | approved | rejected | paid | failed
+    adminNote: text("admin_note"),
+    reviewedBy: text("reviewed_by"),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    failureReason: text("failure_reason"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    userIdx: index("withdrawal_user_idx").on(t.userId),
+    statusIdx: index("withdrawal_status_idx").on(t.status),
+  }),
+);
+
+/* ============================== KYC SUBMISSIONS ============================== */
+
+export const kycSubmissions = pgTable(
+  "kyc_submissions",
+  {
+    userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+    tier: text("tier").notNull().default("tier1"), // tier1=email only, tier2=bvn, tier3=nin+gov_id
+    bvn: text("bvn"),
+    nin: text("nin"),
+    govIdUrl: text("gov_id_url"),
+    govIdType: text("gov_id_type"), // passport | drivers_license | voters_card | national_id
+    fullName: text("full_name"),
+    dateOfBirth: text("date_of_birth"),
+    address: text("address"),
+    country: text("country").notNull().default("NG"),
+    status: text("status").notNull().default("pending"), // pending | approved | rejected
+    reviewedBy: text("reviewed_by"),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    rejectionReason: text("rejection_reason"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+);
+
+/* ============================== DEMO EVENTS ============================== */
+
+export const demoEvents = pgTable(
+  "demo_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    slug: text("slug").notNull().unique(),
+    name: text("name").notNull(),
+    description: text("description"),
+    coverImageUrl: text("cover_image_url"),
+    startDate: timestamp("start_date", { withTimezone: true }).notNull(),
+    endDate: timestamp("end_date", { withTimezone: true }).notNull(),
+    registrationDeadline: timestamp("registration_deadline", { withTimezone: true }),
+    votingOpensAt: timestamp("voting_opens_at", { withTimezone: true }),
+    votingClosesAt: timestamp("voting_closes_at", { withTimezone: true }),
+    tracks: jsonb("tracks").notNull().default(sql`'["open", "invitational"]'::jsonb`), // open | invitational
+    sponsors: jsonb("sponsors").notNull().default(sql`'[]'::jsonb`),
+    judges: jsonb("judges").notNull().default(sql`'[]'::jsonb`),
+    prizePoolDot: numeric("prize_pool_dot", { precision: 14, scale: 2 }),
+    livestreamUrl: text("livestream_url"),
+    registrationFeeDot: numeric("registration_fee_dot", { precision: 14, scale: 2 }).default("0"),
+    status: text("status").notNull().default("upcoming"), // upcoming | registration_open | voting_open | live | completed
+    featuredVentures: jsonb("featured_ventures").notNull().default(sql`'[]'::jsonb`),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    slugIdx: index("demo_event_slug_idx").on(t.slug),
+    statusIdx: index("demo_event_status_idx").on(t.status),
+  }),
+);
+
+/* ============================== VOTES ============================== */
+
+export const votes = pgTable(
+  "votes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    voterId: text("voter_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    eventSlug: text("event_slug").notNull(),
+    targetType: text("target_type").notNull(), // venture | challenge | builder | community
+    targetId: text("target_id").notNull(),
+    weight: numeric("weight", { precision: 6, scale: 2 }).notNull().default("1.00"),
+    reputationAtVote: numeric("reputation_at_vote", { precision: 6, scale: 2 }),
+    ipHash: text("ip_hash"),
+    userAgent: text("user_agent"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    voterIdx: index("vote_voter_idx").on(t.voterId),
+    eventIdx: index("vote_event_idx").on(t.eventSlug),
+    targetIdx: index("vote_target_idx").on(t.targetType, t.targetId),
+    uniqVote: uniqueIndex("vote_unique_idx").on(t.voterId, t.eventSlug, t.targetType, t.targetId),
+  }),
+);
+
+/* ============================== COMMUNITIES EXTENSION ============================== */
+// (handled as ALTER TABLE in migration; new columns: tier, annual_renewal_at, subscription_status)
+

@@ -102,11 +102,28 @@ export async function osRoutes(app: FastifyInstance) {
 
   app.post("/challenges", { preHandler: app.authenticate }, async (req, reply) => {
     const { sub } = req.user as { sub: string };
-    const isFounder = await userHasRole(sub, "founder");
-    const isAdmin = await userHasRole(sub, "admin");
-    if (!isFounder && !isAdmin) return reply.code(403).send({ error: "Only founders/admins can post challenges" });
+    // Allowed posters: founders, admins, capital_partners, community_leaders, vendors
+    const allowed = await Promise.all([
+      userHasRole(sub, "founder"),
+      userHasRole(sub, "admin"),
+      userHasRole(sub, "super_admin"),
+      userHasRole(sub, "capital_partner"),
+      userHasRole(sub, "community_leader"),
+      userHasRole(sub, "vendor"),
+    ]);
+    if (!allowed.some(Boolean)) {
+      return reply.code(403).send({ error: "Only founders, admins, capital partners, community leaders, or vendors can post challenges" });
+    }
     const parsed = challengeCreate.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: "Invalid input", details: parsed.error.flatten() });
+
+    // Determine posterType from roles (admin > others)
+    let posterType = "founder";
+    if (allowed[1] || allowed[2]) posterType = "admin";
+    else if (allowed[3]) posterType = "capital_partner";
+    else if (allowed[4]) posterType = "community";
+    else if (allowed[5]) posterType = "company";
+    // (university reserved for future)
 
     // Debit the poster's wallet as escrow for the reward (refund on close).
     try {
@@ -126,6 +143,7 @@ export async function osRoutes(app: FastifyInstance) {
       .values({
         id,
         postedBy: sub,
+        posterType,
         title: parsed.data.title,
         description: parsed.data.description,
         skill: parsed.data.skill,
@@ -151,10 +169,11 @@ export async function osRoutes(app: FastifyInstance) {
   });
 
   app.get("/challenges", async (req, reply) => {
-    const skill = (req.query as any).skill as string | undefined;
-    const where = skill
-      ? and(eq(challenges.status, "open"), eq(challenges.skill, skill))
-      : eq(challenges.status, "open");
+    const q = req.query as { skill?: string; posterType?: string };
+    const filters: any[] = [eq(challenges.status, "open")];
+    if (q.skill) filters.push(eq(challenges.skill, q.skill));
+    if (q.posterType) filters.push(eq(challenges.posterType, q.posterType));
+    const where = filters.length > 1 ? and(...filters) : filters[0];
     const rows = await db
       .select()
       .from(challenges)
