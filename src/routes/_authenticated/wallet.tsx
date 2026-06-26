@@ -3,6 +3,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   ArrowDownToLine,
   ArrowUpRight,
+  AlertCircle,
   ArrowDownLeft,
   Plus,
   Minus,
@@ -22,6 +23,7 @@ import {
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
 import { PageSkeleton } from "@/components/app/PageSkeleton";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -118,6 +120,21 @@ function WalletPage() {
     staleTime: 15_000,
   });
 
+  // KYC status + withdrawal history
+  useEffect(() => {
+    (async () => {
+      try {
+        const { dotApi } = await import("@/api/client");
+        const [kycRes, wRes] = await Promise.all([
+          dotApi.get("/api/kyc/me"),
+          dotApi.get("/api/wallet/withdrawals"),
+        ]);
+        setKyc(kycRes?.kyc ?? null);
+        setWithdrawals(wRes?.withdrawals ?? []);
+      } catch {}
+    })();
+  }, [balance]);
+
   const dotId = user?.dotId ?? null;
   const [amount, setAmount] = useState(MIN_DEPOSIT_DOT);
   const [busy, setBusy] = useState(false);
@@ -126,6 +143,12 @@ function WalletPage() {
   const [verifying, setVerifying] = useState(false);
   const [receipt, setReceipt] = useState<{ dot: number; naira: number; reference: string } | null>(null);
   const [transferOpen, setTransferOpen] = useState(false);
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const [kyc, setKyc] = useState<any>(null);
+  const [withdrawals, setWithdrawals] = useState<any[]>([]);
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [bankInfo, setBankInfo] = useState({ accountName: "", accountNumber: "", bankCode: "", bankName: "" });
+  const [withdrawSubmitting, setWithdrawSubmitting] = useState(false);
 
   /* Last-30-day delta — derived from already-fetched transactions. */
   const last30Delta = useMemo(() => {
@@ -200,6 +223,22 @@ function WalletPage() {
         <PageSkeleton.Header />
         <PageSkeleton.WalletHero />
         <div className="mt-10 space-y-2">
+                    {kyc && kyc.status !== "approved" && (
+            <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
+              <div className="flex items-center gap-2 text-amber-700">
+                <AlertCircle className="size-4 shrink-0" />
+                <span>
+                  <strong>KYC {kyc.status === "not_submitted" ? "required" : "pending"}:</strong>{" "}
+                  {kyc.status === "not_submitted"
+                    ? "Verify your identity to withdraw DOT."
+                    : `Your ${kyc.tier} submission is under review.`}
+                </span>
+              </div>
+              <Button asChild size="sm" variant="outline" className="shrink-0">
+                <Link to="/kyc">{kyc.status === "not_submitted" ? "Complete KYC" : "View status"}</Link>
+              </Button>
+            </div>
+          )}
           <div className="h-6 w-40 rounded-md bg-muted" />
           <PageSkeleton.TransactionRows rows={5} />
         </div>
@@ -424,6 +463,30 @@ function WalletPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+
+          {/* Withdraw to bank — KYC gated */}
+          <button
+            type="button"
+            onClick={() => setWithdrawOpen(true)}
+            className="group flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-5 text-left transition hover:border-primary/40 hover:bg-card/80 hover:shadow-soft"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex size-10 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600">
+                <ArrowDownToLine className="size-5" />
+              </span>
+              <div>
+                <div className="font-medium">Withdraw to bank</div>
+                <div className="text-xs text-muted-foreground">
+                  {kyc?.status === "approved"
+                    ? `Tier ${kyc.tier.replace("tier", "")} · up to ${(kyc.withdrawalLimit ?? 0).toLocaleString()} DOT`
+                    : kyc?.status === "pending"
+                    ? "KYC under review"
+                    : "Verify KYC to cash out to Naira"}
+                </div>
+              </div>
+            </div>
+            <ArrowUpRight className="size-5 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-primary" />
+          </button>
 
           {/* Withdraw / Transfer — ghost */}
           <button

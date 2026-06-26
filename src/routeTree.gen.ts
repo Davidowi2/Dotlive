@@ -23,7 +23,9 @@ import { Route as AboutRouteImport } from './routes/about'
 import { Route as SplatRouteImport } from './routes/$'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DemoIndexRouteImport } from './routes/demo/index'
 import { Route as FounderIdRouteImport } from './routes/founder.$id'
+import { Route as DemoSlugRouteImport } from './routes/demo/$slug'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AuthenticatedWorkRouteImport } from './routes/_authenticated/work'
 import { Route as AuthenticatedWalletRouteImport } from './routes/_authenticated/wallet'
@@ -35,6 +37,7 @@ import { Route as AuthenticatedPitchathonsRouteImport } from './routes/_authenti
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
 import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
 import { Route as AuthenticatedMeetingsRouteImport } from './routes/_authenticated/meetings'
+import { Route as AuthenticatedKycRouteImport } from './routes/_authenticated/kyc'
 import { Route as AuthenticatedJudgeRouteImport } from './routes/_authenticated/judge'
 import { Route as AuthenticatedInvestorRouteImport } from './routes/_authenticated/investor'
 import { Route as AuthenticatedDiscoverRouteImport } from './routes/_authenticated/discover'
@@ -121,9 +124,19 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DemoIndexRoute = DemoIndexRouteImport.update({
+  id: '/demo/',
+  path: '/demo/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FounderIdRoute = FounderIdRouteImport.update({
   id: '/founder/$id',
   path: '/founder/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoSlugRoute = DemoSlugRouteImport.update({
+  id: '/demo/$slug',
+  path: '/demo/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
@@ -181,6 +194,11 @@ const AuthenticatedNotificationsRoute =
 const AuthenticatedMeetingsRoute = AuthenticatedMeetingsRouteImport.update({
   id: '/meetings',
   path: '/meetings',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedKycRoute = AuthenticatedKycRouteImport.update({
+  id: '/kyc',
+  path: '/kyc',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedJudgeRoute = AuthenticatedJudgeRouteImport.update({
@@ -291,6 +309,7 @@ export interface FileRoutesByFullPath {
   '/discover': typeof AuthenticatedDiscoverRoute
   '/investor': typeof AuthenticatedInvestorRoute
   '/judge': typeof AuthenticatedJudgeRoute
+  '/kyc': typeof AuthenticatedKycRoute
   '/meetings': typeof AuthenticatedMeetingsRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
@@ -302,7 +321,9 @@ export interface FileRoutesByFullPath {
   '/wallet': typeof AuthenticatedWalletRoute
   '/work': typeof AuthenticatedWorkRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/demo/$slug': typeof DemoSlugRoute
   '/founder/$id': typeof FounderIdRoute
+  '/demo/': typeof DemoIndexRoute
   '/c/$id': typeof AuthenticatedCIdRoute
   '/community/dashboard': typeof AuthenticatedCommunityDashboardRoute
   '/deals/$id': typeof AuthenticatedDealsIdRoute
@@ -330,10 +351,11 @@ export interface FileRoutesByTo {
   '/certificates': typeof AuthenticatedCertificatesRoute
   '/community': typeof AuthenticatedCommunityRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/demo': typeof AuthenticatedDemoRouteWithChildren
+  '/demo': typeof DemoIndexRoute
   '/discover': typeof AuthenticatedDiscoverRoute
   '/investor': typeof AuthenticatedInvestorRoute
   '/judge': typeof AuthenticatedJudgeRoute
+  '/kyc': typeof AuthenticatedKycRoute
   '/meetings': typeof AuthenticatedMeetingsRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
@@ -345,6 +367,7 @@ export interface FileRoutesByTo {
   '/wallet': typeof AuthenticatedWalletRoute
   '/work': typeof AuthenticatedWorkRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/demo/$slug': typeof DemoSlugRoute
   '/founder/$id': typeof FounderIdRoute
   '/c/$id': typeof AuthenticatedCIdRoute
   '/community/dashboard': typeof AuthenticatedCommunityDashboardRoute
@@ -379,6 +402,7 @@ export interface FileRoutesById {
   '/_authenticated/discover': typeof AuthenticatedDiscoverRoute
   '/_authenticated/investor': typeof AuthenticatedInvestorRoute
   '/_authenticated/judge': typeof AuthenticatedJudgeRoute
+  '/_authenticated/kyc': typeof AuthenticatedKycRoute
   '/_authenticated/meetings': typeof AuthenticatedMeetingsRoute
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
@@ -390,7 +414,9 @@ export interface FileRoutesById {
   '/_authenticated/wallet': typeof AuthenticatedWalletRoute
   '/_authenticated/work': typeof AuthenticatedWorkRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/demo/$slug': typeof DemoSlugRoute
   '/founder/$id': typeof FounderIdRoute
+  '/demo/': typeof DemoIndexRoute
   '/_authenticated/c/$id': typeof AuthenticatedCIdRoute
   '/_authenticated/community/dashboard': typeof AuthenticatedCommunityDashboardRoute
   '/_authenticated/deals/$id': typeof AuthenticatedDealsIdRoute
@@ -424,6 +450,7 @@ export interface FileRouteTypes {
     | '/discover'
     | '/investor'
     | '/judge'
+    | '/kyc'
     | '/meetings'
     | '/notifications'
     | '/onboarding'
@@ -435,7 +462,9 @@ export interface FileRouteTypes {
     | '/wallet'
     | '/work'
     | '/auth/callback'
+    | '/demo/$slug'
     | '/founder/$id'
+    | '/demo/'
     | '/c/$id'
     | '/community/dashboard'
     | '/deals/$id'
@@ -467,6 +496,7 @@ export interface FileRouteTypes {
     | '/discover'
     | '/investor'
     | '/judge'
+    | '/kyc'
     | '/meetings'
     | '/notifications'
     | '/onboarding'
@@ -478,6 +508,7 @@ export interface FileRouteTypes {
     | '/wallet'
     | '/work'
     | '/auth/callback'
+    | '/demo/$slug'
     | '/founder/$id'
     | '/c/$id'
     | '/community/dashboard'
@@ -511,6 +542,7 @@ export interface FileRouteTypes {
     | '/_authenticated/discover'
     | '/_authenticated/investor'
     | '/_authenticated/judge'
+    | '/_authenticated/kyc'
     | '/_authenticated/meetings'
     | '/_authenticated/notifications'
     | '/_authenticated/onboarding'
@@ -522,7 +554,9 @@ export interface FileRouteTypes {
     | '/_authenticated/wallet'
     | '/_authenticated/work'
     | '/auth/callback'
+    | '/demo/$slug'
     | '/founder/$id'
+    | '/demo/'
     | '/_authenticated/c/$id'
     | '/_authenticated/community/dashboard'
     | '/_authenticated/deals/$id'
@@ -546,7 +580,9 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
+  DemoSlugRoute: typeof DemoSlugRoute
   FounderIdRoute: typeof FounderIdRoute
+  DemoIndexRoute: typeof DemoIndexRoute
   ApiPublicWebhooksPaystackRoute: typeof ApiPublicWebhooksPaystackRoute
 }
 
@@ -650,11 +686,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/demo/': {
+      id: '/demo/'
+      path: '/demo'
+      fullPath: '/demo/'
+      preLoaderRoute: typeof DemoIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/founder/$id': {
       id: '/founder/$id'
       path: '/founder/$id'
       fullPath: '/founder/$id'
       preLoaderRoute: typeof FounderIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo/$slug': {
+      id: '/demo/$slug'
+      path: '/demo/$slug'
+      fullPath: '/demo/$slug'
+      preLoaderRoute: typeof DemoSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/callback': {
@@ -732,6 +782,13 @@ declare module '@tanstack/react-router' {
       path: '/meetings'
       fullPath: '/meetings'
       preLoaderRoute: typeof AuthenticatedMeetingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/kyc': {
+      id: '/_authenticated/kyc'
+      path: '/kyc'
+      fullPath: '/kyc'
+      preLoaderRoute: typeof AuthenticatedKycRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/judge': {
@@ -885,6 +942,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDiscoverRoute: typeof AuthenticatedDiscoverRoute
   AuthenticatedInvestorRoute: typeof AuthenticatedInvestorRoute
   AuthenticatedJudgeRoute: typeof AuthenticatedJudgeRoute
+  AuthenticatedKycRoute: typeof AuthenticatedKycRoute
   AuthenticatedMeetingsRoute: typeof AuthenticatedMeetingsRoute
   AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
@@ -911,6 +969,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDiscoverRoute: AuthenticatedDiscoverRoute,
   AuthenticatedInvestorRoute: AuthenticatedInvestorRoute,
   AuthenticatedJudgeRoute: AuthenticatedJudgeRoute,
+  AuthenticatedKycRoute: AuthenticatedKycRoute,
   AuthenticatedMeetingsRoute: AuthenticatedMeetingsRoute,
   AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
@@ -954,7 +1013,9 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,
+  DemoSlugRoute: DemoSlugRoute,
   FounderIdRoute: FounderIdRoute,
+  DemoIndexRoute: DemoIndexRoute,
   ApiPublicWebhooksPaystackRoute: ApiPublicWebhooksPaystackRoute,
 }
 export const routeTree = rootRouteImport
