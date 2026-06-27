@@ -149,12 +149,13 @@ export async function authRoutes(app: FastifyInstance) {
           code,
           client_id: process.env.GOOGLE_CLIENT_ID ?? "",
           client_secret: process.env.GOOGLE_CLIENT_SECRET ?? "",
-          redirect_uri: `${process.env.API_BASE_URL ?? "http://localhost:3001"}/api/auth/google/callback`,
+          redirect_uri: process.env.GOOGLE_REDIRECT_URI ?? "https://dotlive-api.onrender.com/api/auth/google/callback",
           grant_type: "authorization_code",
         }),
       });
       if (!tokenRes.ok) {
-        return reply.code(502).send({ error: "Google token exchange failed" });
+        const errBody = await tokenRes.text();
+        return reply.code(502).send({ error: "Google token exchange failed", detail: errBody.substring(0, 500) });
       }
       const tokens = (await tokenRes.json()) as { access_token: string };
 
@@ -162,7 +163,10 @@ export async function authRoutes(app: FastifyInstance) {
       const uiRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
         headers: { Authorization: `Bearer ${tokens.access_token}` },
       });
-      if (!uiRes.ok) return reply.code(502).send({ error: "Google userinfo failed" });
+      if (!uiRes.ok) {
+        const errBody = await uiRes.text();
+        return reply.code(502).send({ error: "Google userinfo failed", detail: errBody.substring(0, 500) });
+      }
       const ui = (await uiRes.json()) as {
         id: string;
         email: string;
