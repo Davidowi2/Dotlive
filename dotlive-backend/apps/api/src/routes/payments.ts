@@ -96,16 +96,25 @@ export async function paymentsRoutes(app: FastifyInstance) {
 
     if (!initRes.ok) {
       const text = await initRes.text();
+      let paystackMessage = "";
+      try {
+        const parsed = JSON.parse(text);
+        paystackMessage = parsed.message ?? parsed.error ?? "";
+      } catch {
+        paystackMessage = text.slice(0, 200);
+      }
       req.log.error(
         {
           status: initRes.status,
           statusText: initRes.statusText,
           text: text.slice(0, 500),
+          paystackMessage,
           paystackKeyConfigured: !!paystackKey,
           paystackKeyPrefix: paystackKey.slice(0, 7),
           amountNaira,
           reference,
           isLiveKey: paystackKey.startsWith("sk_live_"),
+          userEmail: (req.user as any).email,
         },
         "Paystack init failed",
       );
@@ -115,7 +124,9 @@ export async function paymentsRoutes(app: FastifyInstance) {
           ? "Paystack blocked the request — likely an IP whitelist issue. Check Paystack dashboard → Settings → API → IP Whitelist."
           : initRes.status === 401
             ? "Invalid Paystack secret key. Re-check Render env var PAYSTACK_SECRET_KEY."
-            : `Paystack returned ${initRes.status}`,
+            : paystackMessage
+              ? `Paystack: ${paystackMessage}`
+              : `Paystack returned ${initRes.status}`,
         upstreamStatus: initRes.status,
       });
     }
