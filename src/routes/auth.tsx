@@ -144,27 +144,32 @@ function AuthPage() {
   );
 
   // ── OAuth callback handler ──
-  // Backend redirects here with ?token=<jwt>&user=<email> after Google OAuth completes.
-  // We just need to save the token and refresh the auth state.
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const oauthToken = params.get("token");
-    const oauthError = params.get("error");
-    if (oauthToken) {
-      import("@/api/client").then(({ setToken }) => {
-        setToken(oauthToken);
-        // Clean URL
-        window.history.replaceState({}, "", window.location.pathname);
-        refresh().then(() => navigate({ to: "/dashboard" }));
-      });
-    } else if (oauthError) {
-      // Surface the error from Google
-      import("sonner").then(({ toast }) => {
-        toast.error(`Google sign-in failed: ${oauthError}`);
-        window.history.replaceState({}, "", window.location.pathname);
-      });
-    }
-  }, [navigate, refresh]);
+    // Backend redirects here with ?token=<jwt>&isNew=true (if first sign-up).
+    // We save the token and forward to /auth/callback so its logic can route
+    // new users to /onboarding vs existing users to /dashboard.
+    useEffect(() => {
+      if (window.location.pathname === "/auth/callback") return; // handled by AuthCallback page
+
+      const params = new URLSearchParams(window.location.search);
+      const oauthToken = params.get("token");
+      const oauthError = params.get("error");
+      if (oauthToken) {
+        import("@/api/client").then(({ setToken }) => {
+          setToken(oauthToken);
+          const isNew = params.get("isNew") === "true";
+          const qs = new URLSearchParams({ token: oauthToken });
+          if (isNew) qs.set("isNew", "true");
+          // Forward to /auth/callback so the new-user onboarding routing kicks in.
+          window.history.replaceState({}, "", `/auth/callback?${qs}`);
+          window.location.reload();
+        });
+      } else if (oauthError) {
+        import("sonner").then(({ toast }) => {
+          toast.error(`Google sign-in failed: ${oauthError}`);
+          window.history.replaceState({}, "", window.location.pathname);
+        });
+      }
+    }, [navigate, refresh]);
 
   useEffect(() => {
     if (!isLoading && user && !new URLSearchParams(window.location.search).get("token")) {

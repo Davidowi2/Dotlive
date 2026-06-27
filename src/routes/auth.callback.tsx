@@ -3,11 +3,11 @@
  * after Google OAuth completes.
  *
  * The backend redirects to:
- *   /auth/callback?token=<jwt>
+ *   /auth/callback?token=<jwt>[&isNew=true]
  *
  * This page:
- *   1. Reads ?token from the URL
- *   2. Stores it via setToken()
+ *   1. Reads ?token (and ?isNew) from the URL
+ *   2. Stores the token via setToken()
  *   3. Calls getMe() to confirm it works
  *   4. Sends new users to /onboarding, existing users to /dashboard
  *   5. On any error, redirects to /auth with a toast
@@ -34,6 +34,7 @@ function AuthCallback() {
       const params = new URLSearchParams(window.location.search);
       const token = params.get("token");
       const errorParam = params.get("error");
+      const isNewParam = params.get("isNew") === "true";
 
       if (errorParam) {
         const msg = decodeURIComponent(errorParam);
@@ -60,11 +61,13 @@ function AuthCallback() {
         }
 
         // New users go through onboarding. Heuristic:
+        //   - Explicit ?isNew=true flag (set by Google OAuth callback) → new
         //   - onboardedAt is null/undefined → new
         //   - Only has the default 'builder' role → new
         //   - account created <5min ago → new
         const ageMs = Date.now() - new Date(user.createdAt ?? Date.now()).getTime();
         const isNewUser =
+          isNewParam ||
           !user.onboardedAt ||
           user.roles.length === 1 ||
           ageMs < 5 * 60 * 1000;

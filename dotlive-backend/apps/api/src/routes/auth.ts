@@ -185,27 +185,51 @@ export async function authRoutes(app: FastifyInstance) {
       }
 
       // Upsert user.
-      const existing = await db.select().from(users).where(eq(users.email, ui.email.toLowerCase())).limit(1);
-      let userId: string;
-      if (existing[0]) {
-        userId = existing[0].id;
-      } else {
-        const u = await createUser({
-          email: ui.email,
-          googleId: ui.id,
-          name: ui.name,
-          avatarUrl: ui.picture,
-        });
-        userId = u.id;
-      }
+            const existing = await db.select().from(users).where(eq(users.email, ui.email.toLowerCase())).limit(1);
+            let userId: string;
+            let isNewUser = false;
+            if (existing[0]) {
+              userId = existing[0].id;
+            } else {
+              const u = await createUser({
+                email: ui.email,
+                googleId: ui.id,
+                name: ui.name,
+                avatarUrl: ui.picture,
+              });
+              userId = u.id;
+              isNewUser = true;
+            }
 
-      const sessionId = await createSession(userId);
-      const jwt = await reply.jwtSign({ sub: userId, sid: sessionId });
-      const fullUser = await loadUserWithRoles(userId);
+            // Send a welcome email on first Google sign-in
+            if (isNewUser) {
+              try {
+                const fullUser = await loadUserWithRoles(userId);
+                const { emailTemplates } = await import("../lib/email.js");
+                const { sendEmail } = await import("../lib/email.js");
+                await sendEmail({
+                  to: ui.email,
+                  ...emailTemplates.welcome({
+                    name: fullUser?.name ?? ui.name ?? ui.email,
+                    dashboardUrl: "https://dotlive.cv/dashboard",
+                    dotId: fullUser?.dotId ?? "",
+                  }),
+                }).catch((e) => {
+                  // best-effort — don't fail OAuth if welcome email fails
+                  console.warn("[google-oauth] Welcome email failed:", e);
+                });
+              } catch (e) {
+                console.warn("[google-oauth] Welcome email setup failed:", e);
+              }
+            }
 
-      const frontend = process.env.FRONTEND_URL ?? "https://dotlive.cv";
-      const params = new URLSearchParams({ token: jwt });
-      return reply.redirect(`${frontend}/auth/callback?${params}`);
+            const sessionId = await createSession(userId);
+            const jwt = await reply.jwtSign({ sub: userId, sid: sessionId });
+
+            const frontend = process.env.FRONTEND_URL ?? "https://dotlive.cv";
+            const params = new URLSearchParams({ token: jwt });
+            if (isNewUser) params.set("isNew", "true");
+            return reply.redirect(`${frontend}/auth/callback?${params}`);
     }
   );
 }
