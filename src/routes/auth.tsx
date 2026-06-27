@@ -3,6 +3,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   Mail, Loader2, ArrowLeft, KeyRound, BookOpen, Coins, Lightbulb,
   TrendingUp, Users, Compass, Check, ChevronRight, Eye, EyeOff,
+  ShieldCheck, Sparkles,
 } from "lucide-react";
 import { useDotAuth } from "@/contexts/DotAuthContext";
 import { getGoogleAuthUrl } from "@/api/auth";
@@ -714,6 +715,19 @@ function SigninForm({
                 <p className="mt-1 text-sm text-muted-foreground">Free to join. No credit card needed.</p>
               </div>
 
+              {/* Trust strip */}
+              <div className="mb-4 flex items-center justify-center gap-4 text-[10px] uppercase tracking-wider text-muted-foreground">
+                <span className="inline-flex items-center gap-1">
+                  <ShieldCheck className="size-3" /> 256-bit encrypted
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <Sparkles className="size-3" /> 500 DOT starter grant
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <Users className="size-3" /> 8,950+ founders
+                </span>
+              </div>
+
               <Button variant="outline" className="w-full" onClick={() => {
                 window.location.href = getGoogleAuthUrl();
               }} disabled={busy}>
@@ -736,28 +750,43 @@ function SigninForm({
                   <Input id="su-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="su-pw">Choose a password</Label>
-                  <div className="relative">
-                    <Input id="su-pw" type={showPw ? "text" : "password"} required minLength={6}
-                      value={password} onChange={(e) => setPassword(e.target.value)}
-                      placeholder="At least 6 characters" className="pr-10" />
-                    <button type="button" onClick={() => setShowPw((v) => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      aria-label={showPw ? "Hide password" : "Show password"}>
-                      {showPw ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                    </button>
-                  </div>
-                  {password.length > 0 && (
-                    <div className="flex items-center gap-2">
-                      <div className="flex flex-1 gap-1">
-                        {[1,2,3,4].map((n) => (
-                          <div key={n} className={cn("h-1 flex-1 rounded-full transition-all", n <= pwStrength ? pwColors[pwStrength] : "bg-border")} />
-                        ))}
-                      </div>
-                      <span className="text-xs text-muted-foreground">{pwLabels[pwStrength]}</span>
-                    </div>
-                  )}
-                </div>
+                                  <Label htmlFor="su-pw">Choose a password</Label>
+                                  <div className="relative">
+                                    <Input id="su-pw" type={showPw ? "text" : "password"} required minLength={8}
+                                      value={password} onChange={(e) => setPassword(e.target.value)}
+                                      placeholder="At least 8 characters" className="pr-10" />
+                                    <button type="button" onClick={() => setShowPw((v) => !v)}
+                                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                      aria-label={showPw ? "Hide password" : "Show password"}>
+                                      {showPw ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                                    </button>
+                                  </div>
+                                  {/* Password requirements */}
+                                  <ul className="space-y-1 text-[11px]">
+                                    <li className={cn("flex items-center gap-1.5", password.length >= 8 ? "text-emerald-500" : "text-muted-foreground")}>
+                                      <span className={cn("flex size-3 items-center justify-center rounded-full", password.length >= 8 ? "bg-emerald-500 text-white" : "bg-muted")}>
+                                        {password.length >= 8 ? "✓" : ""}
+                                      </span>
+                                      At least 8 characters
+                                    </li>
+                                    <li className={cn("flex items-center gap-1.5", /[A-Za-z]/.test(password) && /[0-9]/.test(password) ? "text-emerald-500" : "text-muted-foreground")}>
+                                      <span className={cn("flex size-3 items-center justify-center rounded-full", /[A-Za-z]/.test(password) && /[0-9]/.test(password) ? "bg-emerald-500 text-white" : "bg-muted")}>
+                                        {/[A-Za-z]/.test(password) && /[0-9]/.test(password) ? "✓" : ""}
+                                      </span>
+                                      Mix of letters and numbers
+                                    </li>
+                                  </ul>
+                                  {password.length > 0 && (
+                                    <div className="flex items-center gap-2">
+                                      <div className="flex flex-1 gap-1">
+                                        {[1,2,3,4].map((n) => (
+                                          <div key={n} className={cn("h-1 flex-1 rounded-full transition-all", n <= pwStrength ? pwColors[pwStrength] : "bg-border")} />
+                                        ))}
+                                      </div>
+                                      <span className="text-xs text-muted-foreground">{pwLabels[pwStrength]}</span>
+                                    </div>
+                                  )}
+                                </div>
 
                 {/* Consent */}
                 <label className="flex cursor-pointer items-start gap-3">
