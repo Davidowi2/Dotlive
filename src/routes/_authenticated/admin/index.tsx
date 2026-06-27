@@ -1,124 +1,216 @@
 /**
- * Admin layout — wraps all /admin/* routes with:
- *   - User AppShell (workspace sidebar)
- *   - Admin sidebar (dashboard, members, wallets, tokens, roles, content)
+ * /admin — Admin dashboard home.
  *
- * Routes:
- *   /admin              → index dashboard (stats, alerts, recent ops)
- *   /admin/members      → All profiles (everyone in the DB, with search/filter)
- *   /admin/wallets      → Wallet overview + admin transfer
- *   /admin/tokens       → Token supply + cap visualization
- *   /admin/roles        → Roles hierarchy + audit log
- *
- * This is the new "admin has their own dashboard" — replaces the tabbed admin.tsx.
+ * Overview stats: users today/week, total admins, DOT in circulation,
+ * recent admin actions, system alerts.
  */
 
-import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import {
-  Activity,
-  Users,
-  Wallet as WalletIcon,
-  Coins,
-  ShieldAlert,
-  BookOpen,
-  ShieldCheck,
-  ArrowLeft,
+  Activity, Users, Shield, Coins, AlertTriangle, ArrowRight,
+  TrendingUp, Clock, Wallet as WalletIcon, FileText, CheckCircle2,
 } from "lucide-react";
 
-import { useDotAuth } from "@/contexts/DotAuthContext";
-import { AppShell } from "@/components/app/AppShell";
-import { cn } from "@/lib/utils";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
-export const Route: any = createFileRoute("/_authenticated/admin/")({
-  head: () => ({ meta: [{ title: "Admin — DOT" }] }),
-  component: AdminLayout,
+import { dotApi } from "@/api/client";
+
+export const Route = createFileRoute("/_authenticated/admin/")({
+  head: () => ({ meta: [{ title: "Admin Dashboard — DOT" }] }),
+  component: AdminDashboardPage,
 });
 
-function AdminLayout() {
-  const { roles } = useDotAuth();
-  const isSuperAdmin = roles.includes("super_admin");
-  const isAdmin = roles.includes("admin") || isSuperAdmin;
+interface AdminStats {
+  users: {
+    total: number;
+    today: number;
+    week: number;
+    admins: number;
+    banned: number;
+  };
+  ventures: { total: number };
+  wallets: {
+    total: number;
+    totalDot: number;
+  };
+  communities: { total: number };
+  challenges: { total: number };
+  tokenOps: {
+    total: number;
+    recent: Array<{
+      id: string;
+      type: string;
+      amount: number | string;
+      actor: string;
+      reason: string | null;
+      created_at: string;
+    }>;
+  };
+  timestamp: string;
+}
 
-  if (!isAdmin) {
-    return (
-      <AppShell>
-        <div className="mx-auto max-w-xl py-20 text-center">
-          <ShieldAlert className="mx-auto size-12 text-muted-foreground" />
-          <h2 className="mt-4 font-display text-2xl">Admin only</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Sign in with an admin account to access the admin dashboard.
-          </p>
-          <Button asChild className="mt-6">
-            <Link to="/auth" search={{ mode: "signin" }}>Sign in</Link>
-          </Button>
+function AdminDashboardPage() {
+  const statsQ = useQuery({
+    queryKey: ["admin", "stats"],
+    queryFn: () => dotApi.get<AdminStats>("/api/admin/stats"),
+  });
+  const stats = statsQ.data;
+
+  const stat = (label: string, value: number | string, sublabel?: string, Icon?: any) => (
+    <Card>
+      <CardContent className="p-5">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">{label}</p>
+            <p className="mt-1.5 text-2xl font-bold tabular-nums">{value}</p>
+            {sublabel && <p className="mt-0.5 text-[11px] text-muted-foreground">{sublabel}</p>}
+          </div>
+          {Icon && (
+            <div className="rounded-md bg-primary/10 p-2 text-primary">
+              <Icon className="size-4" />
+            </div>
+          )}
         </div>
-      </AppShell>
-    );
-  }
-
-  const nav = [
-    { label: "Dashboard", to: "/admin", icon: Activity, exact: true },
-    { label: "Members", to: "/admin/members", icon: Users },
-    { label: "Wallets", to: "/admin/wallets", icon: WalletIcon },
-    { label: "Tokens", to: "/admin/tokens", icon: Coins },
-    ...(isSuperAdmin ? [{ label: "Roles", to: "/admin/roles", icon: ShieldAlert }] : []),
-  ];
+      </CardContent>
+    </Card>
+  );
 
   return (
-    <AppShell>
-      <div className="mx-auto max-w-7xl px-6 py-6">
-        {/* Back to app + breadcrumb */}
-        <div className="mb-4 flex items-center justify-between">
-          <Link
-            to="/dashboard"
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="size-3" />
-            Back to app
-          </Link>
-          <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
-            {isSuperAdmin ? "Super Admin" : "Admin"}
-          </span>
+    <>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-display text-3xl">Dashboard</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Overview of platform health, users, and recent admin actions.
+          </p>
         </div>
-
-        <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
-          {/* Admin sidebar */}
-          <aside className="space-y-1">
-            <div className="mb-4 flex items-center gap-2 rounded-lg border border-border bg-card p-3">
-              <div className="rounded-lg bg-primary/10 p-2 text-primary">
-                <ShieldCheck className="size-4" />
-              </div>
-              <div>
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Admin console</div>
-                <h2 className="font-display text-sm">
-                  {isSuperAdmin ? "Super Admin" : "Admin"}
-                </h2>
-              </div>
-            </div>
-            {nav.map((item) => (
-              <Link
-                key={item.to}
-                to={item.to}
-                activeOptions={item.exact ? { exact: true } : undefined}
-                className={cn(
-                  "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
-                  "text-muted-foreground hover:bg-muted hover:text-foreground",
-                  "[&.active]:bg-primary/10 [&.active]:text-primary [&.active]:font-medium",
-                )}
-              >
-                <item.icon className="size-4" />
-                {item.label}
-              </Link>
-            ))}
-          </aside>
-
-          {/* Content area */}
-          <main>
-            <Outlet />
-          </main>
-        </div>
+        <Button variant="outline" size="sm" onClick={() => statsQ.refetch()}>
+          <Activity className="size-4" /> Refresh
+        </Button>
       </div>
-    </AppShell>
+
+      {statsQ.isLoading ? (
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+            <Skeleton key={i} className="h-24 w-full" />
+          ))}
+        </div>
+      ) : !stats ? (
+        <div className="mt-6 rounded-lg border border-destructive/30 bg-destructive/5 p-6 text-center">
+          <AlertTriangle className="mx-auto size-8 text-destructive" />
+          <p className="mt-2 font-medium">Could not load stats</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {statsQ.error instanceof Error ? statsQ.error.message : "Unknown error"}
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* ── Stat grid ── */}
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {stat("Users total", stats.users.total.toLocaleString(),
+              `${stats.users.today} new today · ${stats.users.week} this week`, Users)}
+            {stat("Admins", stats.users.admins, "admin + super_admin", Shield)}
+            {stat("Ventures", stats.ventures.total, "all statuses", FileText)}
+            {stat("DOT in circulation", Number(stats.wallets.totalDot).toLocaleString(),
+              `${stats.wallets.total} wallets`, Coins)}
+            {stat("Communities", stats.communities.total, undefined, Users)}
+            {stat("Challenges", stats.challenges.total, undefined, TrendingUp)}
+            {stat("Token ops", stats.tokenOps.total, "all-time mint/burn/transfer", Activity)}
+            {stat("Banned users", stats.users.banned, "currently banned", AlertTriangle)}
+          </div>
+
+          {/* ── Recent ops + quick links ── */}
+          <div className="mt-6 grid gap-4 lg:grid-cols-3">
+            {/* Recent token ops */}
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Clock className="size-4" />
+                    Recent admin actions
+                  </CardTitle>
+                  <Link
+                    to="/admin/tokens"
+                    className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    View all <ArrowRight className="size-3" />
+                  </Link>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {stats.tokenOps.recent.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-muted-foreground">No admin actions yet.</p>
+                ) : (
+                  <ul className="divide-y divide-border">
+                    {stats.tokenOps.recent.map((op) => (
+                      <li key={op.id} className="flex items-center justify-between py-2.5 text-sm">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={`flex size-7 shrink-0 items-center justify-center rounded-full ${
+                            op.type === "mint" ? "bg-emerald-500/10 text-emerald-500" :
+                            op.type === "burn" ? "bg-red-500/10 text-red-500" :
+                            "bg-blue-500/10 text-blue-500"
+                          }`}>
+                            <Coins className="size-3.5" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate font-medium">
+                              {op.type} · {Number(op.amount).toLocaleString()} DOT
+                            </p>
+                            <p className="truncate text-xs text-muted-foreground">
+                              by {op.actor} · {op.reason ?? "no reason"}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="ml-2 text-[10px] text-muted-foreground tabular-nums whitespace-nowrap">
+                          {new Date(op.created_at).toLocaleString()}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Quick links */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CheckCircle2 className="size-4" />
+                  Admin tools
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1.5">
+                <QuickLink to="/admin/members" icon={Users} label="Manage members" sub="Promote, demote, ban" />
+                <QuickLink to="/admin/wallets" icon={WalletIcon} label="Wallets" sub="Transfer, balance overview" />
+                <QuickLink to="/admin/tokens" icon={Coins} label="Token supply" sub="Mint, burn, audit" />
+                <QuickLink to="/admin/roles" icon={Shield} label="Roles & permissions" sub="Super-admin only" />
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
+function QuickLink({ to, icon: Icon, label, sub }: { to: any; icon: any; label: string; sub: string }) {
+  return (
+    <Link
+      to={to}
+      className="flex items-center gap-3 rounded-lg border border-transparent px-3 py-2.5 transition-colors hover:border-border hover:bg-muted/50"
+    >
+      <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+        <Icon className="size-4" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium">{label}</p>
+        <p className="text-[11px] text-muted-foreground">{sub}</p>
+      </div>
+      <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
+    </Link>
   );
 }

@@ -20,7 +20,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { AppShell } from "@/components/app/AppShell";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -83,9 +82,10 @@ function AdminMembersPage() {
     },
   });
 
+  // Use the new unified /api/admin/users/:id/roles endpoint (more powerful than /promote).
   const promoteMut = useMutation({
     mutationFn: async (userId: string) =>
-      dotApi.post(`/api/admin/users/${userId}/promote`, { role: "admin" }),
+      dotApi.put(`/api/admin/users/${userId}/roles`, { add: ["admin"] }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin", "members"] });
       toast.success("Promoted to admin");
@@ -95,7 +95,7 @@ function AdminMembersPage() {
 
   const demoteMut = useMutation({
     mutationFn: async (userId: string) =>
-      dotApi.post(`/api/admin/users/${userId}/demote`, { role: "builder" }),
+      dotApi.put(`/api/admin/users/${userId}/roles`, { remove: ["admin"] }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin", "members"] });
       toast.success("Demoted from admin");
@@ -124,7 +124,6 @@ function AdminMembersPage() {
   });
 
   const filtered = (membersQ.data ?? []).filter((m) => {
-    // Search filter
     if (search) {
       const s = search.toLowerCase();
       if (
@@ -135,7 +134,6 @@ function AdminMembersPage() {
         return false;
       }
     }
-    // Role/category filter
     switch (filter) {
       case "all":
         return true;
@@ -159,7 +157,7 @@ function AdminMembersPage() {
   });
 
   return (
-    <AppShell>
+    <>
       <PageHeader
         title="Members"
         subtitle={`${membersQ.data?.length ?? 0} users · promote, demote, ban`}
@@ -227,7 +225,7 @@ function AdminMembersPage() {
           </div>
         )}
       </div>
-    </AppShell>
+    </>
   );
 }
 
@@ -292,7 +290,7 @@ function MemberCard({
         </div>
 
         <div className="flex items-center gap-1 shrink-0">
-          {!member.isAdmin && (
+          {!member.isAdmin && !member.isSuperAdmin && (
             <Button size="sm" variant="outline" onClick={onPromote} disabled={busy}>
               <Shield className="size-3.5" /> Promote
             </Button>

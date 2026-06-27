@@ -94,14 +94,107 @@ export async function adminRoutes(app: FastifyInstance) {
         .from(users)
         .where(eq(users.id, sub))
         .limit(1);
-      if (!u[0]) return reply.code(404).send({ error: "not_found" });
-      const roles = (req as any).adminRoles as string[];
-      return reply.send({
-        admin: { ...u[0], roles, isSuperAdmin: roles.includes("super_admin") },
-        permissions: derivePermissions(roles),
-      });
-    }
-  );
+              if (!u[0]) return reply.code(404).send({ error: "not_found" });
+              const roles = (req as any).adminRoles as string[];
+              return reply.send({
+                admin: { ...u[0], roles, isSuperAdmin: roles.includes("super_admin") },
+                permissions: derivePermissions(roles),
+              });
+            }
+          );
+
+          /* ============================== STATS (dashboard) ============================== */
+
+          app.get(
+            "/stats",
+            { preHandler: [app.authenticate, requireAdmin] },
+            async (_req, reply) => {
+              try {
+                const [
+                  totalUsers,
+                  usersToday,
+                  usersThisWeek,
+                  totalAdmins,
+                  totalBanned,
+                  totalVentures,
+                  totalWallets,
+                  totalBalanceRows,
+                  totalOps,
+                  recentOpsRows,
+                  totalCommunities,
+                  totalChallenges,
+                ] = await Promise.all([
+                  db.execute(sql`SELECT COUNT(*)::int AS n FROM users`),
+                  db.execute(sql`SELECT COUNT(*)::int AS n FROM users WHERE created_at > NOW() - INTERVAL '24 hours'`),
+                  db.execute(sql`SELECT COUNT(*)::int AS n FROM users WHERE created_at > NOW() - INTERVAL '7 days'`),
+                  db.execute(sql`SELECT COUNT(DISTINCT user_id)::int AS n FROM user_roles WHERE role IN ('admin','super_admin')`),
+                  db.execute(sql`SELECT COUNT(*)::int AS n FROM user_bans WHERE unbanned_at IS NULL`),
+                  db.execute(sql`SELECT COUNT(*)::int AS n FROM ventures`),
+                  db.execute(sql`SELECT COUNT(*)::int AS n FROM wallets`),
+                  db.execute(sql`SELECT COALESCE(SUM(balance_dot),0)::numeric AS n FROM wallets`),
+                  db.execute(sql`SELECT COUNT(*)::int AS n FROM token_operations`),
+                  db.execute(sql`SELECT id, type, amount, actor, reason, created_at FROM token_operations ORDER BY created_at DESC LIMIT 10`),
+                  db.execute(sql`SELECT COUNT(*)::int AS n FROM communities`),
+                  db.execute(sql`SELECT COUNT(*)::int AS n FROM challenges`),
+                ]);
+
+                const num = (rows: any) => Number(rows?.[0]?.n ?? 0);
+
+                return reply.send({
+                  users: {
+                    total: num(totalUsers),
+                    today: num(usersToday),
+                    week: num(usersThisWeek),
+                    admins: num(totalAdmins),
+                    banned: num(totalBanned),
+                  },
+                  ventures: { total: num(totalVentures) },
+                  wallets: {
+                    total: num(totalWallets),
+                    totalDot: Number(totalBalanceRows?.[0]?.n ?? 0),
+                  },
+                  communities: { total: num(totalCommunities) },
+                  challenges: { total: num(totalChallenges) },
+                  tokenOps: {
+                    total: num(totalOps),
+                    recent: (recentOpsRows as any) ?? [],
+                  },
+                  timestamp: new Date().toISOString(),
+                });
+              } catch (err: any) {
+                console.error("admin /stats failed", err);
+                return reply.code(500).send({ error: "stats_failed", message: err?.message ?? String(err) });
+              }
+            }
+          );
+
+          /* ============================== AUDIT LOG ============================== */
+
+          app.get(
+            "/audit",
+            { preHandler: [app.authenticate, requireAdmin] },
+            async (req, reply) => {
+              const limit = Math.min(Number((req.query as any)?.limit ?? 100), 500);
+              const offset = Math.max(Number((req.query as any)?.offset ?? 0), 0);
+              try {
+                const rows = await db.execute(sql`
+                  SELECT id, action, target_type, target_id, actor_id, actor_email,
+                         before, after, reason, created_at
+                  FROM audit_log
+                  ORDER BY created_at DESC
+                  LIMIT ${limit} OFFSET ${offset}
+                `);
+                const countRows = await db.execute(sql`SELECT COUNT(*)::int AS n FROM audit_log`);
+                return reply.send({
+                  entries: (rows as any) ?? [],
+                  total: Number((countRows as any)?.[0]?.n ?? 0),
+                });
+              } catch (err: any) {
+                console.error("admin /audit failed", err);
+                        return reply.code(500).send({ error: "audit_failed" });
+              }
+            }
+          );
 
   /* ============================== CONFIRM ============================== */
 
@@ -491,19 +584,19 @@ export async function adminRoutes(app: FastifyInstance) {
   );
 
   app.post(
-    "/users/:id/promote",
-    {
-      preHandler: [app.authenticate, requireSuperAdmin, withIdempotency({ action: "user.promote" })],
-    },
-    async (req, reply) => {
-      const { id } = req.params as { id: string };
-      const body = z
-        .object({
-          reason: reasonSchema(),
-          role: z.enum(["admin", "super_admin", "founder", "investor", "community_leader", "vendor", "capital_partner"]),
-        })
-        .safeParse(req.body);
-      if (!body.success) return reply.code(400).send({ error: "bad_input" });
+      "/users/:id/promote",
+      {
+        preHandler: [app.authenticate, requireSuperAdmin, withIdempotency({ action: "user.promote" })],
+      },
+      async (req, reply) => {
+        const { id } = req.params as { id: string };
+        const body = z
+          .object({
+            reason: reasonSchema().optional().default("Promoted by super admin"),
+            role: z.enum(["admin", "super_admin", "founder", "investor", "community_leader", "vendor", "capital_partner"]).default("admin"),
+          })
+          .safeParse(req.body ?? {});
+        if (!body.success) return reply.code(400).send({ error: "bad_input", details: body.error.flatten() });
 
       const target = await db.select().from(users).where(eq(users.id, id)).limit(1);
       if (!target[0]) return reply.code(404).send({ error: "not_found" });
