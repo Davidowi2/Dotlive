@@ -402,7 +402,7 @@ function SigninForm({
           </div>
           <div className="space-y-2">
             <Label htmlFor="np">New password</Label>
-            <Input id="np" type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 8 characters" />
+            <Input id="np" type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 8 characters" autoComplete="new-password" />
           </div>
           <Button type="submit" variant="hero" className="w-full" disabled={busy}>
             {busy && <Loader2 className="size-4 animate-spin" />}
@@ -413,7 +413,7 @@ function SigninForm({
         <form onSubmit={handleForgot} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+            <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" />
           </div>
           <Button type="submit" variant="hero" className="w-full" disabled={busy}>
             {busy ? <Loader2 className="size-4 animate-spin" /> : <Mail className="size-4" />}
@@ -424,7 +424,7 @@ function SigninForm({
         <form onSubmit={handleSendOtp} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+            <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" />
           </div>
           <Button type="submit" variant="hero" className="w-full" disabled={busy}>
             {busy ? <Loader2 className="size-4 animate-spin" /> : <KeyRound className="size-4" />}
@@ -435,7 +435,7 @@ function SigninForm({
         <form onSubmit={handleSignin} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="si-email">Email</Label>
-            <Input id="si-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+            <Input id="si-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" />
           </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -445,8 +445,8 @@ function SigninForm({
               </button>
             </div>
             <div className="relative">
-              <Input id="si-password" type={showPw ? "text" : "password"} required value={password}
-                onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="pr-10" />
+              <Input id="si-password" name="password" type={showPw ? "text" : "password"} required value={password}
+                onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="pr-10" autoComplete="current-password" />
               <button type="button" onClick={() => setShowPw((v) => !v)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 aria-label={showPw ? "Hide password" : "Show password"}>
@@ -747,14 +747,14 @@ function SigninForm({
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="su-email">Your email address</Label>
-                  <Input id="su-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+                  <Input id="su-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" />
                 </div>
                 <div className="space-y-2">
                                   <Label htmlFor="su-pw">Choose a password</Label>
                                   <div className="relative">
                                     <Input id="su-pw" type={showPw ? "text" : "password"} required minLength={8}
                                       value={password} onChange={(e) => setPassword(e.target.value)}
-                                      placeholder="At least 8 characters" className="pr-10" />
+                                      placeholder="At least 8 characters" className="pr-10" autoComplete="new-password" />
                                     <button type="button" onClick={() => setShowPw((v) => !v)}
                                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                                       aria-label={showPw ? "Hide password" : "Show password"}>
