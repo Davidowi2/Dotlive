@@ -15,6 +15,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { eq, desc, and, sql } from "drizzle-orm";
+import { randomBytes } from "node:crypto";
 
 import { db } from "../db/client.js";
 import {
@@ -130,7 +131,7 @@ export async function extrasRoutes(app: FastifyInstance) {
     const [u] = await db.select().from(users).where(eq(users.email, email)).limit(1);
     if (u) {
       // Generate a reset token (16 bytes random hex)
-      const token = require("crypto").randomBytes(32).toString("hex");
+      const token = randomBytes(32).toString("hex");
       const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 min
       await db.execute(sql`
         INSERT INTO password_reset_tokens (user_id, token, expires_at)
