@@ -25,6 +25,26 @@ import { payments, wallets } from "../db/schema.js";
 const DEPOSIT_DOT_TO_NAIRA = 15; // 1 DOT = ₦15 (matches dotToNaira in frontend)
 
 export async function paymentsRoutes(app: FastifyInstance) {
+  /* ─── DEPOSIT CONFIG (public) ─── */
+
+  /**
+   * GET /api/payments/config
+   * Returns the public Paystack key + conversion rate + min/max.
+   * Used by the frontend to render the deposit dialog.
+   */
+  app.get("/payments/config", async (_req, reply) => {
+    return reply.send({
+      enabled: !!process.env.PAYSTACK_SECRET_KEY,
+      publicKey: process.env.PAYSTACK_PUBLIC_KEY ?? null,
+      dotToNaira: 15,
+      minDepositDot: 2000,
+      maxDepositDot: 1_000_000,
+      feePercent: 1.5,
+      webhookConfigured: !!process.env.PAYSTACK_SECRET_KEY,
+      frontendUrl: process.env.FRONTEND_URL ?? "https://dotlive.cv",
+    });
+  });
+
   /* ─── DEPOSIT INITIATE ─── */
 
   const depositSchema = z.object({
@@ -76,8 +96,28 @@ export async function paymentsRoutes(app: FastifyInstance) {
 
     if (!initRes.ok) {
       const text = await initRes.text();
-      req.log.error({ text }, "Paystack init failed");
-      return reply.code(502).send({ error: "Payment provider unreachable. Try again." });
+      req.log.error(
+        {
+          status: initRes.status,
+          statusText: initRes.statusText,
+          text: text.slice(0, 500),
+          paystackKeyConfigured: !!paystackKey,
+          paystackKeyPrefix: paystackKey.slice(0, 7),
+          amountNaira,
+          reference,
+          isLiveKey: paystackKey.startsWith("sk_live_"),
+        },
+        "Paystack init failed",
+      );
+      return reply.code(502).send({
+        error: "Payment provider unreachable. Try again.",
+        hint: initRes.status === 403
+          ? "Paystack blocked the request — likely an IP whitelist issue. Check Paystack dashboard → Settings → API → IP Whitelist."
+          : initRes.status === 401
+            ? "Invalid Paystack secret key. Re-check Render env var PAYSTACK_SECRET_KEY."
+            : `Paystack returned ${initRes.status}`,
+        upstreamStatus: initRes.status,
+      });
     }
 
     const data = (await initRes.json()) as { status: boolean; data: { authorization_url: string; reference: string } };

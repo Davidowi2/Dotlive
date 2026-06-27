@@ -52,23 +52,29 @@ export async function withdrawalRoutes(app: FastifyInstance) {
 
   app.post("/wallet/withdraw", { preHandler: app.authenticate }, async (req, reply) => {
     const { sub } = req.user as { sub: string };
-    const body = (req.body ?? {}) as {
-      amountDot?: number;
-      bankInfo?: {
-        accountName: string;
-        accountNumber: string;
-        bankCode: string;
-        bankName?: string;
-      };
-    };
+    const raw = (req.body ?? {}) as Record<string, any>;
 
-    const amount = Number(body.amountDot ?? 0);
+    // Accept BOTH shapes:
+    //   1) Flat:   { amountDot, bankCode, bankName, accountNumber, accountName }
+    //   2) Nested: { amountDot, bankInfo: { accountName, accountNumber, bankCode, bankName? } }
+    const amount = Number(raw.amountDot ?? raw.amount ?? 0);
+    const bankInfo =
+      raw.bankInfo ?? {
+        accountName: raw.accountName,
+        accountNumber: raw.accountNumber,
+        bankCode: raw.bankCode,
+        bankName: raw.bankName,
+      };
+
     if (!Number.isFinite(amount) || amount < 1000) {
       return reply.code(400).send({ error: "Minimum withdrawal is 1,000 DOT" });
     }
 
-    if (!body.bankInfo?.accountNumber || !body.bankInfo?.bankCode || !body.bankInfo?.accountName) {
-      return reply.code(400).send({ error: "Bank details required (accountName, accountNumber, bankCode)" });
+    if (!bankInfo?.accountNumber || !bankInfo?.bankCode || !bankInfo?.accountName) {
+      return reply.code(400).send({
+        error: "Bank details required (accountName, accountNumber, bankCode)",
+        received: Object.keys(raw),
+      });
     }
 
     // Check KYC tier + limits
@@ -107,7 +113,7 @@ export async function withdrawalRoutes(app: FastifyInstance) {
         userId: sub,
         amount,
         type: "withdrawal_hold",
-        description: `Withdrawal request ${amount.toLocaleString()} DOT to ${body.bankInfo.bankName ?? body.bankInfo.bankCode}`,
+        description: `Withdrawal request ${amount.toLocaleString()} DOT to ${bankInfo.bankName ?? bankInfo.bankCode}`,
       });
     } catch (e) {
       return reply.code(400).send({ error: (e as Error).message });
@@ -121,7 +127,7 @@ export async function withdrawalRoutes(app: FastifyInstance) {
         userId: sub,
         amountDot: amount.toFixed(2),
         amountNgn: amountNgn.toFixed(2),
-        bankInfo: body.bankInfo,
+        bankInfo,
         kycTier: tier,
         status: "pending",
       } as any)
@@ -365,4 +371,122 @@ export async function withdrawalRoutes(app: FastifyInstance) {
       return reply.send({ kyc: updated });
     },
   );
+
+  /* ============================== BANKS (static list) ============================== */
+
+  /**
+   * GET /api/wallet/banks
+   * Returns the list of Nigerian banks we support for withdrawals.
+   * Static list (Paystack's bank list endpoint is rate-limited + sometimes
+   * slow, so we ship our own curated subset of the major banks).
+   */
+  app.get("/wallet/banks", { preHandler: app.authenticate }, async (_req, reply) => {
+    return reply.send({ banks: NIGERIAN_BANKS });
+  });
+
+  /* ============================== VERIFY BANK ACCOUNT ============================== */
+
+  /**
+   * POST /api/wallet/verify-bank-account
+   * Body: { bankCode: string, accountNumber: string }
+   * Returns: { accountName: string }
+   *
+   * Calls Paystack's Resolve API to verify the account name. If Paystack
+   * is not configured or unreachable, returns a 503 with a clear message —
+   * the frontend can still let the user submit and the admin verifies
+   * manually during review.
+   */
+  app.post<{ Body: { bankCode?: string; accountNumber?: string } }>(
+    "/wallet/verify-bank-account",
+    { preHandler: app.authenticate },
+    async (req, reply) => {
+      const { bankCode, accountNumber } = req.body ?? {};
+      if (!bankCode || !accountNumber) {
+        return reply.code(400).send({ error: "bankCode + accountNumber required" });
+      }
+      if (!/^\d{10}$/.test(accountNumber)) {
+        return reply.code(400).send({ error: "Account number must be 10 digits" });
+      }
+
+      const paystackKey = process.env.PAYSTACK_SECRET_KEY;
+      if (!paystackKey) {
+        return reply.code(503).send({
+          error: "Bank verification unavailable — Paystack not configured. Submit anyway and admin will verify.",
+          code: "paystack_disabled",
+        });
+      }
+
+      try {
+        const res = await fetch(
+          `https://api.paystack.co/bank/resolve?account_number=${encodeURIComponent(accountNumber)}&bank_code=${encodeURIComponent(bankCode)}`,
+          {
+            method: "GET",
+            headers: { Authorization: `Bearer ${paystackKey}` },
+          },
+        );
+
+        if (!res.ok) {
+          const text = await res.text();
+          req.log.error({ status: res.status, text }, "Paystack resolve failed");
+          return reply.code(502).send({
+            error: "Bank verification failed. Submit anyway and admin will verify.",
+          });
+        }
+
+        const data = (await res.json()) as {
+          status: boolean;
+          data?: { account_name?: string; account_number?: string };
+          message?: string;
+        };
+
+        if (!data.status || !data.data?.account_name) {
+          return reply.code(404).send({
+            error: data.message ?? "Could not resolve account",
+          });
+        }
+
+        return reply.send({
+          accountName: data.data.account_name,
+          accountNumber: data.data.account_number ?? accountNumber,
+        });
+      } catch (err) {
+        req.log.error({ err: (err as Error).message }, "Paystack resolve error");
+        return reply.code(502).send({
+          error: "Bank verification unavailable. Submit anyway and admin will verify.",
+        });
+      }
+    },
+  );
 }
+
+/* ────────────────────────── Nigerian banks ────────────────────────── */
+
+const NIGERIAN_BANKS: Array<{ code: string; name: string }> = [
+  { code: "044", name: "Access Bank" },
+  { code: "023", name: "Citibank Nigeria" },
+  { code: "063", name: "Diamond Bank" },
+  { code: "050", name: "Ecobank Nigeria" },
+  { code: "070", name: "Fidelity Bank" },
+  { code: "011", name: "First Bank of Nigeria" },
+  { code: "214", name: "First City Monument Bank" },
+  { code: "058", name: "Guaranty Trust Bank" },
+  { code: "030", name: "Heritage Bank" },
+  { code: "301", name: "Jaiz Bank" },
+  { code: "082", name: "Keystone Bank" },
+  { code: "526", name: "Kuda Bank" },
+  { code: "100", name: "Lotus Bank" },
+  { code: "221", name: "Mainstreet Bank" },
+  { code: "999992", name: "Moniepoint MFB" },
+  { code: "999991", name: "OPay Digital Services" },
+  { code: "999993", name: "Palmpay" },
+  { code: "076", name: "Polaris Bank" },
+  { code: "101", name: "Providus Bank" },
+  { code: "125", name: "Rubies MFB" },
+  { code: "215", name: "Unity Bank" },
+  { code: "035", name: "Wema Bank" },
+  { code: "057", name: "Zenith Bank" },
+  { code: "032", name: "Union Bank" },
+  { code: "033", name: "United Bank for Africa" },
+  { code: "232", name: "Sterling Bank" },
+  { code: "035A", name: "ALAT by Wema" },
+];
