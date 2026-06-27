@@ -62,6 +62,7 @@ function AdminLayout() {
     { label: "Members", to: "/admin/members", icon: Users },
     { label: "Wallets", to: "/admin/wallets", icon: WalletIcon },
     { label: "Tokens", to: "/admin/tokens", icon: Coins },
+    { label: "Permissions", to: "/admin/permissions", icon: ShieldCheck },
     ...(isSuperAdmin ? [{ label: "Roles", to: "/admin/roles", icon: ShieldAlert }] : []),
   ];
 

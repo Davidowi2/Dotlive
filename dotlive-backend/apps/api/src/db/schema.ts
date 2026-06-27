@@ -74,7 +74,7 @@ export const userRoles = pgTable("user_roles", {
 },
   (t) => ({
       x: primaryKey({ columns: [t.userId, t.role] }),
-      user_roles_role_check_chk: check("user_roles_role_check", sql`${t.role} IN ('builder', 'founder', 'investor', 'community_leader', 'admin', 'super_admin', 'vendor', 'capital_partner')`),
+      user_roles_role_check_chk: check("user_roles_role_check", sql`${t.role} IN ('builder', 'founder', 'investor', 'community_leader', 'admin', 'super_admin', 'vendor', 'capital_partner', 'moderator', 'support', 'finance')`),
   }));
 
 /* --------------------------- Wallets --------------------------- */

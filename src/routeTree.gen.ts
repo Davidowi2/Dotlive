@@ -60,6 +60,7 @@ import { Route as AuthenticatedCIdRouteImport } from './routes/_authenticated/c.
 import { Route as AuthenticatedAdminWalletsRouteImport } from './routes/_authenticated/admin/wallets'
 import { Route as AuthenticatedAdminTokensRouteImport } from './routes/_authenticated/admin/tokens'
 import { Route as AuthenticatedAdminRolesRouteImport } from './routes/_authenticated/admin/roles'
+import { Route as AuthenticatedAdminPermissionsRouteImport } from './routes/_authenticated/admin/permissions'
 import { Route as AuthenticatedAdminMembersRouteImport } from './routes/_authenticated/admin/members'
 import { Route as ApiPublicWebhooksPaystackRouteImport } from './routes/api/public/webhooks/paystack'
 
@@ -326,6 +327,12 @@ const AuthenticatedAdminRolesRoute = AuthenticatedAdminRolesRouteImport.update({
   path: '/roles',
   getParentRoute: () => AuthenticatedAdminRouteRoute,
 } as any)
+const AuthenticatedAdminPermissionsRoute =
+  AuthenticatedAdminPermissionsRouteImport.update({
+    id: '/permissions',
+    path: '/permissions',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminMembersRoute =
   AuthenticatedAdminMembersRouteImport.update({
     id: '/members',
@@ -379,6 +386,7 @@ export interface FileRoutesByFullPath {
   '/founder/$id': typeof FounderIdRoute
   '/events/': typeof EventsIndexRoute
   '/admin/members': typeof AuthenticatedAdminMembersRoute
+  '/admin/permissions': typeof AuthenticatedAdminPermissionsRoute
   '/admin/roles': typeof AuthenticatedAdminRolesRoute
   '/admin/tokens': typeof AuthenticatedAdminTokensRoute
   '/admin/wallets': typeof AuthenticatedAdminWalletsRoute
@@ -432,6 +440,7 @@ export interface FileRoutesByTo {
   '/founder/$id': typeof FounderIdRoute
   '/events': typeof EventsIndexRoute
   '/admin/members': typeof AuthenticatedAdminMembersRoute
+  '/admin/permissions': typeof AuthenticatedAdminPermissionsRoute
   '/admin/roles': typeof AuthenticatedAdminRolesRoute
   '/admin/tokens': typeof AuthenticatedAdminTokensRoute
   '/admin/wallets': typeof AuthenticatedAdminWalletsRoute
@@ -488,6 +497,7 @@ export interface FileRoutesById {
   '/founder/$id': typeof FounderIdRoute
   '/events/': typeof EventsIndexRoute
   '/_authenticated/admin/members': typeof AuthenticatedAdminMembersRoute
+  '/_authenticated/admin/permissions': typeof AuthenticatedAdminPermissionsRoute
   '/_authenticated/admin/roles': typeof AuthenticatedAdminRolesRoute
   '/_authenticated/admin/tokens': typeof AuthenticatedAdminTokensRoute
   '/_authenticated/admin/wallets': typeof AuthenticatedAdminWalletsRoute
@@ -544,6 +554,7 @@ export interface FileRouteTypes {
     | '/founder/$id'
     | '/events/'
     | '/admin/members'
+    | '/admin/permissions'
     | '/admin/roles'
     | '/admin/tokens'
     | '/admin/wallets'
@@ -597,6 +608,7 @@ export interface FileRouteTypes {
     | '/founder/$id'
     | '/events'
     | '/admin/members'
+    | '/admin/permissions'
     | '/admin/roles'
     | '/admin/tokens'
     | '/admin/wallets'
@@ -652,6 +664,7 @@ export interface FileRouteTypes {
     | '/founder/$id'
     | '/events/'
     | '/_authenticated/admin/members'
+    | '/_authenticated/admin/permissions'
     | '/_authenticated/admin/roles'
     | '/_authenticated/admin/tokens'
     | '/_authenticated/admin/wallets'
@@ -1048,6 +1061,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRolesRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/permissions': {
+      id: '/_authenticated/admin/permissions'
+      path: '/permissions'
+      fullPath: '/admin/permissions'
+      preLoaderRoute: typeof AuthenticatedAdminPermissionsRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/admin/members': {
       id: '/_authenticated/admin/members'
       path: '/members'
@@ -1067,6 +1087,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminMembersRoute: typeof AuthenticatedAdminMembersRoute
+  AuthenticatedAdminPermissionsRoute: typeof AuthenticatedAdminPermissionsRoute
   AuthenticatedAdminRolesRoute: typeof AuthenticatedAdminRolesRoute
   AuthenticatedAdminTokensRoute: typeof AuthenticatedAdminTokensRoute
   AuthenticatedAdminWalletsRoute: typeof AuthenticatedAdminWalletsRoute
@@ -1076,6 +1097,7 @@ interface AuthenticatedAdminRouteRouteChildren {
 const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren =
   {
     AuthenticatedAdminMembersRoute: AuthenticatedAdminMembersRoute,
+    AuthenticatedAdminPermissionsRoute: AuthenticatedAdminPermissionsRoute,
     AuthenticatedAdminRolesRoute: AuthenticatedAdminRolesRoute,
     AuthenticatedAdminTokensRoute: AuthenticatedAdminTokensRoute,
     AuthenticatedAdminWalletsRoute: AuthenticatedAdminWalletsRoute,

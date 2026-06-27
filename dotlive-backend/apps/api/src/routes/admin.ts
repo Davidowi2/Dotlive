@@ -76,7 +76,23 @@ function requireReason(reason: unknown): { ok: true; reason: string } | { ok: fa
   return { ok: true, reason: parsed.data };
 }
 
+import { hasPermission, getAllRoles, getStaffRoles, getPermissionGroups } from "../lib/permissions.js";
+
 export async function adminRoutes(app: FastifyInstance) {
+  /* ============================== ROLES HIERARCHY ============================== */
+
+  app.get(
+    "/roles/hierarchy",
+    { preHandler: [app.authenticate, requireAdmin] },
+    async (_req, reply) => {
+      return reply.send({
+        roles: getAllRoles(),
+        staffRoles: getStaffRoles(),
+        permissionGroups: getPermissionGroups(),
+      });
+    },
+  );
+
   /* ============================== ME ============================== */
 
   app.get(
@@ -164,34 +180,6 @@ export async function adminRoutes(app: FastifyInstance) {
               } catch (err: any) {
                 console.error("admin /stats failed", err);
                 return reply.code(500).send({ error: "stats_failed", message: err?.message ?? String(err) });
-              }
-            }
-          );
-
-          /* ============================== AUDIT LOG ============================== */
-
-          app.get(
-            "/audit",
-            { preHandler: [app.authenticate, requireAdmin] },
-            async (req, reply) => {
-              const limit = Math.min(Number((req.query as any)?.limit ?? 100), 500);
-              const offset = Math.max(Number((req.query as any)?.offset ?? 0), 0);
-              try {
-                const rows = await db.execute(sql`
-                  SELECT id, action, target_type, target_id, actor_id, actor_email,
-                         before, after, reason, created_at
-                  FROM audit_log
-                  ORDER BY created_at DESC
-                  LIMIT ${limit} OFFSET ${offset}
-                `);
-                const countRows = await db.execute(sql`SELECT COUNT(*)::int AS n FROM audit_log`);
-                return reply.send({
-                  entries: (rows as any) ?? [],
-                  total: Number((countRows as any)?.[0]?.n ?? 0),
-                });
-              } catch (err: any) {
-                console.error("admin /audit failed", err);
-                        return reply.code(500).send({ error: "audit_failed" });
               }
             }
           );
@@ -921,7 +909,24 @@ export async function adminRoutes(app: FastifyInstance) {
           });
 
           /* ── ROLE EDITING — PUT /api/admin/users/:id/roles ───────────── */
-          /** Replace user's roles array. Super-admin only, with immutability checks. */
+          /**
+           * Update a user's roles. Two body shapes:
+           *   1) Replace:  { roles: ["admin","builder"] }
+           *   2) Delta:    { add: ["admin"], remove: ["builder"] }
+           * Super-admin only. Enforces immutability of the last super-admin
+           * and prevents non-super admins from granting admin/super_admin.
+           */
+          const roleBody = z
+            .object({
+              roles: z.array(z.string()).optional(),
+              add: z.array(z.string()).optional(),
+              remove: z.array(z.string()).optional(),
+              reason: z.string().max(500).optional(),
+            })
+            .refine((b) => Array.isArray(b.roles) || b.add !== undefined || b.remove !== undefined, {
+              message: "Send { roles: [...] } or { add: [...], remove: [...] }",
+            });
+
           app.put("/users/:id/roles", { preHandler: app.authenticate }, async (req, reply) => {
             const { sub: adminId } = req.user as { sub: string };
             const callerRoles = await getUserRoles(adminId);
@@ -932,24 +937,44 @@ export async function adminRoutes(app: FastifyInstance) {
               const existingSuperAdmins = await db.execute(
                 sql`SELECT COUNT(*)::int AS n FROM user_roles WHERE role = 'super_admin'`,
               );
-              const n = Number((existingSuperAdmins as any).rows?.[0]?.n ?? 0);
+              const n = Number((existingSuperAdmins as any)[0]?.n ?? 0);
               if (n > 0) {
                 return reply.code(403).send({ error: "Super-admin only" });
               }
             }
 
-            const { id } = req.params as { id: string };
-            const body = (req.body ?? {}) as { roles?: string[] };
-            if (!Array.isArray(body.roles)) {
-              return reply.code(400).send({ error: "roles must be an array" });
+            const parsed = roleBody.safeParse(req.body ?? {});
+            if (!parsed.success) {
+              return reply.code(400).send({
+                error: "Send { roles: [...] } or { add: [...], remove: [...] }",
+                details: parsed.error.flatten(),
+              });
             }
 
-            const targetHasSuperBefore = (await getUserRoles(id)).includes("super_admin");
+            const { id } = req.params as { id: string };
+            const currentRoles = await getUserRoles(id);
+            const targetHasSuperBefore = currentRoles.includes("super_admin");
+
+            // Compute target roles
+            let targetRoles: string[];
+            if (Array.isArray(parsed.data.roles)) {
+              targetRoles = parsed.data.roles;
+            } else {
+              targetRoles = [...currentRoles];
+              if (parsed.data.add) {
+                for (const r of parsed.data.add) {
+                  if (!targetRoles.includes(r)) targetRoles.push(r);
+                }
+              }
+              if (parsed.data.remove) {
+                targetRoles = targetRoles.filter((r) => !parsed.data.remove!.includes(r));
+              }
+            }
 
             // IMMUTABILITY: cannot remove the LAST super_admin
-            if (targetHasSuperBefore && !body.roles.includes("super_admin")) {
+            if (targetHasSuperBefore && !targetRoles.includes("super_admin")) {
               const r = await db.execute(sql`SELECT COUNT(*)::int AS n FROM user_roles WHERE role = 'super_admin'`);
-              const n = Number((r as any).rows?.[0]?.n ?? 0);
+              const n = Number((r as any)[0]?.n ?? 0);
               if (n <= 1) {
                 return reply.code(409).send({
                   error: "Cannot remove the LAST super_admin. Promote another user first.",
@@ -959,21 +984,36 @@ export async function adminRoutes(app: FastifyInstance) {
             }
 
             // Only super_admins can grant super_admin
-            if (body.roles.includes("super_admin") && !isSuper) {
+            if (targetRoles.includes("super_admin") && !isSuper) {
               return reply.code(403).send({ error: "Only super_admin can grant super_admin" });
             }
 
             // Non-super admins cannot grant admin role
-            if (body.roles.includes("admin") && !isSuper) {
+            if (targetRoles.includes("admin") && !isSuper) {
               return reply.code(403).send({ error: "Only super_admin can grant admin role" });
             }
 
-            // Wipe + replace
+            // Wipe + replace (idempotent, atomic-ish: we delete then re-insert)
             await db.execute(sql`DELETE FROM user_roles WHERE user_id = ${id}`);
-            for (const r of body.roles) {
+            for (const r of targetRoles) {
               await db.execute(sql`INSERT INTO user_roles (user_id, role, granted_at) VALUES (${id}, ${r}, NOW()) ON CONFLICT DO NOTHING`);
             }
-            return reply.send({ ok: true });
+
+            // Audit log
+            try {
+              await db.execute(sql`
+                INSERT INTO admin_audit_log (actor_id, action, target_type, target_id, before, after, reason, created_at)
+                VALUES (${adminId}, ${'user.roles.update'}, ${'user'}, ${id},
+                        ${JSON.stringify(currentRoles)},
+                        ${JSON.stringify(targetRoles)},
+                        ${parsed.data.reason ?? null},
+                        NOW())
+              `);
+            } catch {
+              // audit log table might not exist; non-fatal
+            }
+
+            return reply.send({ ok: true, roles: targetRoles, previousRoles: currentRoles });
           });
 
           /* ── CONTENT CREATION — admin can create courses/events/pitchathons ── */
