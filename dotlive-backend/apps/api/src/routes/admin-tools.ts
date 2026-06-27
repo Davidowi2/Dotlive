@@ -34,6 +34,7 @@ import { getUserRoles, userHasRole } from "../lib/auth.js";
 import {
   ensureTokenSupply, getTokenStats, mintDot, burnDot, adminTransferDot,
 } from "../lib/token-supply.js";
+import { getAllRoles, getStaffRoles, getPermissionGroups } from "../lib/permissions.js";
 
 const requireAdmin = async (req: any, reply: any) => {
   const id = (req.user as { sub: string }).sub;
@@ -100,11 +101,29 @@ export async function adminToolsRoutes(app: FastifyInstance) {
           label: "Super Admin",
           description: "Immutable creator. Cannot be removed by anyone. Can promote/demote admins.",
           grantableBy: ["super_admin", "bootstrap"],
-          removableBy: ["super_admin"], // and only if not last
+          removableBy: ["super_admin"],
         },
         admin: {
           label: "Admin",
           description: "Full operational control. Removable by super_admin.",
+          grantableBy: ["super_admin"],
+          removableBy: ["super_admin"],
+        },
+        moderator: {
+          label: "Moderator",
+          description: "Content moderation + ban/unban. No destructive actions.",
+          grantableBy: ["super_admin"],
+          removableBy: ["super_admin", "admin"],
+        },
+        support: {
+          label: "Support",
+          description: "View user PII + balances. No destructive actions.",
+          grantableBy: ["super_admin"],
+          removableBy: ["super_admin", "admin"],
+        },
+        finance: {
+          label: "Finance",
+          description: "DOT supply, withdrawals, payouts. Cannot grant admin.",
           grantableBy: ["super_admin"],
           removableBy: ["super_admin"],
         },
@@ -125,6 +144,10 @@ export async function adminToolsRoutes(app: FastifyInstance) {
       stats: {
         totalSuperAdmins: await countSuperAdmins(),
       },
+      // NEW: full permission matrix for the /admin/permissions page
+      roles: getAllRoles(),
+      staffRoles: getStaffRoles(),
+      permissionGroups: getPermissionGroups(),
     });
   });
 

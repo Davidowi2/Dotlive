@@ -76,23 +76,7 @@ function requireReason(reason: unknown): { ok: true; reason: string } | { ok: fa
   return { ok: true, reason: parsed.data };
 }
 
-import { hasPermission, getAllRoles, getStaffRoles, getPermissionGroups } from "../lib/permissions.js";
-
 export async function adminRoutes(app: FastifyInstance) {
-  /* ============================== ROLES HIERARCHY ============================== */
-
-  app.get(
-    "/roles/hierarchy",
-    { preHandler: [app.authenticate, requireAdmin] },
-    async (_req, reply) => {
-      return reply.send({
-        roles: getAllRoles(),
-        staffRoles: getStaffRoles(),
-        permissionGroups: getPermissionGroups(),
-      });
-    },
-  );
-
   /* ============================== ME ============================== */
 
   app.get(
@@ -119,73 +103,7 @@ export async function adminRoutes(app: FastifyInstance) {
             }
           );
 
-          /* ============================== STATS (dashboard) ============================== */
-
-          app.get(
-            "/stats",
-            { preHandler: [app.authenticate, requireAdmin] },
-            async (_req, reply) => {
-              try {
-                const [
-                  totalUsers,
-                  usersToday,
-                  usersThisWeek,
-                  totalAdmins,
-                  totalBanned,
-                  totalVentures,
-                  totalWallets,
-                  totalBalanceRows,
-                  totalOps,
-                  recentOpsRows,
-                  totalCommunities,
-                  totalChallenges,
-                ] = await Promise.all([
-                  db.execute(sql`SELECT COUNT(*)::int AS n FROM users`),
-                  db.execute(sql`SELECT COUNT(*)::int AS n FROM users WHERE created_at > NOW() - INTERVAL '24 hours'`),
-                  db.execute(sql`SELECT COUNT(*)::int AS n FROM users WHERE created_at > NOW() - INTERVAL '7 days'`),
-                  db.execute(sql`SELECT COUNT(DISTINCT user_id)::int AS n FROM user_roles WHERE role IN ('admin','super_admin')`),
-                  db.execute(sql`SELECT COUNT(*)::int AS n FROM user_bans WHERE unbanned_at IS NULL`),
-                  db.execute(sql`SELECT COUNT(*)::int AS n FROM ventures`),
-                  db.execute(sql`SELECT COUNT(*)::int AS n FROM wallets`),
-                  db.execute(sql`SELECT COALESCE(SUM(balance_dot),0)::numeric AS n FROM wallets`),
-                  db.execute(sql`SELECT COUNT(*)::int AS n FROM token_operations`),
-                  db.execute(sql`SELECT id, type, amount, actor, reason, created_at FROM token_operations ORDER BY created_at DESC LIMIT 10`),
-                  db.execute(sql`SELECT COUNT(*)::int AS n FROM communities`),
-                  db.execute(sql`SELECT COUNT(*)::int AS n FROM challenges`),
-                ]);
-
-                const num = (rows: any) => Number(rows?.[0]?.n ?? 0);
-
-                return reply.send({
-                  users: {
-                    total: num(totalUsers),
-                    today: num(usersToday),
-                    week: num(usersThisWeek),
-                    admins: num(totalAdmins),
-                    banned: num(totalBanned),
-                  },
-                  ventures: { total: num(totalVentures) },
-                  wallets: {
-                    total: num(totalWallets),
-                    totalDot: Number(totalBalanceRows?.[0]?.n ?? 0),
-                  },
-                  communities: { total: num(totalCommunities) },
-                  challenges: { total: num(totalChallenges) },
-                  tokenOps: {
-                    total: num(totalOps),
-                    recent: (recentOpsRows as any) ?? [],
-                  },
-                  timestamp: new Date().toISOString(),
-                });
-              } catch (err: any) {
-                console.error("admin /stats failed", err);
-                return reply.code(500).send({ error: "stats_failed", message: err?.message ?? String(err) });
-              }
-            }
-          );
-
   /* ============================== CONFIRM ============================== */
-
   const confirmBodySchema = z.object({
     action: z.string().min(3).max(64),
     reason: z.string().min(REASON_MIN).max(500),
