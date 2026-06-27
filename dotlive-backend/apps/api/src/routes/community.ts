@@ -4,7 +4,7 @@
 
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import crypto from "node:crypto";
 
 import { db } from "../db/client.js";
@@ -46,21 +46,75 @@ export async function communityRoutes(app: FastifyInstance) {
     return reply.send({ community: { id, referralCode } });
   });
 
-  /** GET /api/communities — list all communities */
-  app.get("/communities", async (_req, reply) => {
-    const rows = await db
-      .select({
-        id: communities.id,
-        name: communities.name,
-        description: communities.description,
-        leaderId: communities.leaderId,
-        referralCode: communities.referralCode,
-        createdAt: communities.createdAt,
-      })
-      .from(communities)
-      .orderBy(desc(communities.createdAt));
-    return reply.send({ communities: rows });
-  });
+  /** GET /api/communities — list all communities (public) */
+    app.get("/communities", async (_req, reply) => {
+      const rows = await db
+        .select({
+          id: communities.id,
+          name: communities.name,
+          description: communities.description,
+          leaderId: communities.leaderId,
+          referralCode: communities.referralCode,
+          category: communities.category,
+          tier: communities.tier,
+          region: communities.region,
+          memberCount: communities.memberCount,
+          createdAt: communities.createdAt,
+        })
+        .from(communities)
+        .orderBy(desc(communities.createdAt));
+
+      // Enrich with leader info
+      const leaderIds: string[] = Array.from(new Set(rows.map((r: any) => r.leaderId).filter(Boolean)));
+            let leaderMap: Record<string, { name: string | null; dotId: string }> = {};
+            if (leaderIds.length) {
+              const leaders = await db
+                .select({ id: users.id, name: users.name, dotId: users.dotId })
+                .from(users)
+                .where(inArray(users.id, leaderIds));
+              leaderMap = Object.fromEntries(leaders.map((l) => [l.id, { name: l.name, dotId: l.dotId }]));
+            }
+
+      return reply.send({
+        communities: rows.map((r) => ({
+          ...r,
+          leader: leaderMap[r.leaderId] ?? null,
+        })),
+      });
+    });
+
+    /** GET /api/communities/:id — single community detail (public) */
+    app.get("/communities/:id", async (req, reply) => {
+      const { id } = req.params as { id: string };
+      const [c] = await db
+        .select()
+        .from(communities)
+        .where(eq(communities.id, id))
+        .limit(1);
+      if (!c) return reply.code(404).send({ error: "not_found" });
+
+      const [leader] = await db
+        .select({ id: users.id, name: users.name, dotId: users.dotId, avatarUrl: users.avatarUrl })
+        .from(users)
+        .where(eq(users.id, c.leaderId))
+        .limit(1);
+
+      // Member count by status
+      const memberCountRows = await db.execute(sql`
+        SELECT status, COUNT(*)::int as n
+        FROM community_members
+        WHERE community_id = ${id}
+        GROUP BY status
+      `);
+      const memberBreakdown: Record<string, number> = {};
+      for (const r of (memberCountRows as any) ?? []) {
+        memberBreakdown[r.status] = Number(r.n);
+      }
+
+      return reply.send({
+        community: { ...c, leader, memberBreakdown },
+      });
+    });
 
   /** POST /api/communities/join — join a community using referral code */
   app.post("/communities/join", { preHandler: app.authenticate }, async (req, reply) => {

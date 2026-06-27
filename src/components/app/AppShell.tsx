@@ -54,8 +54,9 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Pitchathons",   to: "/pitchathons",   icon: Trophy,      roles: ["founder"],                 section: "growth" },
   { label: "Certificates",  to: "/certificates",  icon: Award,       roles: ["founder"],                 section: "growth" },
   /* community */
-  { label: "Community",     to: "/community",     icon: Users,       roles: ["community_leader"],        section: "community" },
-  { label: "Comm. Dashboard", to: "/community/dashboard", icon: BarChart3, roles: ["community_leader"], section: "community" },
+    { label: "Communities",   to: "/discover/communities", icon: Users, section: "community" },
+    { label: "Community",     to: "/community",     icon: Users,       roles: ["community_leader"],        section: "community" },
+    { label: "Comm. Dashboard", to: "/community/dashboard", icon: BarChart3, roles: ["community_leader"], section: "community" },
   /* capital */
   { label: "DOT Demo",      to: "/demo",          icon: Building2,                                  section: "capital" },
   { label: "Investor Portal", to: "/investor",    icon: Briefcase,   roles: ["investor"],                section: "capital" },
