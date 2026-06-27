@@ -227,9 +227,11 @@ export async function authRoutes(app: FastifyInstance) {
             const jwt = await reply.jwtSign({ sub: userId, sid: sessionId });
 
             const frontend = process.env.FRONTEND_URL ?? "https://dotlive.cv";
-            const params = new URLSearchParams({ token: jwt });
-            if (isNewUser) params.set("isNew", "true");
-            return reply.redirect(`${frontend}/auth/callback?${params}`);
+                  const params = new URLSearchParams({ token: jwt });
+                  if (isNewUser) params.set("isNew", "true");
+                  // NOTE: callback route is /auth-callback (hyphen, not slash) so TanStack
+                  // Router treats it as a sibling, not a child of /auth.
+                  return reply.redirect(`${frontend}/auth-callback?${params}`);
     }
   );
 }

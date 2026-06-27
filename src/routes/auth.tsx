@@ -145,10 +145,10 @@ function AuthPage() {
 
   // ── OAuth callback handler ──
     // Backend redirects here with ?token=<jwt>&isNew=true (if first sign-up).
-    // We save the token and forward to /auth/callback so its logic can route
+    // We save the token and forward to /auth-callback so its logic can route
     // new users to /onboarding vs existing users to /dashboard.
     useEffect(() => {
-      if (window.location.pathname === "/auth/callback") return; // handled by AuthCallback page
+      if (window.location.pathname === "/auth-callback") return; // handled by AuthCallback page
 
       const params = new URLSearchParams(window.location.search);
       const oauthToken = params.get("token");
@@ -159,8 +159,8 @@ function AuthPage() {
           const isNew = params.get("isNew") === "true";
           const qs = new URLSearchParams({ token: oauthToken });
           if (isNew) qs.set("isNew", "true");
-          // Forward to /auth/callback so the new-user onboarding routing kicks in.
-          window.history.replaceState({}, "", `/auth/callback?${qs}`);
+          // Forward to /auth-callback so the new-user onboarding routing kicks in.
+          window.history.replaceState({}, "", `/auth-callback?${qs}`);
           window.location.reload();
         });
       } else if (oauthError) {

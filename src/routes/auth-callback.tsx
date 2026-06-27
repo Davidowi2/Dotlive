@@ -1,9 +1,14 @@
 /**
- * /auth/callback — handles the redirect from the Fastify backend
+ * /auth-callback — handles the redirect from the Fastify backend
  * after Google OAuth completes.
  *
  * The backend redirects to:
- *   /auth/callback?token=<jwt>[&isNew=true]
+ *   /auth-callback?token=<jwt>[&isNew=true]
+ *
+ * NOTE: Filename uses `-` (not `.`) so TanStack Router treats this
+ * as a flat sibling route — not a child of `/auth`. Otherwise the
+ * AuthPage (SigninForm/SignupFlow) wraps the callback and renders
+ * the wrong page.
  *
  * This page:
  *   1. Reads ?token (and ?isNew) from the URL
@@ -20,7 +25,7 @@ import { setToken } from "@/api/client";
 import { getMe } from "@/api/auth";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/auth/callback")({
+export const Route = createFileRoute("/auth-callback")({
   head: () => ({ meta: [{ title: "Signing in — DOT" }] }),
   component: AuthCallback,
 });

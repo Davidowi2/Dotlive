@@ -18,6 +18,7 @@ import { Route as JourneyRouteImport } from './routes/journey'
 import { Route as InvestorsRouteImport } from './routes/investors'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as CommunitiesRouteImport } from './routes/communities'
+import { Route as AuthCallbackRouteImport } from './routes/auth-callback'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as SplatRouteImport } from './routes/$'
@@ -26,7 +27,6 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as EventsIndexRouteImport } from './routes/events/index'
 import { Route as FounderIdRouteImport } from './routes/founder.$id'
 import { Route as EventsSlugRouteImport } from './routes/events/$slug'
-import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AuthenticatedWorkRouteImport } from './routes/_authenticated/work'
 import { Route as AuthenticatedWalletRouteImport } from './routes/_authenticated/wallet'
 import { Route as AuthenticatedVantageRouteImport } from './routes/_authenticated/vantage'
@@ -106,6 +106,11 @@ const CommunitiesRoute = CommunitiesRouteImport.update({
   path: '/communities',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/auth-callback',
+  path: '/auth-callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -144,11 +149,6 @@ const EventsSlugRoute = EventsSlugRouteImport.update({
   id: '/events/$slug',
   path: '/events/$slug',
   getParentRoute: () => rootRouteImport,
-} as any)
-const AuthCallbackRoute = AuthCallbackRouteImport.update({
-  id: '/callback',
-  path: '/callback',
-  getParentRoute: () => AuthRoute,
 } as any)
 const AuthenticatedWorkRoute = AuthenticatedWorkRouteImport.update({
   id: '/work',
@@ -330,7 +330,8 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
   '/about': typeof AboutRoute
-  '/auth': typeof AuthRouteWithChildren
+  '/auth': typeof AuthRoute
+  '/auth-callback': typeof AuthCallbackRoute
   '/communities': typeof CommunitiesRoute
   '/help': typeof HelpRoute
   '/investors': typeof InvestorsRoute
@@ -360,7 +361,6 @@ export interface FileRoutesByFullPath {
   '/vantage': typeof AuthenticatedVantageRoute
   '/wallet': typeof AuthenticatedWalletRoute
   '/work': typeof AuthenticatedWorkRoute
-  '/auth/callback': typeof AuthCallbackRoute
   '/events/$slug': typeof EventsSlugRoute
   '/founder/$id': typeof FounderIdRoute
   '/events/': typeof EventsIndexRoute
@@ -382,7 +382,8 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
   '/about': typeof AboutRoute
-  '/auth': typeof AuthRouteWithChildren
+  '/auth': typeof AuthRoute
+  '/auth-callback': typeof AuthCallbackRoute
   '/communities': typeof CommunitiesRoute
   '/help': typeof HelpRoute
   '/investors': typeof InvestorsRoute
@@ -412,7 +413,6 @@ export interface FileRoutesByTo {
   '/vantage': typeof AuthenticatedVantageRoute
   '/wallet': typeof AuthenticatedWalletRoute
   '/work': typeof AuthenticatedWorkRoute
-  '/auth/callback': typeof AuthCallbackRoute
   '/events/$slug': typeof EventsSlugRoute
   '/founder/$id': typeof FounderIdRoute
   '/events': typeof EventsIndexRoute
@@ -436,7 +436,8 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/$': typeof SplatRoute
   '/about': typeof AboutRoute
-  '/auth': typeof AuthRouteWithChildren
+  '/auth': typeof AuthRoute
+  '/auth-callback': typeof AuthCallbackRoute
   '/communities': typeof CommunitiesRoute
   '/help': typeof HelpRoute
   '/investors': typeof InvestorsRoute
@@ -466,7 +467,6 @@ export interface FileRoutesById {
   '/_authenticated/vantage': typeof AuthenticatedVantageRoute
   '/_authenticated/wallet': typeof AuthenticatedWalletRoute
   '/_authenticated/work': typeof AuthenticatedWorkRoute
-  '/auth/callback': typeof AuthCallbackRoute
   '/events/$slug': typeof EventsSlugRoute
   '/founder/$id': typeof FounderIdRoute
   '/events/': typeof EventsIndexRoute
@@ -491,6 +491,7 @@ export interface FileRouteTypes {
     | '/$'
     | '/about'
     | '/auth'
+    | '/auth-callback'
     | '/communities'
     | '/help'
     | '/investors'
@@ -520,7 +521,6 @@ export interface FileRouteTypes {
     | '/vantage'
     | '/wallet'
     | '/work'
-    | '/auth/callback'
     | '/events/$slug'
     | '/founder/$id'
     | '/events/'
@@ -543,6 +543,7 @@ export interface FileRouteTypes {
     | '/$'
     | '/about'
     | '/auth'
+    | '/auth-callback'
     | '/communities'
     | '/help'
     | '/investors'
@@ -572,7 +573,6 @@ export interface FileRouteTypes {
     | '/vantage'
     | '/wallet'
     | '/work'
-    | '/auth/callback'
     | '/events/$slug'
     | '/founder/$id'
     | '/events'
@@ -596,6 +596,7 @@ export interface FileRouteTypes {
     | '/$'
     | '/about'
     | '/auth'
+    | '/auth-callback'
     | '/communities'
     | '/help'
     | '/investors'
@@ -625,7 +626,6 @@ export interface FileRouteTypes {
     | '/_authenticated/vantage'
     | '/_authenticated/wallet'
     | '/_authenticated/work'
-    | '/auth/callback'
     | '/events/$slug'
     | '/founder/$id'
     | '/events/'
@@ -649,7 +649,8 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   SplatRoute: typeof SplatRoute
   AboutRoute: typeof AboutRoute
-  AuthRoute: typeof AuthRouteWithChildren
+  AuthRoute: typeof AuthRoute
+  AuthCallbackRoute: typeof AuthCallbackRoute
   CommunitiesRoute: typeof CommunitiesRoute
   HelpRoute: typeof HelpRoute
   InvestorsRoute: typeof InvestorsRoute
@@ -730,6 +731,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CommunitiesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth-callback': {
+      id: '/auth-callback'
+      path: '/auth-callback'
+      fullPath: '/auth-callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -785,13 +793,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/events/$slug'
       preLoaderRoute: typeof EventsSlugRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/auth/callback': {
-      id: '/auth/callback'
-      path: '/callback'
-      fullPath: '/auth/callback'
-      preLoaderRoute: typeof AuthCallbackRouteImport
-      parentRoute: typeof AuthRoute
     }
     '/_authenticated/work': {
       id: '/_authenticated/work'
@@ -1121,22 +1122,13 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
-interface AuthRouteChildren {
-  AuthCallbackRoute: typeof AuthCallbackRoute
-}
-
-const AuthRouteChildren: AuthRouteChildren = {
-  AuthCallbackRoute: AuthCallbackRoute,
-}
-
-const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   SplatRoute: SplatRoute,
   AboutRoute: AboutRoute,
-  AuthRoute: AuthRouteWithChildren,
+  AuthRoute: AuthRoute,
+  AuthCallbackRoute: AuthCallbackRoute,
   CommunitiesRoute: CommunitiesRoute,
   HelpRoute: HelpRoute,
   InvestorsRoute: InvestorsRoute,
