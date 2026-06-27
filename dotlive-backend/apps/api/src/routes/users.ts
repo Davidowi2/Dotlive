@@ -108,19 +108,38 @@ export async function userRoutes(app: FastifyInstance) {
 
       /** POST /api/users/me/complete-onboarding — marks the user as onboarded
        *  without changing roles. Called after the user picks "Builder" (the default)
-       *  so they skip role-upgrade flow but still mark the onboarding as done. */
+       *  so they skip role-upgrade flow but still mark the onboarding as done.
+       *
+       *  Body: { acceptPrivacy: true, acceptTerms: true, primaryRole?: string }
+       *  Both accept flags must be true.
+       */
       app.post("/users/me/complete-onboarding", { preHandler: app.authenticate }, async (req, reply) => {
         const { sub } = req.user as { sub: string };
+        const parsed = z.object({
+          acceptPrivacy: z.literal(true, { errorMap: () => ({ message: "You must accept the Privacy Policy to continue." }) }),
+          acceptTerms: z.literal(true, { errorMap: () => ({ message: "You must accept the Terms of Service to continue." }) }),
+          primaryRole: z.enum(["builder", "founder", "investor", "community_leader"]).optional(),
+        }).safeParse(req.body);
+        if (!parsed.success) return reply.code(400).send({ error: "Consent required", details: parsed.error.flatten() });
+
+        const updates: string[] = ["onboarded_at = NOW()"];
+        if (parsed.data.primaryRole) {
+          updates.push(`onboarding_intent = '${parsed.data.primaryRole}'`);
+        }
+        // Always stamp consent (idempotent)
+        updates.push("privacy_accepted_at = COALESCE(privacy_accepted_at, NOW())");
+        updates.push("terms_accepted_at = COALESCE(terms_accepted_at, NOW())");
+
         await db.execute(sql`
           UPDATE users
-          SET onboarded_at = NOW()
-          WHERE id = ${sub} AND onboarded_at IS NULL
+          SET ${sql.raw(updates.join(", "))}
+          WHERE id = ${sub}
         `);
         const user = await loadUserWithRoles(sub);
-        return reply.send({ user });
-      });
+                return reply.send({ user });
+              });
 
-  /** GET /api/users/:dotId — public profile lookup */
+          /** GET /api/users/:dotId — public profile lookup */
   app.get<{ Params: { dotId: string } }>("/users/:dotId", async (req, reply) => {
     const { dotId } = req.params;
     const rows = await db

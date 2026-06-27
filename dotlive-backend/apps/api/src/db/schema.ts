@@ -34,10 +34,12 @@ export const users = pgTable("users", {
   avatarUrl: text("avatar_url"),
   dotId: text("dot_id").notNull().unique(),
   onboardingIntent: text("onboarding_intent"),
-  invitedBy: text("invited_by"),
-  onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    invitedBy: text("invited_by"),
+    onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
+    privacyAcceptedAt: timestamp("privacy_accepted_at", { withTimezone: true }),
+    termsAcceptedAt: timestamp("terms_accepted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 /* --------------------------- Sessions -------------------------- */

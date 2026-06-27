@@ -23,6 +23,8 @@ export interface User {
   roles: AppRole[];
   createdAt: string;
   onboardedAt: string | null;
+  privacyAcceptedAt: string | null;
+  termsAcceptedAt: string | null;
 }
 
 export interface Wallet {
