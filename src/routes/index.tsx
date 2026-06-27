@@ -178,6 +178,9 @@ function LandingPage() {
         {/* ── HERO ─────────────────────────────────────────── */}
         <FadeIn delay={0}><HeroSection /></FadeIn>
 
+        {/* ── SCORE YOUR STARTUP — A/B test headlines ──────── */}
+        <FadeIn delay={0.05}><StartupScoreHeroSection /></FadeIn>
+
         {/* ── BUILT WITH ───────────────────────────────────── */}
         <FadeIn delay={0.1}><BuiltWithSection /></FadeIn>
 
@@ -236,9 +239,11 @@ function HeroSection() {
         <div className="grid lg:grid-cols-12 gap-12 items-center">
           {/* Left — copy column */}
           <div className="lg:col-span-7">
-            {/* Eyebrow — calm, no live dot */}
+            {/* Eyebrow — Africa's Venture Valuation Network */}
             <div className="flex items-center gap-4 mb-10">
-              <span className="tracking-editorial text-muted-foreground">Africa's Venture Network</span>
+              <span className="rounded-full border border-primary/30 bg-primary/5 px-3 py-1 text-[10px] tracking-widest uppercase font-semibold text-primary">
+                Africa's Venture Valuation Network
+              </span>
               <span className="h-px w-12 bg-border" />
               <span className="text-[10px] tracking-widest uppercase text-muted-foreground">Est. 2026</span>
             </div>
@@ -439,6 +444,204 @@ function HeroCardMockup() {
         </div>
       </div>
     </div>
+  );
+}
+
+/* ────────────────── STARTUP SCORE — A/B HERO ────────────────── */
+
+/**
+ * A/B test copy block — client asks we put the "Could Your Idea Become A
+ * Million Dollar Company? Find Out." / "Rate Your Startup Before The World
+ * Does. Find Out." style copy front-and-center. We render one headline per
+ * variant so they can A/B test in production.
+ */
+
+function StartupScoreHeroSection() {
+  const variants = ["A", "B", "C", "D"];
+  const headlines: Record<string, { title: React.ReactNode; sub: string }> = {
+    A: {
+      title: (
+        <>
+          Could Your Idea Become A Million Dollar Company? <span className="text-primary italic">Find Out.</span>
+        </>
+      ),
+      sub: "Every big company started as an idea. See where yours stands in the ecosystem.",
+    },
+    B: {
+      title: (
+        <>
+          Rate Your Startup Before The World Does. <span className="text-primary italic">Find Out.</span>
+        </>
+      ),
+      sub: "Get your startup valuation, founder score, and roadmap immediately.",
+    },
+    C: {
+      title: (
+        <>
+          Turn Your Idea Into A <span className="text-primary italic">Score.</span>
+        </>
+      ),
+      sub: "Stop guessing. Run your concept through the network, benchmark your metrics, and level up.",
+    },
+    D: {
+      title: (
+        <>
+          Show The World What You're <span className="text-primary italic">Building.</span>
+        </>
+      ),
+      sub: "Get an instantly shareable, personalized DOT Wrapped card optimized for Instagram, WhatsApp, LinkedIn, and X.",
+    },
+  };
+
+  // Pick the headline from URL (?score=A|B|C|D) — defaults to C (most universal)
+  const initialVariant =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("score") ?? "C"
+      : "C";
+
+  return (
+    <section className="border-b border-border bg-background">
+      <div className="mx-auto max-w-7xl px-6 py-20 lg:px-12 lg:py-28">
+        <div className="grid lg:grid-cols-2 gap-12 items-center">
+          {/* Left — A/B headline + CTA */}
+          <div>
+            {/* Variant chips */}
+            <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-border bg-muted/30 px-3 py-1.5">
+              <span className="text-[10px] tracking-widest uppercase text-muted-foreground">A/B Testing:</span>
+              {variants.map((v) => (
+                <a
+                  key={v}
+                  href={`?score=${v}`}
+                  className={`flex size-6 items-center justify-center rounded-full text-[10px] font-semibold transition-colors ${
+                    initialVariant === v
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  {v}
+                </a>
+              ))}
+            </div>
+
+            <h2
+              className="font-display font-light leading-[1.05] tracking-[-0.03em] text-foreground"
+              style={{ fontSize: "clamp(2.25rem, 5.5vw, 4.5rem)" }}
+            >
+              {headlines[initialVariant]?.title ?? headlines.C.title}
+            </h2>
+            <p className="mt-6 max-w-lg text-lg text-muted-foreground leading-relaxed font-light">
+              {headlines[initialVariant]?.sub ?? headlines.C.sub}
+            </p>
+
+            <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:items-center">
+              <Link
+                to="/auth"
+                search={{ mode: "signup" }}
+                className="group inline-flex items-center gap-3 bg-primary text-primary-foreground px-8 py-4 text-xs tracking-widest uppercase font-semibold hover:bg-primary/90 transition-colors"
+              >
+                Check My Score
+                <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+              </Link>
+              <Link
+                to="/discover"
+                className="inline-flex items-center gap-2 text-xs tracking-widest uppercase text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Check Leaderboard <ArrowUpRight className="size-3.5" />
+              </Link>
+            </div>
+          </div>
+
+          {/* Right — Startup report preview card */}
+          <div className="relative">
+            <div className="rounded-2xl border border-border bg-card p-6 shadow-soft">
+              <div className="flex items-center justify-between mb-6">
+                <p className="text-[10px] tracking-widest uppercase font-semibold text-muted-foreground">Startup Report</p>
+                <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-semibold text-primary">Rank: Top 1%</span>
+              </div>
+
+              <h3 className="font-display text-xl font-semibold mb-4">DOT OS</h3>
+
+              {/* Currency toggle */}
+              <div className="mb-5 flex items-center gap-2 rounded-lg border border-border bg-muted/20 p-1 text-[10px] tracking-widest uppercase font-semibold">
+                <span className="text-muted-foreground px-2">Currency:</span>
+                {["NGN", "USD", "ZAR", "EUR", "BTC"].map((c) => (
+                  <span key={c} className={`px-2 py-0.5 rounded ${c === "USD" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>{c}</span>
+                ))}
+              </div>
+
+              {/* Metric tiles */}
+              <div className="grid grid-cols-2 gap-3 mb-5">
+                <div className="rounded-xl border border-border bg-background p-4">
+                  <p className="text-[10px] tracking-widest uppercase text-muted-foreground">Estimated Value</p>
+                  <p className="font-display text-2xl font-light mt-1">$2.0B</p>
+                </div>
+                <div className="rounded-xl border border-border bg-background p-4">
+                  <p className="text-[10px] tracking-widest uppercase text-muted-foreground">DOT Score</p>
+                  <p className="font-display text-2xl font-light mt-1">1000 <span className="text-sm text-muted-foreground">/1000</span></p>
+                </div>
+                <div className="rounded-xl border border-border bg-background p-4">
+                  <p className="text-[10px] tracking-widest uppercase text-muted-foreground">Potential</p>
+                  <p className="font-display text-2xl font-light mt-1">$6.7B+</p>
+                </div>
+                <div className="rounded-xl border border-border bg-background p-4">
+                  <p className="text-[10px] tracking-widest uppercase text-muted-foreground">Status</p>
+                  <p className="font-display text-base text-primary mt-1.5">Unicorn Candidate</p>
+                </div>
+              </div>
+
+              {/* Sliders */}
+              <div className="space-y-3 mb-5">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs text-muted-foreground">Monthly Revenue / Traction</span>
+                    <span className="text-xs font-medium tabular-nums">$3,333</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full bg-primary rounded-full" style={{ width: "35%" }} />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs text-muted-foreground">Product Development</span>
+                    <span className="text-xs font-medium">Market growth</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full bg-primary rounded-full" style={{ width: "60%" }} />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs text-muted-foreground">Team Size & Commitment</span>
+                    <span className="text-xs font-medium">5 Fulltime Members</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full bg-primary rounded-full" style={{ width: "75%" }} />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs text-muted-foreground">Market Reach / Size</span>
+                    <span className="text-xs font-medium">Global Market</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full bg-primary rounded-full" style={{ width: "90%" }} />
+                  </div>
+                </div>
+              </div>
+
+              <Link
+                to="/auth"
+                search={{ mode: "signup" }}
+                className="group flex items-center justify-center gap-2 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground py-3 text-xs tracking-widest uppercase font-semibold hover:opacity-95 transition-opacity rounded-lg"
+              >
+                Get My Startup Score
+                <ArrowRight className="size-3.5" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
