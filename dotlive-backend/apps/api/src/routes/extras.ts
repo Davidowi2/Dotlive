@@ -31,11 +31,11 @@ export async function extrasRoutes(app: FastifyInstance) {
     const id = (req.user as { sub: string }).sub;
     const rows = await db.execute(sql`
       SELECT
-        c.id, c.name, c.slug, c.tier, c.member_count, c.created_at,
-        m.role AS my_role, m.joined_at
+        c.id, c.name, c.tier, c.member_count, c.created_at,
+        'member'::text AS my_role, m.joined_at
       FROM community_members m
       JOIN communities c ON c.id = m.community_id
-      WHERE m.user_id = ${id}
+      WHERE m.founder_id = ${id}
       ORDER BY m.joined_at DESC
       LIMIT 1
     `);
@@ -54,11 +54,11 @@ export async function extrasRoutes(app: FastifyInstance) {
     const id = (req.user as { sub: string }).sub;
     const rows = await db.execute(sql`
       SELECT
-        c.id, c.name, c.slug, c.tier, c.member_count,
-        m.role AS my_role, m.joined_at
+        c.id, c.name, c.tier, c.member_count,
+        'member'::text AS my_role, m.joined_at
       FROM community_members m
       JOIN communities c ON c.id = m.community_id
-      WHERE m.user_id = ${id}
+      WHERE m.founder_id = ${id}
       ORDER BY m.joined_at DESC
     `);
     const list = (rows as any)[0] ?? (rows as any).rows ?? [];
@@ -106,7 +106,7 @@ export async function extrasRoutes(app: FastifyInstance) {
       FROM community_members m
       JOIN community_referral_codes crc ON crc.community_id = m.community_id
       JOIN communities c ON c.id = m.community_id
-      WHERE m.user_id = ${id}
+      WHERE m.founder_id = ${id}
       ORDER BY m.joined_at ASC
       LIMIT 1
     `);
