@@ -203,7 +203,7 @@ export async function authRoutes(app: FastifyInstance) {
       const jwt = await reply.jwtSign({ sub: userId, sid: sessionId });
       const fullUser = await loadUserWithRoles(userId);
 
-      const frontend = process.env.FRONTEND_URL ?? "http://localhost:5173";
+      const frontend = process.env.FRONTEND_URL ?? "https://dotlive.cv";
       const params = new URLSearchParams({ token: jwt });
       return reply.redirect(`${frontend}/auth/callback?${params}`);
     }
