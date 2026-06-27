@@ -28,10 +28,18 @@ interface AdminStats {
 }
 
 function AdminDashboardPage() {
+  if (typeof window !== "undefined") {
+    try {
+      console.log("[AdminDashboard] mounted");
+    } catch {}
+  }
   const statsQ = useQuery({
     queryKey: ["admin", "stats"],
     queryFn: () => dotApi.get<AdminStats>("/api/admin/stats"),
   });
+  if (typeof window !== "undefined") {
+    try { console.log("[AdminDashboard] after useQuery"); } catch {}
+  }
   const stats = statsQ.data;
 
   const stat = (label: string, value: number | string, sublabel?: string, Icon?: any) => (
