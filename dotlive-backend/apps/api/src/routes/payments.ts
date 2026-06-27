@@ -20,7 +20,7 @@ import { randomBytes } from "crypto";
 import { eq, sql } from "drizzle-orm";
 
 import { db } from "../db/client.js";
-import { payments, wallets } from "../db/schema.js";
+import { payments, wallets, users } from "../db/schema.js";
 
 const DEPOSIT_DOT_TO_NAIRA = 15; // 1 DOT = ₦15 (matches dotToNaira in frontend)
 
@@ -78,6 +78,14 @@ export async function paymentsRoutes(app: FastifyInstance) {
       reference,
     } as any);
 
+    // Look up the user's email from the DB — JWT only carries `sub` (userId).
+    const [userRow] = await db
+      .select({ email: users.email })
+      .from(users)
+      .where(eq(users.id, id))
+      .limit(1);
+    const userEmail = userRow?.email ?? `${id}@dotlive.cv`;
+
     // Call Paystack's initialize endpoint
     const initRes = await fetch("https://api.paystack.co/transaction/initialize", {
       method: "POST",
@@ -86,13 +94,13 @@ export async function paymentsRoutes(app: FastifyInstance) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        email: (req.user as any).email ?? "",
-        amount: amountNaira,
-          reference,
-        callback_url: callbackUrl ?? `${process.env.FRONTEND_URL ?? "https://dotlive.cv"}/wallet?deposit=success&ref=${reference}`,
-        metadata: { user_id: id, amount_dot: amountDot, purpose: "wallet_deposit" },
-      }),
-    });
+              email: userEmail,
+              amount: amountNaira,
+              reference,
+              callback_url: callbackUrl ?? `${process.env.FRONTEND_URL ?? "https://dotlive.cv"}/wallet?deposit=success&ref=${reference}`,
+              metadata: { user_id: id, amount_dot: amountDot, purpose: "wallet_deposit" },
+            }),
+          });
 
     if (!initRes.ok) {
       const text = await initRes.text();
