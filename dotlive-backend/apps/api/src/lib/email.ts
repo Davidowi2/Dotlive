@@ -301,62 +301,141 @@ export const emailTemplates = {
   }),
 
   /* ── Password reset ── */
-  passwordReset: (args: { name: string; resetUrl: string }) => ({
-    subject: "Reset your DOT password",
-    html: layout({
-      preview: `Reset your DOT password, ${args.name?.split(" ")[0] ?? "founder"}`,
-      body: `
-        <div style="padding:32px 32px 8px">
-          <p style="margin:0 0 4px;font-size:11px;color:${E.accent};letter-spacing:0.12em;text-transform:uppercase;font-weight:600">
-            Password reset
-          </p>
-          <h1 style="margin:8px 0 0;font-size:28px;font-weight:600;letter-spacing:-0.02em;line-height:1.2;color:${E.text}">
-            Reset your DOT password
-          </h1>
-        </div>
+    passwordReset: (args: { name: string; resetUrl: string }) => ({
+      subject: "Reset your DOT password",
+      html: layout({
+        preview: `Reset your DOT password, ${args.name?.split(" ")[0] ?? "founder"}`,
+        body: `
+          <div style="padding:32px 32px 8px">
+            <p style="margin:0 0 4px;font-size:11px;color:${E.accent};letter-spacing:0.12em;text-transform:uppercase;font-weight:600">
+              Password reset
+            </p>
+            <h1 style="margin:8px 0 0;font-size:28px;font-weight:600;letter-spacing:-0.02em;line-height:1.2;color:${E.text}">
+              Reset your DOT password
+            </h1>
+          </div>
 
-        <div style="padding:16px 32px">
-          <p style="margin:0;font-size:15px;color:${E.muted};line-height:1.65">
-            Hey ${args.name?.split(" ")[0] ?? "founder"} — we received a request to reset your DOT password. Click the button below to choose a new one.
-          </p>
-        </div>
+          <div style="padding:16px 32px">
+            <p style="margin:0;font-size:15px;color:${E.muted};line-height:1.65">
+              Hey ${args.name?.split(" ")[0] ?? "founder"} — we received a request to reset your DOT password. Click the button below to choose a new one.
+            </p>
+          </div>
 
-        <div style="padding:16px 32px">
-          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-            <tr>
-              <td align="center">
-                <a href="${args.resetUrl}" style="display:inline-block;background:${E.accent};color:${E.bg};padding:14px 28px;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px;letter-spacing:-0.005em">
-                  Reset password →
-                </a>
-              </td>
-            </tr>
-          </table>
-        </div>
+          <div style="padding:16px 32px">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+              <tr>
+                <td align="center">
+                  <a href="${args.resetUrl}" style="display:inline-block;background:${E.accent};color:${E.bg};padding:14px 28px;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px;letter-spacing:-0.005em">
+                    Reset password →
+                  </a>
+                </td>
+              </tr>
+            </table>
+          </div>
 
-        <div style="padding:16px 32px 8px">
-          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:${E.bg};border:1px solid ${E.border};border-radius:8px">
-            <tr>
-              <td style="padding:14px 16px">
-                <p style="margin:0;font-size:12px;color:${E.muted};line-height:1.6">
-                  <strong style="color:${E.text}">Or paste this link:</strong><br />
-                  <span style="font-family:${E.fontMono};word-break:break-all;color:${E.muted}">${args.resetUrl}</span>
-                </p>
-              </td>
-            </tr>
-          </table>
-        </div>
+          <div style="padding:16px 32px 8px">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:${E.bg};border:1px solid ${E.border};border-radius:8px">
+              <tr>
+                <td style="padding:14px 16px">
+                  <p style="margin:0;font-size:12px;color:${E.muted};line-height:1.6">
+                    <strong style="color:${E.text}">Or paste this link:</strong><br />
+                    <span style="font-family:${E.fontMono};word-break:break-all;color:${E.muted}">${args.resetUrl}</span>
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </div>
 
-        <div style="padding:8px 32px 32px">
-          <p style="margin:0;font-size:12px;color:${E.faint};line-height:1.6">
-            This link expires in <strong style="color:${E.muted}">30 minutes</strong>.
-            If you didn't request this, you can safely ignore this email — your password will stay the same.
-          </p>
-        </div>
-      `,
-      appUrl: "https://dotlive.cv",
+          <div style="padding:8px 32px 32px">
+            <p style="margin:0;font-size:12px;color:${E.faint};line-height:1.6">
+              This link expires in <strong style="color:${E.muted}">30 minutes</strong>.
+              If you didn't request this, you can safely ignore this email — your password will stay the same.
+            </p>
+          </div>
+        `,
+        appUrl: "https://dotlive.cv",
+      }),
+      text: `Reset your DOT password\n\nHi ${args.name},\n\nClick this link to reset your password (expires in 30 minutes):\n${args.resetUrl}\n\nIf you didn't request this, you can safely ignore this email.`,
     }),
-    text: `Reset your DOT password\n\nHi ${args.name},\n\nClick this link to reset your password (expires in 30 minutes):\n${args.resetUrl}\n\nIf you didn't request this, you can safely ignore this email.`,
-  }),
+
+    /* ── Email verification magic link ── */
+    magicLink: (args: {
+      name: string;
+      verifyUrl: string;
+      purpose: "signup" | "verify-email" | "signin";
+    }) => {
+      const greeting = args.name?.split(" ")[0] ?? "founder";
+      const isSignup = args.purpose === "signup";
+      const headline = isSignup ? "Verify your email to finish signing up" : "Sign in to DOT";
+      const subhead = isSignup
+        ? `Hey ${greeting} — click the button below to confirm your email and create your DOT account.`
+        : `Hey ${greeting} — click the button below to sign in to your DOT account.`;
+      const cta = isSignup ? "Verify email & continue →" : "Sign in →";
+      return {
+        subject: isSignup ? "Confirm your email — DOT" : "Your DOT sign-in link",
+        html: layout({
+          preview: isSignup
+            ? `Verify your email to finish signing up, ${greeting}`
+            : `Your DOT sign-in link, ${greeting}`,
+          body: `
+          <div style="padding:32px 32px 8px">
+            <p style="margin:0 0 4px;font-size:11px;color:${E.accent};letter-spacing:0.12em;text-transform:uppercase;font-weight:600">
+              ${isSignup ? "Verify email" : "Sign in"}
+            </p>
+            <h1 style="margin:8px 0 0;font-size:28px;font-weight:600;letter-spacing:-0.02em;line-height:1.2;color:${E.text}">
+              ${headline}
+            </h1>
+          </div>
+
+          <div style="padding:16px 32px">
+            <p style="margin:0;font-size:15px;color:${E.muted};line-height:1.65">
+              ${subhead}
+            </p>
+          </div>
+
+          <div style="padding:24px 32px">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+              <tr>
+                <td align="center">
+                  <a href="${args.verifyUrl}" style="display:inline-block;background:${E.accent};color:${E.bg};padding:16px 32px;border-radius:10px;text-decoration:none;font-weight:600;font-size:15px;letter-spacing:-0.005em">
+                    ${cta}
+                  </a>
+                </td>
+              </tr>
+            </table>
+          </div>
+
+          <div style="padding:8px 32px">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:${E.bg};border:1px solid ${E.border};border-radius:8px">
+              <tr>
+                <td style="padding:14px 16px">
+                  <p style="margin:0;font-size:12px;color:${E.muted};line-height:1.6">
+                    <strong style="color:${E.text}">Button not working?</strong> Paste this link in your browser:<br />
+                    <span style="font-family:${E.fontMono};word-break:break-all;color:${E.muted}">${args.verifyUrl}</span>
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </div>
+
+          <div style="padding:16px 32px 32px">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.18);border-radius:8px">
+              <tr>
+                <td style="padding:14px 16px">
+                  <p style="margin:0;font-size:12px;color:${E.muted};line-height:1.6">
+                    <strong style="color:${E.danger}">🔒 Security:</strong> This link expires in <strong style="color:${E.text}">30 minutes</strong> and can only be used once.
+                    If you didn't request this, you can safely ignore this email.
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </div>
+        `,
+          appUrl: "https://dotlive.cv",
+        }),
+        text: `${headline}\n\n${subhead}\n\nClick this link to ${isSignup ? "verify your email" : "sign in"} (expires in 30 minutes):\n${args.verifyUrl}\n\nIf you didn't request this, you can safely ignore this email.`,
+      };
+    },
 
   /* ── Venture submission confirmation ── */
   ventureSubmission: (args: { name: string; ventureName: string; statusUrl: string }) => ({

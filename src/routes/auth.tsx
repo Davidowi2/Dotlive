@@ -487,23 +487,45 @@ function SigninForm({
     }
 
     function SignupFlow({ onSwitchToSignin }: { onSwitchToSignin: () => void }) {
-  const navigate = useNavigate();
-  const { refresh } = useDotAuth();
-  const [step, setStep] = useState<SignupStep>(1);
-  const [busy, setBusy] = useState(false);
+      const navigate = useNavigate();
+      const { refresh } = useDotAuth();
+      const [step, setStep] = useState<SignupStep>(1);
+      const [busy, setBusy] = useState(false);
 
-  // Step 1 fields
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPw, setShowPw] = useState(false);
-  const [agreed, setAgreed] = useState(false);
-  const [country, setCountry] = useState("");
+      // Step 1 fields
+      const [name, setName] = useState("");
+      const [email, setEmail] = useState("");
+      const [password, setPassword] = useState("");
+      const [showPw, setShowPw] = useState(false);
+      const [agreed, setAgreed] = useState(false);
+      const [country, setCountry] = useState("");
 
-  // Step 3 — OTP verification
-  const [otpCode, setOtpCode] = useState("");
-  const [signupToken, setSignupToken] = useState<string | null>(null);
-  const [resendCooldown, setResendCooldown] = useState(0);
+      // ── Magic-link fast path ──
+      // If user arrived via /auth-callback?verify=<token>, a signupToken is
+      // already stashed in sessionStorage. Skip step 3 (verification) and jump
+      // directly to picking intent.
+      useEffect(() => {
+          try {
+            const raw = sessionStorage.getItem("dot_magic_signup");
+            if (!raw) return;
+            const { signupToken: tok, email: e } = JSON.parse(raw);
+            if (tok && e) {
+              setEmail(e);
+              setSignupToken(tok);
+              // Email already verified via magic link — skip the verify step,
+              // jump directly to picking intent.
+              setStep(4);
+              toast.success("Email verified! Pick your role to continue.");
+            }
+          } catch {}
+          // eslint-disable-next-line react-hooks/exhaustive-deps
+        }, []);
+
+  // Step 3 fields — email verification (link + 6-digit code)
+    const [otpCode, setOtpCode] = useState("");
+    const [signupToken, setSignupToken] = useState<string | null>(null);
+    const [resendCooldown, setResendCooldown] = useState(0);
+    const [verifyMethod, setVerifyMethod] = useState<"link" | "code">("link"); // default to magic link
 
   // Step 4 — intent
   const [intent, setIntent] = useState<SignupIntent | null>(null);
@@ -548,28 +570,44 @@ function SigninForm({
   }
 
   async function sendOtp() {
-    setBusy(true);
-    try {
-      const res = await dotApi.post<{ ok: boolean; message: string; devCode?: string }>(
-        "/api/auth/send-otp",
-        { email, purpose: "signup" }
-      );
-      if (res.devCode) {
-        toast.info(`DEV: Your code is ${res.devCode}`, { duration: 30000 });
-      } else {
-        toast.success(res.message);
+      setBusy(true);
+      try {
+        if (verifyMethod === "link") {
+          // Send magic link
+          const res = await dotApi.post<{
+            ok: boolean;
+            message: string;
+            devToken?: string;
+            devUrl?: string;
+          }>("/api/auth/send-magic-link", { email, purpose: "signup" });
+          if (res.devUrl) {
+            toast.info(`DEV: Click to verify → ${res.devUrl}`, { duration: 30000 });
+          } else {
+            toast.success(res.message);
+          }
+        } else {
+          // Send 6-digit code
+          const res = await dotApi.post<{ ok: boolean; message: string; devCode?: string }>(
+            "/api/auth/send-otp",
+            { email, purpose: "signup" }
+          );
+          if (res.devCode) {
+            toast.info(`DEV: Your code is ${res.devCode}`, { duration: 30000 });
+          } else {
+            toast.success(res.message);
+          }
+        }
+        setResendCooldown(60);
+      } catch (err) {
+        const msg = err instanceof ApiError ? err.message
+          : err instanceof Error ? err.message
+          : "Could not send verification email";
+        toast.error(msg);
+        setStep(1); // Go back so they can fix email
+      } finally {
+        setBusy(false);
       }
-      setResendCooldown(60);
-    } catch (err) {
-      const msg = err instanceof ApiError ? err.message
-        : err instanceof Error ? err.message
-        : "Could not send verification code";
-      toast.error(msg);
-      setStep(1); // Go back so they can fix email
-    } finally {
-      setBusy(false);
     }
-  }
 
   async function handleStep3(e: React.FormEvent) {
     e.preventDefault();
@@ -611,27 +649,29 @@ function SigninForm({
   }
 
   async function completeSignup(chosenIntent: SignupIntent, chips: string[]) {
-    if (!signupToken) {
-      toast.error("Signup session expired. Please verify your email again.");
-      setStep(3);
-      return;
-    }
-    setBusy(true);
-    try {
-      const res = await dotApi.post<{ token: string; user: any }>(
-        "/api/auth/complete-signup",
-        {
-          signupToken,
-          password,
-          name: name.trim(),
-          // Pass metadata in the user table via separate endpoint after — for now skip
-        }
-      );
-      setToken(res.token);
-      await refresh();
-      toast.success("Account created! Welcome to DOT.");
-      navigate({ to: "/onboarding" });
-    } catch (err) {
+      if (!signupToken) {
+        toast.error("Signup session expired. Please verify your email again.");
+        setStep(3);
+        return;
+      }
+      setBusy(true);
+      try {
+        const res = await dotApi.post<{ token: string; user: any }>(
+          "/api/auth/complete-signup",
+          {
+            signupToken,
+            password,
+            name: name.trim(),
+            // Pass metadata in the user table via separate endpoint after — for now skip
+          }
+        );
+        setToken(res.token);
+        // Clean up the magic-link fast-path stash
+        sessionStorage.removeItem("dot_magic_signup");
+        await refresh();
+        toast.success("Account created! Welcome to DOT.");
+        navigate({ to: "/onboarding" });
+      } catch (err) {
       const msg = err instanceof ApiError ? err.message
         : err instanceof Error ? err.message
         : "Could not create account";
@@ -750,62 +790,129 @@ function SigninForm({
             </>
           )}
 
-          {/* ── STEP 3: OTP Verification ── */}
-                    {step === 3 && (
-                      <form onSubmit={handleStep3} className="space-y-5">
-                        <div className="mb-6">
-                          <p className="text-xs font-medium uppercase tracking-wider text-primary">
-                            Step 2 of 4
-                          </p>
-                          <h1 className="mt-1 font-display text-2xl font-bold">Check your email</h1>
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            We sent a 6-digit code to <span className="font-medium text-foreground">{email}</span>.
-                            Enter it below to verify your email.
-                          </p>
-                        </div>
+          {/* ── STEP 3: Email Verification (magic link OR 6-digit code) ── */}
+                              {step === 3 && (
+                                <div className="space-y-5">
+                                  <div className="mb-6">
+                                    <p className="text-xs font-medium uppercase tracking-wider text-primary">
+                                      Step 2 of 4
+                                    </p>
+                                    <h1 className="mt-1 font-display text-2xl font-bold">Check your email</h1>
+                                    <p className="mt-1 text-sm text-muted-foreground">
+                                      We sent a verification link to{" "}
+                                      <span className="font-medium text-foreground">{email}</span>.
+                                      Click the link in the email to verify and continue.
+                                    </p>
+                                  </div>
 
-                        <div className="flex justify-center py-4">
-                          <InputOTP
-                            maxLength={6}
-                            value={otpCode}
-                            onChange={setOtpCode}
-                            autoFocus
-                          >
-                            <InputOTPGroup>
-                              <InputOTPSlot index={0} />
-                              <InputOTPSlot index={1} />
-                              <InputOTPSlot index={2} />
-                              <InputOTPSlot index={3} />
-                              <InputOTPSlot index={4} />
-                              <InputOTPSlot index={5} />
-                            </InputOTPGroup>
-                          </InputOTP>
-                        </div>
+                                  {/* ── Magic link success card ── */}
+                                  <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 text-center">
+                                    <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-primary/15 text-primary">
+                                      <Mail className="size-6" />
+                                    </div>
+                                    <p className="text-sm font-medium">Check your inbox</p>
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                      We've sent a verification link that expires in 30 minutes.
+                                    </p>
+                                  </div>
 
-                        <Button type="submit" variant="hero" className="w-full" disabled={busy || otpCode.length !== 6}>
-                          {busy && <Loader2 className="size-4 animate-spin" />}
-                          {otpCode.length !== 6 ? "Enter the 6-digit code" : "Verify and continue"}
-                        </Button>
+                                  {/* ── Toggle: link / code ── */}
+                                  <div className="rounded-xl border border-border bg-card p-1 grid grid-cols-2 gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => setVerifyMethod("link")}
+                                      className={cn(
+                                        "rounded-lg px-3 py-2 text-xs font-medium transition-all",
+                                        verifyMethod === "link"
+                                          ? "bg-primary text-primary-foreground shadow-sm"
+                                          : "text-muted-foreground hover:text-foreground"
+                                      )}
+                                    >
+                                      <Mail className="mr-1.5 inline size-3" />
+                                      Email link
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setVerifyMethod("code")}
+                                      className={cn(
+                                        "rounded-lg px-3 py-2 text-xs font-medium transition-all",
+                                        verifyMethod === "code"
+                                          ? "bg-primary text-primary-foreground shadow-sm"
+                                          : "text-muted-foreground hover:text-foreground"
+                                      )}
+                                    >
+                                      <KeyRound className="mr-1.5 inline size-3" />
+                                      6-digit code
+                                    </button>
+                                  </div>
 
-                        <div className="flex items-center justify-between text-sm">
-                          <button
-                            type="button"
-                            onClick={() => setStep(1)}
-                            className="text-muted-foreground hover:text-foreground"
-                          >
-                            ← Change email
-                          </button>
-                          <button
-                            type="button"
-                            onClick={sendOtp}
-                            disabled={busy || resendCooldown > 0}
-                            className="text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend code"}
-                          </button>
-                        </div>
-                      </form>
-                    )}
+                                  {/* ── If using 6-digit code, show OTP input ── */}
+                                  {verifyMethod === "code" && (
+                                    <form onSubmit={handleStep3} className="space-y-4">
+                                      <div className="flex justify-center py-2">
+                                        <InputOTP
+                                          maxLength={6}
+                                          value={otpCode}
+                                          onChange={setOtpCode}
+                                          autoFocus
+                                        >
+                                          <InputOTPGroup>
+                                            <InputOTPSlot index={0} />
+                                            <InputOTPSlot index={1} />
+                                            <InputOTPSlot index={2} />
+                                            <InputOTPSlot index={3} />
+                                            <InputOTPSlot index={4} />
+                                            <InputOTPSlot index={5} />
+                                          </InputOTPGroup>
+                                        </InputOTP>
+                                      </div>
+                                      <Button
+                                        type="submit"
+                                        variant="hero"
+                                        className="w-full"
+                                        disabled={busy || otpCode.length !== 6}
+                                      >
+                                        {busy && <Loader2 className="size-4 animate-spin" />}
+                                        {otpCode.length !== 6 ? "Enter the 6-digit code" : "Verify and continue"}
+                                      </Button>
+                                    </form>
+                                  )}
+
+                                  <div className="flex items-center justify-between text-sm">
+                                    <button
+                                      type="button"
+                                      onClick={() => setStep(1)}
+                                      className="text-muted-foreground hover:text-foreground"
+                                    >
+                                      ← Change email
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={sendOtp}
+                                      disabled={busy || resendCooldown > 0}
+                                      className="text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                      {resendCooldown > 0
+                                        ? `Resend in ${resendCooldown}s`
+                                        : verifyMethod === "link"
+                                        ? "Resend email link"
+                                        : "Resend code"}
+                                    </button>
+                                  </div>
+
+                                  <p className="text-center text-xs text-muted-foreground">
+                                    Didn't get the email? Check your spam folder, or{" "}
+                                    <button
+                                      type="button"
+                                      onClick={() => setVerifyMethod("code")}
+                                      className="text-primary hover:underline"
+                                    >
+                                      use a 6-digit code instead
+                                    </button>
+                                    .
+                                  </p>
+                                </div>
+                              )}
 
                     {/* ── STEP 4: Intent ── */}
                     {step === 4 && (

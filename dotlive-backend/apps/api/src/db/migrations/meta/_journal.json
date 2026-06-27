@@ -50,6 +50,13 @@
       "when": 1782579580327,
       "tag": "0006_needy_golden_guardian",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1782580793612,
+      "tag": "0007_bumpy_echo",
+      "breakpoints": true
     }
   ]
 }

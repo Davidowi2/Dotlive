@@ -966,3 +966,20 @@ export const otpCodes = pgTable("otp_codes", {
   otcEmailPurpose: unique("otp_codes_email_purpose_unique").on(t.email, t.purpose),
   otcEmailIdx: index("otp_codes_email_idx").on(t.email),
 }));
+
+/* --------------------------- Magic-link tokens -------------------------- */
+/* Long opaque tokens (URL-safe) used for email verification magic links.
+ * The user clicks a link in the email; the token is consumed once. */
+export const magicLinkTokens = pgTable("magic_link_tokens", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  email: text("email").notNull(),
+  token: text("token").notNull().unique(),
+  purpose: text("purpose").notNull(),     // 'signup' | 'verify-email' | 'signin'
+  userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  usedAt: timestamp("used_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  mltEmailIdx: index("magic_link_tokens_email_idx").on(t.email),
+  mltTokenIdx: index("magic_link_tokens_token_idx").on(t.token),
+}));
