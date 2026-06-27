@@ -1,8 +1,8 @@
+import { dotApi } from "@/api/client";
 /**
  * Users API — wraps the Fastify /api/users/* endpoints.
  */
 
-import { dotApi } from "./client";
 import type { User, RoleRequirement } from "@/types/api";
 
 export interface ProfileUpdateData {

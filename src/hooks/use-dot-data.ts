@@ -19,7 +19,7 @@ import { useDotAuth } from "@/contexts/DotAuthContext";
  * ────────────────────────────────────────────────────────────────── */
 
 export interface FounderProfile {
-  id: string;
+  id?: string;
   userId: string;
   bio?: string | null;
   skills?: string[] | null;
@@ -31,8 +31,17 @@ export interface FounderProfile {
   twitterUrl?: string | null;
   country?: string | null;
   city?: string | null;
+  /** from founder_profiles table */
+  stage?: string | null;
+  industry?: string | null;
+  ventureId?: string | null;
+  fundingGoal?: string | number | null;
+  logoUrl?: string | null;
+  vantagePoint?: number;
+  fundability?: number;
+  investmentReadiness?: number;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export interface Assessment {
@@ -41,7 +50,12 @@ export interface Assessment {
   ventureId?: string | null;
   stage: string;
   score: number;
+  vantagePoint: number;
+  fundability: number;
+  investmentReadiness?: number;
+  categoryScores?: Record<string, number>;
   answers?: unknown;
+  report?: Record<string, unknown> | null;
   createdAt: string;
 }
 
@@ -50,6 +64,7 @@ export interface Enrollment {
   userId: string;
   courseId: string;
   progressPct: number;
+  status: string;
   completedAt?: string | null;
   createdAt: string;
   course?: {

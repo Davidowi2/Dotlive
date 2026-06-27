@@ -1,8 +1,8 @@
+import { dotApi } from "@/api/client";
 /**
  * Ventures API — wraps the Fastify /api/ventures/* endpoints.
  */
 
-import { dotApi } from "./client";
 import type { Venture } from "@/types/api";
 
 export interface VentureData {

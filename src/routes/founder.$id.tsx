@@ -164,7 +164,7 @@ function PublicFounderProfile() {
           </div>
           <div className="flex flex-col items-end gap-2">
             <Button asChild>
-              <Link to="/auth?mode=signup">Support this founder</Link>
+              <Link to="/auth" search={{ mode: "signup" }}>Support this founder</Link>
             </Button>
             <Button variant="outline" asChild>
               <Link to="/discover">Find more founders</Link>

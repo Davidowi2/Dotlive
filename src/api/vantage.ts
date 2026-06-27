@@ -1,7 +1,7 @@
+import { dotApi } from "@/api/client";
 /**
  * Vantage API — wraps the Fastify /api/vantage/* endpoints.
  */
-import { dotApi } from "./client";
 import type { Assessment } from "@/types/api";
 
 export interface VantageSubmitResult {

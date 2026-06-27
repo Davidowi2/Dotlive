@@ -1,8 +1,8 @@
+import { dotApi } from "@/api/client";
 /**
  * Wallet API — wraps the Fastify /api/wallet/* endpoints.
  */
 
-import { dotApi } from "./client";
 import type { Transaction } from "@/types/api";
 
 export interface WalletBalance {

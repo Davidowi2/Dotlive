@@ -68,7 +68,7 @@ function CommunityDashboardPage() {
       <PageHeader
         title="Community OS"
         subtitle="Distribute users, accelerate member growth, track valuation impact."
-        actions={
+        action={
           comm?.referralCode ? (
             <Button
               variant="outline"
@@ -113,7 +113,7 @@ function CommunityDashboardPage() {
                 </div>
               </div>
               <Button variant="ghost" size="sm" asChild>
-                <Link to={`/c/${comm.id}`}>
+                <Link to="/communities">
                   <ExternalLink className="mr-2 size-4" /> Public hub
                 </Link>
               </Button>
@@ -123,18 +123,18 @@ function CommunityDashboardPage() {
           {/* Metrics */}
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard icon={Users} label="Members" value={metrics?.members ?? 0} />
-            <StatCard icon={Activity} label="Active" value={metrics?.active ?? 0} hint={`${Math.round(((metrics?.active ?? 0) / Math.max(1, metrics?.members ?? 1)) * 100)}% activation`} />
+            <StatCard icon={Activity} label="Active" value={metrics?.active ?? 0} sub={`${Math.round(((metrics?.active ?? 0) / Math.max(1, metrics?.members ?? 1)) * 100)}% activation`} />
             <StatCard
               icon={Trophy}
               label="Avg Valuation"
               value={formatNaira(metrics?.avgValuationNgn ?? 0)}
-              hint="across member ventures"
+              sub="across member ventures"
             />
             <StatCard
               icon={Target}
               label="Open Challenges"
               value={data?.openChallenges ?? 0}
-              hint="in ecosystem"
+              sub="in ecosystem"
             />
           </div>
 
@@ -147,7 +147,7 @@ function CommunityDashboardPage() {
             </p>
             <div className="mt-4">
               <Button asChild>
-                <Link to="/arena">Browse Challenges</Link>
+                <Link to="/community">Browse Challenges</Link>
               </Button>
             </div>
           </div>

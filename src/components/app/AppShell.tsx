@@ -105,7 +105,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   function handleSignOut() {
     logout();
-    navigate({ to: "/auth", replace: true });
+    navigate({ to: "/auth", search: { mode: "signin" }, replace: true });
   }
 
   if (isLoading) {

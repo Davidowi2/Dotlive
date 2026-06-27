@@ -21,13 +21,7 @@ const SUPABASE_EXTERNALS = [
 export default defineConfig({
   nitro: {
     preset: "vercel",
-    externals: {
-      // Keep Supabase and tslib as external — load from node_modules at runtime
-      external: SUPABASE_EXTERNALS,
-    },
-    rollupConfig: {
-      external: SUPABASE_EXTERNALS,
-    },
+
   },
   tanstackStart: {
     server: { entry: "server" },

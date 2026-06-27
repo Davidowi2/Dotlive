@@ -97,6 +97,23 @@ export const emailTemplates = {
 </body></html>`,
   }),
 
+  otpCode: (args: { name: string; code: string; purpose?: string }) => ({
+    subject: `Your DOT verification code: ${args.code}`,
+    html: `<!doctype html><html><body style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;background:#fafafa;margin:0;padding:32px">
+<div style="max-width:480px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #eee">
+  <div style="padding:32px 32px 16px">
+    <h1 style="margin:0;font-size:20px;color:#0a0a0a">Verification code</h1>
+  </div>
+  <div style="padding:0 32px 32px;color:#444;font-size:15px;line-height:1.6">
+    <p>Hi ${args.name},</p>
+    <p>Use this code to ${args.purpose ?? "verify your email"}:</p>
+    <div style="margin:24px 0;padding:24px;background:#0a0a0a;color:#fff;border-radius:8px;text-align:center;font-size:36px;font-weight:bold;letter-spacing:8px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace">${args.code}</div>
+    <p style="font-size:13px;color:#888">This code expires in 10 minutes. If you didn't request this, you can safely ignore this email.</p>
+  </div>
+</div>
+</body></html>`,
+  }),
+
   ventureSubmission: (args: { name: string; ventureName: string; statusUrl: string }) => ({
     subject: `We received your venture: ${args.ventureName}`,
     html: `<!doctype html><html><body style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;background:#fafafa;margin:0;padding:32px">

@@ -39,7 +39,7 @@ function AuthCallback() {
         const msg = decodeURIComponent(errorParam);
         setError(msg);
         toast.error(msg);
-        setTimeout(() => navigate({ to: "/auth" }), 2500);
+        setTimeout(() => navigate({ to: "/auth", search: { mode: "signin" } }), 2500);
         return;
       }
 
@@ -47,7 +47,7 @@ function AuthCallback() {
         const msg = "No authentication token received.";
         setError(msg);
         toast.error(msg);
-        setTimeout(() => navigate({ to: "/auth" }), 2500);
+        setTimeout(() => navigate({ to: "/auth", search: { mode: "signin" } }), 2500);
         return;
       }
 
@@ -68,7 +68,7 @@ function AuthCallback() {
         const msg = err instanceof Error ? err.message : "Sign-in failed.";
         setError(msg);
         toast.error(msg);
-        setTimeout(() => navigate({ to: "/auth" }), 2500);
+        setTimeout(() => navigate({ to: "/auth", search: { mode: "signin" } }), 2500);
       }
     }
 

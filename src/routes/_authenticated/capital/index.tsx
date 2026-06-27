@@ -68,7 +68,7 @@ function CapitalDashboardHome() {
               <Link to="/investor">I'm an Investor →</Link>
             </Button>
             <Button asChild>
-              <Link to="/auth">Apply for Capital Partner access</Link>
+              <Link to="/auth" search={{ mode: "signup" }}>Apply for Capital Partner access</Link>
             </Button>
           </div>
         </div>

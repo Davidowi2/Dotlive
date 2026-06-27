@@ -114,7 +114,7 @@ function CapitalPortfolioPage() {
         <EmptyState
           icon={Wallet}
           title="No commitments yet"
-          subtitle="Find ventures on the Discover page and deploy DOT into the ones you believe in."
+          description="Find ventures on the Discover page and deploy DOT into the ones you believe in."
           action={
             <Button asChild>
               <Link to="/discover">Browse ventures</Link>

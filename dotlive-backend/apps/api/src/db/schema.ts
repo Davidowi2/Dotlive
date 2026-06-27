@@ -947,3 +947,20 @@ export const communityReferralCodes = pgTable("community_referral_codes", {
 }, (t) => ({
   crcCommunityIdx: index("crc_community_idx").on(t.communityId),
 }));
+
+/* --------------------------- OTP codes -------------------------- */
+/* 6-digit codes for passwordless sign-in / email verification / 2FA.
+ * Composite UNIQUE on (email, purpose) so we can UPSERT. */
+export const otpCodes = pgTable("otp_codes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  email: text("email").notNull(),
+  code: text("code").notNull(),
+  purpose: text("purpose").notNull(),     // 'signin' | 'verify-email' | '2fa'
+  userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
+  attempts: integer("attempts").notNull().default(0),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  otcEmailPurpose: unique("otp_codes_email_purpose_unique").on(t.email, t.purpose),
+  otcEmailIdx: index("otp_codes_email_idx").on(t.email),
+}));

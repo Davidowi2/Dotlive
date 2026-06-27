@@ -87,7 +87,7 @@ function SessionsPage() {
                     {ev.title}
                   </h3>
                   {ev.dotCost > 0 ? (
-                    <Badge variant="gold">
+                    <Badge variant="default">
                       <Coins className="size-3" /> {formatDot(ev.dotCost)}
                     </Badge>
                   ) : (

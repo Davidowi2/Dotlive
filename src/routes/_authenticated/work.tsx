@@ -1,3 +1,4 @@
+import { dotApi } from "@/api/client";
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
@@ -177,9 +178,9 @@ function ServiceCard({ service, onOrder }: { service: Service; onOrder: () => vo
     <div className="flex flex-col rounded-2xl border border-border bg-card p-5">
       <div className="flex items-center justify-between">
         <Badge variant="outline">{service.category}</Badge>
-        {stats && Number(stats.review_count) > 0 && (
+        {stats && Number(stats.reviewCount) > 0 && (
           <span className="flex items-center gap-1 text-xs font-medium text-gold">
-            <Star className="size-3 fill-current" /> {Number(stats.avg_rating)} ({Number(stats.review_count)})
+            <Star className="size-3 fill-current" /> {Number(stats.avgRating)} ({Number(stats.reviewCount)})
           </span>
         )}
       </div>
@@ -189,7 +190,7 @@ function ServiceCard({ service, onOrder }: { service: Service; onOrder: () => vo
         <span className="flex items-center gap-1">
           <Clock className="size-3" /> {service.deliveryDays}d delivery
         </span>
-        {stats && <span>{Number(stats.orders_completed)} done</span>}
+        {stats && <span>{Number(stats.ordersCompleted)} done</span>}
       </div>
       <div className="mt-4 flex items-center justify-between">
         <div>
@@ -396,6 +397,7 @@ function JobCard({ job, onView }: { job: JobListing; onView: () => void }) {
 }
 
 function JobDetailDialog({ job, onClose }: { job: JobListing | null; onClose: () => void }) {
+  const [applying, setApplying] = useState(false);
   const typeLabel = JOB_EMPLOYMENT_TYPES.find((t) => t.value === job?.employmentType)?.label ?? job?.employmentType;
   return (
     <Dialog open={!!job} onOpenChange={(o) => !o && onClose()}>
@@ -423,7 +425,24 @@ function JobDetailDialog({ job, onClose }: { job: JobListing | null; onClose: ()
           )}
         </div>
         <DialogFooter>
-          <Button variant="hero" onClick={onClose}>Apply via DOT (coming soon)</Button>
+          <Button
+            variant="hero"
+            disabled={applying}
+            onClick={async () => {
+              setApplying(true);
+              try {
+                await dotApi.post(`/api/jobs/${job!.id}/apply`, { coverLetter: "" });
+                toast.success("Application submitted. We'll notify the poster.");
+                onClose();
+              } catch (e: any) {
+                toast.error(e?.message ?? "Could not apply");
+              } finally {
+                setApplying(false);
+              }
+            }}
+          >
+            {applying ? "Applying..." : "Apply via DOT"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -757,12 +776,12 @@ function SellTab() {
     <div className="mt-4 space-y-8">
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="Earned" value={`${formatDot(Number(stats?.total_earned ?? 0))} DOT`} icon={Wallet} accent="primary" />
-        <StatCard label="Completed" value={String(Number(stats?.orders_completed ?? 0))} icon={CheckCircle2} accent="primary" />
+        <StatCard label="Earned" value={`${formatDot(Number(stats?.totalEarned ?? 0))} DOT`} icon={Wallet} accent="primary" />
+        <StatCard label="Completed" value={String(Number(stats?.ordersCompleted ?? 0))} icon={CheckCircle2} accent="primary" />
         <StatCard
           label="Rating"
-          value={Number(stats?.review_count ?? 0) > 0 ? String(Number(stats?.avg_rating)) : "—"}
-          sub={Number(stats?.review_count ?? 0) > 0 ? "★ avg" : "no reviews yet"}
+          value={Number(stats?.reviewCount ?? 0) > 0 ? String(Number(stats?.avgRating)) : "—"}
+          sub={Number(stats?.reviewCount ?? 0) > 0 ? "★ avg" : "no reviews yet"}
           icon={Star}
           accent="gold"
         />
@@ -897,7 +916,7 @@ function SellTab() {
 }
 
 /* ═══════════════════════ SHARED FORMS ═══════════════════════ */
-function BuilderProfileForm({ existing }: { existing?: { headline: string; bio: string | null; skills: string[]; available: boolean } }) {
+function BuilderProfileForm({ existing }: { existing?: Partial<{ headline: string; bio: string | null; skills: string[]; available: boolean }> }) {
   const { user } = useDotAuth();
   const qc = useQueryClient();
   const [headline, setHeadline] = useState(existing?.headline ?? "");
@@ -913,13 +932,12 @@ function BuilderProfileForm({ existing }: { existing?: { headline: string; bio: 
     }
     setBusy(true);
     try {
-      const { error } = await dotApi.post("/api/users/me/builder-profile", {
+      await dotApi.post("/api/users/me/builder-profile", {
         headline: headline.trim(),
         bio: bio.trim() || null,
         skills: skills.split(",").map((s) => s.trim()).filter(Boolean),
         available: true,
       });
-      if (error) throw error;
       qc.invalidateQueries({ queryKey: ["builder_profile", user.id] });
       toast.success(existing ? "Profile updated." : "Builder profile created — start listing services!");
     } catch (e) {

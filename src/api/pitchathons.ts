@@ -1,7 +1,7 @@
+import { dotApi } from "@/api/client";
 /**
  * Pitchathons API — wraps the Fastify /api/pitchathons/* endpoints.
  */
-import { dotApi } from "./client";
 import type { Pitchathon } from "@/types/api";
 
 export interface PitchathonApplication {

@@ -1,3 +1,4 @@
+import { dotApi } from "@/api/client";
 import { useState, useEffect } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Hammer, Rocket, Users, Briefcase, Loader2, ArrowRight, Check, Star } from "lucide-react";
@@ -83,10 +84,8 @@ function Onboarding() {
     if (!user) return;
     setBusy(true);
     try {
-      const { error: roleErr } = await supabase
-        .from("user_roles")
-        .insert({ user_id: user.id, role: r });
-      if (roleErr && !roleErr.message.includes("duplicate")) throw roleErr;
+      await dotApi.post("/api/users/roles", { user_id: user.id, role: r });
+      // 409 means already has this role — safe to ignore
 
       if (r === "founder" && founderData) {
         // POST /api/users/me/founder-profile (handles upsert internally)

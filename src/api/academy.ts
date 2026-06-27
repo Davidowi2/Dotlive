@@ -1,7 +1,7 @@
+import { dotApi } from "@/api/client";
 /**
  * Academy API — wraps the Fastify /api/academy/* endpoints.
  */
-import { dotApi } from "./client";
 import type { Course, CourseEnrollment } from "@/types/api";
 
 export async function listCourses(): Promise<Course[]> {

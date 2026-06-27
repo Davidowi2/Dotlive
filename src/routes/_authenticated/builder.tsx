@@ -102,7 +102,7 @@ function BuilderArenaPage() {
       <PageHeader
         title="Builder Arena"
         subtitle="Turn your skills into opportunities. Earn DOT, build reputation, level up."
-        actions={
+        action={
           lvl ? (
             <Badge className={`${LEVEL_COLORS[Math.min(4, lvl.level - 1)]} text-white text-sm px-3 py-1`}>
               Level {lvl.level} · {lvl.label}
@@ -116,26 +116,26 @@ function BuilderArenaPage() {
         <StatCard
           icon={Trophy}
           label="Reputation"
-          value={lvl?.reputation ?? 0}
-          hint={lvl?.nextLevel ? `${lvl.nextLevel.gates?.stats?.reputation ?? 0} / 1000` : "—"}
+          value={String(lvl?.reputation ?? 0)}
+          sub={lvl?.nextLevel ? `${lvl.nextLevel.gates?.stats?.reputation ?? 0} / 1000` : "—"}
         />
         <StatCard
           icon={Target}
           label="Level"
-          value={lvl?.level ?? 1}
-          hint={lvl?.label ?? "Explorer"}
+          value={String(lvl?.level ?? 1)}
+          sub={lvl?.label ?? "Explorer"}
         />
         <StatCard
           icon={Zap}
           label="Challenges Open"
-          value={arena?.challenges?.length ?? 0}
-          hint="apply to earn"
+          value={String(arena?.challenges?.length ?? 0)}
+          sub="apply to earn"
         />
         <StatCard
           icon={Award}
           label="Submissions"
-          value={arena?.mySubmissions?.length ?? 0}
-          hint={`${arena?.mySubmissions?.filter((s: any) => s.status === "approved").length ?? 0} won`}
+          value={String(arena?.mySubmissions?.length ?? 0)}
+          sub={`${arena?.mySubmissions?.filter((s: any) => s.status === "approved").length ?? 0} won`}
         />
       </div>
 

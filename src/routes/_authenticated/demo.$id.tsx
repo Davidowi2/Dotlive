@@ -74,7 +74,7 @@ function DemoEventPage() {
       <PageHeader
         title="DOT Demo"
         subtitle="Live pitch competition · scored by capital partners"
-        actions={
+        action={
           <Button variant="outline" size="sm" asChild>
             <Link to="/pitchathons"><ArrowLeft className="mr-2 size-4" /> All pitchathons</Link>
           </Button>

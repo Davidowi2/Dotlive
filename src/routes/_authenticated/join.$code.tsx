@@ -1,3 +1,4 @@
+import { dotApi } from "@/api/client";
 import { useEffect, useState } from "react";
 import { createFileRoute, useParams, useNavigate, Link } from "@tanstack/react-router";
 import { Users, Loader2, CheckCircle2 } from "lucide-react";
@@ -14,7 +15,7 @@ export const Route = createFileRoute("/_authenticated/join/$code")({
 
 function JoinPage() {
   const { code } = useParams({ from: "/_authenticated/join/$code" });
-  const { user } = useDotAuth();
+  const { user } = useAuth();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [status, setStatus] = useState<"loading" | "found" | "joined" | "error">("loading");

@@ -38,7 +38,7 @@ export function SiteHeader() {
         <div className="hidden items-center gap-3 md:flex">
           <ThemeToggle />
           <Button variant="ghost" size="sm" asChild>
-            <Link to="/auth" className="text-xs tracking-widest uppercase">Sign in</Link>
+            <Link to="/auth" search={{ mode: "signin" }} className="text-xs tracking-widest uppercase">Sign in</Link>
           </Button>
           <Button variant="outline" size="sm" asChild className="border-primary text-primary hover:bg-primary hover:text-primary-foreground">
             <Link to="/auth" search={{ mode: "signup" }} className="text-xs tracking-widest uppercase">Get started</Link>
@@ -78,7 +78,7 @@ export function SiteHeader() {
           ))}
           <div className="mt-3 flex flex-col gap-2">
             <Button variant="outline" asChild>
-              <Link to="/auth" onClick={() => setOpen(false)}>
+              <Link to="/auth" search={{ mode: "signin" }} onClick={() => setOpen(false)}>
                 Sign in
               </Link>
             </Button>

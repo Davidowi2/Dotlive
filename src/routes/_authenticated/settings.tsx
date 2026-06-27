@@ -94,10 +94,21 @@ function SettingsPage() {
   const { user, logout } = useDotAuth();
   const navigate = useNavigate();
   const [tab, setTab] = useState("account");
+  const [twoFAEnabled, setTwoFAEnabled] = useState(false);
+
+  async function toggle2FA(checked: boolean) {
+    try {
+      await dotApi.post(`/api/users/me/2fa/${checked ? "enable" : "disable"}`, {});
+      setTwoFAEnabled(checked);
+      toast.success(checked ? "2FA enabled" : "2FA disabled");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Could not update 2FA");
+    }
+  }
 
   function handleSignOut() {
     logout();
-    navigate({ to: "/auth" });
+    navigate({ to: "/auth", search: { mode: "signin" } });
   }
 
   async function handlePasswordReset() {
@@ -288,9 +299,7 @@ function SettingsPage() {
               label="Two-factor authentication"
               sub="Require a second factor on sign-in"
             >
-              <span className="rounded-md border border-border bg-muted/40 px-2 py-0.5 text-xs text-muted-foreground">
-                Coming soon
-              </span>
+              <Switch id="twofa" checked={twoFAEnabled} onCheckedChange={toggle2FA} />
             </SettingsRow>
             <SettingsRow
               label="Active sessions"

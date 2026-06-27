@@ -1,3 +1,5 @@
+import { setToken, clearToken, BASE_URL } from "./client";
+import { dotApi } from "@/api/client";
 /**
  * Auth API — wraps the Fastify /api/auth/* endpoints.
  *
@@ -5,7 +7,6 @@
  * If you want a demo account, sign up with a real email.
  */
 
-import { dotApi, setToken, clearToken, getToken, BASE_URL } from "./client";
 import type { User, AuthResponse } from "@/types/api";
 
 export interface SignupData {

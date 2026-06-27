@@ -1,9 +1,9 @@
+import { dotApi } from "@/api/client";
 /**
  * Admin tools API — replaces the old Supabase-backed server functions.
  * All calls go through the Fastify backend at /api/admin/*.
  */
 
-import { dotApi } from "./client";
 
 export interface RoleHierarchy {
   hierarchy: Record<string, {

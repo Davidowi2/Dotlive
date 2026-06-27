@@ -46,7 +46,7 @@ function ResetPassword() {
     try {
       await dotApi.post("/api/auth/reset-password", { token, newPassword: password });
       toast.success("Password updated. You can now sign in.");
-      navigate({ to: "/auth" });
+      navigate({ to: "/auth", search: { mode: "signin" } });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not update password");
     } finally {
@@ -125,7 +125,7 @@ function ResetPassword() {
                 spam folder.
               </p>
               <Button variant="outline" className="mt-6 w-full" asChild>
-                <Link to="/auth">
+                <Link to="/auth" search={{ mode: "signin" }}>
                   <ArrowLeft className="size-4" /> Back to sign in
                 </Link>
               </Button>
@@ -157,7 +157,7 @@ function ResetPassword() {
               </form>
               <p className="mt-5 text-center text-sm text-muted-foreground">
                 Remembered it?{" "}
-                <Link to="/auth" className="font-medium text-primary hover:underline">
+                <Link to="/auth" search={{ mode: "signin" }} className="font-medium text-primary hover:underline">
                   Back to sign in
                 </Link>
               </p>

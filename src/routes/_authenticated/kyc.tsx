@@ -64,10 +64,31 @@ function KycPage() {
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [address, setAddress] = useState("");
 
-  async function load() {
+  
+interface KycSubmission {
+  bvn?: string;
+  nin?: string;
+  govIdType?: string;
+  govIdUrl?: string;
+  fullName?: string;
+  dateOfBirth?: string;
+  address?: string;
+  targetTier?: string;
+  withdrawalLimit?: number;
+  status?: string;
+}
+
+interface KycTier {
+  id: string;
+  name: string;
+  withdrawalLimit: number;
+}
+
+
+async function load() {
     setLoading(true);
     try {
-      const res = await dotApi.get("/api/kyc/me");
+      const res = await dotApi.get<{ kyc: KycSubmission | null }>("/api/kyc/me");
       setKyc(res?.kyc ?? null);
       // pre-fill if returning
       if (res?.kyc) {
@@ -107,7 +128,7 @@ function KycPage() {
         payload.dateOfBirth = dateOfBirth;
         payload.address = address;
       }
-      const res = await dotApi.post("/api/kyc/submit", payload);
+      const res = await dotApi.post<{ targetTier: string; withdrawalLimit: number }>("/api/kyc/submit", payload);
       toast.success(`Submitted for ${res?.targetTier}. Limit: ${(res?.withdrawalLimit ?? 0).toLocaleString()} DOT.`);
       await load();
     } catch (e: any) {

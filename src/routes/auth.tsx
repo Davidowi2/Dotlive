@@ -6,8 +6,8 @@ import {
 } from "lucide-react";
 import { useDotAuth } from "@/contexts/DotAuthContext";
 import { getGoogleAuthUrl } from "@/api/auth";
-import { dotApi } from "@/api/client";
-import { ApiError } from "@/types/api";
+import { dotApi, setToken, ApiError } from "@/api/client";
+import type { User } from "@/types/api";
 import { Logo } from "@/components/site/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -291,15 +291,46 @@ function SigninForm({
     }
   }
 
-  // OTP sign-in is Supabase-specific — not supported on the new API yet.
-  // We keep the UI but show a notice pointing to email/password.
+  // OTP sign-in: backend issues a 6-digit code via Resend; we consume it
+  // here to sign the user in. Same shape as /api/auth/login.
   async function handleSendOtp(e: React.FormEvent) {
     e.preventDefault();
-    toast.info("Magic link sign-in is coming soon. Use email + password for now.");
+    setBusy(true);
+    try {
+      const res = await dotApi.post<{ ok: boolean; message: string; devCode?: string }>("/api/auth/send-otp", {
+        email,
+        purpose: "signin",
+      });
+      if (res.devCode) {
+        toast.success(`Dev mode: code is ${res.devCode}`);
+      } else {
+        toast.success(res.message);
+      }
+      setMode("otp-verify");
+    } catch (err: any) {
+      toast.error(err?.message ?? "Could not send code");
+    } finally {
+      setBusy(false);
+    }
   }
 
-  async function handleVerifyOtp(_value: string) {
-    toast.info("Magic link sign-in is coming soon.");
+  async function handleVerifyOtp(value: string) {
+    setBusy(true);
+    try {
+      const res = await dotApi.post<{ token: string; user: User }>("/api/auth/verify-otp", {
+        email,
+        code: value,
+        purpose: "signin",
+      });
+      setToken(res.token);
+      toast.success("Welcome back!");
+      navigate({ to: "/dashboard" });
+    } catch (err: any) {
+      toast.error(err?.message ?? "Wrong code");
+      setOtp("");
+    } finally {
+      setBusy(false);
+    }
   }
 
   if (mode === "otp-verify") {

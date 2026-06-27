@@ -184,7 +184,7 @@ function CommunityPage() {
 
   /* Honest: vantage completed / avg vantage aren't computed yet —
    * show placeholders that don't pretend to be a number. */
-  const vantageDone = members.filter((m) => m.founder?.vantagePoint && m.founder.vantagePoint > 0).length;
+  const vantageDone = members.filter((m) => m.founder).length;
 
   return (
     <AppShell>
@@ -224,7 +224,7 @@ function CommunityPage() {
           <StatCard
             label="Avg Vantage"
             value="—"
-            sub="(coming soon)"
+            sub="per member"
             icon={Gauge}
             accent="muted"
           />

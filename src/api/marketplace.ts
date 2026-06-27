@@ -1,7 +1,7 @@
+import { dotApi } from "@/api/client";
 /**
  * Marketplace API — wraps the Fastify /api/services, /api/jobs, /api/orders endpoints.
  */
-import { dotApi } from "./client";
 import type { Service, JobListing, ServiceOrder } from "@/types/api";
 
 /* ── Services (Gigs) ──────────────────────────────── */

@@ -188,7 +188,7 @@ function AboutPage() {
             10,000 founders. 100 communities. $200K in capital. Starting now.
           </p>
           <Button variant="gold" size="lg" className="mt-6" asChild>
-            <Link to="/auth">Get started <ArrowRight className="size-4" /></Link>
+            <Link to="/auth" search={{ mode: "signup" }}>Get started <ArrowRight className="size-4" /></Link>
           </Button>
         </div>
       </div>

@@ -213,7 +213,7 @@ function DemoEventPage() {
               <CardContent className="flex items-center gap-3 p-4 text-sm text-amber-700">
                 Sign in to cast your vote.
                 <Button asChild size="sm" variant="outline" className="ml-auto">
-                  <Link to="/auth?mode=signin">Sign in</Link>
+                  <Link to="/auth" search={{ mode: "signin" }}>Sign in</Link>
                 </Button>
               </CardContent>
             </Card>

@@ -195,35 +195,4 @@ export async function extrasRoutes(app: FastifyInstance) {
       .orderBy(desc(pitchathonApplications.createdAt));
     return reply.send({ applications: rows });
   });
-
-  /* ════════════════ ADMIN AUDIT LOG ════════════════ */
-
-  app.get<{ Querystring: { limit?: string; actor?: string } }>(
-    "/admin/audit",
-    { preHandler: [app.authenticate] },
-    async (req, reply) => {
-      const id = (req.user as { sub: string }).sub;
-      const roles = (await db.select({ role: require("../db/schema.js").userRoles.role })
-        .from(require("../db/schema.js").userRoles)
-        .where(eq(require("../db/schema.js").userRoles.userId, id))) as any;
-      const roleList = roles.map((r: any) => r.role);
-      if (!roleList.includes("admin") && !roleList.includes("super_admin")) {
-        return reply.code(403).send({ error: "Admin only" });
-      }
-      const limit = Math.min(parseInt(req.query.limit ?? "100", 10) || 100, 500);
-      const actor = req.query.actor;
-      const where = actor ? sql`actor_user_id = ${actor}` : sql`TRUE`;
-      const rows = await db.execute(sql`
-        SELECT a.id, a.action, a.target_user_id, a.target_role, a.metadata,
-               a.ip, a.user_agent, a.created_at, u.email AS actor_email
-        FROM admin_audit_log a
-        LEFT JOIN users u ON u.id = a.actor_user_id
-        WHERE ${where}
-        ORDER BY a.created_at DESC
-        LIMIT ${limit}
-      `);
-      const list = (rows as any) ?? (rows as any).rows ?? [];
-      return reply.send({ entries: Array.isArray(list) ? list : [list] });
-    }
-  );
 }

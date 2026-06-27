@@ -1,266 +1,320 @@
 /**
- * /admin/members — All profiles, with search + role filtering.
- * Admins can promote/demote other admins; everyone can view.
+ * /admin/members — All users with roles, balances, and ban controls.
+ *
+ * Lists every user with their roles (color-coded badges), DOT balance,
+ * created-at date, and admin actions (promote/demote/ban). The super
+ * admin sees everything; regular admins cannot touch other admins.
  */
 
-import { useState, useEffect } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { useState } from "react";
 import {
-  Search, Loader2, ChevronUp, ChevronDown, ShieldCheck, ShieldAlert,
-  MoreHorizontal, Ban, ArrowUpRight, ArrowDownRight, UserCheck, UserX,
+  Users, Search, Shield, ShieldOff, UserCheck, UserX, AlertCircle,
+  ChevronRight, RefreshCw, Loader2,
 } from "lucide-react";
+import { toast } from "sonner";
 
-import { useDotAuth } from "@/contexts/DotAuthContext";
-import { AppShell } from "@/components/app/AppShell";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/app/PageHeader";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { EmptyState } from "@/components/app/EmptyState";
-import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { AppShell } from "@/components/app/AppShell";
 
-import { listAdminUsers, banUser, unbanUser, getAdminStats, type AdminUser } from "@/api/admin";
-import {
-  promoteUser, demoteUser, getRoleHierarchy, type RoleHierarchy,
-} from "@/api/admin-tools";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/app/EmptyState";
+
+import { dotApi } from "@/api/client";
 
 export const Route = createFileRoute("/_authenticated/admin/members")({
   head: () => ({ meta: [{ title: "Members — Admin — DOT" }] }),
   component: AdminMembersPage,
 });
 
+interface MemberRow {
+  id: string;
+  email: string;
+  name: string | null;
+  dotId: string;
+  avatarUrl: string | null;
+  roles: string[];
+  balance: number;
+  isAdmin: boolean;
+  isSuperAdmin: boolean;
+  isLastSuperAdmin: boolean;
+  bannedAt: string | null;
+  createdAt: string;
+}
+
+const ROLE_COLORS: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+  super_admin: "destructive",
+  admin: "default",
+  founder: "secondary",
+  builder: "secondary",
+  investor: "secondary",
+  community_leader: "secondary",
+  capital_partner: "default",
+  vendor: "outline",
+};
+
+const FILTERS = [
+  { value: "all", label: "All" },
+  { value: "admins", label: "Admins" },
+  { value: "builders", label: "Builders" },
+  { value: "founders", label: "Founders" },
+  { value: "investors", label: "Investors" },
+  { value: "capital_partners", label: "Capital Partners" },
+  { value: "communities", label: "Communities" },
+  { value: "banned", label: "Banned" },
+];
+
 function AdminMembersPage() {
-  const { roles: myRoles } = useDotAuth();
-  const isSuperAdmin = myRoles.includes("super_admin");
   const qc = useQueryClient();
-
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"all" | "admins" | "banned" | "builders" | "founders" | "investors" | "community_leaders" | "capital_partners" | "vendors">("all");
-  const [sort, setSort] = useState<"newest" | "name" | "balance">("newest");
-  const [page, setPage] = useState(1);
-  const limit = 25;
+  const [filter, setFilter] = useState("all");
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["admin", "members", { filter, sort, page }],
-    queryFn: () => listAdminUsers({
-      search: search || undefined,
-      role: filter === "all" || filter === "banned" || filter === "admins" ? undefined : filter,
-      sort,
-      page,
-      limit,
-    }),
+  const membersQ = useQuery({
+    queryKey: ["admin", "members"],
+    queryFn: async () => {
+      const res = await dotApi.get<{ users: MemberRow[] }>("/api/admin/users");
+      return res.users ?? [];
+    },
   });
 
-  const { data: hierarchy } = useQuery({
-    queryKey: ["admin", "hierarchy"],
-    queryFn: getRoleHierarchy,
+  const promoteMut = useMutation({
+    mutationFn: async (userId: string) =>
+      dotApi.post(`/api/admin/users/${userId}/promote`, { role: "admin" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "members"] });
+      toast.success("Promoted to admin");
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Could not promote"),
   });
 
-  const users: AdminUser[] = (data as any)?.users ?? [];
-  const totalCount = (data as any)?.total ?? users.length;
+  const demoteMut = useMutation({
+    mutationFn: async (userId: string) =>
+      dotApi.post(`/api/admin/users/${userId}/demote`, { role: "builder" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "members"] });
+      toast.success("Demoted from admin");
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Could not demote"),
+  });
 
-  async function handleBan(user: AdminUser) {
-    if (!confirm(`Ban ${user.email}? They will be unable to sign in.`)) return;
-    try {
-      await banUser(user.id, "Banned via admin console");
+  const banMut = useMutation({
+    mutationFn: async (userId: string) =>
+      dotApi.post(`/api/admin/users/${userId}/ban`, { reason: "Banned by admin" }),
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin", "members"] });
-      toast.success(`${user.email} banned`);
-    } catch (e: any) { toast.error(e?.message ?? "Ban failed"); }
-  }
-  async function handleUnban(user: AdminUser) {
-    try {
-      await unbanUser(user.id);
-      qc.invalidateQueries({ queryKey: ["admin", "members"] });
-      toast.success(`${user.email} unbanned`);
-    } catch (e: any) { toast.error(e?.message ?? "Unban failed"); }
-  }
-  async function handlePromote(user: AdminUser) {
-    const newRole = user.isSuperAdmin ? "admin" : "admin"; // always promote TO admin (super is special)
-    if (user.isAdmin && !user.isSuperAdmin) {
-      // Already admin — skip
-      return toast.error(`${user.email} is already an admin`);
-    }
-    try {
-      await promoteUser(user.id, { role: "admin", reason: "Promoted via admin console" });
-      qc.invalidateQueries({ queryKey: ["admin", "members"] });
-      qc.invalidateQueries({ queryKey: ["admin", "hierarchy"] });
-      toast.success(`${user.email} promoted to admin`);
-    } catch (e: any) { toast.error(e?.message ?? "Promote failed"); }
-  }
-  async function handleDemote(user: AdminUser) {
-    if (user.isSuperAdmin && user.isLastSuperAdmin) {
-      return toast.error("Cannot demote the last super admin");
-    }
-    if (!confirm(`Remove admin role from ${user.email}?`)) return;
-    try {
-      await demoteUser(user.id, { role: "admin", reason: "Demoted via admin console" });
-      qc.invalidateQueries({ queryKey: ["admin", "members"] });
-      qc.invalidateQueries({ queryKey: ["admin", "hierarchy"] });
-      toast.success(`${user.email} demoted`);
-    } catch (e: any) { toast.error(e?.message ?? "Demote failed"); }
-  }
+      toast.success("User banned");
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Could not ban"),
+  });
 
-  const filterButtons: Array<{ key: typeof filter; label: string; count?: number }> = [
-    { key: "all", label: "All" },
-    { key: "admins", label: "Admins" },
-    { key: "builders", label: "Builders" },
-    { key: "founders", label: "Founders" },
-    { key: "investors", label: "Investors" },
-    { key: "capital_partners", label: "Capital Partners" },
-    { key: "community_leaders", label: "Communities" },
-    { key: "vendors", label: "Vendors" },
-    { key: "banned", label: "Banned" },
-  ];
+  const unbanMut = useMutation({
+    mutationFn: async (userId: string) =>
+      dotApi.post(`/api/admin/users/${userId}/unban`, { reason: "Unbanned by admin" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "members"] });
+      toast.success("User unbanned");
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Could not unban"),
+  });
+
+  const filtered = (membersQ.data ?? []).filter((m) => {
+    // Search filter
+    if (search) {
+      const s = search.toLowerCase();
+      if (
+        !m.email.toLowerCase().includes(s) &&
+        !(m.name?.toLowerCase().includes(s) ?? false) &&
+        !m.dotId.toLowerCase().includes(s)
+      ) {
+        return false;
+      }
+    }
+    // Role/category filter
+    switch (filter) {
+      case "all":
+        return true;
+      case "admins":
+        return m.isAdmin;
+      case "builders":
+        return m.roles.includes("builder");
+      case "founders":
+        return m.roles.includes("founder");
+      case "investors":
+        return m.roles.includes("investor");
+      case "capital_partners":
+        return m.roles.includes("capital_partner");
+      case "communities":
+        return m.roles.includes("community_leader");
+      case "banned":
+        return !!m.bannedAt;
+      default:
+        return true;
+    }
+  });
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="font-display text-3xl">Members</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            All profiles on the platform. <strong>{totalCount}</strong> total.
-            {isSuperAdmin
-              ? " You can promote/demote admins."
-              : " Role changes require super admin."}
-          </p>
-        </div>
-      </div>
+    <AppShell>
+      <PageHeader
+        title="Members"
+        subtitle={`${membersQ.data?.length ?? 0} users · promote, demote, ban`}
+        action={
+          <Button variant="outline" size="sm" onClick={() => qc.invalidateQueries({ queryKey: ["admin", "members"] })}>
+            <RefreshCw className="size-4" />
+          </Button>
+        }
+      />
 
-      {/* Search + filters */}
-      <div className="flex flex-col gap-3">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search by name, email, or DOT ID..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="pl-10"
-          />
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {filterButtons.map((b) => (
-            <Button
-              key={b.key}
-              size="sm"
-              variant={filter === b.key ? "default" : "outline"}
-              onClick={() => { setFilter(b.key); setPage(1); }}
-              className="h-8"
-            >
-              {b.label}
-            </Button>
-          ))}
-          <div className="ml-auto flex gap-2">
-            <Button size="sm" variant="ghost" onClick={() => setSort(sort === "newest" ? "name" : sort === "name" ? "balance" : "newest")} className="h-8">
-              Sort: {sort}
-              {sort === "newest" ? <ChevronDown className="ml-1 size-3" /> : <ChevronUp className="ml-1 size-3" />}
-            </Button>
+      <div className="mx-auto max-w-6xl px-6 py-6 space-y-6">
+        {/* Filters */}
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by email, name, or DOT ID..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {FILTERS.map((f) => (
+                <Button
+                  key={f.value}
+                  variant={filter === f.value ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setFilter(f.value)}
+                >
+                  {f.label}
+                </Button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Members list */}
+        {membersQ.isLoading ? (
+          <div className="space-y-3">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Skeleton key={i} className="h-20 w-full" />
+            ))}
           </div>
-        </div>
-      </div>
-
-      {/* Table */}
-      <Card>
-        {isLoading ? (
-          <div className="flex justify-center py-12"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>
-        ) : users.length === 0 ? (
-          <EmptyState title="No members match" subtitle="Try a different search or filter." icon={Search} />
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            icon={Users}
+            title="No members match"
+            description="Try removing a filter or search term."
+          />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="border-b bg-muted/30 text-xs uppercase tracking-wider text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 text-left">Member</th>
-                  <th className="px-4 py-3 text-left">DOT ID</th>
-                  <th className="px-4 py-3 text-left">Roles</th>
-                  <th className="px-4 py-3 text-right">Balance</th>
-                  <th className="px-4 py-3 text-left">Joined</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((u) => (
-                  <tr key={u.id} className="border-b last:border-0 hover:bg-muted/20">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium uppercase">
-                          {(u.name ?? u.email ?? "?").slice(0, 2)}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-medium">{u.name ?? "—"}</span>
-                            {u.isSuperAdmin && <ShieldAlert className="size-3.5 text-amber-500" />}
-                            {u.bannedAt && <Ban className="size-3.5 text-destructive" />}
-                          </div>
-                          <div className="text-xs text-muted-foreground">{u.email}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{u.dotId ?? "—"}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-1">
-                        {(u.roles ?? []).length === 0
-                          ? <span className="text-xs text-muted-foreground">No roles</span>
-                          : (u.roles ?? []).slice(0, 3).map((r) => (
-                            <Badge key={r} variant={r === "super_admin" ? "default" : r === "admin" ? "secondary" : "outline"} className="text-[10px]">
-                              {r}
-                            </Badge>
-                          ))
-                        }
-                        {(u.roles ?? []).length > 3 && (
-                          <span className="text-xs text-muted-foreground">+{u.roles.length - 3}</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums">
-                      {Number(u.balance ?? 0).toLocaleString()} DOT
-                    </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">
-                      {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : "—"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1">
-                        {u.bannedAt ? (
-                          <Button size="sm" variant="ghost" onClick={() => handleUnban(u)} title="Unban">
-                            <UserCheck className="size-4" />
-                          </Button>
-                        ) : (
-                          <Button size="sm" variant="ghost" onClick={() => handleBan(u)} title="Ban" disabled={u.isSuperAdmin}>
-                            <UserX className="size-4 text-destructive" />
-                          </Button>
-                        )}
-                        {isSuperAdmin && !u.bannedAt && (
-                          u.isAdmin ? (
-                            <Button size="sm" variant="ghost" onClick={() => handleDemote(u)} title="Demote" disabled={u.isLastSuperAdmin}>
-                              <ArrowDownRight className="size-4 text-amber-500" />
-                            </Button>
-                          ) : (
-                            <Button size="sm" variant="ghost" onClick={() => handlePromote(u)} title="Promote to admin">
-                              <ArrowUpRight className="size-4 text-primary" />
-                            </Button>
-                          )
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="space-y-2">
+            {filtered.map((m) => (
+              <MemberCard
+                key={m.id}
+                member={m}
+                onPromote={() => promoteMut.mutate(m.id)}
+                onDemote={() => demoteMut.mutate(m.id)}
+                onBan={() => banMut.mutate(m.id)}
+                onUnban={() => unbanMut.mutate(m.id)}
+                busy={promoteMut.isPending || demoteMut.isPending || banMut.isPending || unbanMut.isPending}
+              />
+            ))}
           </div>
         )}
-      </Card>
-
-      {/* Pagination */}
-      <div className="flex items-center justify-between text-sm">
-        <div className="text-muted-foreground">
-          Showing {(page - 1) * limit + 1}-{Math.min(page * limit, totalCount)} of {totalCount}
-        </div>
-        <div className="flex gap-2">
-          <Button size="sm" variant="outline" disabled={page === 1} onClick={() => setPage(page - 1)}>Prev</Button>
-          <Button size="sm" variant="outline" disabled={page * limit >= totalCount} onClick={() => setPage(page + 1)}>Next</Button>
-        </div>
       </div>
-    </div>
+    </AppShell>
+  );
+}
+
+function MemberCard({
+  member,
+  onPromote,
+  onDemote,
+  onBan,
+  onUnban,
+  busy,
+}: {
+  member: MemberRow;
+  onPromote: () => void;
+  onDemote: () => void;
+  onBan: () => void;
+  onUnban: () => void;
+  busy: boolean;
+}) {
+  return (
+    <Card className={member.bannedAt ? "border-destructive/30 bg-destructive/5" : undefined}>
+      <CardContent className="p-4 flex items-center gap-4">
+        <Avatar className="size-10 shrink-0">
+          <AvatarFallback>
+            {(member.name?.[0] ?? member.email[0] ?? "?").toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="font-medium truncate">
+              {member.name ?? member.email}
+            </p>
+            {member.bannedAt && (
+              <Badge variant="destructive" className="text-[10px]">BANNED</Badge>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground truncate">
+            {member.email}
+          </p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-1">
+            {member.roles.length === 0 ? (
+              <Badge variant="outline" className="text-[10px]">no role</Badge>
+            ) : (
+              member.roles.map((r) => (
+                <Badge
+                  key={r}
+                  variant={ROLE_COLORS[r] ?? "muted"}
+                  className="text-[10px]"
+                >
+                  {r.replace(/_/g, " ")}
+                </Badge>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="hidden sm:flex flex-col items-end gap-1 shrink-0">
+          <p className="text-sm font-semibold tabular-nums">
+            {member.balance.toLocaleString()} DOT
+          </p>
+          <p className="text-[10px] text-muted-foreground">{member.dotId}</p>
+        </div>
+
+        <div className="flex items-center gap-1 shrink-0">
+          {!member.isAdmin && (
+            <Button size="sm" variant="outline" onClick={onPromote} disabled={busy}>
+              <Shield className="size-3.5" /> Promote
+            </Button>
+          )}
+          {member.isAdmin && !member.isSuperAdmin && (
+            <Button size="sm" variant="outline" onClick={onDemote} disabled={busy}>
+              <ShieldOff className="size-3.5" /> Demote
+            </Button>
+          )}
+          {member.bannedAt ? (
+            <Button size="sm" variant="outline" onClick={onUnban} disabled={busy}>
+              <UserCheck className="size-3.5" /> Unban
+            </Button>
+          ) : (
+            !member.isSuperAdmin && (
+              <Button size="sm" variant="outline" onClick={onBan} disabled={busy}>
+                <UserX className="size-3.5" /> Ban
+              </Button>
+            )
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

@@ -1,3 +1,4 @@
+import { dotApi } from "@/api/client";
 import { createFileRoute } from "@tanstack/react-router";
 import { Building2, Loader2, Gauge, MapPin, Bookmark, BookmarkCheck, Send } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
@@ -54,7 +55,7 @@ function DemoPage() {
       return res?.saves ?? [];
     },
   });
-  const saved = new Set(saves.map((s) => s.founder_id));
+  const saved = new Set(saves.map((s) => s.founderId));
 
   async function toggleSave(founderId: string) {
     if (!user) return;

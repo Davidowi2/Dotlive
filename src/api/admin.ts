@@ -1,10 +1,10 @@
+import { dotApi } from "@/api/client";
 /**
  * Admin API — wraps the Fastify /api/admin/* endpoints.
  * All endpoints require admin or super_admin role.
  * Write operations require an Idempotency-Key header (generated automatically).
  */
 
-import { dotApi } from "./client";
 
 /* ── Types ─────────────────────────────────────────── */
 
@@ -15,6 +15,14 @@ export interface AdminUser {
   dotId: string;
   onboardingIntent: string | null;
   createdAt: string;
+  roles?: string[];
+  balance?: number;
+  bannedAt?: string | null;
+  isAdmin?: boolean;
+  isSuperAdmin?: boolean;
+  isLastSuperAdmin?: boolean;
+  walletBalance?: number;
+  [key: string]: unknown;
 }
 
 export interface AdminUserDetail extends AdminUser {

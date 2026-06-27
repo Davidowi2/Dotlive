@@ -64,7 +64,7 @@ function CommunityHubPage() {
 
           <div className="mt-6 flex flex-wrap gap-2">
             <Button variant="hero" asChild>
-              <Link to={`/join/${comm?.referralCode ?? ""}`}>
+              <Link to="/join/$code" params={{ code: comm?.referralCode ?? "" }}>
                 Join <ArrowRight className="ml-2 size-4" />
               </Link>
             </Button>

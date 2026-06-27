@@ -1,7 +1,7 @@
+import { dotApi } from "@/api/client";
 /**
  * Community API — wraps the Fastify /api/community/* endpoints.
  */
-import { dotApi } from "./client";
 import type { Community } from "@/types/api";
 
 export interface CommunityMember {

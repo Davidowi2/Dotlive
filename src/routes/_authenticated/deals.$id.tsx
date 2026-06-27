@@ -93,7 +93,7 @@ function DealRoomPage() {
       <PageHeader
         title={venture.name}
         subtitle={`${venture.industry ?? ""} · ${venture.country ?? ""}`}
-        actions={
+        action={
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => founder && toggleSave(founder.id)}>
               <Bookmark className="mr-2 size-4" /> Save

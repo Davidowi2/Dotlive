@@ -230,7 +230,7 @@ function DiscoverPage() {
         ) : ventures.length === 0 ? (
           <EmptyState
             title="No ventures match these filters"
-            subtitle={hasActiveFilters
+            description={hasActiveFilters
               ? "Try removing a filter — there are 0 ventures matching all of these."
               : "Be the first founder on DOT."}
             icon={Building2}

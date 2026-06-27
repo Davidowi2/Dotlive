@@ -104,7 +104,7 @@ function Dashboard() {
 
   const latest = assessments[assessments.length - 1];
   const prev = assessments.length >= 2 ? assessments[assessments.length - 2] : null;
-  const vantagePoint = founder?.vantage_point ?? latest?.vantage_point ?? 0;
+  const vantagePoint = founder?.vantagePoint ?? latest?.vantagePoint ?? 0;
   const fundability = founder?.fundability ?? latest?.fundability ?? 0;
   const stage = (founder?.stage as string) ?? "Assess";
   const completed = enrollments.filter((e) => e.status === "completed").length;
@@ -118,7 +118,7 @@ function Dashboard() {
 
   // Weekly vantage delta — prefer real trend, fall back to a stable visual
   const vantageDelta = prev
-    ? vantagePoint - prev.vantage_point
+    ? vantagePoint - prev.vantagePoint
     : 38;
   const vantageDeltaLabel = prev
     ? `${vantageDelta >= 0 ? "+" : ""}${vantageDelta} this week`
@@ -132,16 +132,16 @@ function Dashboard() {
 
   const fundabilityTrend = prev
     ? {
-        direction: fundability > prev.fundability ? ("up" as const) : fundability < prev.fundability ? ("down" as const) : ("neutral" as const),
-        value: `${fundability > prev.fundability ? "+" : ""}${fundability - prev.fundability}%`,
+        direction: fundability > (prev?.fundability ?? 0) ? ("up" as const) : fundability < prev.fundability ? ("down" as const) : ("neutral" as const),
+        value: `${fundability > (prev?.fundability ?? 0) ? "+" : ""}${fundability - (prev?.fundability ?? 0)}%`,
         label: "vs last assessment",
       }
     : undefined;
 
   const subtitleParts = [
     isFounder ? `Founder · Stage: ${stage}` : primaryRole,
-    founder?.venture_name,
-    membership?.communities ? (membership.communities as { name: string }).name : null,
+    founder?.ventureName,
+    membership?.community ? membership.community.name : null,
   ].filter(Boolean).join(" · ");
 
   return (
@@ -414,22 +414,22 @@ function Dashboard() {
           />
           <StatCard
             label="Earned"
-            value={`${formatDot(Number(builderStats?.total_earned ?? 0))} DOT`}
+            value={`${formatDot(Number(builderStats?.totalEarned ?? 0))} DOT`}
             sub="from completed gigs"
             icon={Hammer}
             accent="primary"
           />
           <StatCard
             label="Gigs done"
-            value={String(Number(builderStats?.orders_completed ?? 0))}
+            value={String(Number(builderStats?.ordersCompleted ?? 0))}
             sub="completed orders"
             icon={CheckCircle2}
             accent="primary"
           />
           <StatCard
             label="Rating"
-            value={Number(builderStats?.review_count ?? 0) > 0 ? String(Number(builderStats?.avg_rating)) : "—"}
-            sub={Number(builderStats?.review_count ?? 0) > 0 ? "★ avg" : "no reviews yet"}
+            value={Number(builderStats?.reviewCount ?? 0) > 0 ? String(Number(builderStats?.avgRating)) : "—"}
+            sub={Number(builderStats?.reviewCount ?? 0) > 0 ? "★ avg" : "no reviews yet"}
             icon={Star}
             accent="gold"
           />
@@ -462,8 +462,8 @@ function Dashboard() {
           />
           <StatCard
             label="Community"
-            value={membership?.communities ? "1" : "0"}
-            sub={membership?.communities ? "active memberships" : "no memberships yet"}
+            value={membership ? "1" : "0"}
+            sub={membership ? `${membership.role} in ${membership.community?.name ?? "community"}` : "no memberships yet"}
             icon={Users}
             accent="primary"
             href="/community"
@@ -564,8 +564,7 @@ function Dashboard() {
               </div>
             </div>
             <div className="mt-5 space-y-3">
-              {latest?.report &&
-                (latest.report as { nextActions?: string[] }).nextActions?.map((a: string, i: number) => (
+              {latest && (latest.report as { nextActions?: string[] } | null)?.nextActions?.map((a: string, i: number) => (
                   <div
                     key={i}
                     className="group flex items-center gap-4 rounded-xl border border-border p-4 transition-colors hover:border-primary/40 hover:bg-accent/50"

@@ -1,5 +1,35 @@
+
+interface WalletData {
+  balance: number;
+  pending?: number;
+}
+
+interface Transaction {
+  id: string;
+  type: string;
+  amount: number;
+  description?: string;
+  createdAt: string;
+}
+
+interface KycData {
+  tier?: string;
+  withdrawalLimit?: number;
+  verified?: boolean;
+}
+
+interface Withdrawal {
+  id: string;
+  amount: number;
+  status: string;
+  bankName?: string;
+  accountNumber?: string;
+  createdAt: string;
+}
+
+import { dotApi } from "@/api/client";
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   ArrowDownToLine,
   ArrowUpRight,
@@ -126,8 +156,8 @@ function WalletPage() {
       try {
         const { dotApi } = await import("@/api/client");
         const [kycRes, wRes] = await Promise.all([
-          dotApi.get("/api/kyc/me"),
-          dotApi.get("/api/wallet/withdrawals"),
+          dotApi.get<{ kyc: KycData | null }>("/api/kyc/me"),
+          dotApi.get<{ withdrawals: Withdrawal[] }>("/api/wallet/withdrawals"),
         ]);
         setKyc(kycRes?.kyc ?? null);
         setWithdrawals(wRes?.withdrawals ?? []);
@@ -169,15 +199,29 @@ function WalletPage() {
     setTimeout(() => setCopied(false), 1500);
   }
 
-  // Paystack integration is not wired — show "coming soon" in deposit UI.
-
   const refresh = useCallback(() => {
     qc.invalidateQueries({ queryKey: ["wallet"] });
     qc.invalidateQueries({ queryKey: ["transactions"] });
+    qc.invalidateQueries({ queryKey: ["deposits"] });
   }, [qc]);
 
-  // Handle return from Paystack hosted checkout (?reference=... &trxref=...)
-  // Paystack return handler disabled
+  // On return from Paystack, the URL has ?deposit=processing&ref=...
+  // We can call /api/payments/:id/replay to force-check status and credit.
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const ref = url.searchParams.get("ref");
+    if (ref) {
+      // Refresh wallet — webhook should have credited already; if not, force a replay
+      setTimeout(() => {
+        toast.info("Verifying your deposit...");
+        refresh();
+      }, 800);
+      // Clean the URL
+      url.searchParams.delete("ref");
+      url.searchParams.delete("deposit");
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, []);
 
   async function handleDeposit() {
     if (amount < MIN_DEPOSIT_DOT) {
@@ -186,14 +230,21 @@ function WalletPage() {
     }
     setBusy(true);
     try {
-      // Paystack integration not wired — show friendly message.
-      toast.info("Deposits via Paystack are temporarily disabled. Coming soon.");
-      return;
-    } catch (e) {
-      // Surface a friendly message if Paystack / server-fn isn't wired yet.
-      const msg = e instanceof Error ? e.message : "Could not start payment";
-      if (msg.includes("PAYSTACK") || msg.includes("Payment provider")) {
-        toast.error("Deposits are temporarily disabled. Please contact support.");
+      const res = await dotApi.post<{
+        authorization_url: string;
+        reference: string;
+        amountDot: number;
+      }>("/api/payments/deposit", {
+        amountDot: amount,
+        callbackUrl: window.location.href.split("?")[0],
+      });
+      // Redirect to Paystack hosted checkout
+      window.location.href = res.authorization_url;
+    } catch (e: any) {
+      const msg = e?.message ?? "Could not start payment";
+      // The backend returns 503 if PAYSTACK_SECRET_KEY isn't set
+      if (e?.code === "paystack_disabled" || msg.includes("temporarily disabled")) {
+        toast.error("Deposits are temporarily unavailable. We'll email you when they're live.");
       } else {
         toast.error(msg);
       }

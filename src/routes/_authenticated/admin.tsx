@@ -31,7 +31,7 @@ function AdminLayout() {
             Sign in with an admin account to access the admin dashboard.
           </p>
           <Button asChild className="mt-6">
-            <Link to="/auth">Sign in</Link>
+            <Link to="/auth" search={{ mode: "signin" }}>Sign in</Link>
           </Button>
         </div>
       </AppShell>

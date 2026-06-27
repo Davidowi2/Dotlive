@@ -8,7 +8,7 @@ export const Route = createFileRoute("/_authenticated")({
     // DotAuthProvider handles loading the actual user — this guard just
     // ensures unauthenticated visitors can't reach protected routes.
     const token = getToken();
-    if (!token) throw redirect({ to: "/auth" });
+    if (!token) throw redirect({ to: "/auth", search: { mode: "signin" } });
   },
   component: () => <Outlet />,
 });

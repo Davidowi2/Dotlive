@@ -173,11 +173,11 @@ function CountUpClient({
 
     const tick = (now: number) => {
       const elapsed = (now - start) / 1000;
-      const t = Math.min(elapsed / duration, 1);
+      const t = Math.min(elapsed / (duration ?? 1), 1);
       // ease-out cubic
       const eased = 1 - Math.pow(1 - t, 3);
       const current = value * eased;
-      node.textContent = `${prefix ?? ""}${formatNum(current, decimals)}${suffix ?? ""}`;
+      node.textContent = `${prefix ?? ""}${formatNum(current, decimals ?? 0)}${suffix ?? ""}`;
       if (t < 1) raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -186,7 +186,7 @@ function CountUpClient({
 
   return (
     <span ref={ref} className={className}>
-      {`${prefix ?? ""}${formatNum(0, decimals)}${suffix ?? ""}`}
+      {`${prefix ?? ""}${formatNum(0, decimals ?? 0)}${suffix ?? ""}`}
     </span>
   );
 }
