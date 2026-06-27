@@ -22,6 +22,7 @@ export interface User {
   dotId: string;
   roles: AppRole[];
   createdAt: string;
+  onboardedAt: string | null;
 }
 
 export interface Wallet {

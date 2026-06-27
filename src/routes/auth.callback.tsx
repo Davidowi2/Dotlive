@@ -59,9 +59,16 @@ function AuthCallback() {
           throw new Error("Could not load user profile.");
         }
 
-        // New builders (only the default 'builder' role) → onboarding
-        // Everyone else (already went through onboarding) → dashboard
-        const isNewUser = user.roles.length === 1 && user.roles[0] === "builder";
+        // New users go through onboarding. Heuristic:
+        //   - onboardedAt is null/undefined → new
+        //   - Only has the default 'builder' role → new
+        //   - account created <5min ago → new
+        const ageMs = Date.now() - new Date(user.createdAt ?? Date.now()).getTime();
+        const isNewUser =
+          !user.onboardedAt ||
+          user.roles.length === 1 ||
+          ageMs < 5 * 60 * 1000;
+
         toast.success(`Welcome${user.name ? `, ${user.name.split(" ")[0]}` : ""}!`);
         navigate({ to: isNewUser ? "/onboarding" : "/dashboard" });
       } catch (err) {

@@ -229,6 +229,8 @@ export async function loadUserWithRoles(userId: string): Promise<{
   avatarUrl: string | null;
   dotId: string;
   roles: AppRole[];
+  onboardedAt: Date | null;
+  createdAt: Date;
 } | null> {
   const rows = await db.select().from(users).where(eq(users.id, userId)).limit(1);
   const u = rows[0];
@@ -238,15 +240,17 @@ export async function loadUserWithRoles(userId: string): Promise<{
   const roles = roleRows.map((r) => r.role as AppRole);
 
   return {
-    id: u.id,
-    email: u.email,
-    emailVerified: u.emailVerified,
-    name: u.name,
-    avatarUrl: u.avatarUrl,
-    dotId: u.dotId,
-    roles,
-  };
-}
+      id: u.id,
+      email: u.email,
+      emailVerified: u.emailVerified,
+      name: u.name,
+      avatarUrl: u.avatarUrl,
+      dotId: u.dotId,
+      roles,
+      onboardedAt: u.onboardedAt,
+      createdAt: u.createdAt,
+    };
+  }
 
 export async function getUserRoles(userId: string): Promise<AppRole[]> {
   const rows = await db.select({ role: userRoles.role }).from(userRoles).where(eq(userRoles.userId, userId));
