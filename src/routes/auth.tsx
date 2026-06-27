@@ -46,7 +46,7 @@ type SignupIntent =
   | "community"
   | "explore";
 
-type SignupStep = 1 | 2 | 3;
+type SignupStep = 1 | 2 | 3 | 4 | 5;
 
 /* ─────────────────── INTENT OPTIONS ─────────────────────────── */
 
@@ -478,14 +478,12 @@ function SigninForm({
         )}
       </div>
     </>
-  );
-}
+      );
+    }
 
-/* ─────────────────── SIGNUP FLOW (3 steps) ─────────────────── */
-
-function SignupFlow({ onSwitchToSignin }: { onSwitchToSignin: () => void }) {
+    function SignupFlow({ onSwitchToSignin }: { onSwitchToSignin: () => void }) {
   const navigate = useNavigate();
-  const { signup } = useDotAuth();
+  const { refresh } = useDotAuth();
   const [step, setStep] = useState<SignupStep>(1);
   const [busy, setBusy] = useState(false);
 
@@ -495,15 +493,20 @@ function SignupFlow({ onSwitchToSignin }: { onSwitchToSignin: () => void }) {
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [agreed, setAgreed] = useState(false);
+  const [country, setCountry] = useState("");
 
-  // Step 2
+  // Step 3 — OTP verification
+  const [otpCode, setOtpCode] = useState("");
+  const [signupToken, setSignupToken] = useState<string | null>(null);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  // Step 4 — intent
   const [intent, setIntent] = useState<SignupIntent | null>(null);
 
-  // Step 3 — per-intent extras
+  // Step 5 — per-intent extras
   const [selectedChips, setSelectedChips] = useState<string[]>([]);
   const [businessStage, setBusinessStage] = useState("");
   const [investRange, setInvestRange] = useState("");
-  const [country, setCountry] = useState("");
 
   const pwStrength = password.length === 0 ? 0
     : password.length < 6 ? 1
@@ -520,47 +523,107 @@ function SignupFlow({ onSwitchToSignin }: { onSwitchToSignin: () => void }) {
     );
   }
 
+  // Cooldown timer for resend button
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setTimeout(() => setResendCooldown((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendCooldown]);
+
   async function handleStep1(e: React.FormEvent) {
     e.preventDefault();
     if (!agreed) { toast.error("Please agree to the Terms and Privacy Policy to continue."); return; }
-    if (password.length < 6) { toast.error("Password must be at least 6 characters."); return; }
-    setStep(2);
+    if (password.length < 8) { toast.error("Password must be at least 8 characters."); return; }
+    if (!email.includes("@")) { toast.error("Please enter a valid email."); return; }
+    if (!name.trim()) { toast.error("Please enter your name."); return; }
+
+    // Move to OTP step and send code in parallel
+    setStep(3);
+    await sendOtp();
   }
 
-  function handleStep2(chosen: SignupIntent) {
-    setIntent(chosen);
-    // explore/community/earn → no step 3 questions worth showing; skip to submit
-    if (chosen === "explore" || chosen === "earn") {
-      submitSignup(chosen, []);
-    } else {
-      setSelectedChips([]);
-      setBusinessStage("");
-      setInvestRange("");
-      setCountry("");
-      setStep(3);
+  async function sendOtp() {
+    setBusy(true);
+    try {
+      const res = await dotApi.post<{ ok: boolean; message: string; devCode?: string }>(
+        "/api/auth/send-otp",
+        { email, purpose: "signup" }
+      );
+      if (res.devCode) {
+        toast.info(`DEV: Your code is ${res.devCode}`, { duration: 30000 });
+      } else {
+        toast.success(res.message);
+      }
+      setResendCooldown(60);
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message
+        : err instanceof Error ? err.message
+        : "Could not send verification code";
+      toast.error(msg);
+      setStep(1); // Go back so they can fix email
+    } finally {
+      setBusy(false);
     }
   }
 
   async function handleStep3(e: React.FormEvent) {
     e.preventDefault();
-    await submitSignup(intent!, selectedChips);
-  }
-
-  async function submitSignup(chosenIntent: SignupIntent, chips: string[]) {
+    if (otpCode.length !== 6) { toast.error("Enter the 6-digit code from your email."); return; }
     setBusy(true);
     try {
-      await signup({
-        email,
-        password,
-        name: name.trim(),
-        intent: chosenIntent,
-        metadata: {
-          skills: chips,
-          business_stage: businessStage || null,
-          invest_range: investRange || null,
-          country: country || null,
-        },
-      });
+      const res = await dotApi.post<{ ok: boolean; signupToken: string; email: string }>(
+        "/api/auth/verify-otp",
+        { email, code: otpCode, purpose: "signup" }
+      );
+      setSignupToken(res.signupToken);
+      setStep(4);
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message
+        : err instanceof Error ? err.message
+        : "Wrong code";
+      toast.error(msg);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function handleStep4(chosen: SignupIntent) {
+    setIntent(chosen);
+    // explore/earn → no step 5 questions worth showing; skip to submit
+    if (chosen === "explore" || chosen === "earn") {
+      completeSignup(chosen, []);
+    } else {
+      setSelectedChips([]);
+      setBusinessStage("");
+      setInvestRange("");
+      setStep(5);
+    }
+  }
+
+  async function handleStep5(e: React.FormEvent) {
+    e.preventDefault();
+    await completeSignup(intent!, selectedChips);
+  }
+
+  async function completeSignup(chosenIntent: SignupIntent, chips: string[]) {
+    if (!signupToken) {
+      toast.error("Signup session expired. Please verify your email again.");
+      setStep(3);
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await dotApi.post<{ token: string; user: any }>(
+        "/api/auth/complete-signup",
+        {
+          signupToken,
+          password,
+          name: name.trim(),
+          // Pass metadata in the user table via separate endpoint after — for now skip
+        }
+      );
+      setToken(res.token);
+      await refresh();
       toast.success("Account created! Welcome to DOT.");
       navigate({ to: "/onboarding" });
     } catch (err) {
@@ -573,7 +636,7 @@ function SignupFlow({ onSwitchToSignin }: { onSwitchToSignin: () => void }) {
     }
   }
 
-  const totalSteps = intent === null ? 3 : (intent === "explore" || intent === "earn") ? 2 : 3;
+  const totalSteps = intent === null ? 4 : (intent === "explore" || intent === "earn") ? 3 : 4;
 
   return (
     <div className="flex min-h-screen flex-col bg-muted/30">
@@ -589,7 +652,7 @@ function SignupFlow({ onSwitchToSignin }: { onSwitchToSignin: () => void }) {
               </button>
             )}
             <div className="flex flex-1 gap-1.5">
-              {[1, 2, 3].slice(0, totalSteps).map((s) => (
+              {[1, 2, 3, 4].slice(0, totalSteps).map((s) => (
                 <div key={s} className={cn("h-1 flex-1 rounded-full transition-all", s <= step ? "bg-primary" : "bg-border")} />
               ))}
             </div>
@@ -682,56 +745,117 @@ function SignupFlow({ onSwitchToSignin }: { onSwitchToSignin: () => void }) {
             </>
           )}
 
-          {/* ── STEP 2: Intent ── */}
-          {step === 2 && (
-            <>
-              <div className="mb-6">
-                <h1 className="font-display text-2xl font-bold">What brings you to DOT?</h1>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Pick what fits you best right now. You can always change this later.
-                </p>
-              </div>
-              {/* 2-column grid of intent cards — more visual, less list-y.
-               * Each card is its own compact card (not a tall row). */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {INTENT_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.id}
-                    onClick={() => handleStep2(opt.id)}
-                    disabled={busy}
-                    className={cn(
-                      "group relative flex flex-col items-start gap-2 rounded-lg border p-3.5 text-left transition-all disabled:opacity-60 hover:border-foreground/30",
-                      opt.accentClass,
-                    )}
-                  >
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-current/20 bg-current/10">
-                      <opt.icon className="size-4" />
-                    </span>
-                    <div className="flex-1 min-w-0 w-full">
-                      <span className="block font-semibold text-sm leading-tight">{opt.label}</span>
-                      <span className="block text-[11px] opacity-70 mt-1 leading-snug">{opt.sub}</span>
-                    </div>
-                    <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 size-3.5 opacity-30 group-hover:opacity-70 group-hover:translate-x-0.5 transition-all" />
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
+          {/* ── STEP 3: OTP Verification ── */}
+                    {step === 3 && (
+                      <form onSubmit={handleStep3} className="space-y-5">
+                        <div className="mb-6">
+                          <p className="text-xs font-medium uppercase tracking-wider text-primary">
+                            Step 2 of 4
+                          </p>
+                          <h1 className="mt-1 font-display text-2xl font-bold">Check your email</h1>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            We sent a 6-digit code to <span className="font-medium text-foreground">{email}</span>.
+                            Enter it below to verify your email.
+                          </p>
+                        </div>
 
-          {/* ── STEP 3: Personalisation questions ── */}
-          {step === 3 && intent && (
-            <form onSubmit={handleStep3} className="space-y-5">
-              <div className="mb-6">
-                <h1 className="font-display text-2xl font-bold">
-                  {intent === "learn" && "What do you want to learn?"}
-                  {intent === "business" && "Where are you with your idea?"}
-                  {intent === "invest" && "How much are you thinking of investing?"}
-                  {intent === "community" && "Where are you based?"}
-                </h1>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  This helps us personalise your first experience. You can skip any question.
-                </p>
-              </div>
+                        <div className="flex justify-center py-4">
+                          <InputOTP
+                            maxLength={6}
+                            value={otpCode}
+                            onChange={setOtpCode}
+                            autoFocus
+                          >
+                            <InputOTPGroup>
+                              <InputOTPSlot index={0} />
+                              <InputOTPSlot index={1} />
+                              <InputOTPSlot index={2} />
+                              <InputOTPSlot index={3} />
+                              <InputOTPSlot index={4} />
+                              <InputOTPSlot index={5} />
+                            </InputOTPGroup>
+                          </InputOTP>
+                        </div>
+
+                        <Button type="submit" variant="hero" className="w-full" disabled={busy || otpCode.length !== 6}>
+                          {busy && <Loader2 className="size-4 animate-spin" />}
+                          {otpCode.length !== 6 ? "Enter the 6-digit code" : "Verify and continue"}
+                        </Button>
+
+                        <div className="flex items-center justify-between text-sm">
+                          <button
+                            type="button"
+                            onClick={() => setStep(1)}
+                            className="text-muted-foreground hover:text-foreground"
+                          >
+                            ← Change email
+                          </button>
+                          <button
+                            type="button"
+                            onClick={sendOtp}
+                            disabled={busy || resendCooldown > 0}
+                            className="text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend code"}
+                          </button>
+                        </div>
+                      </form>
+                    )}
+
+                    {/* ── STEP 4: Intent ── */}
+                    {step === 4 && (
+                      <>
+                        <div className="mb-6">
+                          <p className="text-xs font-medium uppercase tracking-wider text-primary">
+                            Step 3 of 4
+                          </p>
+                          <h1 className="mt-1 font-display text-2xl font-bold">What brings you to DOT?</h1>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            Pick what fits you best right now. You can always change this later.
+                          </p>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          {INTENT_OPTIONS.map((opt) => (
+                            <button
+                              key={opt.id}
+                              onClick={() => handleStep4(opt.id)}
+                              disabled={busy}
+                              className={cn(
+                                "group relative flex flex-col items-start gap-2 rounded-lg border p-3.5 text-left transition-all disabled:opacity-60 hover:border-foreground/30",
+                                opt.accentClass,
+                              )}
+                            >
+                              <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-current/20 bg-current/10">
+                                <opt.icon className="size-4" />
+                              </span>
+                              <div className="flex-1 min-w-0 w-full">
+                                <span className="block font-semibold text-sm leading-tight">{opt.label}</span>
+                                <span className="block text-[11px] opacity-70 mt-1 leading-snug">{opt.sub}</span>
+                              </div>
+                              <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 size-3.5 opacity-30 group-hover:opacity-70 group-hover:translate-x-0.5 transition-all" />
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+
+                    {/* ── STEP 5: Personalisation questions ── */}
+                    {step === 5 && intent && (
+                      <form onSubmit={handleStep5} className="space-y-5">
+                        <div className="mb-6">
+                          <p className="text-xs font-medium uppercase tracking-wider text-primary">
+                            Step 4 of 4
+                          </p>
+                          <h1 className="mt-1 font-display text-2xl font-bold">
+                            {intent === "learn" && "What do you want to learn?"}
+                            {intent === "business" && "Where are you with your idea?"}
+                            {intent === "invest" && "How much are you thinking of investing?"}
+                            {intent === "community" && "Where are you based?"}
+                          </h1>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            This helps us personalise your first experience. You can skip any question.
+                          </p>
+                        </div>
 
               {intent === "learn" && (
                 <div className="space-y-2">
@@ -799,7 +923,7 @@ function SignupFlow({ onSwitchToSignin }: { onSwitchToSignin: () => void }) {
               )}
 
               <div className="flex gap-3 pt-2">
-                <Button type="button" variant="outline" onClick={() => setStep(2)}>Back</Button>
+                <Button type="button" variant="outline" onClick={() => setStep(4)}>Back</Button>
                 <Button type="submit" variant="hero" className="flex-1" disabled={busy}>
                   {busy && <Loader2 className="size-4 animate-spin" />}
                   Create my account
