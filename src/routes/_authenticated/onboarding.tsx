@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Hammer, Rocket, Users, Briefcase, Loader2, ArrowRight, Check, Star } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { useDotAuth } from "@/contexts/DotAuthContext";
 import { Logo } from "@/components/site/Logo";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { Button } from "@/components/ui/button";
@@ -57,6 +58,7 @@ const ROLE_OPTIONS: { role: AppRole; title: string; desc: string; icon: typeof R
 function Onboarding() {
   const navigate = useNavigate();
   const { user, roles, profile, loading, refresh } = useAuth();
+  const { user: dotUser } = useDotAuth();
   const [step, setStep] = useState<1 | 2>(1);
   const [role, setRole] = useState<AppRole>("builder"); // Builder is preselected
   const [busy, setBusy] = useState(false);
@@ -68,8 +70,13 @@ function Onboarding() {
   const [bio, setBio] = useState("");
 
   useEffect(() => {
-    if (!loading && roles.length > 0) navigate({ to: "/dashboard" });
-  }, [loading, roles, navigate]);
+    // If user already completed onboarding (onboardedAt set) AND has multiple
+    // roles, they're not new — redirect to dashboard.
+    // New users (just OAuth signup) have only 'builder' role and no onboardedAt.
+    if (!loading && dotUser?.onboardedAt && roles.length > 1) {
+      navigate({ to: "/dashboard" });
+    }
+  }, [loading, dotUser, roles, navigate]);
 
   async function selectRole(r: AppRole) {
     setRole(r);

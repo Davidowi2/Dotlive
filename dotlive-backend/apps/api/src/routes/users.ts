@@ -87,17 +87,38 @@ export async function userRoutes(app: FastifyInstance) {
     }
 
     // Debit + grant role.
-    await debitWallet({
-      userId: sub,
-      amount: r.dotCost,
-      type: "Role Upgrade",
-      description: `Upgraded to ${role}`,
-    });
-    await db.insert(userRoles).values({ userId: sub, role } as any).onConflictDoNothing();
+        await debitWallet({
+          userId: sub,
+          amount: r.dotCost,
+          type: "Role Upgrade",
+          description: `Upgraded to ${role}`,
+        });
+        await db.insert(userRoles).values({ userId: sub, role } as any).onConflictDoNothing();
 
-    const user = await loadUserWithRoles(sub);
-    return reply.send({ user });
-  });
+        // Mark user as onboarded the first time they pick a non-default role.
+        await db.execute(sql`
+          UPDATE users
+          SET onboarded_at = NOW()
+          WHERE id = ${sub} AND onboarded_at IS NULL
+        `);
+
+        const user = await loadUserWithRoles(sub);
+        return reply.send({ user });
+      });
+
+      /** POST /api/users/me/complete-onboarding — marks the user as onboarded
+       *  without changing roles. Called after the user picks "Builder" (the default)
+       *  so they skip role-upgrade flow but still mark the onboarding as done. */
+      app.post("/users/me/complete-onboarding", { preHandler: app.authenticate }, async (req, reply) => {
+        const { sub } = req.user as { sub: string };
+        await db.execute(sql`
+          UPDATE users
+          SET onboarded_at = NOW()
+          WHERE id = ${sub} AND onboarded_at IS NULL
+        `);
+        const user = await loadUserWithRoles(sub);
+        return reply.send({ user });
+      });
 
   /** GET /api/users/:dotId — public profile lookup */
   app.get<{ Params: { dotId: string } }>("/users/:dotId", async (req, reply) => {
