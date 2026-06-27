@@ -115,7 +115,8 @@ export async function authRoutes(app: FastifyInstance) {
     });
     const params = new URLSearchParams({
       client_id: process.env.GOOGLE_CLIENT_ID,
-      redirect_uri: `${process.env.API_BASE_URL ?? "http://localhost:3001"}/api/auth/google/callback`,
+      // Always use the production callback URL by default. Override with GOOGLE_REDIRECT_URI for local dev.
+      redirect_uri: process.env.GOOGLE_REDIRECT_URI ?? "https://dotlive-api.onrender.com/api/auth/google/callback",
       response_type: "code",
       scope: "openid email profile",
       state,
