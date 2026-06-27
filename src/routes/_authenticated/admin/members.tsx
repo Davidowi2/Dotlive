@@ -94,9 +94,15 @@ function AdminMembersPage() {
   const [manageRolesFor, setManageRolesFor] = useState<MemberRow | null>(null);
 
   const membersQ = useQuery({
-    queryKey: ["admin", "members"],
-    queryFn: () => dotApi.get<MemberRow[]>("/api/admin/members"),
-  });
+      queryKey: ["admin", "members"],
+      queryFn: async () => {
+        // Backend returns { users: MemberRow[], nextCursor, total }
+        const res = await dotApi.get<{ users: MemberRow[]; nextCursor: string | null; total: number }>(
+          "/api/admin/users?limit=100",
+        );
+        return res.users ?? [];
+      },
+    });
 
   const filtered = useMemo(() => {
     const list = membersQ.data ?? [];

@@ -1,33 +1,32 @@
 /**
- * Admin layout — wraps all /admin/* routes with:
- *   - User AppShell (workspace sidebar)
- *   - Admin sidebar (dashboard, members, wallets, tokens, roles, content)
+ * Admin layout — full-page experience.
+ *
+ * Wraps all /admin/* routes with:
+ *   - AdminShell (NOT the workspace AppShell)
+ *   - Admin sidebar with all admin pages
+ *   - "Back to app" button in the top header to return to /dashboard
  *
  * Routes:
- *   /admin              → index dashboard (stats, alerts, recent ops)
- *   /admin/members      → All profiles (everyone in the DB, with search/filter)
- *   /admin/wallets      → Wallet overview + admin transfer
- *   /admin/tokens       → Token supply + cap visualization
- *   /admin/roles        → Roles hierarchy + audit log
- *
- * This is the new "admin has their own dashboard" — replaces the tabbed admin.tsx.
+ *   /admin              → dashboard
+ *   /admin/members      → all users
+ *   /admin/wallets      → wallet overview + admin transfer
+ *   /admin/tokens       → token supply + cap visualization
+ *   /admin/permissions  → role + permission matrix
+ *   /admin/roles        → super-admin only
  */
 
-import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
 import {
   Activity,
   Users,
   Wallet as WalletIcon,
   Coins,
   ShieldAlert,
-  BookOpen,
   ShieldCheck,
-  ArrowLeft,
 } from "lucide-react";
 
 import { useDotAuth } from "@/contexts/DotAuthContext";
-import { AppShell } from "@/components/app/AppShell";
-import { cn } from "@/lib/utils";
+import { AdminShell, AdminSidebar } from "@/components/app/AdminShell";
 import { Button } from "@/components/ui/button";
 
 export const Route: any = createFileRoute("/_authenticated/admin")({
@@ -37,12 +36,13 @@ export const Route: any = createFileRoute("/_authenticated/admin")({
 
 function AdminLayout() {
   const { roles } = useDotAuth();
+  const location = useLocation();
   const isSuperAdmin = roles.includes("super_admin");
   const isAdmin = roles.includes("admin") || isSuperAdmin;
 
   if (!isAdmin) {
     return (
-      <AppShell>
+      <AdminShell role="Access denied">
         <div className="mx-auto max-w-xl py-20 text-center">
           <ShieldAlert className="mx-auto size-12 text-muted-foreground" />
           <h2 className="mt-4 font-display text-2xl">Admin only</h2>
@@ -50,10 +50,12 @@ function AdminLayout() {
             Sign in with an admin account to access the admin dashboard.
           </p>
           <Button asChild className="mt-6">
-            <Link to="/auth" search={{ mode: "signin" }}>Sign in</Link>
+            <Link to="/auth" search={{ mode: "signin" }}>
+              Sign in
+            </Link>
           </Button>
         </div>
-      </AppShell>
+      </AdminShell>
     );
   }
 
@@ -63,63 +65,41 @@ function AdminLayout() {
     { label: "Wallets", to: "/admin/wallets", icon: WalletIcon },
     { label: "Tokens", to: "/admin/tokens", icon: Coins },
     { label: "Permissions", to: "/admin/permissions", icon: ShieldCheck },
-    ...(isSuperAdmin ? [{ label: "Roles", to: "/admin/roles", icon: ShieldAlert }] : []),
+    ...(isSuperAdmin
+      ? [{ label: "Roles", to: "/admin/roles", icon: ShieldAlert }]
+      : []),
   ];
 
   return (
-    <AppShell>
-      <div className="mx-auto max-w-7xl px-6 py-6">
-        {/* Back to app + breadcrumb */}
-        <div className="mb-4 flex items-center justify-between">
-          <Link
-            to="/dashboard"
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="size-3" />
-            Back to app
-          </Link>
-          <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
-            {isSuperAdmin ? "Super Admin" : "Admin"}
-          </span>
-        </div>
+    <AdminShell role={isSuperAdmin ? "Super Admin" : "Admin"}>
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-[200px_1fr] xl:grid-cols-[220px_1fr]">
+        {/* Admin sidebar (desktop only — mobile users use the bottom of the
+            topbar's "Back to app" button or browser back) */}
+        <aside className="hidden lg:block">
+          <AdminSidebar items={nav} currentPath={location.pathname} />
+        </aside>
 
-        <div className="grid gap-4 sm:gap-6 lg:grid-cols-[200px_1fr] xl:grid-cols-[220px_1fr]">
-          {/* Admin sidebar */}
-          <aside className="space-y-1">
-            <div className="mb-4 flex items-center gap-2 rounded-lg border border-border bg-card p-3">
-              <div className="rounded-lg bg-primary/10 p-2 text-primary">
-                <ShieldCheck className="size-4" />
-              </div>
-              <div>
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Admin console</div>
-                <h2 className="font-display text-sm">
-                  {isSuperAdmin ? "Super Admin" : "Admin"}
-                </h2>
-              </div>
-            </div>
+        {/* Mobile: horizontal scrollable nav */}
+        <div className="overflow-x-auto lg:hidden">
+          <div className="flex gap-2 pb-2">
             {nav.map((item) => (
               <Link
                 key={item.to}
                 to={item.to}
-                activeOptions={item.exact ? { exact: true } : undefined}
-                className={cn(
-                  "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
-                  "text-muted-foreground hover:bg-muted hover:text-foreground",
-                  "[&.active]:bg-primary/10 [&.active]:text-primary [&.active]:font-medium",
-                )}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
               >
-                <item.icon className="size-4" />
+                <item.icon className="size-3.5" />
                 {item.label}
               </Link>
             ))}
-          </aside>
+          </div>
+        </div>
 
-          {/* Content area */}
-          <main>
-            <Outlet />
-          </main>
+        {/* Content */}
+        <div>
+          <Outlet />
         </div>
       </div>
-    </AppShell>
+    </AdminShell>
   );
 }
