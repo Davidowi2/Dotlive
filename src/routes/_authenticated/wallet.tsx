@@ -68,7 +68,10 @@ import {
 } from "@/components/ui/dialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDotAuth } from "@/contexts/DotAuthContext";
-import { getBalance, getTransactions, transfer } from "@/api/wallet";
+import {
+  getBalance, getTransactions, transfer,
+  requestWithdrawal, verifyBankAccount, type WithdrawalRequest,
+} from "@/api/wallet";
 import { getByDotId } from "@/api/users";
 import { ApiError } from "@/types/api";
 // Paystack server functions removed — wired via Render API when configured.
@@ -157,7 +160,7 @@ function WalletPage() {
         const { dotApi } = await import("@/api/client");
         const [kycRes, wRes] = await Promise.all([
           dotApi.get<{ kyc: KycData | null }>("/api/kyc/me"),
-          dotApi.get<{ withdrawals: Withdrawal[] }>("/api/wallet/withdrawals"),
+          dotApi.get<{ withdrawals: WithdrawalRequest[] }>("/api/wallet/withdrawals"),
         ]);
         setKyc(kycRes?.kyc ?? null);
         setWithdrawals(wRes?.withdrawals ?? []);
@@ -175,7 +178,7 @@ function WalletPage() {
   const [transferOpen, setTransferOpen] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [kyc, setKyc] = useState<any>(null);
-  const [withdrawals, setWithdrawals] = useState<any[]>([]);
+  const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [bankInfo, setBankInfo] = useState({ accountName: "", accountNumber: "", bankCode: "", bankName: "" });
   const [withdrawSubmitting, setWithdrawSubmitting] = useState(false);
@@ -689,6 +692,44 @@ function WalletPage() {
         </DialogContent>
       </Dialog>
 
+      {/* ── Withdraw dialog (KYC gated) ── */}
+      <Dialog open={withdrawOpen} onOpenChange={setWithdrawOpen}>
+        <DialogContent>
+          {kyc?.status !== "approved" ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>Verify KYC to withdraw</DialogTitle>
+                <DialogDescription>
+                  DOT withdrawals to a Nigerian bank require identity verification.
+                  You currently have <strong>{kyc?.status ?? "no"}</strong> KYC.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setWithdrawOpen(false)}>
+                  Cancel
+                </Button>
+                <Button asChild>
+                  <Link to="/kyc">Start KYC</Link>
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <InlineWithdrawForm
+              balance={balance}
+              kycTier={kyc?.tier}
+              withdrawalLimit={kyc?.withdrawalLimit ?? 0}
+              onSuccess={() => {
+                qc.invalidateQueries({ queryKey: ["wallet"] });
+                qc.invalidateQueries({ queryKey: ["transactions"] });
+                qc.invalidateQueries({ queryKey: ["withdrawals"] });
+                setWithdrawOpen(false);
+              }}
+              onClose={() => setWithdrawOpen(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={!!receipt} onOpenChange={(o) => !o && setReceipt(null)}>
         <DialogContent>
           <DialogHeader>
@@ -861,6 +902,277 @@ function InlineTransferForm({
           >
             {busy && <Loader2 className="size-4 animate-spin" />}
             <Send className="size-4" /> Send {amount > 0 ? formatDot(amount) : ""} DOT
+          </Button>
+        </DialogFooter>
+      </form>
+    </>
+  );
+}
+
+/* ────────────────────────── Inline Withdraw Form ────────────────────────── */
+
+function InlineWithdrawForm({
+  balance,
+  kycTier,
+  withdrawalLimit,
+  onSuccess,
+  onClose,
+}: {
+  balance: number;
+  kycTier?: string;
+  withdrawalLimit: number;
+  onSuccess: () => void;
+  onClose: () => void;
+}) {
+  const [amount, setAmount] = useState<number>(Math.min(5000, balance));
+  const [bankCode, setBankCode] = useState("");
+  const [bankName, setBankName] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
+  const [accountName, setAccountName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [bankOpen, setBankOpen] = useState(false);
+
+  // Pull a static list of common Nigerian banks. Backend has /api/wallet/banks
+  // for full list; this avoids an extra round-trip when the dialog opens.
+  const BANKS: { code: string; name: string }[] = [
+    { code: "044", name: "Access Bank" },
+    { code: "023", name: "Citibank Nigeria" },
+    { code: "063", name: "Diamond Bank" },
+    { code: "050", name: "Ecobank Nigeria" },
+    { code: "070", name: "Fidelity Bank" },
+    { code: "011", name: "First Bank of Nigeria" },
+    { code: "214", name: "First City Monument Bank" },
+    { code: "058", name: "Guaranty Trust Bank" },
+    { code: "030", name: "Heritage Bank" },
+    { code: "301", name: "Jaiz Bank" },
+    { code: "082", name: "Keystone Bank" },
+    { code: "526", name: "Kuda Bank" },
+    { code: "100", name: "Lotus Bank" },
+    { code: "221", name: "Mainstreet Bank" },
+    { code: "999992", name: "Moniepoint MFB" },
+    { code: "999991", name: "OPay Digital Services" },
+    { code: "999993", name: "Palmpay" },
+    { code: "076", name: "Polaris Bank" },
+    { code: "101", name: "Providus Bank" },
+    { code: "125", name: "Rubies MFB" },
+    { code: "215", name: "Unity Bank" },
+    { code: "035", name: "Wema Bank" },
+    { code: "057", name: "Zenith Bank" },
+  ];
+
+  // Auto-verify the account name once both bankCode + 10 digits are filled
+  useEffect(() => {
+    if (bankCode.length === 3 && accountNumber.length === 10) {
+      setVerifying(true);
+      setError(null);
+      // Simple offline fallback: use the user's dotId if /verify-bank-account fails
+      // (the backend may not be wired yet; the user can still edit later).
+      verifyBankAccount(bankCode, accountNumber)
+        .then((res) => {
+          setAccountName(res.accountName);
+        })
+        .catch(() => {
+          setAccountName("");
+          // Soft fallback: just allow submission; admin can verify manually
+        })
+        .finally(() => setVerifying(false));
+    } else {
+      setAccountName("");
+    }
+  }, [bankCode, accountNumber]);
+
+  const filteredBanks = useMemo(() => {
+    const q = bankName.toLowerCase();
+    if (!q) return BANKS.slice(0, 8);
+    return BANKS.filter((b) => b.name.toLowerCase().includes(q)).slice(0, 8);
+  }, [bankName]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (amount <= 0) return setError("Amount must be positive.");
+    if (amount > balance) return setError("Insufficient balance.");
+    if (withdrawalLimit > 0 && amount > withdrawalLimit) {
+      return setError(
+        `Your current KYC tier allows up to ${formatDot(withdrawalLimit)} DOT per withdrawal.`,
+      );
+    }
+    if (!bankCode || !bankName) return setError("Pick a bank.");
+    if (!/^\d{10}$/.test(accountNumber)) {
+      return setError("Account number must be 10 digits.");
+    }
+    setBusy(true);
+    try {
+      await requestWithdrawal({
+        amount: Math.floor(amount),
+        bankCode,
+        bankName,
+        accountNumber,
+        accountName: accountName || "(to be verified)",
+      });
+      toast.success(
+        `Withdrawal request for ${formatDot(amount)} DOT submitted for review.`,
+      );
+      onSuccess();
+    } catch (err: any) {
+      const msg =
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Withdrawal failed";
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>Withdraw to bank</DialogTitle>
+        <DialogDescription>
+          Cash out DOT to your Nigerian bank account. Balance: {formatDot(balance)} DOT
+          {withdrawalLimit > 0 && (
+            <>
+              {" "}· KYC {kycTier?.replace("tier", "") ?? ""}: up to {formatDot(withdrawalLimit)} DOT
+            </>
+          )}
+        </DialogDescription>
+      </DialogHeader>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Amount */}
+        <div className="space-y-2">
+          <Label htmlFor="wd-amount">Amount (DOT)</Label>
+          <Input
+            id="wd-amount"
+            type="number"
+            min={1}
+            max={Math.min(balance, withdrawalLimit || balance)}
+            value={amount}
+            onChange={(e) => setAmount(Number(e.target.value))}
+          />
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>≈ {formatNaira(dotToNaira(amount))}</span>
+            <div className="flex gap-2">
+              {[1000, 5000, 10000].map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  className="rounded-full border border-border px-2 py-0.5 text-[10px] hover:bg-muted"
+                  onClick={() => setAmount(Math.min(v, balance))}
+                >
+                  {v >= 1000 ? `${v / 1000}k` : v}
+                </button>
+              ))}
+              <button
+                type="button"
+                className="rounded-full border border-border px-2 py-0.5 text-[10px] hover:bg-muted"
+                onClick={() =>
+                  setAmount(Math.min(balance, withdrawalLimit || balance))
+                }
+              >
+                Max
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Bank picker */}
+        <div className="space-y-2">
+          <Label htmlFor="wd-bank">Bank</Label>
+          <div className="relative">
+            <Input
+              id="wd-bank"
+              autoComplete="off"
+              value={bankName}
+              onFocus={() => setBankOpen(true)}
+              onChange={(e) => {
+                setBankName(e.target.value);
+                setBankOpen(true);
+              }}
+              placeholder="Search bank (e.g. GTBank, Zenith)"
+            />
+            {bankOpen && filteredBanks.length > 0 && (
+              <div className="absolute left-0 right-0 z-10 mt-1 max-h-48 overflow-y-auto rounded-lg border border-border bg-card shadow-lg">
+                {filteredBanks.map((b) => (
+                  <button
+                    key={b.code}
+                    type="button"
+                    className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-muted"
+                    onClick={() => {
+                      setBankCode(b.code);
+                      setBankName(b.name);
+                      setBankOpen(false);
+                    }}
+                  >
+                    <span>{b.name}</span>
+                    <span className="text-xs text-muted-foreground">{b.code}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Account number */}
+        <div className="space-y-2">
+          <Label htmlFor="wd-account">Account number</Label>
+          <Input
+            id="wd-account"
+            type="text"
+            inputMode="numeric"
+            maxLength={10}
+            value={accountNumber}
+            onChange={(e) =>
+              setAccountNumber(e.target.value.replace(/\D/g, "").slice(0, 10))
+            }
+            placeholder="0123456789"
+            autoComplete="off"
+          />
+          {verifying && (
+            <p className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Loader2 className="size-3 animate-spin" />
+              Verifying account…
+            </p>
+          )}
+          {!verifying && accountName && (
+            <p className="text-xs text-primary">✓ {accountName}</p>
+          )}
+        </div>
+
+        {error && (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive">
+            {error}
+          </div>
+        )}
+
+        <div className="rounded-lg border border-border bg-muted/30 p-2.5 text-xs text-muted-foreground">
+          Withdrawals are reviewed and processed within 1–2 business days.
+          You'll receive a notification when funds are sent.
+        </div>
+
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            variant="default"
+            disabled={
+              busy ||
+              verifying ||
+              amount <= 0 ||
+              !bankCode ||
+              accountNumber.length !== 10
+            }
+          >
+            {busy && <Loader2 className="size-4 animate-spin" />}
+            <ArrowDownToLine className="size-4" />
+            Withdraw {amount > 0 ? formatDot(amount) : ""} DOT
           </Button>
         </DialogFooter>
       </form>

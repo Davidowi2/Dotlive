@@ -21,6 +21,7 @@ import {
   Menu as MenuIcon,
   X,
   BarChart3,
+  HelpCircle,
   type LucideIcon,
 } from "lucide-react";
 import { Logo } from "@/components/site/Logo";
@@ -67,6 +68,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Admin",         to: "/admin",         icon: Shield,      roles: ["admin"],                   section: "admin" },
   /* always */
   { label: "Settings",      to: "/settings",      icon: Settings,                                   section: "main" },
+  { label: "Help",          to: "/help",          icon: HelpCircle,                                section: "main" },
 ];
 
 const SECTION_META: Record<string, { label: string }> = {

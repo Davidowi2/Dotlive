@@ -83,7 +83,7 @@ function AdminLayout() {
           </span>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
+        <div className="grid gap-4 sm:gap-6 lg:grid-cols-[200px_1fr] xl:grid-cols-[220px_1fr]">
           {/* Admin sidebar */}
           <aside className="space-y-1">
             <div className="mb-4 flex items-center gap-2 rounded-lg border border-border bg-card p-3">

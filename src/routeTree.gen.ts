@@ -16,7 +16,6 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PlatformRouteImport } from './routes/platform'
 import { Route as JourneyRouteImport } from './routes/journey'
 import { Route as InvestorsRouteImport } from './routes/investors'
-import { Route as HelpRouteImport } from './routes/help'
 import { Route as CommunitiesRouteImport } from './routes/communities'
 import { Route as AuthCallbackRouteImport } from './routes/auth-callback'
 import { Route as AuthRouteImport } from './routes/auth'
@@ -40,6 +39,7 @@ import { Route as AuthenticatedMeetingsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedKycRouteImport } from './routes/_authenticated/kyc'
 import { Route as AuthenticatedJudgeRouteImport } from './routes/_authenticated/judge'
 import { Route as AuthenticatedInvestorRouteImport } from './routes/_authenticated/investor'
+import { Route as AuthenticatedHelpRouteImport } from './routes/_authenticated/help'
 import { Route as AuthenticatedDiscoverRouteImport } from './routes/_authenticated/discover'
 import { Route as AuthenticatedDemoRouteImport } from './routes/_authenticated/demo'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -97,11 +97,6 @@ const JourneyRoute = JourneyRouteImport.update({
 const InvestorsRoute = InvestorsRouteImport.update({
   id: '/investors',
   path: '/investors',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const HelpRoute = HelpRouteImport.update({
-  id: '/help',
-  path: '/help',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CommunitiesRoute = CommunitiesRouteImport.update({
@@ -218,6 +213,11 @@ const AuthenticatedJudgeRoute = AuthenticatedJudgeRouteImport.update({
 const AuthenticatedInvestorRoute = AuthenticatedInvestorRouteImport.update({
   id: '/investor',
   path: '/investor',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedHelpRoute = AuthenticatedHelpRouteImport.update({
+  id: '/help',
+  path: '/help',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedDiscoverRoute = AuthenticatedDiscoverRouteImport.update({
@@ -353,7 +353,6 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/auth-callback': typeof AuthCallbackRoute
   '/communities': typeof CommunitiesRoute
-  '/help': typeof HelpRoute
   '/investors': typeof InvestorsRoute
   '/journey': typeof JourneyRoute
   '/platform': typeof PlatformRoute
@@ -369,6 +368,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/demo': typeof AuthenticatedDemoRouteWithChildren
   '/discover': typeof AuthenticatedDiscoverRouteWithChildren
+  '/help': typeof AuthenticatedHelpRoute
   '/investor': typeof AuthenticatedInvestorRoute
   '/judge': typeof AuthenticatedJudgeRoute
   '/kyc': typeof AuthenticatedKycRoute
@@ -408,7 +408,6 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/auth-callback': typeof AuthCallbackRoute
   '/communities': typeof CommunitiesRoute
-  '/help': typeof HelpRoute
   '/investors': typeof InvestorsRoute
   '/journey': typeof JourneyRoute
   '/platform': typeof PlatformRoute
@@ -423,6 +422,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/demo': typeof AuthenticatedDemoRouteWithChildren
   '/discover': typeof AuthenticatedDiscoverRouteWithChildren
+  '/help': typeof AuthenticatedHelpRoute
   '/investor': typeof AuthenticatedInvestorRoute
   '/judge': typeof AuthenticatedJudgeRoute
   '/kyc': typeof AuthenticatedKycRoute
@@ -464,7 +464,6 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/auth-callback': typeof AuthCallbackRoute
   '/communities': typeof CommunitiesRoute
-  '/help': typeof HelpRoute
   '/investors': typeof InvestorsRoute
   '/journey': typeof JourneyRoute
   '/platform': typeof PlatformRoute
@@ -480,6 +479,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/demo': typeof AuthenticatedDemoRouteWithChildren
   '/_authenticated/discover': typeof AuthenticatedDiscoverRouteWithChildren
+  '/_authenticated/help': typeof AuthenticatedHelpRoute
   '/_authenticated/investor': typeof AuthenticatedInvestorRoute
   '/_authenticated/judge': typeof AuthenticatedJudgeRoute
   '/_authenticated/kyc': typeof AuthenticatedKycRoute
@@ -521,7 +521,6 @@ export interface FileRouteTypes {
     | '/auth'
     | '/auth-callback'
     | '/communities'
-    | '/help'
     | '/investors'
     | '/journey'
     | '/platform'
@@ -537,6 +536,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/demo'
     | '/discover'
+    | '/help'
     | '/investor'
     | '/judge'
     | '/kyc'
@@ -576,7 +576,6 @@ export interface FileRouteTypes {
     | '/auth'
     | '/auth-callback'
     | '/communities'
-    | '/help'
     | '/investors'
     | '/journey'
     | '/platform'
@@ -591,6 +590,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/demo'
     | '/discover'
+    | '/help'
     | '/investor'
     | '/judge'
     | '/kyc'
@@ -631,7 +631,6 @@ export interface FileRouteTypes {
     | '/auth'
     | '/auth-callback'
     | '/communities'
-    | '/help'
     | '/investors'
     | '/journey'
     | '/platform'
@@ -647,6 +646,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/demo'
     | '/_authenticated/discover'
+    | '/_authenticated/help'
     | '/_authenticated/investor'
     | '/_authenticated/judge'
     | '/_authenticated/kyc'
@@ -688,7 +688,6 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   CommunitiesRoute: typeof CommunitiesRoute
-  HelpRoute: typeof HelpRoute
   InvestorsRoute: typeof InvestorsRoute
   JourneyRoute: typeof JourneyRoute
   PlatformRoute: typeof PlatformRoute
@@ -751,13 +750,6 @@ declare module '@tanstack/react-router' {
       path: '/investors'
       fullPath: '/investors'
       preLoaderRoute: typeof InvestorsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/help': {
-      id: '/help'
-      path: '/help'
-      fullPath: '/help'
-      preLoaderRoute: typeof HelpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/communities': {
@@ -919,6 +911,13 @@ declare module '@tanstack/react-router' {
       path: '/investor'
       fullPath: '/investor'
       preLoaderRoute: typeof AuthenticatedInvestorRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/help': {
+      id: '/_authenticated/help'
+      path: '/help'
+      fullPath: '/help'
+      preLoaderRoute: typeof AuthenticatedHelpRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/discover': {
@@ -1156,6 +1155,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDemoRoute: typeof AuthenticatedDemoRouteWithChildren
   AuthenticatedDiscoverRoute: typeof AuthenticatedDiscoverRouteWithChildren
+  AuthenticatedHelpRoute: typeof AuthenticatedHelpRoute
   AuthenticatedInvestorRoute: typeof AuthenticatedInvestorRoute
   AuthenticatedJudgeRoute: typeof AuthenticatedJudgeRoute
   AuthenticatedKycRoute: typeof AuthenticatedKycRoute
@@ -1185,6 +1185,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDemoRoute: AuthenticatedDemoRouteWithChildren,
   AuthenticatedDiscoverRoute: AuthenticatedDiscoverRouteWithChildren,
+  AuthenticatedHelpRoute: AuthenticatedHelpRoute,
   AuthenticatedInvestorRoute: AuthenticatedInvestorRoute,
   AuthenticatedJudgeRoute: AuthenticatedJudgeRoute,
   AuthenticatedKycRoute: AuthenticatedKycRoute,
@@ -1216,7 +1217,6 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   CommunitiesRoute: CommunitiesRoute,
-  HelpRoute: HelpRoute,
   InvestorsRoute: InvestorsRoute,
   JourneyRoute: JourneyRoute,
   PlatformRoute: PlatformRoute,

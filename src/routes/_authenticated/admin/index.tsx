@@ -115,49 +115,51 @@ function AdminDashboardPage() {
   const isError = statsQ.isError || opsQ.isError;
 
   return (
-    <div className="p-6 lg:p-8">
+    <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
       {/* Header */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="font-display text-2xl text-foreground sm:text-3xl">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Admin Console
+          </p>
+          <h1 className="mt-1 font-display text-2xl font-semibold text-foreground sm:text-3xl">
             Dashboard
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Overview of platform health, users, and recent admin actions.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              statsQ.refetch();
-              opsQ.refetch();
-            }}
-            disabled={isLoading}
-          >
-            <RefreshCw
-              className={`size-4 ${isLoading ? "animate-spin" : ""}`}
-            />
-            <span className="ml-2 hidden sm:inline">Refresh</span>
-          </Button>
-        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            statsQ.refetch();
+            opsQ.refetch();
+          }}
+          disabled={isLoading}
+          className="shrink-0"
+        >
+          <RefreshCw
+            className={`size-4 ${isLoading ? "animate-spin" : ""}`}
+          />
+          <span className="ml-2 hidden sm:inline">Refresh</span>
+        </Button>
       </div>
 
       {/* Error banner — non-blocking */}
       {isError && (
-        <div className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm text-amber-200">
-          Could not load stats. Pull-to-refresh or click Refresh to retry.
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm text-amber-200">
+          Could not load stats. Click Refresh to retry.
         </div>
       )}
 
-      {/* 8-card stat grid (2 cols on mobile, 4 on lg) */}
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* 8-card stat grid (1 col mobile, 2 col sm, 4 col xl) */}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           icon={Users}
           label="Users total"
           value={u.toLocaleString()}
-          sub={`${admins + superAdmins} admin · ${superAdmins} super`}
+          sub={`${admins + superAdmins} admin staff`}
         />
         <StatCard
           icon={Shield}
@@ -181,13 +183,13 @@ function AdminDashboardPage() {
           icon={Users}
           label="Communities"
           value={"—"}
-          sub="see Communities page"
+          sub="view Communities page"
         />
         <StatCard
           icon={TrendingUp}
           label="Challenges"
           value={"—"}
-          sub="see Challenges page"
+          sub="view Challenges page"
         />
         <StatCard
           icon={Activity}
@@ -204,19 +206,19 @@ function AdminDashboardPage() {
       </div>
 
       {/* Quick links row */}
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <QuickLink to="/admin/members" icon={Users} label="Members" />
-        <QuickLink to="/admin/wallets" icon={Wallet} label="Wallets" />
-        <QuickLink to="/admin/tokens" icon={Coins} label="Tokens" />
-        <QuickLink to="/admin/permissions" icon={Shield} label="Permissions" />
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <QuickLink to="/admin/members" icon={Users} label="Members" desc="Manage roles & bans" />
+        <QuickLink to="/admin/wallets" icon={Wallet} label="Wallets" desc="Transfer DOT between users" />
+        <QuickLink to="/admin/tokens" icon={Coins} label="Tokens" desc="Mint, burn, view supply" />
+        <QuickLink to="/admin/permissions" icon={Shield} label="Permissions" desc="Role + permission matrix" />
       </div>
 
       {/* Two-column row: recent activity + system health */}
-      <div className="mt-6 grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-3 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-base">
                 <Clock className="size-4" />
                 Recent admin actions
               </CardTitle>
@@ -323,24 +325,24 @@ function StatCard({
   sub?: string;
 }) {
   return (
-    <Card>
-      <CardContent className="pt-6">
-        <div className="flex items-start justify-between">
-          <div className="min-w-0">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+    <Card className="overflow-hidden">
+      <CardContent className="px-4 py-4 sm:px-5 sm:py-5">
+        <div className="flex items-start gap-3">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Icon className="size-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground truncate">
               {label}
             </p>
-            <p className="mt-2 font-display text-2xl font-semibold tabular-nums">
+            <p className="mt-1 font-display text-xl font-semibold tabular-nums sm:text-2xl">
               {value}
             </p>
             {sub && (
-              <p className="mt-1 truncate text-xs text-muted-foreground">
+              <p className="mt-0.5 text-xs text-muted-foreground truncate">
                 {sub}
               </p>
             )}
-          </div>
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <Icon className="size-4" />
           </div>
         </div>
       </CardContent>
@@ -352,23 +354,29 @@ function QuickLink({
   to,
   icon: Icon,
   label,
+  desc,
 }: {
   to: string;
   icon: React.ComponentType<{ className?: string }>;
   label: string;
+  desc?: string;
 }) {
   return (
     <Link to={to}>
-      <Card className="transition-colors hover:bg-muted/40">
-        <CardContent className="flex items-center gap-3 pt-6">
-          <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+      <Card className="h-full transition-colors hover:bg-muted/40 hover:border-primary/40">
+        <CardContent className="flex items-center gap-3 px-4 py-4 sm:px-5">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
             <Icon className="size-4" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="font-medium">{label}</p>
-            <p className="text-xs text-muted-foreground">Manage →</p>
+            <p className="font-medium text-sm">{label}</p>
+            {desc && (
+              <p className="mt-0.5 text-xs text-muted-foreground truncate">
+                {desc}
+              </p>
+            )}
           </div>
-          <ArrowRight className="size-4 text-muted-foreground" />
+          <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
         </CardContent>
       </Card>
     </Link>
