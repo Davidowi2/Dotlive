@@ -16,6 +16,12 @@ export interface VantageSubmitInput {
   fundability: number;
   investmentReadiness: number;
   stage?: string;
+  report?: {
+    strengths?: { label: string; score: number }[];
+    weaknesses?: { label: string; score: number }[];
+    nextActions?: string[];
+    stage?: string;
+  };
 }
 
 export async function submitAssessment(input: VantageSubmitInput): Promise<Assessment> {

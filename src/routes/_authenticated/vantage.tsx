@@ -118,8 +118,23 @@ function pillarScore(
   categoryScores: Record<string, number> | undefined,
 ): number {
   if (!categoryScores) return 0;
+  // Build a case-insensitive lookup. The frontend stores categoryScores keyed
+  // by the Title-Case label (e.g. "Team", "Product"), but PILLARS.sources
+  // uses question-id prefixes in lower-snake_case (e.g. "team", "product").
+  const lower = new Map<string, number>();
+  for (const [k, v] of Object.entries(categoryScores)) {
+    if (typeof v === "number") {
+      lower.set(k.toLowerCase().trim(), v);
+      // Also strip spaces so "Investment Readiness" → "investmentreadiness"
+      // matches "investment_readiness" via the underscore replacement below.
+      lower.set(k.toLowerCase().replace(/\s+/g, "").replace(/-/g, ""), v);
+    }
+  }
   const vals = sources
-    .map((k) => categoryScores[k])
+    .map((k) => {
+      const norm = k.toLowerCase().replace(/_/g, "");
+      return lower.get(norm);
+    })
     .filter((v): v is number => typeof v === "number");
   if (vals.length === 0) return 0;
   return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
@@ -232,21 +247,59 @@ function VantagePage() {
       const investmentReadiness = categoryScores[irLabel] ?? 0;
 
       // Stage from score (matches the spec)
-      let stage = "Assess";
-      if (score >= 80) stage = "Scale";
-      else if (score >= 60) stage = "Fund";
-      else if (score >= 40) stage = "Build";
-      else if (score >= 20) stage = "Validate";
+            let stage = "Assess";
+            if (score >= 80) stage = "Scale";
+            else if (score >= 60) stage = "Fund";
+            else if (score >= 40) stage = "Build";
+            else if (score >= 20) stage = "Validate";
 
-      const result = await submitAssessment({
-        answers: answers as Record<string, number>,
-        categoryScores,
-        score,
-        vantagePoint,
-        fundability,
-        investmentReadiness,
-        stage,
-      });
+            // Build a venture report — strengths / weaknesses / nextActions
+            // derived from categoryScores. Strong = score >= 75, weak = < 50.
+            const sortedCats = Object.entries(categoryScores)
+              .map(([label, score]) => ({ label, score }))
+              .sort((a, b) => b.score - a.score);
+            const strengths = sortedCats.filter((c) => c.score >= 75).slice(0, 3);
+            const weaknesses = sortedCats.filter((c) => c.score < 50).slice(0, 3);
+            const nextActions: string[] = [];
+            if (weaknesses.length > 0) {
+              nextActions.push(
+                `Improve your weakest area: ${weaknesses[0].label} (currently ${weaknesses[0].score}%). Focus on getting this above 60.`,
+              );
+            }
+            if (score < 40) {
+              nextActions.push(
+                "Recruit at least one co-founder or key advisor with relevant industry experience.",
+              );
+            } else if (score < 60) {
+              nextActions.push(
+                "Run a structured customer-discovery round (10+ interviews) to validate demand before pitching.",
+              );
+            } else if (score < 80) {
+              nextActions.push(
+                "Define a clear 12-month revenue plan with milestone-based projections.",
+              );
+            } else {
+              nextActions.push(
+                "Apply to DOT Demo or pitch your strongest capital partner — you're investor-ready.",
+              );
+            }
+            if (strengths.length > 0) {
+              nextActions.push(
+                `Lean into your strength: ${strengths[0].label} (${strengths[0].score}%). Use it as the headline of your next pitch.`,
+              );
+            }
+            const report = { strengths, weaknesses, nextActions, stage };
+
+            const result = await submitAssessment({
+              answers: answers as Record<string, number>,
+              categoryScores,
+              score,
+              vantagePoint,
+              fundability,
+              investmentReadiness,
+              stage,
+              report,
+            });
       toast.success(`Vantage complete! You scored ${result.vantagePoint} points.`);
       qc.invalidateQueries({ queryKey: ["assessments", user.id] });
       qc.invalidateQueries({ queryKey: ["founder_profile", user.id] });
