@@ -420,6 +420,32 @@ export const meetingRequests = pgTable("meeting_requests", {
       meeting_requests_founder_idx: index("meeting_requests_founder_idx").on(t.founderId),
   }));
 
+/* --------------------------- Investments (shares) -------------- */
+/**
+ * A record of an investor buying shares in a founder's venture.
+ * `sharePriceKobo` is captured at purchase time so future price changes
+ * don't affect historical purchases.
+ */
+export const investments = pgTable("investments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  investorId: text("investor_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  founderId: text("founder_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  shares: integer("shares").notNull(),
+  sharePriceKobo: integer("share_price_kobo").notNull(),
+  // Total DOT the investor paid (snapshot at purchase).
+  totalPaidDot: numeric("total_paid_dot", { precision: 20, scale: 2 }).notNull(),
+  // Wallet transaction ref for traceability.
+  walletTxId: text("wallet_tx_id"),
+  // Paystack reference (for record-keeping; payment is via Paystack transfer).
+  paystackRef: text("paystack_ref"),
+  status: text("status").notNull().default("confirmed"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+},
+  (t) => ({
+      investments_investor_idx: index("investments_investor_idx").on(t.investorId, t.createdAt),
+      investments_founder_idx: index("investments_founder_idx").on(t.founderId, t.createdAt),
+  }));
+
 /* --------------------------- Role requirements ----------------- */
 export const roleRequirements = pgTable("role_requirements", {
   role: text("role").primaryKey(),

@@ -23,6 +23,7 @@ import rateLimit from "@fastify/rate-limit";
 
 import { authRoutes }       from "./routes/auth.js";
 import { investorRoutes } from "./routes/investor.js";
+import { investmentsRoutes } from "./routes/investments.js";
 import { userRoutes }       from "./routes/users.js";
 import { walletRoutes }     from "./routes/wallet.js";
 import { ventureRoutes }    from "./routes/ventures.js";
@@ -258,6 +259,7 @@ await app.register(uploadRoutes,      { prefix: "/api" });
 await app.register(webhookRoutes,     { prefix: "/api" });
 await app.register(statsRoutes,       { prefix: "/api" });
 await app.register(investorRoutes,   { prefix: "/api" });
+await app.register(investmentsRoutes, { prefix: "/api" });
 await app.register(onboardingRoutes,  { prefix: "/api" });
   await app.register(osRoutes,           { prefix: "/api" });
 await app.register(withdrawalRoutes,    { prefix: "/api" });

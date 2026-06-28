@@ -12,12 +12,34 @@ import { and, eq, gte, sql as drizzleSql } from "drizzle-orm";
 import { db } from "../db/client.js";
 import { wallets, transactions } from "../db/schema.js";
 
+/**
+ * Conversion rate: 1 DOT = 15 NGN = 1,500 kobo.
+ *
+ * Single source of truth — DOT_RATE_NGN below.
+ * Adjust this if the on-ramp rate changes (Paystack + spreads).
+ */
+export const DOT_RATE_NGN = 15;
+export const KOBO_PER_DOT = DOT_RATE_NGN * 100;
+
 export function dotToNaira(dot: number | string): number {
-  return Math.round((typeof dot === "string" ? Number(dot) : dot) * 10);
+  return Math.round((typeof dot === "string" ? Number(dot) : dot) * DOT_RATE_NGN);
 }
 
 export function nairaToDot(naira: number | string): number {
-  return Math.round((typeof naira === "string" ? Number(naira) : naira) / 10);
+  return Math.round((typeof naira === "string" ? Number(naira) : naira) / DOT_RATE_NGN);
+}
+
+/**
+ * Shares are priced in kobo (smallest NGN unit).
+ *
+ *   koboToDot(1500) === 1
+ *   koboToDot(0)    === 0
+ */
+export function koboToDot(kobo: number | string): number {
+  // 2-decimal precision so a 50-kobo share displays as 0.03 DOT.
+  const n = typeof kobo === "string" ? Number(kobo) : kobo;
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.round((n / KOBO_PER_DOT) * 100) / 100;
 }
 
 type TxRunner = Parameters<Parameters<typeof db.transaction>[0]>[0];

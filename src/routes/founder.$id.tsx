@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Building2, MapPin, Globe, Gauge, TrendingUp, Target, BookOpen, Trophy,
@@ -7,7 +7,12 @@ import {
 } from "lucide-react";
 
 import { SiteHeader } from "@/components/site/SiteHeader";
+import { BuySharesDialog } from "@/components/investor/BuySharesDialog";
+import { useDotAuth } from "@/contexts/DotAuthContext";
+import { formatNaira, formatDot } from "@/lib/constants";
+import { getVentureInvestors } from "@/api/investments";
 import { SiteFooter } from "@/components/site/SiteFooter";
+import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -78,6 +83,21 @@ function PublicFounderProfile() {
 
   const [data, setData] = useState<FounderData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [buyOpen, setBuyOpen] = useState(false);
+  const { user } = useDotAuth();
+  const investorsQ = useQuery({
+    queryKey: ["venture-investors", data?.founder?.id],
+    queryFn: () => getVentureInvestors(data!.founder.id),
+    enabled: !!data?.founder?.id,
+    retry: false,
+  });
+  function onOpenBuy() {
+    if (!user) {
+      window.location.href = `/auth?mode=signin&next=${encodeURIComponent(typeof window !== "undefined" ? window.location.pathname : "/")}`;
+      return;
+    }
+    setBuyOpen(true);
+  }
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -163,15 +183,29 @@ function PublicFounderProfile() {
             </div>
           </div>
           <div className="flex flex-col items-end gap-2">
-            <Button asChild>
-              <Link to="/auth" search={{ mode: "signup" }}>Support this founder</Link>
-            </Button>
+            {profile && Number(profile.sharePriceKobo ?? 0) > 0 && Number(profile.sharesAvailable ?? 0) > 0 ? (
+              <BuyerButton profile={profile} onBuy={onOpenBuy} />
+            ) : (
+              <Button asChild variant="hero">
+                <Link to="/auth" search={{ mode: "signup" }}>Join DOT to invest</Link>
+              </Button>
+            )}
             <Button variant="outline" asChild>
               <Link to="/discover">Find more founders</Link>
             </Button>
           </div>
         </div>
       </section>
+
+      {/* Share offer — only when founder has priced shares */}
+      {profile && Number(profile.sharePriceKobo ?? 0) > 0 && (
+        <ShareOfferStrip profile={profile} onBuy={onOpenBuy} authed={!!user} />
+      )}
+
+      {/* Investors strip — only when there are confirmed investors */}
+      {investorsQ.data && investorsQ.data.investorCount > 0 && (
+        <InvestorsStrip investors={investorsQ.data} />
+      )}
 
       {/* KPI strip */}
       <section className="border-b border-border py-8">
@@ -248,6 +282,21 @@ function PublicFounderProfile() {
             </Button>
           </div>
         </section>
+      )}
+
+      {/* Buy Shares Dialog */}
+      {profile && (
+        <BuySharesDialog
+          open={buyOpen}
+          onOpenChange={setBuyOpen}
+          venture={{
+            founderId: data.founder.id,
+            founderName: data.founder.name,
+            ventureName: profile.ventureName ?? "this venture",
+            sharePriceKobo: Number(profile.sharePriceKobo ?? 0),
+            sharesAvailable: Number(profile.sharesAvailable ?? 0),
+          }}
+        />
       )}
 
       {/* Share footer */}
@@ -334,5 +383,71 @@ function ShareLink({ url }: { url: string }) {
         {copied ? "Copied!" : "Copy share link"}
       </Button>
     </div>
+  );
+}
+
+
+/* ───────── Investor UI helpers ───────── */
+
+function BuyerButton({ profile, onBuy }: { profile: any; onBuy: () => void }) {
+  return (
+    <Button variant="hero" onClick={onBuy}>
+      <ShoppingCart className="size-4" />
+      Buy shares · {formatNaira(Math.round(Number(profile.sharePriceKobo ?? 0) / 100))}
+    </Button>
+  );
+}
+
+function ShareOfferStrip({ profile, onBuy, authed }: { profile: any; onBuy: () => void; authed: boolean }) {
+  const priceKobo = Number(profile.sharePriceKobo ?? 0);
+  const available = Number(profile.sharesAvailable ?? 0);
+  const totalRaiseDot = (available * priceKobo) / 1500;
+  return (
+    <section className="border-b border-border bg-primary/5 py-8">
+      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+        <div className="rounded-2xl border-2 border-primary/30 bg-card p-6">
+          <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-medium tracking-widest uppercase text-primary">Open to investors</p>
+              <h2 className="mt-1 font-display text-2xl font-semibold">
+                {available.toLocaleString()} shares at {formatNaira(Math.round(priceKobo / 100))} each
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                ≈ {formatDot(totalRaiseDot)} DOT total raise available · prices are set by the founder
+              </p>
+            </div>
+            <Button variant="hero" onClick={onBuy} size="lg">
+              <ShoppingCart className="size-4" />
+              Buy shares
+            </Button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function InvestorsStrip({ investors }: { investors: { totalShares: number; totalRaisedDot: string; investorCount: number } }) {
+  return (
+    <section className="border-b border-border py-8">
+      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+        <h2 className="font-display text-xl">Backed by {investors.investorCount} investor{investors.investorCount === 1 ? "" : "s"}</h2>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-xl border border-border bg-card p-4">
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">Total raised</div>
+            <div className="mt-1 font-display text-2xl tabular-nums">
+              {formatDot(Number(investors.totalRaisedDot))} DOT
+            </div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              ≈ {formatNaira(Math.round(Number(investors.totalRaisedDot) * 15))}
+            </div>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-4">
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">Shares sold</div>
+            <div className="mt-1 font-display text-2xl tabular-nums">{investors.totalShares.toLocaleString()}</div>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }

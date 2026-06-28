@@ -2,6 +2,7 @@
 
 export const DOT_RATE_NGN = 15; // 1 DOT = ₦15
 export const MIN_DEPOSIT_DOT = 2000; // minimum deposit
+export const KOBO_PER_DOT = DOT_RATE_NGN * 100; // 1 DOT = 1,500 kobo
 
 export function dotToNaira(dot: number): number {
   return Math.round(dot * DOT_RATE_NGN);
