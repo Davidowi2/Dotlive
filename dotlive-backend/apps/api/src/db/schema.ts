@@ -1033,6 +1033,7 @@ export const certificates = pgTable("certificates", {
   credentialId: text("credential_id").notNull().unique(),  // public ID for verification
   issuedAt: timestamp("issued_at", { withTimezone: true }).notNull().defaultNow(),
   expiresAt: timestamp("expires_at", { withTimezone: true }),
+  meta: jsonb("meta"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   certUserIdx: index("certificates_user_idx").on(t.userId),

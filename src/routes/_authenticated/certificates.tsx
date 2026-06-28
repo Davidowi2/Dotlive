@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Award,
   Download,
@@ -8,60 +10,88 @@ import {
   Calendar,
   Trophy,
   ShieldCheck,
+  Sparkles,
+  Loader2,
 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
 import { EmptyState } from "@/components/app/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { dotApi } from "@/api/client";
+import { useDotAuth } from "@/contexts/DotAuthContext";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/certificates")({
   head: () => ({ meta: [{ title: "Certificates — DOT" }] }),
   component: CertificatesPage,
 });
 
-/* Sample placeholder inventory — these illustrate the visual shape of a
- * certificate card. Real issuance will come from the Academy once a course
- * is completed and graded. Until then, counts and dates are illustrative. */
-const SAMPLE_CERTS = [
-  {
-    id: "1",
-    title: "LEAPFROG Founder Foundations",
-    course: "DOT Academy",
-    issuer: "DOT",
-    issued: "Jun 15, 2026",
-    score: 92,
-    dotEarned: 500,
-    level: "Foundations",
-    credentialId: "DOT-FF-2026-0184",
-  },
-  {
-    id: "2",
-    title: "Venture Design Thinking",
-    course: "DOT Academy",
-    issuer: "DOT",
-    issued: "Jun 10, 2026",
-    score: 88,
-    dotEarned: 750,
-    level: "Intermediate",
-    credentialId: "DOT-VDT-2026-0091",
-  },
-  {
-    id: "3",
-    title: "Customer Discovery Mastery",
-    course: "DOT Academy",
-    issuer: "DOT",
-    issued: "May 28, 2026",
-    score: 95,
-    dotEarned: 1000,
-    level: "Advanced",
-    credentialId: "DOT-CDM-2026-0063",
-  },
-];
+interface Certificate {
+  id: string;
+  userId: string;
+  courseId: string | null;
+  title: string;
+  issuer: string;
+  score: number | null;
+  dotEarned: number;
+  level: string | null;
+  credentialId: string;
+  issuedAt: string;
+}
 
 function CertificatesPage() {
-  const totalDot = SAMPLE_CERTS.reduce((sum, c) => sum + c.dotEarned, 0);
-  const latest = SAMPLE_CERTS[0];
+  const { token } = useDotAuth();
+  const qc = useQueryClient();
+  const [seeding, setSeeding] = useState(false);
+
+  const certsQ = useQuery({
+    queryKey: ["certificates", "me"],
+    queryFn: async () => {
+      const r = await dotApi.get<{ certificates: Certificate[] }>("/api/certificates/me");
+      return r.certificates ?? [];
+    },
+  });
+
+  const seedM = useMutation({
+    mutationFn: async () => {
+      const r = await fetch("/api/certificates/seed", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
+      if (!r.ok) throw new Error((await r.text()) || "Failed to seed");
+      return r.json();
+    },
+    onSuccess: () => {
+      toast.success("Sample certificates added");
+      qc.invalidateQueries({ queryKey: ["certificates", "me"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Failed"),
+  });
+
+  const downloadCert = async (id: string, credentialId: string) => {
+    try {
+      const res = await fetch(`/api/certificates/${id}/download`, {
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
+      if (!res.ok) throw new Error("Download failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `DOT-${credentialId}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Certificate downloaded");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Download failed");
+    }
+  };
+
+  const certs = certsQ.data ?? [];
+  const totalDot = certs.reduce((sum, c) => sum + c.dotEarned, 0);
+  const latest = certs[0];
+  const loading = certsQ.isLoading;
 
   return (
     <AppShell>
@@ -72,13 +102,18 @@ function CertificatesPage() {
         action={
           <Badge variant="secondary" className="font-medium">
             <Award className="mr-1.5 size-3" />
-            {SAMPLE_CERTS.length} earned
+            {certs.length} earned
           </Badge>
         }
       />
 
-      {SAMPLE_CERTS.length === 0 ? (
-        <div className="mt-10">
+      {loading ? (
+        <div className="mt-10 flex items-center justify-center py-12 text-sm text-muted-foreground">
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          Loading your certificates…
+        </div>
+      ) : certs.length === 0 ? (
+        <div className="mt-10 space-y-4">
           <EmptyState
             icon={Award}
             title="No certificates yet"
@@ -90,6 +125,24 @@ function CertificatesPage() {
               </Button>
             }
           />
+          {/* Quick-seed for dev: lets new users see real certificate cards without doing a course first */}
+          <div className="mx-auto max-w-md rounded-xl border border-dashed border-border bg-card/40 p-4 text-center">
+            <Sparkles className="mx-auto size-4 text-amber-500" />
+            <p className="mt-2 text-sm font-medium">Test the experience</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Add three sample certificates to your profile so you can see how Download + View work.
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              className="mt-3"
+              disabled={seedM.isPending}
+              onClick={() => seedM.mutate()}
+            >
+              {seedM.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
+              {seedM.isPending ? "Adding…" : "Add sample certificates"}
+            </Button>
+          </div>
         </div>
       ) : (
         <>
@@ -98,7 +151,7 @@ function CertificatesPage() {
             <SummaryTile
               icon={Trophy}
               label="Certificates earned"
-              value={String(SAMPLE_CERTS.length)}
+              value={String(certs.length)}
               sub="across Academy"
               accent="primary"
             />
@@ -209,7 +262,7 @@ function CertificatesPage() {
             />
 
             <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {SAMPLE_CERTS.map((c) => (
+              {certs.map((c) => (
                 <article
                   key={c.id}
                   className="flex flex-col rounded-sm border border-border bg-card p-5 transition-all hover:border-foreground/20"
@@ -220,7 +273,7 @@ function CertificatesPage() {
                       <Award className="size-6" />
                     </span>
                     <Badge variant="outline" className="text-[10px]">
-                      {c.level}
+                      {c.level ?? "—"}
                     </Badge>
                   </div>
 
@@ -228,7 +281,7 @@ function CertificatesPage() {
                     {c.title}
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    Issued by {c.issuer} · {c.course}
+                    Issued by {c.issuer} · {new Date(c.issuedAt).toLocaleDateString()}
                   </p>
 
                   <dl className="mt-3 grid grid-cols-2 gap-3 text-xs">
@@ -237,7 +290,7 @@ function CertificatesPage() {
                         Score
                       </dt>
                       <dd className="mt-0.5 font-display text-lg font-light tabular text-primary">
-                        {c.score}<span className="text-xs text-muted-foreground">/100</span>
+                        {c.score ?? "—"}{c.score != null && <span className="text-xs text-muted-foreground">/100</span>}
                       </dd>
                     </div>
                     <div>
@@ -266,7 +319,12 @@ function CertificatesPage() {
                       <ExternalLink className="size-3.5" />
                       View
                     </Button>
-                    <Button variant="outline" size="sm" className="flex-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => downloadCert(c.id, c.credentialId)}
+                    >
                       <Download className="size-3.5" />
                       Download
                     </Button>
