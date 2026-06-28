@@ -396,12 +396,15 @@ export async function adminToolsRoutes(app: FastifyInstance) {
               return reply.code(404).send({ error: `Migration file not found: ${name}` });
             }
             const sqlText = fs.readFileSync(filePath, "utf8");
-            try {
-              await db.execute(sqlText as any);
-              return reply.send({ ok: true, applied: name });
-          } catch (err) {
-              return reply.code(500).send({ error: (err as Error).message, migration: name });
-            }
+                  try {
+                    // Use the raw pool (transaction-capable) instead of db.execute()
+                    // which expects a SQL tag template, not a raw string.
+                    const { pool } = await import("../db/client.js");
+                    await pool.query(sqlText);
+                    return reply.send({ ok: true, applied: name });
+                  } catch (err) {
+                    return reply.code(500).send({ error: (err as Error).message, migration: name });
+                  }
           },
         );
 }
