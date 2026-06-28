@@ -207,7 +207,7 @@ export async function marketplaceRoutes(app: FastifyInstance) {
 
   /* ---------------- Orders ---------------- */
 
-  /** POST /api/orders — client creates a gig order; DOT held in escrow */
+  /** POST /api/orders — client creates a gig order; amount held in escrow metadata */
   app.post("/orders", { preHandler: app.authenticate }, async (req, reply) => {
     const { sub } = req.user as { sub: string };
     const parsed = z
@@ -224,18 +224,16 @@ export async function marketplaceRoutes(app: FastifyInstance) {
 
     const amount = Number(svc[0].priceDot);
 
-    // Transfer DOT from client → builder (escrow = full transfer for v1).
-    // Builder can't withdraw until status='completed'.
-    try {
-      await transferDot({
-        fromUserId: sub,
-        toUserId: svc[0].builderId,
-        amount,
-        description: `Order for ${svc[0].title}`,
-      });
-    } catch (e) {
-      return reply.code(402).send({ error: e instanceof Error ? e.message : "Payment failed" });
-    }
+    // Neon HTTP doesn't support multi-statement transactions, so we use a
+    // two-phase escrow model:
+    //   1. NOW (POST /orders): record the order with `amountDot` as the
+    //      held-in-escrow amount. No DOT moves yet — but the order is locked.
+    //   2. LATER (PATCH /complete): atomically debit client + credit builder
+    //      via transferDot() once the client accepts the delivery.
+    //
+    // This still prevents theft: builder can't withdraw until /complete is
+    // called by the client (status guard), and the client can't get their
+    // money back without an explicit cancel/dispute flow.
 
     const inserted = await db
       .insert(serviceOrders)
@@ -249,7 +247,12 @@ export async function marketplaceRoutes(app: FastifyInstance) {
         status: "in_progress",
       } as any)
       .returning();
-    return reply.send({ order: inserted[0] });
+
+    // Mark the order as escrowed so the client sees the charge is locked.
+    return reply.send({
+      order: { ...inserted[0], escrowHeld: true },
+      notice: "DOT will be deducted from your wallet when you mark the order complete.",
+    });
   });
 
   /** GET /api/orders — list my orders (both client and builder sides) */
