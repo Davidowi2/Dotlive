@@ -99,13 +99,16 @@ function CommunityPage() {
   }
 
   if (!community) {
-    return (
-      <AppShell>
-        <PageHeader
-          eyebrow="Community OS"
-          title="Create your community"
-          subtitle="Launch a hub for founders in your region and start onboarding."
-          action={
+      return (
+        <AppShell>
+          <div className="mb-3">
+            <BackButton label="Back" fallback="/discover/communities" />
+          </div>
+          <PageHeader
+            eyebrow="Community OS"
+            title="Create your community"
+            subtitle="Launch a hub for founders in your region and start onboarding."
+            action={
             <Badge variant="outline" className="font-medium">
               <UserPlus className="mr-1.5 size-3" />
               New
