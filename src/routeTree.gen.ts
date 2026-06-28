@@ -54,7 +54,6 @@ import { Route as AuthenticatedJoinCodeRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedDiscoverCommunitiesRouteImport } from './routes/_authenticated/discover/communities'
 import { Route as AuthenticatedDemoIdRouteImport } from './routes/_authenticated/demo.$id'
 import { Route as AuthenticatedDealsIdRouteImport } from './routes/_authenticated/deals.$id'
-import { Route as AuthenticatedCommunityDashboardRouteImport } from './routes/_authenticated/community/dashboard'
 import { Route as AuthenticatedCapitalPortfolioRouteImport } from './routes/_authenticated/capital/portfolio'
 import { Route as AuthenticatedCIdRouteImport } from './routes/_authenticated/c.$id'
 import { Route as AuthenticatedAdminWalletsRouteImport } from './routes/_authenticated/admin/wallets'
@@ -293,12 +292,6 @@ const AuthenticatedDealsIdRoute = AuthenticatedDealsIdRouteImport.update({
   path: '/deals/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedCommunityDashboardRoute =
-  AuthenticatedCommunityDashboardRouteImport.update({
-    id: '/dashboard',
-    path: '/dashboard',
-    getParentRoute: () => AuthenticatedCommunityRoute,
-  } as any)
 const AuthenticatedCapitalPortfolioRoute =
   AuthenticatedCapitalPortfolioRouteImport.update({
     id: '/capital/portfolio',
@@ -364,7 +357,7 @@ export interface FileRoutesByFullPath {
   '/academy': typeof AuthenticatedAcademyRoute
   '/builder': typeof AuthenticatedBuilderRoute
   '/certificates': typeof AuthenticatedCertificatesRoute
-  '/community': typeof AuthenticatedCommunityRouteWithChildren
+  '/community': typeof AuthenticatedCommunityRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/demo': typeof AuthenticatedDemoRouteWithChildren
   '/discover': typeof AuthenticatedDiscoverRouteWithChildren
@@ -392,7 +385,6 @@ export interface FileRoutesByFullPath {
   '/admin/wallets': typeof AuthenticatedAdminWalletsRoute
   '/c/$id': typeof AuthenticatedCIdRoute
   '/capital/portfolio': typeof AuthenticatedCapitalPortfolioRoute
-  '/community/dashboard': typeof AuthenticatedCommunityDashboardRoute
   '/deals/$id': typeof AuthenticatedDealsIdRoute
   '/demo/$id': typeof AuthenticatedDemoIdRoute
   '/discover/communities': typeof AuthenticatedDiscoverCommunitiesRoute
@@ -418,7 +410,7 @@ export interface FileRoutesByTo {
   '/academy': typeof AuthenticatedAcademyRoute
   '/builder': typeof AuthenticatedBuilderRoute
   '/certificates': typeof AuthenticatedCertificatesRoute
-  '/community': typeof AuthenticatedCommunityRouteWithChildren
+  '/community': typeof AuthenticatedCommunityRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/demo': typeof AuthenticatedDemoRouteWithChildren
   '/discover': typeof AuthenticatedDiscoverRouteWithChildren
@@ -446,7 +438,6 @@ export interface FileRoutesByTo {
   '/admin/wallets': typeof AuthenticatedAdminWalletsRoute
   '/c/$id': typeof AuthenticatedCIdRoute
   '/capital/portfolio': typeof AuthenticatedCapitalPortfolioRoute
-  '/community/dashboard': typeof AuthenticatedCommunityDashboardRoute
   '/deals/$id': typeof AuthenticatedDealsIdRoute
   '/demo/$id': typeof AuthenticatedDemoIdRoute
   '/discover/communities': typeof AuthenticatedDiscoverCommunitiesRoute
@@ -475,7 +466,7 @@ export interface FileRoutesById {
   '/_authenticated/academy': typeof AuthenticatedAcademyRoute
   '/_authenticated/builder': typeof AuthenticatedBuilderRoute
   '/_authenticated/certificates': typeof AuthenticatedCertificatesRoute
-  '/_authenticated/community': typeof AuthenticatedCommunityRouteWithChildren
+  '/_authenticated/community': typeof AuthenticatedCommunityRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/demo': typeof AuthenticatedDemoRouteWithChildren
   '/_authenticated/discover': typeof AuthenticatedDiscoverRouteWithChildren
@@ -503,7 +494,6 @@ export interface FileRoutesById {
   '/_authenticated/admin/wallets': typeof AuthenticatedAdminWalletsRoute
   '/_authenticated/c/$id': typeof AuthenticatedCIdRoute
   '/_authenticated/capital/portfolio': typeof AuthenticatedCapitalPortfolioRoute
-  '/_authenticated/community/dashboard': typeof AuthenticatedCommunityDashboardRoute
   '/_authenticated/deals/$id': typeof AuthenticatedDealsIdRoute
   '/_authenticated/demo/$id': typeof AuthenticatedDemoIdRoute
   '/_authenticated/discover/communities': typeof AuthenticatedDiscoverCommunitiesRoute
@@ -560,7 +550,6 @@ export interface FileRouteTypes {
     | '/admin/wallets'
     | '/c/$id'
     | '/capital/portfolio'
-    | '/community/dashboard'
     | '/deals/$id'
     | '/demo/$id'
     | '/discover/communities'
@@ -614,7 +603,6 @@ export interface FileRouteTypes {
     | '/admin/wallets'
     | '/c/$id'
     | '/capital/portfolio'
-    | '/community/dashboard'
     | '/deals/$id'
     | '/demo/$id'
     | '/discover/communities'
@@ -670,7 +658,6 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/wallets'
     | '/_authenticated/c/$id'
     | '/_authenticated/capital/portfolio'
-    | '/_authenticated/community/dashboard'
     | '/_authenticated/deals/$id'
     | '/_authenticated/demo/$id'
     | '/_authenticated/discover/communities'
@@ -1018,13 +1005,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDealsIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/community/dashboard': {
-      id: '/_authenticated/community/dashboard'
-      path: '/dashboard'
-      fullPath: '/community/dashboard'
-      preLoaderRoute: typeof AuthenticatedCommunityDashboardRouteImport
-      parentRoute: typeof AuthenticatedCommunityRoute
-    }
     '/_authenticated/capital/portfolio': {
       id: '/_authenticated/capital/portfolio'
       path: '/capital/portfolio'
@@ -1108,20 +1088,6 @@ const AuthenticatedAdminRouteRouteWithChildren =
     AuthenticatedAdminRouteRouteChildren,
   )
 
-interface AuthenticatedCommunityRouteChildren {
-  AuthenticatedCommunityDashboardRoute: typeof AuthenticatedCommunityDashboardRoute
-}
-
-const AuthenticatedCommunityRouteChildren: AuthenticatedCommunityRouteChildren =
-  {
-    AuthenticatedCommunityDashboardRoute: AuthenticatedCommunityDashboardRoute,
-  }
-
-const AuthenticatedCommunityRouteWithChildren =
-  AuthenticatedCommunityRoute._addFileChildren(
-    AuthenticatedCommunityRouteChildren,
-  )
-
 interface AuthenticatedDemoRouteChildren {
   AuthenticatedDemoIdRoute: typeof AuthenticatedDemoIdRoute
 }
@@ -1151,7 +1117,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAcademyRoute: typeof AuthenticatedAcademyRoute
   AuthenticatedBuilderRoute: typeof AuthenticatedBuilderRoute
   AuthenticatedCertificatesRoute: typeof AuthenticatedCertificatesRoute
-  AuthenticatedCommunityRoute: typeof AuthenticatedCommunityRouteWithChildren
+  AuthenticatedCommunityRoute: typeof AuthenticatedCommunityRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDemoRoute: typeof AuthenticatedDemoRouteWithChildren
   AuthenticatedDiscoverRoute: typeof AuthenticatedDiscoverRouteWithChildren
@@ -1181,7 +1147,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAcademyRoute: AuthenticatedAcademyRoute,
   AuthenticatedBuilderRoute: AuthenticatedBuilderRoute,
   AuthenticatedCertificatesRoute: AuthenticatedCertificatesRoute,
-  AuthenticatedCommunityRoute: AuthenticatedCommunityRouteWithChildren,
+  AuthenticatedCommunityRoute: AuthenticatedCommunityRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDemoRoute: AuthenticatedDemoRouteWithChildren,
   AuthenticatedDiscoverRoute: AuthenticatedDiscoverRouteWithChildren,

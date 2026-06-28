@@ -7,12 +7,15 @@ import {
   Scripts,
   useRouter,
 } from "@tanstack/react-router";
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { DotAuthProvider } from "@/contexts/DotAuthContext";
+import { DotAuthProvider, useDotAuth } from "@/contexts/DotAuthContext";
 import { Toaster } from "@/components/ui/sonner";
 import { CookieConsent } from "@/components/CookieConsent";
+import { WizardOverlay } from "@/components/onboarding/WizardOverlay";
+import { fetchWizardState } from "@/api/wizard";
 
 function NotFoundComponent() {
   return (
@@ -175,9 +178,45 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <DotAuthProvider>
         <Outlet />
+        <WizardHost />
         <Toaster richColors position="top-center" />
         <CookieConsent />
       </DotAuthProvider>
     </QueryClientProvider>
   );
+}
+
+/**
+ * WizardHost — renders the onboarding wizard overlay on first sign-in.
+ * Subscribes to wizard state via the same query the overlay uses.
+ * Open the wizard automatically if state.completed === false AND
+ * the user is authenticated.
+ */
+function WizardHost() {
+  const [open, setOpen] = useState(false);
+  const [shown, setShown] = useState(false);
+  const { user } = useDotAuth();
+  const stateQ = useQuery({
+    queryKey: ["wizard", "state"],
+    queryFn: fetchWizardState,
+    enabled: !!user?.id,
+    staleTime: 60_000,
+  });
+
+  // Open the wizard once per session if user hasn't completed it.
+  useEffect(() => {
+    if (shown) return;
+    if (!user?.id) return;
+    if (stateQ.isLoading) return;
+    if (!stateQ.data) return;
+    if (stateQ.data.completed) return;
+    // Defer one tick so the page paints first.
+    const t = setTimeout(() => {
+      setOpen(true);
+      setShown(true);
+    }, 1200);
+    return () => clearTimeout(t);
+  }, [shown, user?.id, stateQ.isLoading, stateQ.data]);
+
+  return <WizardOverlay open={open} onClose={() => setOpen(false)} />;
 }

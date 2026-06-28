@@ -58,7 +58,6 @@ const NAV_ITEMS: NavItem[] = [
   /* community */
     { label: "Communities",   to: "/discover/communities", icon: Users, section: "community" },
     { label: "Community",     to: "/community",     icon: Users,       roles: ["community_leader"],        section: "community" },
-    { label: "Comm. Dashboard", to: "/community/dashboard", icon: BarChart3, roles: ["community_leader"], section: "community" },
   /* capital */
   { label: "DOT Demo",      to: "/demo",          icon: Building2,                                  section: "capital" },
   { label: "Investor Portal", to: "/investor",    icon: Briefcase,   roles: ["investor"],                section: "capital" },

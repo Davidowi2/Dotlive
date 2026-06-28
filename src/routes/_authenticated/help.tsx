@@ -16,6 +16,7 @@
 
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronDown,
   Sparkles,
@@ -44,6 +45,7 @@ import { PageHeader } from "@/components/app/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { resetWizard } from "@/api/wizard";
 
 export const Route = createFileRoute("/_authenticated/help")({
   head: () => ({ meta: [{ title: "Help — DOT" }] }),
@@ -587,6 +589,7 @@ function HelpPage() {
               We respond within 24 hours.
             </p>
             <div className="mt-4 flex flex-wrap justify-center gap-2">
+              <TourButton />
               <Button asChild>
                 <Link to="/dashboard">Open dashboard</Link>
               </Button>
@@ -633,5 +636,41 @@ function FaqAccordion({ item }: { item: FaqItem }) {
         </div>
       )}
     </Card>
+  );
+}
+
+/**
+ * TourButton — "Take the tour again" from Help. Resets the wizard
+ * state then triggers the WizardHost to re-open.
+ */
+function TourButton() {
+  const [opening, setOpening] = useState(false);
+  const qc = useQueryClient();
+  const resetM = useMutation({
+    mutationFn: resetWizard,
+    onSuccess: async () => {
+      // Clear the host's `shown` flag by remounting via a refresh trick:
+      // the simplest approach is to invalidate the state query and let
+      // WizardHost pick up that completed=false again.
+      await qc.invalidateQueries({ queryKey: ["wizard", "state"] });
+      // The wizard overlay's `open` state lives in __root; we trigger
+      // a one-off route reload by pushing a query param.
+      const url = new URL(window.location.href);
+      url.searchParams.set("tour", String(Date.now()));
+      window.location.href = url.toString();
+    },
+  });
+  return (
+    <Button
+      variant="outline"
+      onClick={() => {
+        setOpening(true);
+        resetM.mutate();
+      }}
+      disabled={opening || resetM.isPending}
+    >
+      <Sparkles className="size-4" />
+      {resetM.isPending ? "Starting tour…" : "Take the tour again"}
+    </Button>
   );
 }
