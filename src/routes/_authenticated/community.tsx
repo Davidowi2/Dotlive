@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { QRCodeCanvas } from "qrcode.react";
 import {
   Users,
@@ -13,6 +13,7 @@ import {
   QrCode,
   UserPlus,
   ArrowRight,
+  Lock,
 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { BackButton } from "@/components/app/BackButton";
@@ -43,7 +44,8 @@ export const Route = createFileRoute("/_authenticated/community")({
 });
 
 function CommunityPage() {
-  const { user } = useDotAuth();
+  const { user, roles } = useDotAuth();
+  const canCreateCommunity = roles.some((r) => r === "community_leader" || r === "admin" || r === "super_admin");
   const qc = useQueryClient();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -99,23 +101,75 @@ function CommunityPage() {
   }
 
   if (!community) {
-      return (
-        <AppShell>
-          <div className="mb-3">
-            <BackButton label="Back" fallback="/discover/communities" />
-          </div>
-          <PageHeader
-            eyebrow="Community OS"
-            title="Create your community"
-            subtitle="Launch a hub for founders in your region and start onboarding."
-            action={
+    return (
+      <AppShell>
+        <div className="mb-3">
+          <BackButton label="Back" fallback="/discover/communities" />
+        </div>
+        <PageHeader
+          eyebrow="Community OS"
+          title="Start a community"
+          subtitle={
+            canCreateCommunity
+              ? "Launch a hub for founders in your region and start onboarding."
+              : "Communities are owned by Community Leaders. Builders join them; leaders run them."
+          }
+          action={
             <Badge variant="outline" className="font-medium">
               <UserPlus className="mr-1.5 size-3" />
-              New
+              Community OS
             </Badge>
           }
         />
 
+        {!canCreateCommunity ? (
+          // ─── Gate screen for non-leaders ───
+          <section className="mt-8 max-w-xl rounded-sm border-2 border-dashed border-primary/30 bg-primary/5 p-8 text-center">
+            <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-primary/15">
+              <Lock className="size-6 text-primary" />
+            </div>
+            <h2 className="mt-4 font-display text-xl font-semibold">
+              Becoming a Community Leader is a 1,000 DOT commitment
+            </h2>
+            <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+              Builders join communities. Leaders <em>run</em> them. Leaders set
+              the on-shore rules, host sessions, and earn a referral share when
+              founders in their community raise capital.
+            </p>
+
+            <div className="mt-6 grid gap-3 text-left sm:grid-cols-3">
+              <div className="rounded-lg border border-border bg-card p-3">
+                <p className="text-[10px] font-medium tracking-widest uppercase text-muted-foreground">Earn</p>
+                <p className="mt-1 font-display text-sm font-semibold">5% referral share</p>
+                <p className="text-xs text-muted-foreground">on every raise in your community</p>
+              </div>
+              <div className="rounded-lg border border-border bg-card p-3">
+                <p className="text-[10px] font-medium tracking-widest uppercase text-muted-foreground">Reach</p>
+                <p className="mt-1 font-display text-sm font-semibold">Regional founders</p>
+                <p className="text-xs text-muted-foreground">your member list, your events</p>
+              </div>
+              <div className="rounded-lg border border-border bg-card p-3">
+                <p className="text-[10px] font-medium tracking-widest uppercase text-muted-foreground">Status</p>
+                <p className="mt-1 font-display text-sm font-semibold">Leader badge</p>
+                <p className="text-xs text-muted-foreground">on every community page</p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+              <Button asChild variant="hero">
+                <Link to="/settings">
+                  Become a Community Leader
+                  <ArrowRight className="size-4" />
+                </Link>
+              </Button>
+              <Button asChild variant="ghost">
+                <Link to="/discover/communities">
+                  Browse existing communities
+                </Link>
+              </Button>
+            </div>
+          </section>
+        ) : (
         <form
           onSubmit={handleCreate}
           className="mt-8 max-w-xl space-y-5 rounded-sm border border-border bg-card p-6"
@@ -178,6 +232,7 @@ function CommunityPage() {
             </Button>
           </div>
         </form>
+        )}
       </AppShell>
     );
   }
