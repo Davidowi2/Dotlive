@@ -81,16 +81,17 @@ export function EcosystemEmptyState({
   variant = "card",
   className,
 }: EcosystemEmptyStateProps) {
-  const { roles = [], isSuperAdmin } = useDotAuth() as {
+  const { roles = [], hasRole } = useDotAuth() as {
     roles?: UserRole[];
-    isSuperAdmin?: boolean;
+    hasRole?: (role: string) => boolean;
   };
 
   const requiredRoles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
-  const hasRequiredRole = isSuperAdmin || requiredRoles.some((r) => roles.includes(r));
-  const hasAnyAdminRole = isSuperAdmin || roles.some((r) =>
-    ["admin", "super_admin", "moderator", "support", "finance"].includes(r),
-  );
+  const checkHas = (r: UserRole) => (hasRole ? hasRole(r) : roles.includes(r));
+  const hasRequiredRole = requiredRoles.some(checkHas);
+  const hasAnyAdminRole =
+    checkHas("admin") || checkHas("super_admin") || checkHas("moderator") ||
+    checkHas("support") || checkHas("finance");
 
   const a = accentClasses[accent];
 
