@@ -46,17 +46,24 @@ type FounderData = {
     isCapitalPartner: boolean;
   };
   profile: {
-    ventureName: string;
-    industry: string;
-    stage: string;
-    country: string;
-    bio: string;
-    website: string;
-    fundingGoal: number;
-    logoUrl: string;
-    vantagePoint: number;
-    fundability: number;
-    investmentReadiness: number;
+      ventureName: string;
+      industry: string;
+      stage: string;
+      country: string;
+      bio: string;
+      website: string;
+      fundingGoal: number;
+      logoUrl: string;
+      vantagePoint: number;
+      fundability: number;
+      investmentReadiness: number;
+      // Tier 3 — share offer
+      sharePriceKobo?: number;
+    sharesAvailable?: number;
+    totalRaisedDot?: string;
+    headcount?: number;
+    annualRevenueDot?: string;
+    foundedYear?: number;
   } | null;
   stats: {
     totalVotes: number;
