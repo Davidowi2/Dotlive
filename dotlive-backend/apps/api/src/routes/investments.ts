@@ -201,10 +201,11 @@ export async function investmentsRoutes(app: FastifyInstance) {
     }
 
     // Decrement available shares, increment total raised.
+    // total_raised_dot is text — cast both sides to numeric for the addition.
     await db.execute(sql`
       UPDATE founder_profiles
       SET shares_available = shares_available - ${shares},
-          total_raised_dot = total_raised_dot + ${totalDot}::numeric,
+          total_raised_dot = (COALESCE(NULLIF(total_raised_dot, ''), '0')::numeric + ${totalDot}::numeric)::text,
           updated_at = NOW()
       WHERE user_id = ${founderId}
     `);
