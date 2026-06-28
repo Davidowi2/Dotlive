@@ -193,6 +193,13 @@ function RootComponent() {
  * the user is authenticated.
  */
 function WizardHost() {
+  // DISABLED: was crashing SSR with 'No QueryClient set' during prerender.
+  // The WizardOverlay is still available via the /onboarding route and /help page.
+  // July launch ships without auto-mount to avoid SSR errors.
+  return null;
+}
+
+function _wizardHostOriginal_DO_NOT_USE() {
   const [open, setOpen] = useState(false);
   const [shown, setShown] = useState(false);
   const { user } = useDotAuth();
