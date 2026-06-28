@@ -197,7 +197,7 @@ export async function transferDot(opts: {
     .where(
       and(
         eq(wallets.userId, fromUserId),
-        drizzleSql`balance >= ${amount}`,
+        drizzleSql`${wallets.balance} >= ${amount}`,
       ) as any,
     )
     .returning();
