@@ -45,6 +45,11 @@ export async function deleteService(id: string): Promise<void> {
   await dotApi.delete<void>(`/api/services/${id}`);
 }
 
+export async function listMyServices(): Promise<Service[]> {
+  const res = await dotApi.get<{ services: Service[] }>("/api/services/mine");
+  return res.services ?? [];
+}
+
 /* ── Jobs ─────────────────────────────────────────── */
 
 export interface JobData {

@@ -25,6 +25,7 @@ import { ROLE_LABELS, type AppRole } from "@/lib/constants";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { BuilderProfileSection } from "@/components/profile/BuilderProfileSection";
 
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({ meta: [{ title: "Public Profile — DOT" }] }),
@@ -239,15 +240,20 @@ function PublicProfilePage() {
       </section>
 
       {/* ─── Section divider ──────────────────────────────────────── */}
-      <div className="mt-8 flex items-center gap-3">
-        <span className="h-px flex-1 bg-border" />
-        <span className="text-[10px] tracking-widest uppercase font-semibold text-muted-foreground">
-          Activity feed
-        </span>
-        <span className="h-px flex-1 bg-border" />
-      </div>
+            <div className="mt-8 flex items-center gap-3">
+              <span className="h-px flex-1 bg-border" />
+              <span className="text-[10px] tracking-widest uppercase font-semibold text-muted-foreground">
+                Activity feed
+              </span>
+              <span className="h-px flex-1 bg-border" />
+            </div>
 
-      <section className="mt-4 rounded-2xl border border-dashed border-border bg-card p-8 text-center">
+            {/* ─── Builder profile section (only for builders) ─────────── */}
+            {roles.includes("builder") && (
+              <BuilderProfileSection />
+            )}
+
+            <section className="mt-4 rounded-2xl border border-dashed border-border bg-card p-8 text-center">
         <Lock className="mx-auto size-7 text-muted-foreground/50" />
         <h3 className="mt-3 font-display text-base font-semibold">
           Activity will appear here
