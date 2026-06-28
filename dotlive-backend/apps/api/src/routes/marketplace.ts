@@ -8,7 +8,7 @@ import { eq, and, desc, sql } from "drizzle-orm";
 
 import { db } from "../db/client.js";
 import { services, jobListings, serviceOrders, serviceReviews } from "../db/schema.js";
-import { transferDot, dotToNaira, creditWallet } from "../lib/dot.js";
+import { transferDot, dotToNaira, creditWallet, debitWallet } from "../lib/dot.js";
 import { userHasRole } from "../lib/auth.js";
 import { awardReputation } from "../lib/os-engine.js";
 
@@ -299,8 +299,20 @@ export async function marketplaceRoutes(app: FastifyInstance) {
     if (o[0].status !== "delivered") return reply.code(409).send({ error: "Builder has not delivered yet" });
 
     // Release escrow to builder (this also handles the wallet-side accounting).
-    // Use transferDot so it's atomic — client is debited (refund) and builder is credited.
-    // The amount was originally debited from the client into escrow at order creation.
+    // Two-phase model: client was NOT debited at order creation, so we must
+    // debit them now AND credit the builder. If the client has insufficient
+    // balance, surface the error and don't mark complete.
+    try {
+      await debitWallet({
+        userId: sub,
+        amount: Number(o[0].amountDot),
+        description: `Order ${o[0].id} payment`,
+        type: "debit",
+      });
+    } catch (e: any) {
+      return reply.code(402).send({ error: e?.message ?? "Insufficient balance to complete order" });
+    }
+
     try {
       await creditWallet({
         userId: o[0].builderId,
@@ -309,7 +321,15 @@ export async function marketplaceRoutes(app: FastifyInstance) {
         type: "credit",
       });
     } catch (e: any) {
-      // If we can't pay the builder, don't mark complete — surface the error.
+      // Best-effort: if credit fails after debit, try to refund the client.
+      try {
+        await creditWallet({
+          userId: sub,
+          amount: Number(o[0].amountDot),
+          description: `Refund: order ${o[0].id} credit failed`,
+          type: "credit",
+        });
+      } catch {}
       return reply.code(402).send({ error: e?.message ?? "Could not release escrow to builder" });
     }
 
