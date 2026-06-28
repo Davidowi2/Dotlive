@@ -32,6 +32,7 @@ import crypto from "node:crypto";
 import { db } from "../db/client.js";
 import { investments, users } from "../db/schema.js";
 import { debitWallet, creditWallet, koboToDot } from "../lib/dot.js";
+import { notify } from "../lib/notify.js";
 
 const buySchema = z.object({
   founderId: z.string().min(1),
@@ -222,6 +223,26 @@ export async function investmentsRoutes(app: FastifyInstance) {
         ${totalDot}::numeric, 'confirmed', NOW()
       )
     `);
+
+    // Fire notifications (fire-and-forget — don't block the response)
+    Promise.allSettled([
+      notify({
+        userId: founderId,
+        type: "system",
+        title: `New investor backed your venture`,
+        body: `Someone bought ${shares} share${shares === 1 ? "" : "s"} of your venture for ${totalDot} DOT`,
+        link: "/wallet",
+        icon: "Coins",
+      }),
+      notify({
+        userId: sub,
+        type: "system",
+        title: `Bought ${shares} share${shares === 1 ? "" : "s"}`,
+        body: `You invested ${totalDot} DOT in this venture`,
+        link: "/portfolio",
+        icon: "ShoppingCart",
+      }),
+    ]).catch(() => {});
 
     return reply.send({
       ok: true,

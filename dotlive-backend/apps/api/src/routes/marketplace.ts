@@ -351,6 +351,33 @@ export async function marketplaceRoutes(app: FastifyInstance) {
       .set({ status: "completed", completedAt: new Date(), updatedAt: new Date() } as any)
       .where(eq(serviceOrders.id, req.params.id))
       .returning();
+
+    // Fire notifications to both parties (fire-and-forget)
+    if (o[0]) {
+      Promise.allSettled([
+        import("../lib/notify.js").then(({ notify }) =>
+          notify({
+            userId: o[0].builderId,
+            type: "service_purchased",
+            title: "Order completed",
+            body: `Order for ${o[0].title ?? "service"} marked complete — escrowed DOT released.`,
+            link: `/builder/orders`,
+            icon: "CheckCircle2",
+          }),
+        ),
+        import("../lib/notify.js").then(({ notify }) =>
+          notify({
+            userId: o[0].clientId,
+            type: "service_purchased",
+            title: "Order completed",
+            body: `Your order is complete. Leave a review to help the builder's reputation.`,
+            link: `/builder/orders`,
+            icon: "CheckCircle2",
+          }),
+        ),
+      ]).catch(() => {});
+    }
+
     return reply.send({ order: updated[0] });
   });
 

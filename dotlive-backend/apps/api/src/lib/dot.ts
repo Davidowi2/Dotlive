@@ -11,6 +11,7 @@
 import { and, eq, gte, sql as drizzleSql } from "drizzle-orm";
 import { db } from "../db/client.js";
 import { wallets, transactions } from "../db/schema.js";
+import { notify } from "./notify.js";
 
 /**
  * Conversion rate: 1 DOT = 15 NGN = 1,500 kobo.
@@ -231,5 +232,28 @@ export async function transferDot(opts: {
       fromBalance: Number(debited[0].balance),
       toBalance: Number(credited[0].balance),
     };
+  }).then(async (result) => {
+    // Fire notifications AFTER the transaction commits.
+    // Both sender and recipient get a notif + email attempt.
+    // Don't await — don't block the transfer response on email.
+    Promise.allSettled([
+      notify({
+        userId: fromUserId,
+        type: "transfer_sent",
+        title: `Sent ${amount} DOT`,
+        body: desc,
+        link: "/wallet",
+        icon: "ArrowUpRight",
+      }),
+      notify({
+        userId: toUserId,
+        type: "transfer_received",
+        title: `Received ${amount} DOT`,
+        body: desc,
+        link: "/wallet",
+        icon: "ArrowDownLeft",
+      }),
+    ]).catch(() => {});
+    return result;
   });
 }
