@@ -15,6 +15,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
+import { BackButton } from "@/components/app/BackButton";
 import { PageHeader } from "@/components/app/PageHeader";
 import { StatCard } from "@/components/app/StatCard";
 import { EmptyState } from "@/components/app/EmptyState";
@@ -187,18 +188,21 @@ function CommunityPage() {
   const vantageDone = members.filter((m) => m.founder).length;
 
   return (
-    <AppShell>
-      <PageHeader
-        eyebrow="Community OS"
-        title={community.name}
-        subtitle={community.description ?? `Active in ${community.region ?? "your region"}.`}
-        action={
-          <Button variant="outline" size="sm">
-            <Share2 className="size-4" />
-            Share invite
-          </Button>
-        }
-      />
+      <AppShell>
+        <div className="mb-3">
+          <BackButton label="Back to communities" fallback="/discover/communities" />
+        </div>
+        <PageHeader
+          eyebrow="Community OS"
+          title={community.name}
+              subtitle={community.description ?? `Active in ${community.region ?? "your region"}.`}
+              action={
+                <Button variant="outline" size="sm">
+                  <Share2 className="size-4" />
+                  Share invite
+                </Button>
+              }
+            />
 
       {/* ─── Stats ─────────────────────────────────────────────────── */}
       <section className="mt-8">

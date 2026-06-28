@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/app/AppShell";
+import { BackButton } from "@/components/app/BackButton";
 import { PageHeader } from "@/components/app/PageHeader";
 import { EmptyState } from "@/components/app/EmptyState";
 import {
@@ -162,6 +163,9 @@ function ChannelsPage() {
   if (!communityId) {
     return (
       <AppShell>
+        <div className="mb-3">
+          <BackButton label="Back" fallback="/dashboard" />
+        </div>
         <PageHeader title="Community channels" subtitle="Pick a community to join the conversation" />
         <EmptyState
           icon={MessageSquare}
@@ -177,6 +181,9 @@ function ChannelsPage() {
 
   return (
     <AppShell>
+      <div className="mb-3">
+        <BackButton label="Back" fallback="/community" />
+      </div>
       <PageHeader
         title="Channels"
         subtitle={
