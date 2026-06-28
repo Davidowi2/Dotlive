@@ -56,7 +56,7 @@ interface BuilderProfile {
 }
 
 interface ReputationSummary {
-  score: number;
+  reputation: number;
   level: number;
   label: string;
 }
@@ -97,7 +97,7 @@ export function BuilderProfileSection() {
       try {
         return await dotApi.get<ReputationSummary>("/api/builder/level");
       } catch {
-        return { score: 0, level: 1, label: "Explorer" } as ReputationSummary;
+        return { reputation: 0, level: 1, label: "Explorer" } as ReputationSummary;
       }
     },
   });
@@ -188,7 +188,7 @@ export function BuilderProfileSection() {
           icon={Sparkles}
           tone="purple"
           label={reputation?.label ? `Level ${reputation.level} · ${reputation.label}` : "Reputation"}
-          value={reputation ? String(reputation.score) : "…"}
+          value={reputation ? String(reputation.reputation) : "…"}
           hint="Reputation points"
         />
       </section>
