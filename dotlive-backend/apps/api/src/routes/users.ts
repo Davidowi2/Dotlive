@@ -237,16 +237,31 @@ export async function userRoutes(app: FastifyInstance) {
     const bio = (body.bio as string) ?? null;
     const skills = Array.isArray(body.skills) ? (body.skills as string[]) : [];
     const available = body.available !== false;
-    await db.execute(sql`
-      INSERT INTO builder_profiles (id, headline, bio, skills, available, created_at, updated_at)
-      VALUES (${sub}, ${headline}, ${bio}, ${skills as any}, ${available}, NOW(), NOW())
-      ON CONFLICT (id) DO UPDATE SET
-        headline = EXCLUDED.headline,
-        bio = EXCLUDED.bio,
-        skills = EXCLUDED.skills,
-        available = EXCLUDED.available,
-        updated_at = NOW()
-    `);
+
+    // Use Drizzle UPSERT — the previous raw-SQL version failed with
+    // "column skills is of type text[] but expression is of type record"
+    // because pg's parameterized binding didn't accept the JS array directly.
+    // Drizzle serializes text[] arrays correctly.
+    await db
+      .insert(builderProfiles)
+      .values({
+        id: sub,
+        headline,
+        bio,
+        skills,
+        available,
+      } as any)
+      .onConflictDoUpdate({
+        target: builderProfiles.id,
+        set: {
+          headline,
+          bio,
+          skills,
+          available,
+          updatedAt: new Date(),
+        } as any,
+      });
+
     return reply.send({ ok: true });
   });
 

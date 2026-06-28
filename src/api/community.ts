@@ -44,7 +44,8 @@ export async function getReferralCode(): Promise<string | null> {
 }
 
 export async function createCommunity(data: CreateCommunityData): Promise<Community> {
-  const res = await dotApi.post<{ community: Community }>("/api/community", data);
+  // Backend exposes /api/communities (plural); the old /api/community (singular) returned 404.
+  const res = await dotApi.post<{ community: Community }>("/api/communities", data);
   return res.community;
 }
 

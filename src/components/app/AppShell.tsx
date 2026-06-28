@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/site/Logo";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { NotificationBell } from "@/components/app/NotificationBell";
 import { useDotAuth } from "@/contexts/DotAuthContext";
 import { cn } from "@/lib/utils";
 import { ROLE_LABELS, type AppRole } from "@/lib/constants";
@@ -138,6 +139,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Logo />
           <div className="flex items-center gap-2 sm:gap-3">
+            <NotificationBell />
             <ThemeToggle />
             {primaryRole && (
               <span className="hidden text-[10px] tracking-widest uppercase font-semibold text-primary sm:inline-flex sm:items-center sm:gap-1.5">
