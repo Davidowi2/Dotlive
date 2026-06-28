@@ -92,7 +92,7 @@ export async function creditWallet(
   const updated = await r
     .update(wallets)
     .set({
-      balance: drizzleSql`balance + ${amount}`,
+      balance: drizzleSql`${wallets.balance} + ${amount}`,
       updatedAt: new Date(),
     } as any)
     .where(eq(wallets.userId, userId))
@@ -131,7 +131,7 @@ export async function debitWallet(
   const result = await r
     .update(wallets)
     .set({
-      balance: drizzleSql`balance - ${amount}`,
+      balance: drizzleSql`${wallets.balance} - ${amount}`,
       updatedAt: new Date(),
     } as any)
     .where(
@@ -191,7 +191,7 @@ export async function transferDot(opts: {
   const debited = await db
     .update(wallets)
     .set({
-      balance: drizzleSql`balance - ${amount}`,
+      balance: drizzleSql`${wallets.balance} - ${amount}`,
       updatedAt: new Date(),
     } as any)
     .where(
@@ -214,7 +214,7 @@ export async function transferDot(opts: {
       .onConflictDoUpdate({
         target: wallets.userId,
         set: {
-          balance: drizzleSql`balance + ${amount}`,
+          balance: drizzleSql`${wallets.balance} + ${amount}`,
           updatedAt: new Date(),
         } as any,
       });
@@ -224,7 +224,7 @@ export async function transferDot(opts: {
       await db
         .update(wallets)
         .set({
-          balance: drizzleSql`balance + ${amount}`,
+          balance: drizzleSql`${wallets.balance} + ${amount}`,
           updatedAt: new Date(),
         } as any)
         .where(eq(wallets.userId, fromUserId));
