@@ -157,6 +157,15 @@ export const founderProfiles = pgTable("founder_profiles", {
   vantagePoint: integer("vantage_point").default(0),
   fundability: integer("fundability").default(0),
   investmentReadiness: integer("investment_readiness").default(0),
+  // Tier 2 — fields investors need to make a decision.
+  headcount: integer("headcount").default(0),
+  annualRevenueDot: text("annual_revenue_dot").default("0"),
+  foundedYear: integer("founded_year"),
+  totalRaisedDot: text("total_raised_dot").default("0"),
+  // Price per share, in kobo (smallest NGN unit). 1 DOT = 1500 kobo.
+  sharePriceKobo: integer("share_price_kobo").default(0),
+  // Total outstanding shares for sale to investors.
+  sharesAvailable: integer("shares_available").default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

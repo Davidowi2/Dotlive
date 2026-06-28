@@ -28,6 +28,7 @@ import { Route as FounderIdRouteImport } from './routes/founder.$id'
 import { Route as EventsSlugRouteImport } from './routes/events/$slug'
 import { Route as AuthenticatedWorkRouteImport } from './routes/_authenticated/work'
 import { Route as AuthenticatedWalletRouteImport } from './routes/_authenticated/wallet'
+import { Route as AuthenticatedVenturesRouteImport } from './routes/_authenticated/ventures'
 import { Route as AuthenticatedVantageRouteImport } from './routes/_authenticated/vantage'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedSessionsRouteImport } from './routes/_authenticated/sessions'
@@ -156,6 +157,11 @@ const AuthenticatedWorkRoute = AuthenticatedWorkRouteImport.update({
 const AuthenticatedWalletRoute = AuthenticatedWalletRouteImport.update({
   id: '/wallet',
   path: '/wallet',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedVenturesRoute = AuthenticatedVenturesRouteImport.update({
+  id: '/ventures',
+  path: '/ventures',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedVantageRoute = AuthenticatedVantageRouteImport.update({
@@ -380,6 +386,7 @@ export interface FileRoutesByFullPath {
   '/sessions': typeof AuthenticatedSessionsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/vantage': typeof AuthenticatedVantageRoute
+  '/ventures': typeof AuthenticatedVenturesRoute
   '/wallet': typeof AuthenticatedWalletRoute
   '/work': typeof AuthenticatedWorkRoute
   '/events/$slug': typeof EventsSlugRoute
@@ -434,6 +441,7 @@ export interface FileRoutesByTo {
   '/sessions': typeof AuthenticatedSessionsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/vantage': typeof AuthenticatedVantageRoute
+  '/ventures': typeof AuthenticatedVenturesRoute
   '/wallet': typeof AuthenticatedWalletRoute
   '/work': typeof AuthenticatedWorkRoute
   '/events/$slug': typeof EventsSlugRoute
@@ -491,6 +499,7 @@ export interface FileRoutesById {
   '/_authenticated/sessions': typeof AuthenticatedSessionsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/vantage': typeof AuthenticatedVantageRoute
+  '/_authenticated/ventures': typeof AuthenticatedVenturesRoute
   '/_authenticated/wallet': typeof AuthenticatedWalletRoute
   '/_authenticated/work': typeof AuthenticatedWorkRoute
   '/events/$slug': typeof EventsSlugRoute
@@ -548,6 +557,7 @@ export interface FileRouteTypes {
     | '/sessions'
     | '/settings'
     | '/vantage'
+    | '/ventures'
     | '/wallet'
     | '/work'
     | '/events/$slug'
@@ -602,6 +612,7 @@ export interface FileRouteTypes {
     | '/sessions'
     | '/settings'
     | '/vantage'
+    | '/ventures'
     | '/wallet'
     | '/work'
     | '/events/$slug'
@@ -658,6 +669,7 @@ export interface FileRouteTypes {
     | '/_authenticated/sessions'
     | '/_authenticated/settings'
     | '/_authenticated/vantage'
+    | '/_authenticated/ventures'
     | '/_authenticated/wallet'
     | '/_authenticated/work'
     | '/events/$slug'
@@ -834,6 +846,13 @@ declare module '@tanstack/react-router' {
       path: '/wallet'
       fullPath: '/wallet'
       preLoaderRoute: typeof AuthenticatedWalletRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/ventures': {
+      id: '/_authenticated/ventures'
+      path: '/ventures'
+      fullPath: '/ventures'
+      preLoaderRoute: typeof AuthenticatedVenturesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/vantage': {
@@ -1167,6 +1186,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSessionsRoute: typeof AuthenticatedSessionsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedVantageRoute: typeof AuthenticatedVantageRoute
+  AuthenticatedVenturesRoute: typeof AuthenticatedVenturesRoute
   AuthenticatedWalletRoute: typeof AuthenticatedWalletRoute
   AuthenticatedWorkRoute: typeof AuthenticatedWorkRoute
   AuthenticatedCIdRoute: typeof AuthenticatedCIdRoute
@@ -1197,6 +1217,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSessionsRoute: AuthenticatedSessionsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedVantageRoute: AuthenticatedVantageRoute,
+  AuthenticatedVenturesRoute: AuthenticatedVenturesRoute,
   AuthenticatedWalletRoute: AuthenticatedWalletRoute,
   AuthenticatedWorkRoute: AuthenticatedWorkRoute,
   AuthenticatedCIdRoute: AuthenticatedCIdRoute,

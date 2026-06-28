@@ -22,6 +22,7 @@ import {
   X,
   BarChart3,
   HelpCircle,
+  LineChart,
   type LucideIcon,
 } from "lucide-react";
 import { Logo } from "@/components/site/Logo";
@@ -60,6 +61,7 @@ const NAV_ITEMS: NavItem[] = [
     { label: "Community",     to: "/community",     icon: Users,       roles: ["community_leader"],        section: "community" },
   /* capital */
   { label: "DOT Demo",      to: "/demo",          icon: Building2,                                  section: "capital" },
+  { label: "My Venture",    to: "/ventures",      icon: LineChart,    roles: ["founder"],                 section: "capital" },
   { label: "Investor Portal", to: "/investor",    icon: Briefcase,   roles: ["investor"],                section: "capital" },
   { label: "Capital Partner", to: "/capital",     icon: Wallet,      roles: ["capital_partner"],         section: "capital" },
   { label: "Judge Portal",  to: "/judge",         icon: Trophy,      roles: ["investor", "admin"],       section: "capital" },

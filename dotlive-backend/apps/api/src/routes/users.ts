@@ -176,47 +176,61 @@ export async function userRoutes(app: FastifyInstance) {
   });
 
   /** POST /api/users/me/founder-profile */
-  app.post("/users/me/founder-profile", { preHandler: app.authenticate }, async (req, reply) => {
-    const { sub } = req.user as { sub: string };
-    const body = (req.body ?? {}) as Record<string, unknown>;
-    await db.execute(sql`
-      INSERT INTO founder_profiles (
-        user_id, venture_name, industry, stage, country,
-        bio, website, funding_goal, logo_url,
-        vantage_point, fundability, investment_readiness,
-        created_at, updated_at
-      )
-      VALUES (
-        ${sub},
-        ${(body.ventureName as string) ?? null},
-        ${(body.industry as string) ?? null},
-        ${(body.stage as string) ?? "Assess"},
-        ${(body.country as string) ?? null},
-        ${(body.bio as string) ?? null},
-        ${(body.website as string) ?? null},
-        ${(body.fundingGoal as string) ?? "0"},
-        ${(body.logoUrl as string) ?? null},
-        ${Number(body.vantagePoint ?? 0)},
-        ${Number(body.fundability ?? 0)},
-        ${Number(body.investmentReadiness ?? 0)},
-        NOW(), NOW()
-      )
-      ON CONFLICT (user_id) DO UPDATE SET
-        venture_name = EXCLUDED.venture_name,
-        industry = EXCLUDED.industry,
-        stage = EXCLUDED.stage,
-        country = EXCLUDED.country,
-        bio = EXCLUDED.bio,
-        website = EXCLUDED.website,
-        funding_goal = EXCLUDED.funding_goal,
-        logo_url = EXCLUDED.logo_url,
-        vantage_point = EXCLUDED.vantage_point,
-        fundability = EXCLUDED.fundability,
-        investment_readiness = EXCLUDED.investment_readiness,
-        updated_at = NOW()
-    `);
-    return reply.send({ ok: true });
-  });
+    app.post("/users/me/founder-profile", { preHandler: app.authenticate }, async (req, reply) => {
+      const { sub } = req.user as { sub: string };
+      const body = (req.body ?? {}) as Record<string, unknown>;
+      await db.execute(sql`
+        INSERT INTO founder_profiles (
+          user_id, venture_name, industry, stage, country,
+          bio, website, funding_goal, logo_url,
+          vantage_point, fundability, investment_readiness,
+          headcount, annual_revenue_dot, founded_year, total_raised_dot,
+          share_price_kobo, shares_available,
+          created_at, updated_at
+        )
+        VALUES (
+          ${sub},
+          ${(body.ventureName as string) ?? null},
+          ${(body.industry as string) ?? null},
+          ${(body.stage as string) ?? "Assess"},
+          ${(body.country as string) ?? null},
+          ${(body.bio as string) ?? null},
+          ${(body.website as string) ?? null},
+          ${(body.fundingGoal as string) ?? "0"},
+          ${(body.logoUrl as string) ?? null},
+          ${Number(body.vantagePoint ?? 0)},
+          ${Number(body.fundability ?? 0)},
+          ${Number(body.investmentReadiness ?? 0)},
+          ${Number(body.headcount ?? 0)},
+          ${(body.annualRevenueDot as string) ?? "0"},
+          ${body.foundedYear == null ? null : Number(body.foundedYear)},
+          ${(body.totalRaisedDot as string) ?? "0"},
+          ${Number(body.sharePriceKobo ?? 0)},
+          ${Number(body.sharesAvailable ?? 0)},
+          NOW(), NOW()
+        )
+        ON CONFLICT (user_id) DO UPDATE SET
+          venture_name = EXCLUDED.venture_name,
+          industry = EXCLUDED.industry,
+          stage = EXCLUDED.stage,
+          country = EXCLUDED.country,
+          bio = EXCLUDED.bio,
+          website = EXCLUDED.website,
+          funding_goal = EXCLUDED.funding_goal,
+          logo_url = EXCLUDED.logo_url,
+          vantage_point = EXCLUDED.vantage_point,
+          fundability = EXCLUDED.fundability,
+          investment_readiness = EXCLUDED.investment_readiness,
+          headcount = EXCLUDED.headcount,
+          annual_revenue_dot = EXCLUDED.annual_revenue_dot,
+          founded_year = EXCLUDED.founded_year,
+          total_raised_dot = EXCLUDED.total_raised_dot,
+          share_price_kobo = EXCLUDED.share_price_kobo,
+          shares_available = EXCLUDED.shares_available,
+          updated_at = NOW()
+      `);
+      return reply.send({ ok: true });
+    });
 
   /* ── Builder profile (builder_profiles table) ──────────────── */
   /** GET /api/users/me/builder-profile */
