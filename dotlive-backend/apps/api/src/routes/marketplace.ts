@@ -8,8 +8,9 @@ import { eq, and, desc, sql } from "drizzle-orm";
 
 import { db } from "../db/client.js";
 import { services, jobListings, serviceOrders, serviceReviews } from "../db/schema.js";
-import { transferDot, dotToNaira } from "../lib/dot.js";
+import { transferDot, dotToNaira, creditWallet } from "../lib/dot.js";
 import { userHasRole } from "../lib/auth.js";
+import { awardReputation } from "../lib/os-engine.js";
 
 const CATEGORIES = ["Graphics & Design", "Web Development", "Marketing", "Writing", "Video", "Other"] as const;
 const EMPLOYMENT = ["full_time", "part_time", "contract", "internship"] as const;
@@ -293,6 +294,34 @@ export async function marketplaceRoutes(app: FastifyInstance) {
     if (o.length === 0) return reply.code(404).send({ error: "Not found" });
     if (o[0].clientId !== sub) return reply.code(403).send({ error: "Not your order" });
     if (o[0].status !== "delivered") return reply.code(409).send({ error: "Builder has not delivered yet" });
+
+    // Release escrow to builder (this also handles the wallet-side accounting).
+    // Use transferDot so it's atomic — client is debited (refund) and builder is credited.
+    // The amount was originally debited from the client into escrow at order creation.
+    try {
+      await creditWallet({
+        userId: o[0].builderId,
+        amount: Number(o[0].amountDot),
+        description: `Order ${o[0].id} completed`,
+        type: "credit",
+      });
+    } catch (e: any) {
+      // If we can't pay the builder, don't mark complete — surface the error.
+      return reply.code(402).send({ error: e?.message ?? "Could not release escrow to builder" });
+    }
+
+    // Award reputation — completing a paid order is the core builder growth action.
+    try {
+      await awardReputation({
+        userId: o[0].builderId,
+        delta: 50,
+        reason: `Completed order ${o[0].id}`,
+        refType: "service_order",
+        refId: o[0].id,
+      });
+    } catch {
+      // Reputation is best-effort; don't fail the completion if it errors.
+    }
 
     const updated = await db
       .update(serviceOrders)
