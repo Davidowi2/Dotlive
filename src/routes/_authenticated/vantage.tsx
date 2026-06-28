@@ -186,18 +186,23 @@ function VantagePage() {
   const [answers, setAnswers] = useState<VantageAnswers>({});
   const [busy, setBusy] = useState(false);
 
-  const latest = assessments[assessments.length - 1];
-  const previous = assessments.length >= 2 ? assessments[assessments.length - 2] : undefined;
+  // Backend returns newest-first (desc createdAt), so the LATEST assessment
+    // is index 0, not the last element. Without this, the page shows stale data.
+    const latest = assessments[0];
+    const previous = assessments.length >= 2 ? assessments[1] : undefined;
 
-  const history = useMemo(
-    () =>
-      assessments.map((a) => ({
-        date: new Date(a.createdAt).toLocaleDateString("en", { month: "short", day: "numeric" }),
-        vantage: a.vantagePoint,
-        fundability: a.fundability,
-      })),
-    [assessments],
-  );
+    const history = useMemo(
+      () =>
+        // Reverse so the chart shows oldest → newest left-to-right.
+        [...assessments]
+          .reverse()
+          .map((a) => ({
+            date: new Date(a.createdAt).toLocaleDateString("en", { month: "short", day: "numeric" }),
+            vantage: a.vantagePoint,
+            fundability: a.fundability,
+          })),
+      [assessments],
+    );
 
   const current = FLAT_QUESTIONS[idx];
   const progress = ((idx + (answers[current?.id] ? 1 : 0)) / TOTAL_QUESTIONS) * 100;
