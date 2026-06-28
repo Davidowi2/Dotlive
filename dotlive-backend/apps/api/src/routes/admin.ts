@@ -1046,9 +1046,67 @@ export async function adminRoutes(app: FastifyInstance) {
       });
     } catch (err) {
       req.log.error({ err, id }, "builder stats failed");
-      return reply.code(500).send({ error: "Could not compute builder stats", details: String(err) });
-    }
-  });
+            return reply.code(500).send({ error: "Could not compute builder stats", details: String(err) });
+          }
+        });
+
+        /**
+         * One-off migration: Tier 3 (Buy Shares) schema additions.
+         * Adds founder_profiles columns + investments table.
+         * POST /api/admin/migrate-buy-shares
+         *
+         * Idempotent — uses ADD COLUMN IF NOT EXISTS / CREATE TABLE IF NOT EXISTS.
+         * Safe to call multiple times. Restricted to super_admin.
+         */
+        app.post(
+          "/migrate-buy-shares",
+          { preHandler: [app.authenticate] },
+          async (req, reply) => {
+            const adminId = (req.user as { sub: string }).sub;
+            const roles = await getUserRoles(adminId);
+            if (!roles.includes("super_admin")) {
+              return reply.code(403).send({ error: "Super admin only" });
+            }
+            try {
+              await db.execute(sql`
+                ALTER TABLE founder_profiles
+                ADD COLUMN IF NOT EXISTS headcount integer DEFAULT 0,
+                ADD COLUMN IF NOT EXISTS annual_revenue_dot text DEFAULT '0',
+                ADD COLUMN IF NOT EXISTS founded_year integer,
+                ADD COLUMN IF NOT EXISTS total_raised_dot text DEFAULT '0',
+                ADD COLUMN IF NOT EXISTS share_price_kobo integer DEFAULT 0,
+                ADD COLUMN IF NOT EXISTS shares_available integer DEFAULT 0;
+              `);
+              await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS investments (
+                  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                  investor_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                  founder_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                  shares integer NOT NULL,
+                  share_price_kobo integer NOT NULL,
+                  total_paid_dot numeric(20, 2) NOT NULL,
+                  wallet_tx_id text,
+                  paystack_ref text,
+                  status text NOT NULL DEFAULT 'confirmed',
+                  created_at timestamptz NOT NULL DEFAULT NOW()
+                );
+              `);
+              await db.execute(sql`
+                CREATE INDEX IF NOT EXISTS investments_investor_idx
+                  ON investments(investor_id, created_at);
+              `);
+              await db.execute(sql`
+                CREATE INDEX IF NOT EXISTS investments_founder_idx
+                  ON investments(founder_id, created_at);
+              `);
+              req.log.info({ adminId }, "migrate-buy-shares applied");
+              return reply.send({ ok: true, applied: ["founder_profiles columns", "investments table", "investments indexes"] });
+            } catch (err: any) {
+              req.log.error({ err }, "migrate-buy-shares failed");
+              return reply.code(500).send({ error: "Migration failed", details: String(err) });
+            }
+          },
+        );
 
 }
 
