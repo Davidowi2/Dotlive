@@ -46,6 +46,7 @@ import { extrasRoutes } from "./routes/extras.js";
 import { otpRoutes } from "./routes/otp.js";
 import { paymentsRoutes } from "./routes/payments.js";
 import { magicLinkRoutes } from "./routes/magic-link.js";
+import { notificationsRoutes } from "./routes/notifications.js";
 
 /* ── Env validation ─────────────────────────────────────────── */
 
@@ -267,6 +268,7 @@ await app.register(withdrawalRoutes,    { prefix: "/api" });
   await app.register(otpRoutes,                    { prefix: "/api" });
   await app.register(paymentsRoutes,                { prefix: "/api" });
   await app.register(magicLinkRoutes,                { prefix: "/api" });
+  await app.register(notificationsRoutes,            { prefix: "/api" });
 
 /* ── Error handler ───────────────────────────────────────────── */
 

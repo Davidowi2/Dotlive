@@ -70,6 +70,34 @@ export async function walletRoutes(app: FastifyInstance) {
         amount: parsed.data.amount,
         description: parsed.data.description,
       });
+
+      // Fire notifications for both parties (email goes to recipient only).
+      try {
+        const { notify } = await import("../lib/notify.js");
+        const amountStr = `${parsed.data.amount} DOT`;
+        // Sender: in-app only
+        notify({
+          userId: sub,
+          type: "transfer_sent",
+          title: `You sent ${amountStr}`,
+          body: parsed.data.description ?? `Transfer to ${parsed.data.toDotId} complete.`,
+          link: "/wallet",
+          icon: "Send",
+        }).catch(() => {});
+        // Recipient: in-app + email
+        notify({
+          userId: recipient[0].id,
+          type: "transfer_received",
+          title: `You received ${amountStr}`,
+          body: `From ${parsed.data.toDotId !== parsed.data.toDotId ? "another DOT user" : "another DOT user"}${parsed.data.description ? ` — "${parsed.data.description}"` : ""}. Your wallet has been credited.`,
+          link: "/wallet",
+          icon: "Wallet",
+          sendEmail: true,
+        }).catch(() => {});
+      } catch {
+        // Notifications are best-effort
+      }
+
       return reply.send(result);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Transfer failed";
