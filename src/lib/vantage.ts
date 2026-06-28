@@ -3,204 +3,191 @@ import { JOURNEY_STAGES, type JourneyStage } from "./constants";
 export interface VantageQuestion {
   id: string;
   text: string;
+  /** Helper copy shown below the question to explain what each end means. */
+  help?: { low: string; high: string };
 }
 
 export interface VantageCategory {
   key: string;
   label: string;
-  weight: number; // percentage weight of overall score
+  /** Percentage weight of overall score. All weights must sum to 100. */
+  weight: number;
   questions: VantageQuestion[];
 }
 
-// 9 categories, weights sum to 100
+/**
+ * 4 dimensions × 3 questions = 12.
+ * Each dimension is what an investor looks at first when reviewing a
+ * venture profile. Replaces the previous 27-question "self-rating" form
+ * (Tier 1) which read like Instagram polls.
+ *
+ * Scale: 1 (Very low) → 5 (Very high).  See vantage.tsx SCALE.
+ */
 export const VANTAGE_CATEGORIES: VantageCategory[] = [
   {
     key: "founder",
     label: "Founder",
-    weight: 15,
+    weight: 30,
     questions: [
-      { id: "founder_1", text: "How committed are you to building this venture full-time?" },
-      { id: "founder_2", text: "How relevant is your experience to this problem space?" },
-      { id: "founder_3", text: "How resilient have you been through past setbacks?" },
+      {
+        id: "founder_commitment",
+        text: "How committed is the founder to this venture full-time?",
+        help: { low: "Side project", high: "Quit job, full-time, no plan B" },
+      },
+      {
+        id: "founder_experience",
+        text: "How directly relevant is the founder's experience to this problem?",
+        help: { low: "First time in industry", high: "10+ years in this exact space" },
+      },
+      {
+        id: "founder_team",
+        text: "How strong is the founding team (skills, complementarity, track record)?",
+        help: { low: "Solo founder", high: "Repeat founders, complementary skills" },
+      },
     ],
   },
   {
-    key: "problem",
-    label: "Problem",
-    weight: 15,
+    key: "traction",
+    label: "Traction",
+    weight: 30,
     questions: [
-      { id: "problem_1", text: "How clearly can you articulate the problem you solve?" },
-      { id: "problem_2", text: "How painful is this problem for your customers?" },
-      { id: "problem_3", text: "How frequently do customers face this problem?" },
+      {
+        id: "traction_revenue",
+        text: "What does annual revenue look like today?",
+        help: { low: "Pre-revenue", high: "₦50M+ ARR" },
+      },
+      {
+        id: "traction_customers",
+        text: "How many paying customers do you have?",
+        help: { low: "0", high: "1000+ recurring" },
+      },
+      {
+        id: "traction_growth",
+        text: "How fast is the business growing month-over-month?",
+        help: { low: "Flat", high: ">20% MoM" },
+      },
     ],
   },
   {
     key: "market",
     label: "Market",
-    weight: 15,
+    weight: 20,
     questions: [
-      { id: "market_1", text: "How large is your addressable market?" },
-      { id: "market_2", text: "How fast is your market growing?" },
-      { id: "market_3", text: "How well do you understand your competitive landscape?" },
+      {
+        id: "market_size",
+        text: "How large is the addressable market you're going after?",
+        help: { low: "Local niche", high: "$1B+ SAM" },
+      },
+      {
+        id: "market_competition",
+        text: "How clearly do you understand your competitive landscape?",
+        help: { low: "Vague", high: "Deep moat / network effects" },
+      },
+      {
+        id: "market_timing",
+        text: "Why is now the right time for this market?",
+        help: { low: "Just an idea", high: "Tailwind (regulation, tech, behaviour)" },
+      },
     ],
   },
   {
-    key: "validation",
-    label: "Validation",
-    weight: 15,
+    key: "capital",
+    label: "Capital",
+    weight: 20,
     questions: [
-      { id: "validation_1", text: "How much customer evidence supports your solution?" },
-      { id: "validation_2", text: "How strong is your early traction (users/waitlist)?" },
-      { id: "validation_3", text: "How much have customers paid or committed to pay?" },
-    ],
-  },
-  {
-    key: "product",
-    label: "Product",
-    weight: 10,
-    questions: [
-      { id: "product_1", text: "How mature is your product (idea → MVP → live)?" },
-      { id: "product_2", text: "How well does your product solve the core problem?" },
-    ],
-  },
-  {
-    key: "team",
-    label: "Team",
-    weight: 10,
-    questions: [
-      { id: "team_1", text: "How complete is your founding team for what you need now?" },
-      { id: "team_2", text: "How well does your team cover key skills (tech, business)?" },
-    ],
-  },
-  {
-    key: "revenue",
-    label: "Revenue",
-    weight: 10,
-    questions: [
-      { id: "revenue_1", text: "How proven is your revenue model?" },
-      { id: "revenue_2", text: "How consistent is your revenue or sales pipeline?" },
-    ],
-  },
-  {
-    key: "scalability",
-    label: "Scalability",
-    weight: 5,
-    questions: [
-      { id: "scalability_1", text: "How easily can your model scale across markets?" },
-    ],
-  },
-  {
-    key: "investment_readiness",
-    label: "Investment Readiness",
-    weight: 5,
-    questions: [
-      { id: "investment_readiness_1", text: "How prepared are you to raise (deck, data room, metrics)?" },
+      {
+        id: "capital_runway",
+        text: "How many months of runway does the business currently have?",
+        help: { low: "<3 months", high: "12+ months" },
+      },
+      {
+        id: "capital_need",
+        text: "How clearly defined is your capital need (use of funds)?",
+        help: { low: "Vague", high: "Tied to specific milestones" },
+      },
+      {
+        id: "capital_history",
+        text: "Have you raised capital before?",
+        help: { low: "First raise", high: "Multiple rounds, notable investors" },
+      },
     ],
   },
 ];
+
+export interface VantageAnswers {
+  [questionId: string]: number; // 1-5
+}
 
 export const TOTAL_QUESTIONS = VANTAGE_CATEGORIES.reduce(
   (sum, c) => sum + c.questions.length,
   0,
 );
 
-export type VantageAnswers = Record<string, number>; // questionId -> 1..5
-
-export interface VantageResult {
-  categoryScores: Record<string, number>; // 0..100 per category
-  score: number; // overall 0..100
-  vantagePoint: number; // 0..1000
-  fundability: number; // 0..100
-  investmentReadiness: number; // 0..100
-  stage: JourneyStage;
-  report: {
-    strengths: { label: string; score: number }[];
-    weaknesses: { label: string; score: number }[];
-    nextActions: string[];
-  };
+/**
+ * Maps a Vantage score (0–1000) to one of the founder journey stages.
+ * Mirrors what the assessor report shows.
+ */
+export function vantageStageFromScore(score: number): JourneyStage {
+  if (score >= 850) return "Scale" as JourneyStage;
+  if (score >= 700) return "Fund" as JourneyStage;
+  if (score >= 550) return "Pitch" as JourneyStage;
+  if (score >= 400) return "Improve" as JourneyStage;
+  if (score >= 250) return "Validate" as JourneyStage;
+  return "Assess" as JourneyStage;
 }
 
-function categoryScore(cat: VantageCategory, answers: VantageAnswers): number {
-  const vals = cat.questions.map((q) => answers[q.id] ?? 0);
-  const max = cat.questions.length * 5;
-  const sum = vals.reduce((a, b) => a + b, 0);
-  if (max === 0) return 0;
-  return Math.round((sum / max) * 100);
+/**
+ * Convenience: which JourneyStage should be displayed for the user
+ * given their vantagePoint. Delegates to vantageStageFromScore.
+ */
+export function journeyStageForScore(score: number): JourneyStage {
+  return vantageStageFromScore(score);
 }
 
-function stageFor(score: number): JourneyStage {
-  const thresholds = [30, 45, 60, 70, 80, 90];
-  for (let i = 0; i < thresholds.length; i++) {
-    if (score < thresholds[i]) return JOURNEY_STAGES[i];
-  }
-  return JOURNEY_STAGES[JOURNEY_STAGES.length - 1];
-}
-
-const NEXT_ACTION_MAP: Record<string, string> = {
-  founder: "Sharpen your founder story and demonstrate full-time commitment.",
-  problem: "Run more customer interviews to validate the problem's severity.",
-  market: "Quantify your TAM/SAM/SOM and map your competitors.",
-  validation: "Gather more proof — pilots, letters of intent, or paying users.",
-  product: "Ship the next core feature and tighten your MVP.",
-  team: "Close a key hire or advisor gap in your founding team.",
-  revenue: "Validate and document your revenue model with real numbers.",
-  scalability: "Show how your model expands beyond your first market.",
-  investment_readiness: "Prepare your pitch deck, metrics and data room.",
-};
-
-export function computeVantage(answers: VantageAnswers): VantageResult {
-  const categoryScores: Record<string, number> = {};
+/**
+ * Calculates the per-category average for each VantageCategory given
+ * the answers. Skips unanswered questions.
+ */
+export function categoryScores(answers: VantageAnswers): Record<string, number> {
+  const out: Record<string, number> = {};
   for (const cat of VANTAGE_CATEGORIES) {
-    categoryScores[cat.key] = categoryScore(cat, answers);
+    const vals: number[] = [];
+    for (const q of cat.questions) {
+      const v = answers[q.id];
+      if (typeof v === "number" && v >= 1 && v <= 5) vals.push(v);
+    }
+    if (vals.length === 0) out[cat.key] = 0;
+    else out[cat.key] = Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 20); // 0..100
   }
-
-  const score = Math.round(
-    VANTAGE_CATEGORIES.reduce(
-      (sum, c) => sum + categoryScores[c.key] * (c.weight / 100),
-      0,
-    ),
-  );
-
-  const vantagePoint = Math.round(score * 10);
-
-  const fundability = Math.round(
-    categoryScores.market * 0.25 +
-      categoryScores.validation * 0.25 +
-      categoryScores.revenue * 0.2 +
-      categoryScores.problem * 0.15 +
-      categoryScores.investment_readiness * 0.15,
-  );
-
-  const investmentReadiness = Math.round(
-    categoryScores.team * 0.3 +
-      categoryScores.revenue * 0.25 +
-      categoryScores.scalability * 0.2 +
-      categoryScores.investment_readiness * 0.25,
-  );
-
-  const ranked = VANTAGE_CATEGORIES.map((c) => ({
-    key: c.key,
-    label: c.label,
-    score: categoryScores[c.key],
-  })).sort((a, b) => b.score - a.score);
-
-  const strengths = ranked.slice(0, 3).map((r) => ({ label: r.label, score: r.score }));
-  const weaknesses = ranked
-    .slice(-3)
-    .reverse()
-    .map((r) => ({ label: r.label, score: r.score }));
-  const nextActions = ranked
-    .slice(-3)
-    .map((r) => NEXT_ACTION_MAP[r.key])
-    .filter(Boolean);
-
-  return {
-    categoryScores,
-    score,
-    vantagePoint,
-    fundability,
-    investmentReadiness,
-    stage: stageFor(score),
-    report: { strengths, weaknesses, nextActions },
-  };
+  return out;
 }
+
+/**
+ * Composite 0..1000 vantage point from weighted category scores.
+ * Each category score is 0..100; weights are percentages.
+ */
+export function vantagePointFromScores(scores: Record<string, number>): number {
+  let weighted = 0;
+  for (const cat of VANTAGE_CATEGORIES) {
+    weighted += (scores[cat.key] ?? 0) * cat.weight;
+  }
+  // weighted is already 0..10000; map to 0..1000
+  return Math.round(weighted / 10);
+}
+
+/** Fundability % = traction + capital weighted average, 0..100. */
+export function fundabilityFromScores(scores: Record<string, number>): number {
+  const t = scores["traction"] ?? 0;
+  const c = scores["capital"] ?? 0;
+  return Math.round(t * 0.6 + c * 0.4);
+}
+
+/** Investment readiness 0..100 = market + founder weighted, but penalised by capital. */
+export function investmentReadinessFromScores(scores: Record<string, number>): number {
+  const m = scores["market"] ?? 0;
+  const f = scores["founder"] ?? 0;
+  const c = scores["capital"] ?? 0;
+  return Math.round((m * 0.4 + f * 0.4 + c * 0.2));
+}
+
+export { JOURNEY_STAGES };

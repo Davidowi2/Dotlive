@@ -41,6 +41,11 @@ import { submitAssessment, getVantageHistory } from "@/api/vantage";
 import {
   VANTAGE_CATEGORIES,
   TOTAL_QUESTIONS,
+  categoryScores,
+  vantagePointFromScores,
+  fundabilityFromScores,
+  investmentReadinessFromScores,
+  vantageStageFromScore,
   type VantageAnswers,
 } from "@/lib/vantage";
 import { formatDot } from "@/lib/constants";
@@ -82,34 +87,35 @@ interface Pillar {
 
 const PILLARS: Pillar[] = [
   {
-    key: "quality",
-    label: "Quality",
-    icon: Award,
-    sources: ["product", "problem", "validation"],
+    key: "founder",
+    label: "Founder",
+    icon: Compass,
+    sources: ["founder"],
   },
   {
-    key: "founder",
-    label: "Founder Readiness",
-    icon: Compass,
-    sources: ["founder", "team"],
+    key: "traction",
+    label: "Traction",
+    icon: TrendingUp,
+    sources: ["traction"],
   },
   {
     key: "market",
-    label: "Market Strength",
+    label: "Market",
     icon: Layers,
-    sources: ["market", "scalability"],
+    sources: ["market"],
+  },
+  {
+    key: "capital",
+    label: "Capital",
+    icon: Briefcase,
+    sources: ["capital"],
   },
   {
     key: "fundability",
     label: "Fundability",
-    icon: Briefcase,
-    sources: ["revenue", "investment_readiness"],
-  },
-  {
-    key: "execution",
-    label: "Execution",
-    icon: Rocket,
-    sources: ["product", "validation", "scalability"],
+    icon: ShieldCheck,
+    // Derived: average of traction + capital.
+    sources: ["traction", "capital"],
   },
 ];
 
@@ -220,95 +226,79 @@ function VantagePage() {
     setBusy(true);
     try {
       // Compute per-category scores (each answer is 1-5, scaled to 0-100)
-      const categoryScores: Record<string, number> = {};
-      for (const cat of VANTAGE_CATEGORIES) {
-        const items = cat.questions.map((q) => answers[q.id]).filter((v): v is number => typeof v === "number");
-        if (items.length > 0) {
-          const avg = items.reduce((a, b) => a + b, 0) / items.length; // 1-5
-          categoryScores[cat.label] = Math.round(((avg - 1) / 4) * 100); // 0-100
-        }
-      }
+      // keyed by lowercase category key (e.g. "founder", "traction").
+      const catScores = categoryScores(answers);
 
-      // Composite scores
-      const allValues = Object.values(categoryScores);
-      const score = allValues.length > 0
-        ? Math.round(allValues.reduce((a, b) => a + b, 0) / allValues.length)
-        : 0; // 0-100
+      // Composite scores — vantagePoint is the user-facing 0-1000.
+      const vantagePoint = vantagePointFromScores(catScores);
+      const fundability = fundabilityFromScores(catScores);
+      const investmentReadiness = investmentReadinessFromScores(catScores);
 
-      // Vantage Point is the user-facing 0-1000 score
-      const vantagePoint = score * 10;
-
-      // Fundability = weighted pillar score from "fundability" categories
-      const fundabilitySources = ["revenue", "investment_readiness"];
-      const fundabilityVals = fundabilitySources
-        .map((k) => categoryScores[VANTAGE_CATEGORIES.find((c) => c.questions.some((q) => q.id === k))?.label ?? ""])
-        .filter((v): v is number => typeof v === "number");
-      const fundability = fundabilityVals.length > 0
-        ? Math.round(fundabilityVals.reduce((a, b) => a + b, 0) / fundabilityVals.length)
+      // score (0-100) is the simple average for backwards compatibility.
+      const scoreValues = Object.values(catScores);
+      const score = scoreValues.length > 0
+        ? Math.round(scoreValues.reduce((a, b) => a + b, 0) / scoreValues.length)
         : 0;
 
-      // Investment readiness = weighted score from investment_readiness category
-      const irLabel = VANTAGE_CATEGORIES.find((c) => c.questions.some((q) => q.id === "investment_readiness"))?.label ?? "";
-      const investmentReadiness = categoryScores[irLabel] ?? 0;
+      const stage = vantageStageFromScore(vantagePoint);
 
-      // Stage from score (matches the spec)
-            let stage = "Assess";
-            if (score >= 80) stage = "Scale";
-            else if (score >= 60) stage = "Fund";
-            else if (score >= 40) stage = "Build";
-            else if (score >= 20) stage = "Validate";
+      // Build a venture report — strengths / weaknesses / nextActions.
+      const sortedCats = Object.entries(catScores)
+        .map(([key, value]) => {
+          const cat = VANTAGE_CATEGORIES.find((c) => c.key === key);
+          return { key, label: cat?.label ?? key, score: value };
+        })
+        .sort((a, b) => b.score - a.score);
 
-            // Build a venture report — strengths / weaknesses / nextActions
-            // derived from categoryScores. Strong = score >= 75, weak = < 50.
-            const sortedCats = Object.entries(categoryScores)
-              .map(([label, score]) => ({ label, score }))
-              .sort((a, b) => b.score - a.score);
-            const strengths = sortedCats.filter((c) => c.score >= 75).slice(0, 3);
-            const weaknesses = sortedCats.filter((c) => c.score < 50).slice(0, 3);
-            const nextActions: string[] = [];
-            if (weaknesses.length > 0) {
-              nextActions.push(
-                `Improve your weakest area: ${weaknesses[0].label} (currently ${weaknesses[0].score}%). Focus on getting this above 60.`,
-              );
-            }
-            if (score < 40) {
-              nextActions.push(
-                "Recruit at least one co-founder or key advisor with relevant industry experience.",
-              );
-            } else if (score < 60) {
-              nextActions.push(
-                "Run a structured customer-discovery round (10+ interviews) to validate demand before pitching.",
-              );
-            } else if (score < 80) {
-              nextActions.push(
-                "Define a clear 12-month revenue plan with milestone-based projections.",
-              );
-            } else {
-              nextActions.push(
-                "Apply to DOT Demo or pitch your strongest capital partner — you're investor-ready.",
-              );
-            }
-            if (strengths.length > 0) {
-              nextActions.push(
-                `Lean into your strength: ${strengths[0].label} (${strengths[0].score}%). Use it as the headline of your next pitch.`,
-              );
-            }
-            const report = { strengths, weaknesses, nextActions, stage };
+      const strengths = sortedCats.filter((c) => c.score >= 75).slice(0, 3);
+      const weaknesses = sortedCats.filter((c) => c.score < 50).slice(0, 3);
+      const nextActions: string[] = [];
 
-            const result = await submitAssessment({
-              answers: answers as Record<string, number>,
-              categoryScores,
-              score,
-              vantagePoint,
-              fundability,
-              investmentReadiness,
-              stage,
-              report,
-            });
-      toast.success(`Vantage complete! You scored ${result.vantagePoint} points.`);
-      qc.invalidateQueries({ queryKey: ["assessments", user.id] });
-      qc.invalidateQueries({ queryKey: ["founder_profile", user.id] });
+      if (weaknesses.length > 0) {
+        nextActions.push(
+          "Improve your weakest area: " + weaknesses[0].label + " (currently " + weaknesses[0].score + "%). Focus on getting this above 60.",
+        );
+      }
+      if (vantagePoint < 400) {
+        nextActions.push(
+          "Recruit at least one co-founder or key advisor with relevant industry experience.",
+        );
+      } else if (vantagePoint < 550) {
+        nextActions.push(
+          "Run a structured customer-discovery round (10+ interviews) to validate demand before pitching.",
+        );
+      } else if (vantagePoint < 700) {
+        nextActions.push(
+          "Define a clear 12-month revenue plan with milestone-based projections.",
+        );
+      } else {
+        nextActions.push(
+          "Apply to DOT Demo or pitch your strongest capital partner — you're investor-ready.",
+        );
+      }
+      if (strengths.length > 0) {
+        nextActions.push(
+          "Lean into your strength: " + strengths[0].label + " (" + strengths[0].score + "%). Use it as the headline of your next pitch.",
+        );
+      }
+      const report = { strengths, weaknesses, nextActions, stage };
+
+      const result = await submitAssessment({
+        answers: answers as Record<string, number>,
+        categoryScores: catScores,
+        score,
+        vantagePoint,
+        fundability,
+        investmentReadiness,
+        stage,
+        report,
+      });
+      toast.success("Vantage updated. Score: " + vantagePoint + ".");
+      setSubmittedNow(result);
+      setStage("results");
       qc.invalidateQueries({ queryKey: ["vantage"] });
+      qc.invalidateQueries({ queryKey: ["founder-profile", "me"] });
+      qc.invalidateQueries({ queryKey: ["assessments"] });
       setTaking(false);
       setIdx(0);
       setAnswers({});
@@ -318,6 +308,7 @@ function VantagePage() {
       setBusy(false);
     }
   }
+
 
   if (isLoading) {
     return (
@@ -343,7 +334,23 @@ function VantagePage() {
           </div>
 
           <div className="rounded-sm border border-border bg-card p-6 sm:p-8">
-            <h2 className="font-display text-xl font-light">{current.text}</h2>
+            <p className="text-[10px] tracking-widest uppercase font-semibold text-primary">
+              {current.category}
+            </p>
+            <h2 className="mt-1 font-display text-xl font-light">{current.text}</h2>
+            {current.help && (
+              <div className="mt-3 flex items-stretch gap-2 rounded-md border border-dashed border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                <div className="flex-1">
+                  <p className="font-medium text-foreground/80">Low (1-2)</p>
+                  <p>{current.help.low}</p>
+                </div>
+                <div className="my-1 w-px bg-border" />
+                <div className="flex-1">
+                  <p className="font-medium text-foreground/80">High (4-5)</p>
+                  <p>{current.help.high}</p>
+                </div>
+              </div>
+            )}
             <div className="mt-6 grid gap-2">
               {SCALE.map((s) => (
                 <button
@@ -402,7 +409,7 @@ function VantagePage() {
       <PageHeader
         eyebrow="Vantage"
         title="Venture intelligence"
-        subtitle="Score your venture across quality, founder readiness, market strength and fundability"
+        subtitle="Score your venture across founder, traction, market, and capital readiness — 12 questions, 4 dimensions."
         action={RetakeButton}
       />
 
@@ -411,7 +418,7 @@ function VantagePage() {
           variant="full-page"
           icon={Gauge}
           title="Take your first Vantage"
-          description={`Answer ${TOTAL_QUESTIONS} quick questions across 9 categories. We'll generate your Vantage Point, Fundability and Investment Readiness, plus a venture report.`}
+          description={`Answer ${TOTAL_QUESTIONS} quick questions across 4 investor-grade dimensions. We'll generate your Vantage Point, Fundability and Investment Readiness, plus a venture report.`}
           action={
             <Button variant="hero" onClick={() => setTaking(true)}>
               Start now <ArrowRight className="size-4" />
