@@ -37,6 +37,7 @@ import { dotApi } from "@/api/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { formatDot } from "@/lib/constants";
+import { LevelRequirementsModal } from "@/components/builder/LevelRequirementsModal";
 
 export const Route = createFileRoute("/_authenticated/builder")({
   head: () => ({
@@ -68,6 +69,7 @@ function BuilderArenaPage() {
   const [submitContent, setSubmitContent] = useState("");
   const [submitLink, setSubmitLink] = useState("");
   const [busy, setBusy] = useState(false);
+  const [levelModalOpen, setLevelModalOpen] = useState(false);
 
   async function submitWork() {
     if (!submitFor) return;
@@ -153,12 +155,22 @@ function BuilderArenaPage() {
             </div>
             <Sparkles className="size-5 text-primary" />
           </div>
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-4 flex flex-wrap items-center gap-2">
             {Object.entries(lvl.nextLevel.gates?.requirements ?? {}).map(([k, v]) => (
               <Badge key={k} variant={v ? "default" : "outline"}>
                 {v ? "✓" : "○"} {k}
               </Badge>
             ))}
+            <Button
+              size="sm"
+              variant="outline"
+              className="ml-auto"
+              onClick={() => setLevelModalOpen(true)}
+              data-testid="view-level-tasks"
+            >
+              View tasks
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Button>
           </div>
         </div>
       )}
@@ -317,6 +329,16 @@ function BuilderArenaPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Level requirements modal — opens when builder clicks "View tasks" */}
+      <LevelRequirementsModal
+        open={levelModalOpen}
+        onClose={() => setLevelModalOpen(false)}
+        currentLevel={lvl?.level ?? 1}
+        nextLevel={lvl?.nextLevel?.level ?? (lvl?.level ?? 1) + 1}
+        requirements={lvl?.nextLevel?.gates?.requirements ?? {}}
+        stats={lvl?.nextLevel?.gates?.stats}
+      />
     </AppShell>
   );
 }
