@@ -950,7 +950,104 @@ export const communityReferralCodes = pgTable("community_referral_codes", {
   crcCommunityIdx: index("crc_community_idx").on(t.communityId),
 }));
 
-/* --------------------------- OTP codes -------------------------- */
+/* --------------------------- Notifications ----------------------- */
+/* In-app notifications (and email-by-extension) for transfer receipts,
+ * job/service events, community posts, and system messages. */
+export const notifications = pgTable("notifications", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  type: text("type").notNull(),
+  // transfer_received | transfer_sent | job_posted | job_application_received |
+  // service_purchased | community_invite | community_post | mention | system |
+  // venture_published | venture_followed | certificate_issued | withdrawal_approved
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  link: text("link"),                       // optional in-app destination
+  icon: text("icon"),                       // lucide icon name hint for UI
+  readAt: timestamp("read_at", { withTimezone: true }),
+  // Email delivery
+  emailedAt: timestamp("emailed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  notifUserIdx: index("notifications_user_idx").on(t.userId, t.createdAt),
+  notifUnreadIdx: index("notifications_unread_idx").on(t.userId, t.readAt),
+}));
+
+/* --------------------------- Discover upvotes ------------------- */
+/* Tracks upvotes on ventures + posts so the Discover feed can rank. */
+export const discoverUpvotes = pgTable("discover_upvotes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  targetType: text("target_type").notNull(),  // 'venture' | 'post' | 'comment'
+  targetId: text("target_id").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  duUserTargetUnique: unique("discover_upvotes_user_target_unique").on(t.userId, t.targetType, t.targetId),
+  duTargetIdx: index("discover_upvotes_target_idx").on(t.targetType, t.targetId),
+}));
+
+/* --------------------------- Community channels ----------------- */
+/* Discord-style channels within a community. Posts live inside a channel. */
+export const communityChannels = pgTable("community_channels", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  communityId: uuid("community_id").notNull().references(() => communities.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),                // 'general' | 'announcements' | 'help'
+  description: text("description"),
+  isAdminOnly: boolean("is_admin_only").notNull().default(false),
+  position: integer("position").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  ccCommunityIdx: index("community_channels_community_idx").on(t.communityId),
+}));
+
+/* --------------------------- Community posts -------------------- */
+/* Posts inside a community channel. Supports replies via parentId. */
+export const communityPosts = pgTable("community_posts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  communityId: uuid("community_id").notNull().references(() => communities.id, { onDelete: "cascade" }),
+  channelId: uuid("channel_id").notNull().references(() => communityChannels.id, { onDelete: "cascade" }),
+  authorId: text("author_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  parentId: uuid("parent_id"),
+  body: text("body").notNull(),
+  reactions: jsonb("reactions").$type<Record<string, string[]>>().default({} as any), // {emoji: [userIds]}
+  replyCount: integer("reply_count").notNull().default(0),
+  pinned: boolean("pinned").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  cpCommunityIdx: index("community_posts_community_idx").on(t.communityId, t.createdAt),
+  cpChannelIdx: index("community_posts_channel_idx").on(t.channelId, t.createdAt),
+}));
+
+/* --------------------------- Certificates ----------------------- */
+/* Issued certificates from DOT Academy, challenges, or external issuers. */
+export const certificates = pgTable("certificates", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  courseId: text("course_id"),                  // nullable for challenge-issued
+  title: text("title").notNull(),
+  issuer: text("issuer").notNull(),             // 'DOT Academy' | 'DOT Demo' | etc
+  score: integer("score"),                       // 0-100
+  dotEarned: integer("dot_earned").notNull().default(0),
+  level: text("level"),                          // 'Foundations' | 'Intermediate' | 'Advanced'
+  credentialId: text("credential_id").notNull().unique(),  // public ID for verification
+  issuedAt: timestamp("issued_at", { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  certUserIdx: index("certificates_user_idx").on(t.userId),
+  certCredentialIdx: unique("certificates_credential_unique").on(t.credentialId),
+}));
+
+/* --------------------------- Wizard state ----------------------- */
+/* Tracks first-sign-in wizard completion. Users can restart from Help. */
+export const wizardState = pgTable("wizard_state", {
+  userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  lastStep: integer("last_step").notNull().default(0),  // 0..6 so user can resume
+  skippedSteps: jsonb("skipped_steps").$type<number[]>().default([] as any),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+});
 /* 6-digit codes for passwordless sign-in / email verification / 2FA.
  * Composite UNIQUE on (email, purpose) so we can UPSERT. */
 export const otpCodes = pgTable("otp_codes", {

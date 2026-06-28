@@ -362,15 +362,46 @@ export async function adminToolsRoutes(app: FastifyInstance) {
       });
 
       return reply.send({
-        ok: true,
-        minted: body.amountDot,
-        to: { userId: toUserId, newBalance: Number((after as any).rows?.[0]?.balance ?? 0) },
-        capStats: {
-          circulating: stats.circulatingSupplyDot,
-          remaining: stats.remainingDot,
-          capReachedPercent: Number(stats.capReachedPercent.toFixed(6)),
-        },
-      });
-    },
-  );
+              ok: true,
+              minted: body.amountDot,
+              to: { userId: toUserId, newBalance: Number((after as any).rows?.[0]?.balance ?? 0) },
+              capStats: {
+                circulating: stats.circulatingSupplyDot,
+                remaining: stats.remainingDot,
+                capReachedPercent: Number(stats.capReachedPercent.toFixed(6)),
+              },
+            });
+          },
+        );
+
+        /* ============================== MIGRATION RUNNER (TEMPORARY) ============================== */
+        /**
+         * POST /api/admin/run-migration
+         * Runs a SQL migration file by name. Super-admin only.
+         * Used to apply 0009_notifications.sql etc without redeploy.
+         * Should be deleted once we have a proper migration system.
+         */
+        app.post<{ Body: { name?: string } }>(
+          "/admin/run-migration",
+          { preHandler: [app.authenticate, requireSuperAdmin] },
+          async (req, reply) => {
+            const { name } = req.body ?? {};
+            if (!name || !/^0009_.*\.sql$/.test(name)) {
+              return reply.code(400).send({ error: "Only 0009_*.sql migrations can be run via this endpoint" });
+            }
+            const path = await import("node:path");
+            const fs = await import("node:fs");
+            const filePath = path.join(process.cwd(), "src/db/migrations", name);
+            if (!fs.existsSync(filePath)) {
+              return reply.code(404).send({ error: `Migration file not found: ${name}` });
+            }
+            const sqlText = fs.readFileSync(filePath, "utf8");
+            try {
+              await db.execute(sqlText as any);
+              return reply.send({ ok: true, applied: name });
+          } catch (err) {
+              return reply.code(500).send({ error: (err as Error).message, migration: name });
+            }
+          },
+        );
 }
