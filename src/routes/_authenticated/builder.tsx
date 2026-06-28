@@ -21,6 +21,7 @@ import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
 import { StatCard } from "@/components/app/StatCard";
 import { EmptyState } from "@/components/app/EmptyState";
+import { EcosystemEmptyState } from "@/components/app/EcosystemEmptyState";
 import { PageSkeleton } from "@/components/app/PageSkeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -206,14 +207,18 @@ function BuilderArenaPage() {
           </div>
 
           {isLoading ? (
-            <PageSkeleton.CardGrid count={3} cols={1} />
-          ) : !arena?.challenges?.length ? (
-            <EmptyState
-              icon={Target}
-              title="No open challenges right now"
-              description="Founders post challenges here. New opportunities appear daily."
-            />
-          ) : (
+                      <PageSkeleton.CardGrid count={3} cols={1} />
+                    ) : !arena?.challenges?.length ? (
+                      <EcosystemEmptyState
+                        icon={Target}
+                        title="No open challenges right now"
+                        subtitle="Short-term paid tasks founders post to test builders. Win a challenge to grow your reputation."
+                        postedBy="Founders and Admins"
+                        requiredRole="founder"
+                        accent="primary"
+                        secondaryAction={{ label: "See open gigs", href: "/work" }}
+                      />
+                    ) : (
             <div className="space-y-3">
               {arena.challenges.map((c: any) => (
                 <div key={c.id} className="rounded-2xl border border-border bg-card p-4">

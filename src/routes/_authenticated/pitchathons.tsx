@@ -17,6 +17,7 @@ import {
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
 import { EmptyState } from "@/components/app/EmptyState";
+import { EcosystemEmptyState } from "@/components/app/EcosystemEmptyState";
 import { PageSkeleton } from "@/components/app/PageSkeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -142,14 +143,18 @@ function PitchathonsPage() {
       />
 
       {isLoading ? (
-        <PageSkeleton.CardGrid count={3} cols={1} />
-      ) : pitchathons.length === 0 ? (
-        <EmptyState
-          icon={Trophy}
-          title="No pitchathons yet"
-          description="Check back soon — upcoming competitions will appear here."
-        />
-      ) : (
+              <PageSkeleton.CardGrid count={3} cols={1} />
+            ) : pitchathons.length === 0 ? (
+              <EcosystemEmptyState
+                icon={Trophy}
+                title="No pitchathons scheduled"
+                subtitle="Live pitch competitions where founders present to investors and judges. Built for accountability and momentum."
+                postedBy="Capital Partners and Admins"
+                requiredRole={["capital_partner", "admin"]}
+                accent="purple"
+                secondaryAction={{ label: "See venture list", href: "/discover" }}
+              />
+            ) : (
         <>
           {/* ── Featured / next pitchathon ──────────────────────── */}
           {featured && (

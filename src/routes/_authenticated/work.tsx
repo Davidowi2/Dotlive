@@ -51,6 +51,8 @@ import {
   useBuilderStats,
   useWallet,
 } from "@/hooks/use-dot-data";
+import { EcosystemEmptyState } from "@/components/app/EcosystemEmptyState";
+import { PostJobWizard } from "@/components/marketplace/PostJobWizard";
 import {
   listServices,
   createService,
@@ -266,8 +268,8 @@ function OrderDialog({ service, onClose }: { service: Service | null; onClose: (
 
 /* ═══════════════════════ JOBS TAB ═══════════════════════ */
 function JobsTab() {
-  const { roles } = useDotAuth();
-  const isFounder = roles.includes("founder");
+  const { roles, user } = useDotAuth();
+  const isFounder = roles.includes("founder") || roles.includes("admin") || roles.includes("super_admin");
   const [category, setCategory] = useState("");
   const [search, setSearch] = useState("");
   const [minSalary, setMinSalary] = useState("");
@@ -276,6 +278,7 @@ function JobsTab() {
     queryKey: ["job_listings", category || "all", search || ""],
     queryFn: () => listJobs({ category: category || undefined, search: search || undefined }),
   });
+  const { data: walletBalance = 0 } = useWallet();
   const [selectedJob, setSelectedJob] = useState<JobListing | null>(null);
   const [showPostForm, setShowPostForm] = useState(false);
 
@@ -338,39 +341,37 @@ function JobsTab() {
       </div>
 
       {/* Listing */}
-      {isLoading ? (
-        <PageSkeleton.TransactionRows rows={5} />
-      ) : filtered.length === 0 ? (
-        <EmptyState
-          icon={Briefcase}
-          title="No jobs found"
-          description="No open positions match your filters."
-          action={
-            isFounder ? (
-              <Button variant="hero" onClick={() => setShowPostForm(true)}>
-                <Plus className="size-4" /> Post the first job
-              </Button>
+            {isLoading ? (
+              <PageSkeleton.TransactionRows rows={5} />
+            ) : filtered.length === 0 ? (
+              <EcosystemEmptyState
+                icon={Briefcase}
+                title="No jobs posted yet"
+                subtitle="Open positions from founders. Founders post these to find builders for full-time, contract, and part-time work."
+                postedBy="Founders and Admins"
+                requiredRole="founder"
+                postHref={undefined}
+                postLabel="Post the first job"
+                accent="gold"
+                secondaryAction={{ label: "Browse gigs", href: "/work" }}
+              />
             ) : (
-              <p className="text-sm text-muted-foreground">
-                Founders can post jobs.{" "}
-                <Link to="/onboarding" className="text-primary underline">Become a Founder</Link>
-              </p>
-            )
-          }
-        />
-      ) : (
-        <div className="mt-6 space-y-3">
-          {filtered.map((j) => (
-            <JobCard key={j.id} job={j} onView={() => setSelectedJob(j)} />
-          ))}
-        </div>
-      )}
+              <div className="mt-6 space-y-3">
+                {filtered.map((j) => (
+                  <JobCard key={j.id} job={j} onView={() => setSelectedJob(j)} />
+                ))}
+              </div>
+            )}
 
-      <JobDetailDialog job={selectedJob} onClose={() => setSelectedJob(null)} />
-      {showPostForm && <JobFormDialog onClose={() => setShowPostForm(false)} />}
-    </div>
-  );
-}
+            <JobDetailDialog job={selectedJob} onClose={() => setSelectedJob(null)} />
+            <PostJobWizard
+              open={showPostForm}
+              onClose={() => setShowPostForm(false)}
+              walletBalance={Number(walletBalance) || 0}
+            />
+          </div>
+        );
+      }
 
 function JobCard({ job, onView }: { job: JobListing; onView: () => void }) {
   const typeLabel = JOB_EMPLOYMENT_TYPES.find((t) => t.value === job.employmentType)?.label ?? job.employmentType;

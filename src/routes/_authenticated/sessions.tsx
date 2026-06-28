@@ -3,6 +3,7 @@ import { CalendarCheck, User, Loader2, Check, Coins } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
 import { EmptyState } from "@/components/app/EmptyState";
+import { EcosystemEmptyState } from "@/components/app/EcosystemEmptyState";
 import { PageSkeleton } from "@/components/app/PageSkeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -66,14 +67,18 @@ function SessionsPage() {
       />
 
       {isLoading ? (
-        <PageSkeleton.CardGrid count={4} cols={2} />
-      ) : events.length === 0 ? (
-        <EmptyState
-          icon={CalendarCheck}
-          title="No sessions yet"
-          description="When admin posts founder sessions, they will appear here."
-        />
-      ) : (
+              <PageSkeleton.CardGrid count={4} cols={2} />
+            ) : events.length === 0 ? (
+              <EcosystemEmptyState
+                icon={CalendarCheck}
+                title="No founder sessions scheduled"
+                subtitle="Live access to operators, experts and investors. Sessions are paid with DOT — register to claim a seat."
+                postedBy="Admins and Capital Partners"
+                requiredRole={["admin", "capital_partner"]}
+                accent="teal"
+                secondaryAction={{ label: "Browse the network", href: "/discover" }}
+              />
+            ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {events.map((ev: any) => {
             const isReg = registered.has(ev.id);
