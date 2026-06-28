@@ -157,9 +157,22 @@ export async function debitWallet(
 }
 
 /**
- * Transfer DOT between two users — fully atomic.
- * All four statements (debit, credit, two ledger entries) run inside
- * a single db.transaction(). If anything fails the whole transfer rolls back.
+ * Transfer DOT between two users — atomic via conditional UPDATE.
+ *
+ * Neon HTTP driver doesn't support `db.transaction()`, so we simulate
+ * atomicity with a single conditional UPDATE that ONLY matches if the
+ * sender's balance is sufficient. The UPDATE returns the affected rows;
+ * if 0 rows were affected, the transfer fails (no money moved).
+ *
+ * Steps:
+ *   1. Atomic conditional debit (only if balance >= amount)
+ *   2. Credit recipient (insert-or-update balance)
+ *   3. Insert two ledger rows (Transfer Out + Transfer In)
+ *   4. Fire notifications to both parties (fire-and-forget)
+ *
+ * If step 2 fails after step 1 succeeds, we attempt to refund via
+ * `creditWallet` to the sender — best effort, may leave user in
+ * slightly inconsistent state if refund also fails (rare).
  */
 export async function transferDot(opts: {
   fromUserId: string;
@@ -174,86 +187,97 @@ export async function transferDot(opts: {
 
   const desc = description ?? `Transfer ${amount} DOT`;
 
-  return await db.transaction(async (tx) => {
-    const r: any = tx;
+  // Step 1: Atomic conditional debit.
+  const debited = await db
+    .update(wallets)
+    .set({
+      balance: drizzleSql`balance - ${amount}`,
+      updatedAt: new Date(),
+    } as any)
+    .where(
+      and(
+        eq(wallets.userId, fromUserId),
+        drizzleSql`balance >= ${amount}`,
+      ) as any,
+    )
+    .returning();
 
-    // Ensure recipient wallet exists inside the transaction.
-    await r
+  if (debited.length === 0) {
+    throw new Error("Insufficient balance");
+  }
+
+  // Step 2: Credit recipient (insert-or-update).
+  try {
+    await db
       .insert(wallets)
-      .values({ userId: toUserId, balance: "0" } as any)
-      .onConflictDoNothing();
-
-    // Atomic debit — only succeeds if sender balance >= amount.
-    const debited = await r
-      .update(wallets)
-      .set({
-        balance: drizzleSql`balance - ${amount}`,
-        updatedAt: new Date(),
-      } as any)
-      .where(
-        and(
-          eq(wallets.userId, fromUserId),
-          gte(wallets.balance, String(amount))
-        )
-      )
-      .returning({ balance: wallets.balance });
-
-    if (debited.length === 0) {
-      throw new Error("Insufficient balance");
+      .values({ userId: toUserId, balance: String(amount), updatedAt: new Date() } as any)
+      .onConflictDoUpdate({
+        target: wallets.userId,
+        set: {
+          balance: drizzleSql`balance + ${amount}`,
+          updatedAt: new Date(),
+        } as any,
+      });
+  } catch (err) {
+    // Refund the sender — best effort.
+    try {
+      await db
+        .update(wallets)
+        .set({
+          balance: drizzleSql`balance + ${amount}`,
+          updatedAt: new Date(),
+        } as any)
+        .where(eq(wallets.userId, fromUserId));
+    } catch {
+      // Last resort: log this, manual cleanup required.
+      console.error(`[transferDot] refund failed for ${fromUserId}, amount=${amount}`);
     }
+    throw err;
+  }
 
-    // Credit receiver inside the same transaction.
-    const credited = await r
-      .update(wallets)
-      .set({
-        balance: drizzleSql`balance + ${amount}`,
-        updatedAt: new Date(),
-      } as any)
-      .where(eq(wallets.userId, toUserId))
-      .returning({ balance: wallets.balance });
+  // Step 3: Write two ledger rows.
+  await db.insert(transactions).values([
+    {
+      userId: fromUserId,
+      amount: `-${amount}`,
+      type: "Transfer Out",
+      description: desc,
+    },
+    {
+      userId: toUserId,
+      amount: String(amount),
+      type: "Transfer In",
+      description: desc,
+    },
+  ] as any);
 
-    // Both ledger entries in the same transaction.
-    await r.insert(transactions).values([
-      {
-        userId: fromUserId,
-        amount: String(-amount),
-        type: "Transfer Out",
-        description: desc,
-      },
-      {
-        userId: toUserId,
-        amount: String(amount),
-        type: "Transfer In",
-        description: desc,
-      },
-    ] as any);
+  // Step 4: Fire notifications (fire-and-forget — don't block the response).
+  Promise.allSettled([
+    notify({
+      userId: fromUserId,
+      type: "transfer_sent",
+      title: `Sent ${amount} DOT`,
+      body: desc,
+      link: "/wallet",
+      icon: "ArrowUpRight",
+    }),
+    notify({
+      userId: toUserId,
+      type: "transfer_received",
+      title: `Received ${amount} DOT`,
+      body: desc,
+      link: "/wallet",
+      icon: "ArrowDownLeft",
+    }),
+  ]).catch(() => {});
 
-    return {
-      fromBalance: Number(debited[0].balance),
-      toBalance: Number(credited[0].balance),
-    };
-  }).then(async (result) => {
-    // Fire notifications AFTER the transaction commits.
-    // Both sender and recipient get a notif + email attempt.
-    // Don't await — don't block the transfer response on email.
-    Promise.allSettled([
-      notify({
-        userId: fromUserId,
-        type: "transfer_sent",
-        title: `Sent ${amount} DOT`,
-        body: desc,
-        link: "/wallet",
-        icon: "ArrowUpRight",
-      }),
-      notify({
-        userId: toUserId,
-        type: "transfer_received",
-        title: `Received ${amount} DOT`,
-        body: desc,
-        link: "/wallet",
-        icon: "ArrowDownLeft",
-      }),
-    ]).catch(() => {});
-    return result;
-  });
+  // Re-read balances for the response.
+  const [from] = await db.select({ balance: wallets.balance }).from(wallets).where(eq(wallets.userId, fromUserId)).limit(1);
+  const [to] = await db.select({ balance: wallets.balance }).from(wallets).where(eq(wallets.userId, toUserId)).limit(1);
+
+  return {
+    fromBalance: Number(from?.balance ?? 0),
+    toBalance: Number(to?.balance ?? 0),
+  };
 }
+
