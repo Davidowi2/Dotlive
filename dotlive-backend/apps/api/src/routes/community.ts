@@ -8,7 +8,7 @@ import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import crypto from "node:crypto";
 
 import { db } from "../db/client.js";
-import { communities, communityMembers, users } from "../db/schema.js";
+import { communities, communityMembers, communityChannels, communityPosts, users } from "../db/schema.js";
 import { userHasRole } from "../lib/auth.js";
 
 const createSchema = z.object({
@@ -288,6 +288,214 @@ export async function communityRoutes(app: FastifyInstance) {
         },
         memberCount: members.length,
       });
+    },
+  );
+
+  /* ============================== CHANNELS (Discord model) ============================== */
+
+  /** GET /api/communities/:id/channels — list channels with post counts */
+  app.get<{ Params: { id: string } }>("/communities/:id/channels", async (req, reply) => {
+    const rows = await db.execute(sql`
+      SELECT
+        c.id, c.community_id AS "communityId", c.name, c.description,
+        c.is_admin_only AS "isAdminOnly", c.position, c.created_at AS "createdAt",
+        (SELECT COUNT(*)::int FROM community_posts p WHERE p.channel_id = c.id) AS "postCount",
+        (SELECT COUNT(*)::int FROM community_posts p WHERE p.channel_id = c.id AND p.created_at > NOW() - INTERVAL '7 days') AS "recentCount"
+      FROM community_channels c
+      WHERE c.community_id = ${req.params.id}
+      ORDER BY c.position ASC, c.created_at ASC
+    `);
+    return reply.send({ channels: (rows as any).rows ?? [] });
+  });
+
+  /** POST /api/communities/:id/channels — admin only */
+  app.post<{ Params: { id: string }; Body: { name?: string; description?: string; isAdminOnly?: boolean } }>(
+    "/communities/:id/channels",
+    { preHandler: app.authenticate },
+    async (req, reply) => {
+      const { sub } = req.user as { sub: string };
+      const { name, description, isAdminOnly } = req.body ?? {};
+      if (!name || typeof name !== "string" || name.length < 1) {
+        return reply.code(400).send({ error: "name required" });
+      }
+      // Check admin: must be community leader OR staff role
+      const isLeader = await db
+        .select({ id: communities.id })
+        .from(communities)
+        .where(and(eq(communities.id, req.params.id), eq(communities.leaderId, sub)))
+        .limit(1);
+      if (!isLeader[0] && !(await userHasRole(sub, "admin"))) {
+        return reply.code(403).send({ error: "Only the community leader or an admin can create channels" });
+      }
+      const [row] = await db
+        .insert(communityChannels)
+        .values({
+          communityId: req.params.id,
+          name: name.toLowerCase().replace(/[^a-z0-9-]/g, "-").slice(0, 32),
+          description: description ?? null,
+          isAdminOnly: !!isAdminOnly,
+          position: 99,
+        } as any)
+        .returning();
+      return reply.send({ channel: row });
+    },
+  );
+
+  /* ============================== POSTS ============================== */
+
+  /** GET /api/communities/:id/posts?channelId=xxx&limit=50 */
+  app.get<{ Params: { id: string }; Querystring: { channelId?: string; limit?: string } }>(
+    "/communities/:id/posts",
+    async (req, reply) => {
+      const limit = Math.min(100, Math.max(1, parseInt(req.query.limit ?? "50", 10) || 50));
+      const channelId = req.query.channelId;
+      const whereParts = [eq(communityPosts.communityId, req.params.id), sql`parent_id IS NULL`];
+      if (channelId) whereParts.push(eq(communityPosts.channelId, channelId));
+
+      const rows = await db.execute(sql`
+        SELECT
+          p.id, p.community_id AS "communityId", p.channel_id AS "channelId",
+          p.author_id AS "authorId", p.body, p.reactions, p.reply_count AS "replyCount",
+          p.pinned, p.created_at AS "createdAt",
+          u.name AS "authorName", u.dot_id AS "authorDotId", u.avatar_url AS "authorAvatarUrl"
+        FROM community_posts p
+        LEFT JOIN users u ON u.id = p.author_id
+        WHERE p.community_id = ${req.params.id}
+          AND (${channelId ? sql`p.channel_id = ${channelId}` : sql`TRUE`})
+          AND p.parent_id IS NULL
+        ORDER BY p.pinned DESC, p.created_at DESC
+        LIMIT ${limit}
+      `);
+      return reply.send({ posts: (rows as any).rows ?? [] });
+    },
+  );
+
+  /** POST /api/communities/:id/posts — create a post in a channel */
+  app.post<{ Params: { id: string }; Body: { channelId?: string; body?: string; parentId?: string } }>(
+    "/communities/:id/posts",
+    { preHandler: app.authenticate },
+    async (req, reply) => {
+      const { sub } = req.user as { sub: string };
+      const { channelId, body, parentId } = req.body ?? {};
+      if (!channelId || !body || typeof body !== "string" || body.trim().length === 0) {
+        return reply.code(400).send({ error: "channelId and body required" });
+      }
+      if (body.length > 4000) {
+        return reply.code(400).send({ error: "body too long (max 4000 chars)" });
+      }
+      // Verify channel belongs to this community
+      const ch = await db
+        .select()
+        .from(communityChannels)
+        .where(and(eq(communityChannels.id, channelId), eq(communityChannels.communityId, req.params.id)))
+        .limit(1);
+      if (!ch[0]) return reply.code(404).send({ error: "Channel not found in this community" });
+
+      // If it's a reply, verify parent post exists
+      if (parentId) {
+        const parent = await db
+          .select({ id: communityPosts.id, authorId: communityPosts.authorId })
+          .from(communityPosts)
+          .where(eq(communityPosts.id, parentId))
+          .limit(1);
+        if (!parent[0]) return reply.code(404).send({ error: "Parent post not found" });
+      }
+
+      const [row] = await db
+        .insert(communityPosts)
+        .values({
+          communityId: req.params.id,
+          channelId,
+          authorId: sub,
+          parentId: parentId ?? null,
+          body: body.trim(),
+        } as any)
+        .returning();
+
+      // Increment reply_count on parent
+      if (parentId) {
+        await db.execute(sql`UPDATE community_posts SET reply_count = reply_count + 1 WHERE id = ${parentId}`);
+      }
+
+      // Fire notifications (best-effort)
+      try {
+        const { notify } = await import("../lib/notify.js");
+        if (parentId) {
+          // Reply: notify parent author (unless it's the same user)
+          const parent = await db
+            .select({ authorId: communityPosts.authorId })
+            .from(communityPosts)
+            .where(eq(communityPosts.id, parentId))
+            .limit(1);
+          if (parent[0] && parent[0].authorId !== sub) {
+            notify({
+              userId: parent[0].authorId,
+              type: "community_post",
+              title: "Someone replied to your post",
+              body: body.trim().slice(0, 100),
+              link: `/community`,
+              icon: "MessageSquare",
+            }).catch(() => {});
+          }
+        } else {
+          // New post: notify all community members
+          const members = await db
+            .select({ userId: communityMembers.founderId })
+            .from(communityMembers)
+            .where(eq(communityMembers.communityId, req.params.id));
+          for (const m of members) {
+            if (m.userId === sub) continue; // don't notify yourself
+            notify({
+              userId: m.userId,
+              type: "community_post",
+              title: `New post in #${ch[0].name}`,
+              body: body.trim().slice(0, 100),
+              link: `/community`,
+              icon: "MessageSquare",
+            }).catch(() => {});
+          }
+        }
+      } catch {}
+
+      return reply.send({ post: row });
+    },
+  );
+
+  /** POST /api/communities/:id/posts/:postId/react — toggle emoji reaction */
+  app.post<{ Params: { id: string; postId: string }; Body: { emoji?: string } }>(
+    "/communities/:id/posts/:postId/react",
+    { preHandler: app.authenticate },
+    async (req, reply) => {
+      const { sub } = req.user as { sub: string };
+      const { emoji } = req.body ?? {};
+      if (!emoji || typeof emoji !== "string") {
+        return reply.code(400).send({ error: "emoji required" });
+      }
+
+      const post = await db
+        .select()
+        .from(communityPosts)
+        .where(eq(communityPosts.id, req.params.postId))
+        .limit(1);
+      if (!post[0]) return reply.code(404).send({ error: "Post not found" });
+
+      const reactions = (post[0].reactions as Record<string, string[]>) ?? {};
+      const users = reactions[emoji] ?? [];
+      const idx = users.indexOf(sub);
+      if (idx >= 0) {
+        users.splice(idx, 1);
+        if (users.length === 0) delete reactions[emoji];
+        else reactions[emoji] = users;
+      } else {
+        reactions[emoji] = [...users, sub];
+      }
+
+      await db
+        .update(communityPosts)
+        .set({ reactions: reactions as any, updatedAt: new Date() } as any)
+        .where(eq(communityPosts.id, req.params.postId));
+
+      return reply.send({ reactions });
     },
   );
 }
