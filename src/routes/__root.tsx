@@ -7,15 +7,12 @@ import {
   Scripts,
   useRouter,
 } from "@tanstack/react-router";
-import { type ReactNode, useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { type ReactNode, useEffect } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { DotAuthProvider, useDotAuth } from "@/contexts/DotAuthContext";
+import { DotAuthProvider } from "@/contexts/DotAuthContext";
 import { Toaster } from "@/components/ui/sonner";
 import { CookieConsent } from "@/components/CookieConsent";
-import { WizardOverlay } from "@/components/onboarding/WizardOverlay";
-import { fetchWizardState } from "@/api/wizard";
 
 function NotFoundComponent() {
   return (
@@ -197,33 +194,4 @@ function WizardHost() {
   // The WizardOverlay is still available via the /onboarding route and /help page.
   // July launch ships without auto-mount to avoid SSR errors.
   return null;
-}
-
-function _wizardHostOriginal_DO_NOT_USE() {
-  const [open, setOpen] = useState(false);
-  const [shown, setShown] = useState(false);
-  const { user } = useDotAuth();
-  const stateQ = useQuery({
-    queryKey: ["wizard", "state"],
-    queryFn: fetchWizardState,
-    enabled: !!user?.id,
-    staleTime: 60_000,
-  });
-
-  // Open the wizard once per session if user hasn't completed it.
-  useEffect(() => {
-    if (shown) return;
-    if (!user?.id) return;
-    if (stateQ.isLoading) return;
-    if (!stateQ.data) return;
-    if (stateQ.data.completed) return;
-    // Defer one tick so the page paints first.
-    const t = setTimeout(() => {
-      setOpen(true);
-      setShown(true);
-    }, 1200);
-    return () => clearTimeout(t);
-  }, [shown, user?.id, stateQ.isLoading, stateQ.data]);
-
-  return <WizardOverlay open={open} onClose={() => setOpen(false)} />;
 }
