@@ -279,6 +279,38 @@ export async function userRoutes(app: FastifyInstance) {
     return reply.send({ ok: true });
   });
 
+  // PUT alias — frontend prefers PUT semantics for "update builder profile"
+  app.put("/users/me/builder-profile", { preHandler: app.authenticate }, async (req, reply) => {
+    const { sub } = req.user as { sub: string };
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const headline = (body.headline as string) ?? "";
+    const bio = (body.bio as string) ?? null;
+    const skills = Array.isArray(body.skills) ? (body.skills as string[]) : [];
+    const available = body.available !== false;
+
+    await db
+      .insert(builderProfiles)
+      .values({
+        id: sub,
+        headline,
+        bio,
+        skills,
+        available,
+      } as any)
+      .onConflictDoUpdate({
+        target: builderProfiles.id,
+        set: {
+          headline,
+          bio,
+          skills,
+          available,
+          updatedAt: new Date(),
+        } as any,
+      });
+
+    return reply.send({ ok: true });
+  });
+
   /* ── DOT-ID LOOKUP — public-ish (returns only name + dotId) ─────── */
 
   /** GET /api/users/lookup?dotId=... — public lookup so transfers work.
