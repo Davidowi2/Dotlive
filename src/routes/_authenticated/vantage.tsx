@@ -242,46 +242,130 @@ function VantagePage() {
 
       const stage = vantageStageFromScore(vantagePoint);
 
+      // Per-category upgrade playbooks — what to actually do when a
+      // category is weak. Each weakness is one specific question that's
+      // the drag on the category. The advice is concrete and actionable,
+      // not generic ("work harder on traction").
+      const UPGRADE_ADVICE: Record<string, { low: string; mid: string }> = {
+        // Founder
+        founder_commitment: {
+          low: "Make the leap to full-time within the next 60 days. Investors back committed operators — side projects signal optionality, not conviction.",
+          mid: "Document a concrete full-time transition plan: savings runway, key milestones, deadline. Show you can focus.",
+        },
+        founder_experience: {
+          low: "Hire a domain-experienced advisor (5% equity, monthly cadence) to plug the experience gap on your cap table.",
+          mid: "Publish 2 case studies or thought-leadership posts in your industry to demonstrate depth.",
+        },
+        founder_team: {
+          low: "Bring on a co-founder with the skill you lack (technical, sales, ops). Solo founders are a red flag — recruit deliberately.",
+          mid: "Formalise your team's commitments: vesting schedules, equity splits, role definitions in a one-pager.",
+        },
+        // Traction
+        traction_revenue: {
+          low: "Land your first 3 paying customers — even at a discount. Revenue, however small, validates the model.",
+          mid: "Move from one-off sales to a recurring or subscription structure. Track MRR, not just total revenue.",
+        },
+        traction_customers: {
+          low: "Define your ICP precisely, run 20+ customer discovery calls, and convert 3 to paid pilots.",
+          mid: "Build a referral loop: offer existing customers a credit for each new customer they bring.",
+        },
+        traction_growth: {
+          low: "Identify the single channel that's working (paid, content, partnership) and double down on it. Stop spreading thin.",
+          mid: "Set up cohort tracking: what % of users from January are still active in March? Improve that number monthly.",
+        },
+        // Market
+        market_size: {
+          low: "Write a bottom-up TAM/SAM/SOM calculation. 'Big market' isn't enough — investors need numbers from your beachhead.",
+          mid: "Document 3 reference customers who represent your SOM. Show the segments you'll expand into.",
+        },
+        market_competition: {
+          low: "Map the top 5 competitors on a 2x2 (price vs. feature). Identify your wedge clearly.",
+          mid: "Write a 'Why we win' section in your one-pager: defensibility, moats, switching costs.",
+        },
+        market_timing: {
+          low: "Identify a single external tailwind (regulation change, technology shift, behaviour change) that creates urgency now.",
+          mid: "Cite 2-3 concrete data points that show the market is moving in your favour right now.",
+        },
+        // Capital
+        capital_runway: {
+          low: "Raise a bridge round now — friends, angels, or a SAFE. <3 months runway kills companies.",
+          mid: "Cut burn by 20% before raising. Investors want capital efficiency as much as growth.",
+        },
+        capital_need: {
+          low: "Write a use-of-funds statement: 'We're raising ₦X for Y months to hit milestone Z.' Specific beats vague.",
+          mid: "Break your raise into tranches tied to milestones. Investors respect milestone-based capital.",
+        },
+        capital_history: {
+          low: "Apply to 3 angel networks or pitchathons to build your first raise track record. Start small.",
+          mid: "Publish a 'capital strategy' doc: who you'd target at each stage (pre-seed → seed → Series A).",
+        },
+      };
+
+      function buildPerQuestionAdvice(
+        answers: Record<string, number>,
+      ): string[] {
+        const advice: string[] = [];
+        // For each question scored ≤ 3 (low), produce specific advice.
+        // Cap at 5 most actionable items.
+        for (const cat of VANTAGE_CATEGORIES) {
+          for (const q of cat.questions) {
+            const v = answers[q.id];
+            if (typeof v !== "number") continue;
+            if (v <= 2) {
+              const a = UPGRADE_ADVICE[q.id];
+              if (a) advice.push(a.low);
+            } else if (v === 3) {
+              const a = UPGRADE_ADVICE[q.id];
+              if (a) advice.push(a.mid);
+            }
+          }
+        }
+        return advice.slice(0, 5);
+      }
+
       // Build a venture report — strengths / weaknesses / nextActions.
-      const sortedCats = Object.entries(catScores)
-        .map(([key, value]) => {
-          const cat = VANTAGE_CATEGORIES.find((c) => c.key === key);
-          return { key, label: cat?.label ?? key, score: value };
-        })
-        .sort((a, b) => b.score - a.score);
+            const sortedCats = Object.entries(catScores)
+              .map(([key, value]) => {
+                const cat = VANTAGE_CATEGORIES.find((c) => c.key === key);
+                return { key, label: cat?.label ?? key, score: value };
+              })
+              .sort((a, b) => b.score - a.score);
 
-      const strengths = sortedCats.filter((c) => c.score >= 75).slice(0, 3);
-      const weaknesses = sortedCats.filter((c) => c.score < 50).slice(0, 3);
-      const nextActions: string[] = [];
+            const strengths = sortedCats.filter((c) => c.score >= 75).slice(0, 3);
+            const weaknesses = sortedCats.filter((c) => c.score < 50).slice(0, 3);
+            const perQuestionAdvice = buildPerQuestionAdvice(answers as Record<string, number>);
 
-      if (weaknesses.length > 0) {
-        nextActions.push(
-          "Improve your weakest area: " + weaknesses[0].label + " (currently " + weaknesses[0].score + "%). Focus on getting this above 60.",
-        );
-      }
-      if (vantagePoint < 400) {
-        nextActions.push(
-          "Recruit at least one co-founder or key advisor with relevant industry experience.",
-        );
-      } else if (vantagePoint < 550) {
-        nextActions.push(
-          "Run a structured customer-discovery round (10+ interviews) to validate demand before pitching.",
-        );
-      } else if (vantagePoint < 700) {
-        nextActions.push(
-          "Define a clear 12-month revenue plan with milestone-based projections.",
-        );
-      } else {
-        nextActions.push(
-          "Apply to DOT Demo or pitch your strongest capital partner — you're investor-ready.",
-        );
-      }
-      if (strengths.length > 0) {
-        nextActions.push(
-          "Lean into your strength: " + strengths[0].label + " (" + strengths[0].score + "%). Use it as the headline of your next pitch.",
-        );
-      }
-      const report = { strengths, weaknesses, nextActions, stage };
+            const nextActions: string[] = [];
+
+            // 1. The most-specific upgrades come from low individual question scores.
+            // These are the highest-leverage actions a founder can take.
+            nextActions.push(...perQuestionAdvice);
+
+            // 2. If we have room, add a strategic next step tied to overall stage.
+            if (vantagePoint < 400) {
+              nextActions.push(
+                "Recruit at least one co-founder or key advisor with relevant industry experience.",
+              );
+            } else if (vantagePoint < 550) {
+              nextActions.push(
+                "Run a structured customer-discovery round (10+ interviews) to validate demand before pitching.",
+              );
+            } else if (vantagePoint < 700) {
+              nextActions.push(
+                "Define a clear 12-month revenue plan with milestone-based projections.",
+              );
+            } else {
+              nextActions.push(
+                "Apply to DOT Demo or pitch your strongest capital partner — you're investor-ready.",
+              );
+            }
+            // 3. Lean into strongest area.
+            if (strengths.length > 0 && nextActions.length < 6) {
+              nextActions.push(
+                "Lean into your strength: " + strengths[0].label + " (" + strengths[0].score + "%). Use it as the headline of your next pitch.",
+              );
+            }
+            const report = { strengths, weaknesses, nextActions, stage };
 
       const result = await submitAssessment({
         answers: answers as Record<string, number>,
