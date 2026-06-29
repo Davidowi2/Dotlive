@@ -15,6 +15,7 @@ import {
   LogOut,
   Loader2,
   Search,
+  Filter,
   Bell,
   Award,
   Settings,
@@ -45,7 +46,8 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   /* main */
   { label: "Dashboard",     to: "/dashboard",     icon: LayoutDashboard, section: "main" },
-  { label: "Discover",      to: "/discover",      icon: Search,          section: "main" },
+    { label: "Discover",      to: "/discover",      icon: Search,          section: "main" },
+    { label: "Search",        to: "/search",        icon: Filter,          section: "main" },
   { label: "Notifications", to: "/notifications", icon: Bell,            section: "main" },
   /* growth — founder progression */
   { label: "Vantage",       to: "/vantage",       icon: Gauge,       roles: ["founder"],                 section: "growth" },
