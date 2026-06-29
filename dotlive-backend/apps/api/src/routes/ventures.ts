@@ -4,10 +4,24 @@
 
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { eq, and, desc, ilike, sql } from "drizzle-orm";
+import {
+  eq,
+  and,
+  desc,
+  ilike,
+  sql,
+  or,
+  asc,
+} from "drizzle-orm";
 
 import { db } from "../db/client.js";
-import { ventures } from "../db/schema.js";
+import {
+  ventures,
+  ventureDetails,
+  ventureTeamMembers,
+  ventureMilestones,
+  ventureAdvisors,
+} from "../db/schema.js";
 import { userHasRole } from "../lib/auth.js";
 
 const STAGES = ["Assess", "Validate", "Build", "Fund", "Scale"] as const;
@@ -153,6 +167,183 @@ export async function ventureRoutes(app: FastifyInstance) {
       fundability: Number(v[0].fundability ?? 50),
     });
   });
+
+  /* ---------------- Venture enrichment (founder profile 11 fields) -------- */
+
+  const enrichmentDetailsSchema = z.object({
+    oneLiner: z.string().max(300).optional(),
+    problem: z.string().max(2000).optional(),
+    solution: z.string().max(2000).optional(),
+    tractionMr: z.number().nonnegative().default(0),
+    tractionPayingUsers: z.number().int().nonnegative().default(0),
+    tractionGrowthPct: z.number().int().min(-100).max(10000).default(0),
+    tractionRetentionPct: z.number().int().min(0).max(100).default(0),
+    useOfFunds: z.string().max(1000).optional(),
+    capTableTotalRaised: z.number().nonnegative().default(0),
+    capTableLastRound: z.string().max(80).optional(),
+    capTableStructure: z.string().max(80).optional(),
+    pitchDeckUrl: z.string().url().optional(),
+    foundingDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    stageRationale: z.string().max(500).optional(),
+  });
+
+  const teamMemberSchema = z.object({
+    name: z.string().min(1).max(120),
+    role: z.string().min(1).max(120),
+    linkedinUrl: z.string().url().optional().or(z.literal("")),
+    isFounder: z.boolean().default(false),
+    orderIndex: z.number().int().default(0),
+  });
+
+  const milestoneSchema = z.object({
+    title: z.string().min(1).max(200),
+    description: z.string().max(1000).optional(),
+    achievedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    isUpcoming: z.boolean().default(false),
+    targetDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    orderIndex: z.number().int().default(0),
+  });
+
+  const advisorSchema = z.object({
+    name: z.string().min(1).max(120),
+    credentials: z.string().max(300).optional(),
+    linkedinUrl: z.string().url().optional().or(z.literal("")),
+  });
+
+  async function requireOwner(ventureId: string, userId: string) {
+    const v = await db
+      .select({ id: ventures.id, userId: ventures.userId })
+      .from(ventures)
+      .where(eq(ventures.id, ventureId))
+      .limit(1);
+    if (v.length === 0) return { ok: false as const, status: 404, error: "Not found" };
+    if (v[0].userId !== userId) return { ok: false as const, status: 403, error: "Forbidden" };
+    return { ok: true as const };
+  }
+
+  /** GET /api/ventures/:id/enrichment */
+  app.get<{ Params: { id: string } }>(
+    "/ventures/:id/enrichment",
+    async (req, reply) => {
+      const ventureId = req.params.id;
+      const [details] = await db
+        .select()
+        .from(ventureDetails)
+        .where(eq(ventureDetails.ventureId, ventureId))
+        .limit(1);
+      const team = await db
+        .select()
+        .from(ventureTeamMembers)
+        .where(eq(ventureTeamMembers.ventureId, ventureId))
+        .orderBy(asc(ventureTeamMembers.orderIndex));
+      const milestones = await db
+        .select()
+        .from(ventureMilestones)
+        .where(eq(ventureMilestones.ventureId, ventureId))
+        .orderBy(asc(ventureMilestones.orderIndex));
+      const advisors = await db
+        .select()
+        .from(ventureAdvisors)
+        .where(eq(ventureAdvisors.ventureId, ventureId));
+      return reply.send({
+        details: details ?? null,
+        team,
+        milestones,
+        advisors,
+      });
+    },
+  );
+
+  /** PUT /api/ventures/:id/details — owner only */
+  app.put<{ Params: { id: string }; Body: z.infer<typeof enrichmentDetailsSchema> }>(
+    "/ventures/:id/details",
+    { preHandler: app.authenticate },
+    async (req, reply) => {
+      const { sub } = (req as any).user as { sub: string };
+      const owner = await requireOwner(req.params.id, sub);
+      if (!owner.ok) return reply.code(owner.status).send({ error: owner.error });
+      const parsed = enrichmentDetailsSchema.safeParse(req.body);
+      if (!parsed.success) return reply.code(400).send({ error: "Invalid input" });
+      const data = parsed.data;
+      const values: any = {
+        ventureId: req.params.id,
+        oneLiner: data.oneLiner ?? null,
+        problem: data.problem ?? null,
+        solution: data.solution ?? null,
+        tractionMr: String(data.tractionMr),
+        tractionPayingUsers: data.tractionPayingUsers,
+        tractionGrowthPct: data.tractionGrowthPct,
+        tractionRetentionPct: data.tractionRetentionPct,
+        useOfFunds: data.useOfFunds ?? null,
+        capTableTotalRaised: String(data.capTableTotalRaised),
+        capTableLastRound: data.capTableLastRound ?? null,
+        capTableStructure: data.capTableStructure ?? null,
+        pitchDeckUrl: data.pitchDeckUrl ?? null,
+        foundingDate: data.foundingDate ?? null,
+        stageRationale: data.stageRationale ?? null,
+        updatedAt: new Date(),
+      };
+      await db.insert(ventureDetails).values(values).onConflictDoUpdate({
+        target: ventureDetails.ventureId,
+        set: values,
+      });
+      return reply.send({ ok: true });
+    },
+  );
+
+  /** POST /api/ventures/:id/team */
+  app.post<{ Params: { id: string }; Body: z.infer<typeof teamMemberSchema> }>(
+    "/ventures/:id/team",
+    { preHandler: app.authenticate },
+    async (req, reply) => {
+      const { sub } = (req as any).user as { sub: string };
+      const owner = await requireOwner(req.params.id, sub);
+      if (!owner.ok) return reply.code(owner.status).send({ error: owner.error });
+      const parsed = teamMemberSchema.safeParse(req.body);
+      if (!parsed.success) return reply.code(400).send({ error: "Invalid input" });
+      const inserted = await db
+        .insert(ventureTeamMembers)
+        .values({ ventureId: req.params.id, ...parsed.data } as any)
+        .returning();
+      return reply.send({ teamMember: inserted[0] });
+    },
+  );
+
+  /** POST /api/ventures/:id/milestones */
+  app.post<{ Params: { id: string }; Body: z.infer<typeof milestoneSchema> }>(
+    "/ventures/:id/milestones",
+    { preHandler: app.authenticate },
+    async (req, reply) => {
+      const { sub } = (req as any).user as { sub: string };
+      const owner = await requireOwner(req.params.id, sub);
+      if (!owner.ok) return reply.code(owner.status).send({ error: owner.error });
+      const parsed = milestoneSchema.safeParse(req.body);
+      if (!parsed.success) return reply.code(400).send({ error: "Invalid input" });
+      const inserted = await db
+        .insert(ventureMilestones)
+        .values({ ventureId: req.params.id, ...parsed.data } as any)
+        .returning();
+      return reply.send({ milestone: inserted[0] });
+    },
+  );
+
+  /** POST /api/ventures/:id/advisors */
+  app.post<{ Params: { id: string }; Body: z.infer<typeof advisorSchema> }>(
+    "/ventures/:id/advisors",
+    { preHandler: app.authenticate },
+    async (req, reply) => {
+      const { sub } = (req as any).user as { sub: string };
+      const owner = await requireOwner(req.params.id, sub);
+      if (!owner.ok) return reply.code(owner.status).send({ error: owner.error });
+      const parsed = advisorSchema.safeParse(req.body);
+      if (!parsed.success) return reply.code(400).send({ error: "Invalid input" });
+      const inserted = await db
+        .insert(ventureAdvisors)
+        .values({ ventureId: req.params.id, ...parsed.data } as any)
+        .returning();
+      return reply.send({ advisor: inserted[0] });
+    },
+  );
 }
 
 function serialize(v: any) {
@@ -174,4 +365,3 @@ function serialize(v: any) {
     updatedAt: v.updatedAt,
   };
 }
-// @ts-nocheck

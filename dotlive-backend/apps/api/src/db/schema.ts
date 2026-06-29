@@ -16,6 +16,7 @@ import {
   jsonb,
   uuid,
   primaryKey,
+  date,
   unique,
   check,
   index,
@@ -1121,4 +1122,68 @@ export const magicLinkTokens = pgTable("magic_link_tokens", {
 }, (t) => ({
   mltEmailIdx: index("magic_link_tokens_email_idx").on(t.email),
   mltTokenIdx: index("magic_link_tokens_token_idx").on(t.token),
+}));
+
+/* --------------------- Venture enrichment -----------------------
+ * Per direction: founder profile needs all 11 table fields.
+ *   - ventureDetails (1:1 with venture): extended fields
+ *   - teamMembers (1:N): people on the team
+ *   - milestones (1:N): past + upcoming
+ *   - advisors (1:N): credibility
+ */
+export const ventureDetails = pgTable("venture_details", {
+  ventureId: uuid("venture_id").primaryKey().references(() => ventures.id, { onDelete: "cascade" }),
+  oneLiner: text("one_liner"),
+  problem: text("problem"),
+  solution: text("solution"),
+  tractionMr: numeric("traction_mrr", { precision: 20, scale: 2 }).notNull().default("0"),
+  tractionPayingUsers: integer("traction_paying_users").notNull().default(0),
+  tractionGrowthPct: integer("traction_growth_pct").notNull().default(0),
+  tractionRetentionPct: integer("traction_retention_pct").notNull().default(0),
+  useOfFunds: text("use_of_funds"),
+  capTableTotalRaised: numeric("cap_table_total_raised", { precision: 20, scale: 2 }).notNull().default("0"),
+  capTableLastRound: text("cap_table_last_round"),
+  capTableStructure: text("cap_table_structure"), // SAFE / equity / convertible
+  pitchDeckUrl: text("pitch_deck_url"),
+  foundingDate: date("founding_date"),
+  stageRationale: text("stage_rationale"), // "Why this stage?"
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const ventureTeamMembers = pgTable("venture_team_members", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  ventureId: uuid("venture_id").notNull().references(() => ventures.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  role: text("role").notNull(),
+  linkedinUrl: text("linkedin_url"),
+  isFounder: boolean("is_founder").notNull().default(false),
+  orderIndex: integer("order_index").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  vtmVentureIdx: index("venture_team_members_venture_idx").on(t.ventureId),
+}));
+
+export const ventureMilestones = pgTable("venture_milestones", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  ventureId: uuid("venture_id").notNull().references(() => ventures.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  achievedAt: date("achieved_at"),
+  isUpcoming: boolean("is_upcoming").notNull().default(false),
+  targetDate: date("target_date"),
+  orderIndex: integer("order_index").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  vmVentureIdx: index("venture_milestones_venture_idx").on(t.ventureId),
+}));
+
+export const ventureAdvisors = pgTable("venture_advisors", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  ventureId: uuid("venture_id").notNull().references(() => ventures.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  credentials: text("credentials"),
+  linkedinUrl: text("linkedin_url"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  vaVentureIdx: index("venture_advisors_venture_idx").on(t.ventureId),
 }));

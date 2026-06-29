@@ -8,6 +8,7 @@ import {
 
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { BuySharesDialog } from "@/components/investor/BuySharesDialog";
+import { VentureEnrichmentSection } from "@/components/founder/VentureEnrichmentSection";
 import { useDotAuth } from "@/contexts/DotAuthContext";
 import { formatNaira, formatDot } from "@/lib/constants";
 import { getVentureInvestors } from "@/api/investments";
@@ -223,6 +224,18 @@ function PublicFounderProfile() {
           <Kpi icon={Wallet} label="DOT raised" value={stats.totalRaisedDot.toLocaleString()} hint={`${stats.sponsorCount} sponsor${stats.sponsorCount === 1 ? "" : "s"}`} />
         </div>
       </section>
+
+      {/* Founder profile enrichment (11 fields) — uses the first venture they own */}
+      {myVentures?.[0]?.id && (
+        <section className="border-b border-border py-8">
+          <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+            <VentureEnrichmentSection
+              ventureId={myVentures[0].id}
+              isOwner={!!user && user.id === founder.id}
+            />
+          </div>
+        </section>
+      )}
 
       {/* Journey position */}
       {profile?.vantagePoint !== undefined && (
