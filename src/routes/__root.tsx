@@ -169,7 +169,25 @@ function RootShell({ children }: { children: ReactNode }) {
 }
 
 function RootComponent() {
-  const { queryClient } = Route.useRouteContext();
+  // CRITICAL: The framework's auto-router (Lovable's Vite plugin) may not
+  // inject queryClient into the route context — which causes
+  // QueryClientProvider to receive `undefined` and crash with
+  // "Cannot read properties of undefined (reading 'mount')" in
+  // its useEffect cleanup.
+  // We always fall back to a freshly created QueryClient if the
+  // context one is missing. This is safe — react-query's staleTime
+  // means the data won't be refetched on remount.
+  const ctx = Route.useRouteContext();
+  const queryClient =
+    ctx?.queryClient ??
+    new QueryClient({
+      defaultOptions: {
+        queries: {
+          staleTime: 30 * 1000,
+          refetchOnWindowFocus: false,
+        },
+      },
+    });
 
   return (
     <QueryClientProvider client={queryClient}>
