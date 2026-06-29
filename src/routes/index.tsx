@@ -36,14 +36,14 @@ export const Route = createFileRoute("/")({
   ssr: true,
   head: () => ({
     meta: [
-      { title: "DOT — Africa's Venture Progression Network" },
+      { title: "DOT — Where African startups prove credibility, attract talent, and raise capital." },
       {
         name: "description",
         content:
-          "DOT helps African founders measure, learn and progress their ventures. Score with Vantage, earn DOT, access capital — one progression from idea to funded.",
+          "DOT is the operating system for African founders. Score venture credibility with Vantage, hire builders through DOT Work, and raise capital with a transparent track record — one progression from idea to scale.",
       },
-      { property: "og:title", content: "DOT — Africa's Venture Progression Network" },
-      { property: "og:description", content: "Move your venture from idea to funded — measurably." },
+      { property: "og:title", content: "DOT — Africa's Venture Operating System" },
+      { property: "og:description", content: "Prove credibility. Attract talent. Raise capital." },
     ],
   }),
   component: LandingPage,
@@ -61,48 +61,31 @@ const journey = [
   { label: "Scale",    icon: Rocket,      desc: "Grow with community distribution." },
 ];
 
+/**
+ * The 3 pillars of DOT — one for each part of the product definition.
+ *    "Prove credibility. Attract talent. Raise capital."
+ */
 const pillars = [
   {
     name: "Vantage",
-    tagline: "Venture intelligence engine",
-    desc: "Score your venture across quality, founder readiness, market strength and fundability. A real number investors can compare.",
+    tagline: "Prove credibility",
+    desc: "Score your venture across traction, capital, founder conviction and market depth. A real number investors can compare — backed by structured evidence, not self-rating.",
     icon: BarChart3,
     accent: "primary" as const,
   },
   {
-    name: "DOT Academy",
-    tagline: "Founder education",
-    desc: "Progression-based learning paths. Powered by Whop. Tracked and scored by DOT.",
-    icon: GraduationCap,
+    name: "DOT Work",
+    tagline: "Attract talent",
+    desc: "Builders post availability; founders post work. Verified contracts, DOT-escrowed payments, and visible reputation. The African talent layer DOT was missing.",
+    icon: Hammer,
     accent: "teal" as const,
   },
   {
-    name: "Founder Sessions",
-    tagline: "Live access",
-    desc: "Live sessions with operators, investors and industry experts. Recorded for replay.",
-    icon: CalendarCheck,
-    accent: "primary" as const,
-  },
-  {
-    name: "Pitchathons",
-    tagline: "Selection & evaluation",
-    desc: "Apply, get judged, surface to capital partners. Transparent scoring and leaderboards.",
+    name: "Raise",
+    tagline: "Raise capital",
+    desc: "Pitchathons, DOT Demo, and capital-partner tracks — your Vantage score + workspace activity surface you to investors and unlock access.",
     icon: Trophy,
     accent: "gold" as const,
-  },
-  {
-    name: "DOT Demo",
-    tagline: "Capital discovery",
-    desc: "Investor marketplace connecting fundable ventures with capital partners. Filter by Vantage score.",
-    icon: Building2,
-    accent: "gold" as const,
-  },
-  {
-    name: "Community OS",
-    tagline: "Community-led growth",
-    desc: "Referral links, dashboards and DOT rewards that power founder acquisition at the community level.",
-    icon: Users,
-    accent: "purple" as const,
   },
 ];
 
@@ -242,7 +225,7 @@ function HeroSection() {
             {/* Eyebrow — Africa's Venture Valuation Network */}
             <div className="flex items-center gap-4 mb-10">
               <span className="rounded-full border border-primary/30 bg-primary/5 px-3 py-1 text-[10px] tracking-widest uppercase font-semibold text-primary">
-                Africa's Venture Valuation Network
+                Africa's Venture Operating System
               </span>
               <span className="h-px w-12 bg-border" />
               <span className="text-[10px] tracking-widest uppercase text-muted-foreground">Est. 2026</span>
@@ -253,16 +236,17 @@ function HeroSection() {
               className="font-display font-light leading-[0.95] tracking-[-0.035em] text-foreground"
               style={{ fontSize: "clamp(3rem, 8.5vw, 7rem)" }}
             >
-              From idea<br />
-              to funded.<br />
-              <span className="italic text-primary">Measurably.</span>
+              Prove credibility.<br />
+              Attract talent.<br />
+              <span className="italic text-primary">Raise capital.</span>
             </h1>
 
             {/* Subhead with concrete numbers */}
             <p className="mt-10 max-w-lg text-lg text-muted-foreground leading-relaxed font-light">
-              DOT is a 7-stage progression for African founders. Score your venture with{" "}
-              <span className="font-medium text-foreground">Vantage</span>, earn DOT for the work you do,
-              and reach investors who filter by your number.
+              DOT is the operating system where African startups prove credibility with{" "}
+              <span className="font-medium text-foreground">Vantage</span>, attract verified talent through{" "}
+              <span className="font-medium text-foreground">DOT Work</span>, and{" "}
+              <span className="font-medium text-foreground">raise capital</span> on the back of measurable track record.
             </p>
 
             {/* CTAs — primary filled (green) + ghost */}
