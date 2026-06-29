@@ -15,6 +15,8 @@ export interface SignupData {
   name?: string;
   /** Onboarding intent from the signup flow */
   intent?: string;
+  /** Referral code (from ?ref=CODE URL param) */
+  referralCode?: string;
   /** Extra metadata (skills, businessStage, etc.) */
   metadata?: Record<string, unknown>;
 }
@@ -26,6 +28,7 @@ export async function signup(data: SignupData): Promise<AuthResponse> {
     email: data.email,
     password: data.password,
     name: data.name,
+    referralCode: data.referralCode,
   });
   setToken(res.token);
   return res;

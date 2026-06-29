@@ -50,6 +50,7 @@ import { magicLinkRoutes } from "./routes/magic-link.js";
 import { notificationsRoutes } from "./routes/notifications.js";
 import { certificatesRoutes } from "./routes/certificates.js";
 import { wizardRoutes } from "./routes/wizard.js";
+import { referralRoutes } from "./routes/referrals.js";
 
 /* ── Env validation ─────────────────────────────────────────── */
 
@@ -261,6 +262,7 @@ await app.register(statsRoutes,       { prefix: "/api" });
 await app.register(investorRoutes,   { prefix: "/api" });
 await app.register(investmentsRoutes, { prefix: "/api" });
 await app.register(onboardingRoutes,  { prefix: "/api" });
+await app.register(referralRoutes,   { prefix: "/api" });
   await app.register(osRoutes,           { prefix: "/api" });
 await app.register(withdrawalRoutes,    { prefix: "/api" });
   await app.register(communityBillingRoutes, { prefix: "/api" });

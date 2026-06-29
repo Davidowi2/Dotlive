@@ -50,6 +50,7 @@ const NAV_ITEMS: NavItem[] = [
   /* growth — founder progression */
   { label: "Vantage",       to: "/vantage",       icon: Gauge,       roles: ["founder"],                 section: "growth" },
   { label: "Wallet",        to: "/wallet",        icon: Wallet,                                     section: "growth" },
+  { label: "Refer & Earn",  to: "/referrals",     icon: Users,                                      section: "growth" },
   { label: "Builder Arena", to: "/builder",       icon: Trophy,      roles: ["builder"],                 section: "growth" },
   { label: "DOT Work",      to: "/work",          icon: Hammer,                                     section: "growth" },
   { label: "Academy",       to: "/academy",       icon: BookOpen,    roles: ["founder"],                 section: "growth" },

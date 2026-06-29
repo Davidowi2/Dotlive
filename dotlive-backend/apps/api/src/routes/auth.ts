@@ -4,7 +4,7 @@
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import crypto from "node:crypto";
 
 import { db } from "../db/client.js";
@@ -21,6 +21,7 @@ const signupSchema = z.object({
   email: z.string().email().max(255),
   password: z.string().min(8).max(128),
   name: z.string().min(1).max(100).optional(),
+  referralCode: z.string().min(3).max(32).optional(),
 });
 
 const loginSchema = z.object({
@@ -36,18 +37,66 @@ export async function authRoutes(app: FastifyInstance) {
     const parsed = signupSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: "Invalid input", details: parsed.error.flatten() });
 
-    const { email, password, name } = parsed.data;
+    const { email, password, name, referralCode: incomingRef } = parsed.data;
 
     const existing = await db.select({ id: users.id }).from(users).where(eq(users.email, email.toLowerCase())).limit(1);
     if (existing.length > 0) {
       return reply.code(409).send({ error: "Email already registered" });
     }
 
-    const user = await createUser({ email, password, name });
+    // Look up referrer BEFORE creating the user so we can wire referredBy.
+    let referrerId: string | null = null;
+    if (incomingRef) {
+      const [referrer] = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.referralCode, incomingRef))
+        .limit(1);
+      if (referrer) referrerId = referrer.id;
+    }
+
+    const user = await createUser({ email, password, name, referredBy: referrerId });
     const sessionId = await createSession(user.id);
     const token = await reply.jwtSign({ sub: user.id, sid: sessionId });
     const fullUser = await loadUserWithRoles(user.id);
-    return reply.send({ token, user: fullUser });
+
+    // Award referral bonus — best-effort, fire-and-forget.
+    if (referrerId) {
+      const REFERRAL_BONUS = 50; // 50 DOT for both sides
+      Promise.allSettled([
+        // Credit the new user
+        import("../lib/dot.js").then(({ creditWallet }) =>
+          creditWallet({
+            userId: user.id,
+            amount: REFERRAL_BONUS,
+            type: "credit",
+            description: `Welcome bonus — referred by ${incomingRef}`,
+          }).catch(() => null),
+        ),
+        // Credit the referrer
+        import("../lib/dot.js").then(({ creditWallet }) =>
+          creditWallet({
+            userId: referrerId!,
+            amount: REFERRAL_BONUS,
+            type: "credit",
+            description: `Referral bonus — ${user.name ?? user.email} signed up`,
+          }).catch(() => null),
+        ),
+        // Update referrer's stats
+        db.execute(sql`
+          UPDATE users
+          SET referral_count = referral_count + 1,
+              referral_earnings_dot = COALESCE(referral_earnings_dot, 0) + ${REFERRAL_BONUS}
+          WHERE id = ${referrerId}
+        `),
+      ]).catch(() => {});
+    }
+
+    return reply.send({
+      token,
+      user: fullUser,
+      ...(referrerId ? { referralApplied: true, bonusDot: 50 } : {}),
+    });
   });
 
   /** POST /api/auth/login */

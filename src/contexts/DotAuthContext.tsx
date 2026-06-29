@@ -96,11 +96,18 @@ export function DotAuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signup = useCallback(async (data: SignupData) => {
-    const res = await apiSignup(data);
-    setToken(res.token);
-    setTokenState(res.token);
-    setUser(res.user);
-  }, []);
+      // Auto-attach referralCode from URL ?ref=CODE if present
+      let referralCode = data.referralCode;
+      if (!referralCode && typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        const fromUrl = params.get("ref") ?? params.get("referral");
+        if (fromUrl) referralCode = fromUrl.trim().toUpperCase();
+      }
+      const res = await apiSignup({ ...data, referralCode });
+      setToken(res.token);
+      setTokenState(res.token);
+      setUser(res.user);
+    }, []);
 
   const logout = useCallback(() => {
     apiLogout().catch(() => { /* best-effort */ });

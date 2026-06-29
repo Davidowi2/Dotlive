@@ -32,6 +32,7 @@ import { Route as AuthenticatedVenturesRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedVantageRouteImport } from './routes/_authenticated/vantage'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedSessionsRouteImport } from './routes/_authenticated/sessions'
+import { Route as AuthenticatedReferralsRouteImport } from './routes/_authenticated/referrals'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedPortfolioRouteImport } from './routes/_authenticated/portfolio'
 import { Route as AuthenticatedPitchathonsRouteImport } from './routes/_authenticated/pitchathons'
@@ -178,6 +179,11 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
 const AuthenticatedSessionsRoute = AuthenticatedSessionsRouteImport.update({
   id: '/sessions',
   path: '/sessions',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedReferralsRoute = AuthenticatedReferralsRouteImport.update({
+  id: '/referrals',
+  path: '/referrals',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
@@ -390,6 +396,7 @@ export interface FileRoutesByFullPath {
   '/pitchathons': typeof AuthenticatedPitchathonsRoute
   '/portfolio': typeof AuthenticatedPortfolioRoute
   '/profile': typeof AuthenticatedProfileRoute
+  '/referrals': typeof AuthenticatedReferralsRoute
   '/sessions': typeof AuthenticatedSessionsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/vantage': typeof AuthenticatedVantageRoute
@@ -446,6 +453,7 @@ export interface FileRoutesByTo {
   '/pitchathons': typeof AuthenticatedPitchathonsRoute
   '/portfolio': typeof AuthenticatedPortfolioRoute
   '/profile': typeof AuthenticatedProfileRoute
+  '/referrals': typeof AuthenticatedReferralsRoute
   '/sessions': typeof AuthenticatedSessionsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/vantage': typeof AuthenticatedVantageRoute
@@ -505,6 +513,7 @@ export interface FileRoutesById {
   '/_authenticated/pitchathons': typeof AuthenticatedPitchathonsRoute
   '/_authenticated/portfolio': typeof AuthenticatedPortfolioRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
+  '/_authenticated/referrals': typeof AuthenticatedReferralsRoute
   '/_authenticated/sessions': typeof AuthenticatedSessionsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/vantage': typeof AuthenticatedVantageRoute
@@ -564,6 +573,7 @@ export interface FileRouteTypes {
     | '/pitchathons'
     | '/portfolio'
     | '/profile'
+    | '/referrals'
     | '/sessions'
     | '/settings'
     | '/vantage'
@@ -620,6 +630,7 @@ export interface FileRouteTypes {
     | '/pitchathons'
     | '/portfolio'
     | '/profile'
+    | '/referrals'
     | '/sessions'
     | '/settings'
     | '/vantage'
@@ -678,6 +689,7 @@ export interface FileRouteTypes {
     | '/_authenticated/pitchathons'
     | '/_authenticated/portfolio'
     | '/_authenticated/profile'
+    | '/_authenticated/referrals'
     | '/_authenticated/sessions'
     | '/_authenticated/settings'
     | '/_authenticated/vantage'
@@ -886,6 +898,13 @@ declare module '@tanstack/react-router' {
       path: '/sessions'
       fullPath: '/sessions'
       preLoaderRoute: typeof AuthenticatedSessionsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/referrals': {
+      id: '/_authenticated/referrals'
+      path: '/referrals'
+      fullPath: '/referrals'
+      preLoaderRoute: typeof AuthenticatedReferralsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/profile': {
@@ -1203,6 +1222,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPitchathonsRoute: typeof AuthenticatedPitchathonsRoute
   AuthenticatedPortfolioRoute: typeof AuthenticatedPortfolioRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
+  AuthenticatedReferralsRoute: typeof AuthenticatedReferralsRoute
   AuthenticatedSessionsRoute: typeof AuthenticatedSessionsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedVantageRoute: typeof AuthenticatedVantageRoute
@@ -1235,6 +1255,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPitchathonsRoute: AuthenticatedPitchathonsRoute,
   AuthenticatedPortfolioRoute: AuthenticatedPortfolioRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
+  AuthenticatedReferralsRoute: AuthenticatedReferralsRoute,
   AuthenticatedSessionsRoute: AuthenticatedSessionsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedVantageRoute: AuthenticatedVantageRoute,

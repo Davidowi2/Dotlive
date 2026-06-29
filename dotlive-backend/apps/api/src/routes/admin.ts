@@ -1160,15 +1160,81 @@ export async function adminRoutes(app: FastifyInstance) {
                 ADD COLUMN IF NOT EXISTS available boolean DEFAULT true;
               `);
               req.log.info({ adminId }, "migrate-builder-profile applied");
-              return reply.send({ ok: true, applied: ["builder_profiles.available column"] });
-            } catch (err: any) {
-              req.log.error({ err }, "migrate-builder-profile failed");
-              return reply.code(500).send({ error: "Migration failed", details: String(err) });
-            }
-          },
-        );
+                            return reply.send({ ok: true, applied: ["builder_profiles.available column"] });
+                          } catch (err: any) {
+                            req.log.error({ err }, "migrate-builder-profile failed");
+                            return reply.code(500).send({ error: "Migration failed", details: String(err) });
+                          }
+                        },
+                      );
 
-}
+                      /**
+                       * One-off migration: referral system.
+                       * Adds referral_code, referred_by, referral_count, referral_earnings_dot
+                       * columns to users. Backfills referral_code for existing users.
+                       * POST /api/admin/migrate-referrals
+                       */
+                      app.post(
+                        "/migrate-referrals",
+                        { preHandler: [app.authenticate] },
+                        async (req, reply) => {
+                          const adminId = (req.user as { sub: string }).sub;
+                          const roles = await getUserRoles(adminId);
+                          if (!roles.includes("super_admin")) {
+                            return reply.code(403).send({ error: "Super admin only" });
+                          }
+                          try {
+                            await db.execute(sql`
+                              ALTER TABLE users
+                              ADD COLUMN IF NOT EXISTS referral_code text UNIQUE,
+                              ADD COLUMN IF NOT EXISTS referred_by text,
+                              ADD COLUMN IF NOT EXISTS referral_count integer NOT NULL DEFAULT 0,
+                              ADD COLUMN IF NOT EXISTS referral_earnings_dot numeric(20,2) NOT NULL DEFAULT 0;
+                            `);
+
+                            // Backfill referral_code for users missing one.
+                            const { generateReferralCode } = await import("../lib/auth.js");
+                            const missingRows = await db
+                              .select({ id: users.id, email: users.email })
+                              .from(users)
+                              .where(sql`${users.referralCode} IS NULL`);
+
+                            let backfilled = 0;
+                            for (const row of missingRows) {
+                              let code = generateReferralCode();
+                              for (let i = 0; i < 3; i++) {
+                                const dup = await db
+                                  .select({ id: users.id })
+                                  .from(users)
+                                  .where(eq(users.referralCode, code))
+                                  .limit(1);
+                                if (dup.length === 0) break;
+                                code = generateReferralCode();
+                              }
+                              await db
+                                .update(users)
+                                .set({ referralCode: code } as any)
+                                .where(eq(users.id, row.id));
+                              backfilled++;
+                            }
+
+                            req.log.info({ adminId, backfilled }, "migrate-referrals applied");
+                            return reply.send({
+                              ok: true,
+                              applied: [
+                                "users referral columns",
+                                `backfilled ${backfilled} referral codes`,
+                              ],
+                              backfilled,
+                            });
+                          } catch (err: any) {
+                            req.log.error({ err }, "migrate-referrals failed");
+                            return reply.code(500).send({ error: "Migration failed", details: String(err) });
+                          }
+                        },
+                      );
+
+              }
 
 /* ============================== helpers ============================== */
 

@@ -118,6 +118,16 @@ export function generateDotId(): string {
   return `${adj}-${noun}-${yy}${tail}`;
 }
 
+/**
+ * Referral code — 8 chars from crypto-random base36.
+ * Examples: "K3M9X7PQ", "B5H2N8RT"
+ */
+export function generateReferralCode(): string {
+  return Array.from(crypto.getRandomValues(new Uint8Array(8)))
+    .map((b) => "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"[b % 36])
+    .join("");
+}
+
 /* --------------------------- User creation --------------------------- */
 
 export interface CreateUserInput {
@@ -126,6 +136,7 @@ export interface CreateUserInput {
   name?: string;
   avatarUrl?: string;
   googleId?: string;
+  referredBy?: string | null;
 }
 
 /**
@@ -139,6 +150,7 @@ export async function createUser(input: CreateUserInput): Promise<{
   name: string | null;
   avatarUrl: string | null;
   dotId: string;
+  referralCode: string;
 }> {
   const email = input.email.toLowerCase().trim();
   let dotId = generateDotId();
@@ -148,6 +160,18 @@ export async function createUser(input: CreateUserInput): Promise<{
     const existing = await db.select({ id: users.id }).from(users).where(eq(users.dotId, dotId)).limit(1);
     if (existing.length === 0) break;
     dotId = generateDotId();
+  }
+
+  // Generate a unique referralCode (8 chars, base36, uppercase).
+  let referralCode = generateReferralCode();
+  for (let i = 0; i < 5; i++) {
+    const existing = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.referralCode, referralCode))
+      .limit(1);
+    if (existing.length === 0) break;
+    referralCode = generateReferralCode();
   }
 
   const passwordHash = input.password ? await hashPassword(input.password) : null;
@@ -161,6 +185,8 @@ export async function createUser(input: CreateUserInput): Promise<{
     name: input.name ?? null,
     avatarUrl: input.avatarUrl ?? null,
     dotId,
+    referralCode,
+    referredBy: input.referredBy ?? null,
   } as any);
 
   await db.insert(userRoles).values({
@@ -211,11 +237,12 @@ export async function createUser(input: CreateUserInput): Promise<{
   }
 
   return {
-    id,
-    email,
-    name: input.name ?? null,
-    avatarUrl: input.avatarUrl ?? null,
-    dotId,
+      id,
+      email,
+      name: input.name ?? null,
+      avatarUrl: input.avatarUrl ?? null,
+      dotId,
+      referralCode,
   };
 }
 

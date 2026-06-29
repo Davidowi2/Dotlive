@@ -33,6 +33,10 @@ export const users = pgTable("users", {
   name: text("name"),
   avatarUrl: text("avatar_url"),
   dotId: text("dot_id").notNull().unique(),
+  referralCode: text("referral_code").notNull().unique(),
+  referredBy: text("referred_by"), // referral_code of the user who referred this user
+  referralCount: integer("referral_count").notNull().default(0),
+  referralEarningsDot: numeric("referral_earnings_dot", { precision: 20, scale: 2 }).notNull().default("0"),
   onboardingIntent: text("onboarding_intent"),
     invitedBy: text("invited_by"),
     onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
