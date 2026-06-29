@@ -33,7 +33,7 @@ import { CountUp, FadeIn, Lift } from "@/components/ui/motion";
 import { TOOL_ICONS } from "@/components/brand/ToolIcons";
 
 export const Route = createFileRoute("/")({
-  ssr: false,
+  ssr: true,
   head: () => ({
     meta: [
       { title: "DOT — Africa's Venture Progression Network" },
