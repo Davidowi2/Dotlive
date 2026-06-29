@@ -47,9 +47,10 @@ import {
   Check,
   Loader2,
   Wallet as WalletIcon,
-  TrendingUp,
-  TrendingDown,
-} from "lucide-react";
+    TrendingUp,
+    TrendingDown,
+    Lock,
+  } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
 import { PageSkeleton } from "@/components/app/PageSkeleton";
@@ -518,29 +519,26 @@ function WalletPage() {
             </DialogContent>
           </Dialog>
 
-          {/* Withdraw to bank — KYC gated */}
-          <button
-            type="button"
-            onClick={() => setWithdrawOpen(true)}
-            className="group flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-5 text-left transition hover:border-primary/40 hover:bg-card/80 hover:shadow-soft"
-          >
-            <div className="flex items-center gap-3">
-              <span className="flex size-10 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600">
-                <ArrowDownToLine className="size-5" />
-              </span>
-              <div>
-                <div className="font-medium">Withdraw to bank</div>
-                <div className="text-xs text-muted-foreground">
-                  {kyc?.status === "approved"
-                    ? `Tier ${kyc.tier.replace("tier", "")} · up to ${(kyc.withdrawalLimit ?? 0).toLocaleString()} DOT`
-                    : kyc?.status === "pending"
-                    ? "KYC under review"
-                    : "Verify KYC to cash out to Naira"}
-                </div>
-              </div>
-            </div>
-            <ArrowUpRight className="size-5 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-primary" />
-          </button>
+          {/* Withdraw to bank — PAUSED pending Paystack recipient setup.
+                     Per ops direction, withdrawals are disabled until the bank
+                     recipient + transfer API is fully configured in Paystack. */}
+                    <div
+                      className="group flex items-center justify-between gap-4 rounded-xl border border-dashed border-border bg-card/40 p-5 opacity-70 cursor-not-allowed"
+                      title="Withdrawals are temporarily paused"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="flex size-10 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600">
+                          <ArrowDownToLine className="size-5" />
+                        </span>
+                        <div>
+                          <div className="font-medium">Withdraw to bank</div>
+                          <div className="text-xs text-muted-foreground">
+                            Temporarily paused — DOT deposits work, cash-out coming soon.
+                          </div>
+                        </div>
+                      </div>
+                      <Lock className="size-5 text-muted-foreground" />
+                    </div>
 
           {/* Withdraw / Transfer — ghost */}
           <button
