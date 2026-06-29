@@ -1,15 +1,57 @@
 import { JOURNEY_STAGES, type JourneyStage } from "./constants";
 
+/**
+ * Vantage question kinds.
+ *
+ *   - "likert"  — 5-point subjective slider (kept for things you can't quantify,
+ *                 like founder conviction)
+ *   - "number"  — structured numeric input (e.g. "monthly paying users")
+ *   - "select"  — discrete options (e.g. employment status)
+ *   - "text"    — short free-text response (e.g. "what's the moat?")
+ *
+ * Each question carries a `score(value) → 0..100` function so the scoring
+ * layer is centralized in this file.
+ */
+export type VantageQuestionKind = "likert" | "number" | "select" | "text";
+
+export interface VantageQuestionOption {
+  value: string;
+  label: string;
+  /** Score (0..100) for this option. */
+  score: number;
+}
+
 export interface VantageQuestion {
   id: string;
   text: string;
-  /** Helper copy shown below the question to explain what each end means. */
+  /** What kind of input this question takes. Defaults to "likert". */
+  kind?: VantageQuestionKind;
+  /** Helper copy shown below the question (only used for likert). */
   help?: { low: string; high: string };
+  /** For "number" — bounds + scoring curve metadata. */
+  numberMeta?: {
+    /** Where the score should hit its floor (default 0). */
+    minScore?: number;
+    /** Where the score should hit 100. Values above still score 100. */
+    maxAt: number;
+    /** Optional unit suffix (e.g. "₦/mo", "%"). */
+    suffix?: string;
+    /** Placeholder for the input. */
+    placeholder?: string;
+  };
+  /** For "select" — discrete options. */
+  options?: VantageQuestionOption[];
+  /** For "text" — what to put in the textarea. */
+  textMeta?: {
+    placeholder?: string;
+    maxLength?: number;
+  };
 }
 
 export interface VantageCategory {
   key: string;
   label: string;
+  description?: string;
   /** Percentage weight of overall score. All weights must sum to 100. */
   weight: number;
   questions: VantageQuestion[];
@@ -24,98 +66,251 @@ export interface VantageCategory {
  * Scale: 1 (Very low) → 5 (Very high).  See vantage.tsx SCALE.
  */
 export const VANTAGE_CATEGORIES: VantageCategory[] = [
+  /* ---------------- 1. FOUNDER (30%) — 1 slider + 2 structured ----------- */
   {
     key: "founder",
     label: "Founder",
+    description:
+      "Who is building this, how committed are they, and what's their track record?",
     weight: 30,
     questions: [
       {
-        id: "founder_commitment",
-        text: "How committed is the founder to this venture full-time?",
-        help: { low: "Side project", high: "Quit job, full-time, no plan B" },
+        id: "founder_conviction",
+        text: "How committed are you, personally, to this venture?",
+        kind: "likert",
+        help: {
+          low: "Open exploration — not the main thing I'm focused on",
+          high: "All-in, committed for the next 5+ years",
+        },
       },
       {
-        id: "founder_experience",
-        text: "How directly relevant is the founder's experience to this problem?",
-        help: { low: "First time in industry", high: "10+ years in this exact space" },
+        id: "founder_commitment_status",
+        text: "What is your current employment status?",
+        kind: "select",
+        options: [
+          { value: "ft_elsewhere", label: "Full-time at another company", score: 10 },
+          { value: "pt_venture", label: "Part-time on this venture", score: 30 },
+          { value: "ft_venture", label: "Full-time on this venture", score: 80 },
+          { value: "ft_venture_with_income", label: "Full-time + earning revenue", score: 100 },
+        ],
       },
       {
-        id: "founder_team",
-        text: "How strong is the founding team (skills, complementarity, track record)?",
-        help: { low: "Solo founder", high: "Repeat founders, complementary skills" },
+        id: "founder_experience_years",
+        text: "Years of experience in this industry or adjacent space",
+        kind: "number",
+        numberMeta: {
+          maxAt: 10,
+          placeholder: "e.g. 5",
+          suffix: "years",
+        },
       },
     ],
   },
+
+  /* ---------------- 2. TRACTION (30%) — 4 numeric ------------------------ */
   {
     key: "traction",
     label: "Traction",
+    description:
+      "Hard numbers, not narratives. Investors check these signals first.",
     weight: 30,
     questions: [
       {
-        id: "traction_revenue",
-        text: "What does annual revenue look like today?",
-        help: { low: "Pre-revenue", high: "₦50M+ ARR" },
+        id: "traction_paying_users",
+        text: "How many paying customers do you have right now?",
+        kind: "number",
+        numberMeta: {
+          maxAt: 100,
+          placeholder: "e.g. 25",
+          suffix: "customers",
+        },
       },
       {
-        id: "traction_customers",
-        text: "How many paying customers do you have?",
-        help: { low: "0", high: "1000+ recurring" },
+        id: "traction_mrr_dot",
+        text: "Monthly recurring revenue (DOT)",
+        kind: "number",
+        numberMeta: {
+          maxAt: 50000,
+          placeholder: "e.g. 2500",
+          suffix: "DOT / month",
+        },
       },
       {
-        id: "traction_growth",
-        text: "How fast is the business growing month-over-month?",
-        help: { low: "Flat", high: ">20% MoM" },
+        id: "traction_mom_growth_pct",
+        text: "Month-over-month growth (%)",
+        kind: "number",
+        numberMeta: {
+          maxAt: 25,
+          placeholder: "e.g. 8",
+          suffix: "%",
+        },
+      },
+      {
+        id: "traction_retention_90d_pct",
+        text: "90-day retention rate (%)",
+        kind: "number",
+        numberMeta: {
+          maxAt: 80,
+          placeholder: "e.g. 60",
+          suffix: "%",
+        },
       },
     ],
   },
-  {
-    key: "market",
-    label: "Market",
-    weight: 20,
-    questions: [
-      {
-        id: "market_size",
-        text: "How large is the addressable market you're going after?",
-        help: { low: "Local niche", high: "$1B+ SAM" },
-      },
-      {
-        id: "market_competition",
-        text: "How clearly do you understand your competitive landscape?",
-        help: { low: "Vague", high: "Deep moat / network effects" },
-      },
-      {
-        id: "market_timing",
-        text: "Why is now the right time for this market?",
-        help: { low: "Just an idea", high: "Tailwind (regulation, tech, behaviour)" },
-      },
-    ],
-  },
+
+  /* ---------------- 3. CAPITAL (20%) — 3 numeric ------------------------- */
   {
     key: "capital",
     label: "Capital",
+    description: "Runway and capital efficiency determine survival.",
     weight: 20,
     questions: [
       {
-        id: "capital_runway",
-        text: "How many months of runway does the business currently have?",
-        help: { low: "<3 months", high: "12+ months" },
+        id: "capital_runway_months",
+        text: "Months of runway remaining",
+        kind: "number",
+        numberMeta: {
+          maxAt: 18,
+          placeholder: "e.g. 9",
+          suffix: "months",
+        },
       },
       {
-        id: "capital_need",
-        text: "How clearly defined is your capital need (use of funds)?",
-        help: { low: "Vague", high: "Tied to specific milestones" },
+        id: "capital_total_raised_dot",
+        text: "Total capital raised to date (DOT)",
+        kind: "number",
+        numberMeta: {
+          maxAt: 1_000_000,
+          placeholder: "e.g. 250000",
+          suffix: "DOT",
+        },
       },
       {
-        id: "capital_history",
-        text: "Have you raised capital before?",
-        help: { low: "First raise", high: "Multiple rounds, notable investors" },
+        id: "capital_burn_dot",
+        text: "Monthly burn (DOT)",
+        kind: "number",
+        numberMeta: {
+          maxAt: 100000,
+          placeholder: "e.g. 8500",
+          suffix: "DOT / month",
+        },
+      },
+    ],
+  },
+
+  /* ---------------- 4. MARKET (10%) — 1 numeric + 1 slider + 1 text ----- */
+  {
+    key: "market",
+    label: "Market",
+    description:
+      "How big is the opportunity, why is now, and what's your wedge?",
+    weight: 10,
+    questions: [
+      {
+        id: "market_size_bucket",
+        text: "Total Addressable Market (TAM)",
+        kind: "select",
+        options: [
+          { value: "lt_1m", label: "Under ₦1M / $10K", score: 5 },
+          { value: "1m_10m", label: "₦1M – ₦10M", score: 20 },
+          { value: "10m_100m", label: "₦10M – ₦100M", score: 50 },
+          { value: "100m_1b", label: "₦100M – ₦1B", score: 80 },
+          { value: "gt_1b", label: "Over ₦1B / $1M+", score: 100 },
+        ],
+      },
+      {
+        id: "market_timing",
+        text: "Why is now the right time?",
+        kind: "likert",
+        help: {
+          low: "Just an idea — no specific tailwind",
+          high: "Strong tailwind (regulation, technology, behaviour change)",
+        },
+      },
+      {
+        id: "market_moat",
+        text: "What's your competitive moat / why will you win?",
+        kind: "text",
+        textMeta: {
+          placeholder:
+            "One paragraph — what's hard for competitors to copy about your position?",
+          maxLength: 500,
+        },
+      },
+    ],
+  },
+
+  /* ---------------- 5. TEAM (5%) — 1 numeric + 1 text ------------------- */
+  {
+    key: "team",
+    label: "Team",
+    description:
+      "Solo founder or team? Complementary skills? Track record?",
+    weight: 5,
+    questions: [
+      {
+        id: "team_cofounder_count",
+        text: "Number of full-time co-founders (you + 1, you + 2, etc.)",
+        kind: "number",
+        numberMeta: {
+          maxAt: 3,
+          placeholder: "e.g. 2",
+        },
+      },
+      {
+        id: "team_track_record",
+        text: "Brief track record — what have this team shipped together before?",
+        kind: "text",
+        textMeta: {
+          placeholder:
+            "A few bullets: where you worked, what you built, what you learned.",
+          maxLength: 500,
+        },
+      },
+    ],
+  },
+
+  /* ---------------- 6. OPPORTUNITY (5%) — 1 slider + 1 text ------------- */
+  {
+    key: "opportunity",
+    label: "Opportunity",
+    description:
+      "How specific is the problem and how well do you understand the customer?",
+    weight: 5,
+    questions: [
+      {
+        id: "opportunity_clarity",
+        text: "How clearly do you understand the customer and the problem?",
+        kind: "likert",
+        help: {
+          low: "Vague — \"everyone is my customer\"",
+          high: "Specific ICP + 20+ customer-discovery interviews done",
+        },
+      },
+      {
+        id: "opportunity_pmf_evidence",
+        text: "Evidence of product-market fit (paste a number or quote)",
+        kind: "text",
+        textMeta: {
+          placeholder:
+            "One number or one quote: e.g. '40% WoW retention', or a real customer quote.",
+          maxLength: 500,
+        },
       },
     ],
   },
 ];
 
+/**
+ * Vantage answers are typed per-question-kind:
+ *   - likert: number 1..5
+ *   - number: number
+ *   - select: string (option value)
+ *   - text:   string
+ */
+export type VantageAnswerValue = number | string;
 export interface VantageAnswers {
-  [questionId: string]: number; // 1-5
+  [questionId: string]: VantageAnswerValue | undefined;
 }
 
 export const TOTAL_QUESTIONS = VANTAGE_CATEGORIES.reduce(
@@ -148,16 +343,67 @@ export function journeyStageForScore(score: number): JourneyStage {
  * Calculates the per-category average for each VantageCategory given
  * the answers. Skips unanswered questions.
  */
+/**
+ * Per-question scoring function. Returns 0..100 for an answer.
+ * Centralized so the schema is the source of truth.
+ */
+export function scoreQuestion(q: VantageQuestion, value: VantageAnswerValue | undefined): number {
+  if (value === undefined || value === null || value === "") return 0;
+  const kind = q.kind ?? "likert";
+
+  if (kind === "likert") {
+    // 1..5 → 0..100 (linear, score 0 means 0 reported)
+    const v = Number(value);
+    if (Number.isNaN(v) || v < 1) return 0;
+    if (v > 5) return 100;
+    return (v - 1) * 25;
+  }
+
+  if (kind === "number") {
+    const v = Number(value);
+    if (Number.isNaN(v) || v <= 0) return 0;
+    const meta = q.numberMeta!;
+    const max = meta.maxAt;
+    const pct = (v / max) * 100;
+    return Math.max(0, Math.min(100, Math.round(pct)));
+  }
+
+  if (kind === "select") {
+    const opt = q.options?.find((o) => o.value === value);
+    if (!opt) return 0;
+    return opt.score;
+  }
+
+  if (kind === "text") {
+    // Text alone doesn't move the dial. But the *presence* of a thoughtful
+    // answer (long enough) adds 20 points so the assessor report surfaces
+    // the gap if the founder didn't bother writing one.
+    const s = String(value).trim();
+    if (s.length === 0) return 0;
+    if (s.length < 30) return 5;
+    if (s.length < 80) return 15;
+    return 25;
+  }
+
+  return 0;
+}
+
+/**
+ * Calculates the per-category average (0..100) for each VantageCategory
+ * given the answers. Skips unanswered questions. Treats 0-score as "did not answer".
+ */
 export function categoryScores(answers: VantageAnswers): Record<string, number> {
   const out: Record<string, number> = {};
   for (const cat of VANTAGE_CATEGORIES) {
     const vals: number[] = [];
     for (const q of cat.questions) {
       const v = answers[q.id];
-      if (typeof v === "number" && v >= 1 && v <= 5) vals.push(v);
+      if (v === undefined) continue;
+      const s = scoreQuestion(q, v);
+      if (s > 0) vals.push(s);
     }
     if (vals.length === 0) out[cat.key] = 0;
-    else out[cat.key] = Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 20); // 0..100
+    else out[cat.key] = Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
   }
   return out;
 }

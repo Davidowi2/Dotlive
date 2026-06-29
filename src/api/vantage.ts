@@ -9,7 +9,7 @@ export interface VantageSubmitResult {
 }
 
 export interface VantageSubmitInput {
-  answers: Record<string, number>;
+  answers: Record<string, number | string>;
   categoryScores: Record<string, number>;
   score: number;
   vantagePoint: number;

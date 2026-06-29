@@ -19,6 +19,7 @@ import {
   Rocket,
   Layers,
   ShieldCheck,
+  Wrench,
 } from "lucide-react";
 import {
   LineChart,
@@ -34,6 +35,9 @@ import { PageHeader } from "@/components/app/PageHeader";
 import { EmptyState } from "@/components/app/EmptyState";
 import { PageSkeleton } from "@/components/app/PageSkeleton";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { useDotAuth } from "@/contexts/DotAuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -47,6 +51,8 @@ import {
   investmentReadinessFromScores,
   vantageStageFromScore,
   type VantageAnswers,
+  type VantageAnswerValue,
+  scoreQuestion,
 } from "@/lib/vantage";
 import { formatDot } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -71,7 +77,7 @@ const SCALE = [
 ];
 
 const FLAT_QUESTIONS = VANTAGE_CATEGORIES.flatMap((c) =>
-  c.questions.map((q) => ({ ...q, category: c.label })),
+  c.questions.map((q) => ({ ...q, category: c.label, categoryKey: c.key, categoryDescription: c.description })),
 );
 
 // ─── Hero "5 pillars" rollup ─────────────────────────────────────
@@ -99,16 +105,23 @@ const PILLARS: Pillar[] = [
     sources: ["traction"],
   },
   {
+    key: "capital",
+    label: "Capital",
+    icon: Briefcase,
+    sources: ["capital"],
+  },
+  {
     key: "market",
     label: "Market",
     icon: Layers,
     sources: ["market"],
   },
   {
-    key: "capital",
-    label: "Capital",
-    icon: Briefcase,
-    sources: ["capital"],
+    key: "execution",
+    label: "Execution",
+    icon: Wrench,
+    // Derived: team + opportunity (i.e. can you ship + do you get it?)
+    sources: ["team", "opportunity"],
   },
   {
     key: "fundability",
@@ -216,12 +229,15 @@ function VantagePage() {
   const progress = ((idx + (answers[current?.id] ? 1 : 0)) / TOTAL_QUESTIONS) * 100;
   const answeredAll = FLAT_QUESTIONS.every((q) => answers[q.id]);
 
-  function setAnswer(v: number) {
+  function setAnswer(v: VantageAnswerValue | undefined) {
     setAnswers((a) => ({ ...a, [current.id]: v }));
-    if (idx < FLAT_QUESTIONS.length - 1) {
-      setTimeout(() => setIdx((i) => i + 1), 150);
+    // Auto-advance only for short-input kinds (likert + select).
+    const k = current?.kind ?? "likert";
+    if ((k === "likert" || k === "select") && idx < FLAT_QUESTIONS.length - 1) {
+      setTimeout(() => setIdx((i) => i + 1), 200);
     }
   }
+
 
   async function submit() {
     if (!user || !answeredAll) return;
@@ -249,99 +265,118 @@ function VantagePage() {
       // the drag on the category. The advice is concrete and actionable,
       // not generic ("work harder on traction").
       const UPGRADE_ADVICE: Record<string, { low: string; mid: string }> = {
-        // Founder
-        founder_commitment: {
-          low: "Make the leap to full-time within the next 60 days. Investors back committed operators — side projects signal optionality, not conviction.",
-          mid: "Document a concrete full-time transition plan: savings runway, key milestones, deadline. Show you can focus.",
-        },
-        founder_experience: {
-          low: "Hire a domain-experienced advisor (5% equity, monthly cadence) to plug the experience gap on your cap table.",
-          mid: "Publish 2 case studies or thought-leadership posts in your industry to demonstrate depth.",
-        },
-        founder_team: {
-          low: "Bring on a co-founder with the skill you lack (technical, sales, ops). Solo founders are a red flag — recruit deliberately.",
-          mid: "Formalise your team's commitments: vesting schedules, equity splits, role definitions in a one-pager.",
-        },
-        // Traction
-        traction_revenue: {
-          low: "Land your first 3 paying customers — even at a discount. Revenue, however small, validates the model.",
-          mid: "Move from one-off sales to a recurring or subscription structure. Track MRR, not just total revenue.",
-        },
-        traction_customers: {
-          low: "Define your ICP precisely, run 20+ customer discovery calls, and convert 3 to paid pilots.",
-          mid: "Build a referral loop: offer existing customers a credit for each new customer they bring.",
-        },
-        traction_growth: {
-          low: "Identify the single channel that's working (paid, content, partnership) and double down on it. Stop spreading thin.",
-          mid: "Set up cohort tracking: what % of users from January are still active in March? Improve that number monthly.",
-        },
-        // Market
-        market_size: {
-          low: "Write a bottom-up TAM/SAM/SOM calculation. 'Big market' isn't enough — investors need numbers from your beachhead.",
-          mid: "Document 3 reference customers who represent your SOM. Show the segments you'll expand into.",
-        },
-        market_competition: {
-          low: "Map the top 5 competitors on a 2x2 (price vs. feature). Identify your wedge clearly.",
-          mid: "Write a 'Why we win' section in your one-pager: defensibility, moats, switching costs.",
-        },
-        market_timing: {
-          low: "Identify a single external tailwind (regulation change, technology shift, behaviour change) that creates urgency now.",
-          mid: "Cite 2-3 concrete data points that show the market is moving in your favour right now.",
-        },
-        // Capital
-        capital_runway: {
-          low: "Raise a bridge round now — friends, angels, or a SAFE. <3 months runway kills companies.",
-          mid: "Cut burn by 20% before raising. Investors want capital efficiency as much as growth.",
-        },
-        capital_need: {
-          low: "Write a use-of-funds statement: 'We're raising ₦X for Y months to hit milestone Z.' Specific beats vague.",
-          mid: "Break your raise into tranches tied to milestones. Investors respect milestone-based capital.",
-        },
-        capital_history: {
-          low: "Apply to 3 angel networks or pitchathons to build your first raise track record. Start small.",
-          mid: "Publish a 'capital strategy' doc: who you'd target at each stage (pre-seed → seed → Series A).",
-        },
+              // Founder
+              founder_conviction: {
+                low: "Make the leap to full-time within the next 60 days. Investors back committed operators — side projects signal optionality, not conviction.",
+                mid: "Document a concrete full-time transition plan: savings runway, key milestones, deadline. Show you can focus.",
+              },
+              founder_commitment_status: {
+                low: "Quit the day job. You cannot run a venture full-time + hold another job. The juggling shows.",
+                mid: "Move to part-time at the venture with a deadline to be full-time within 90 days.",
+              },
+              founder_experience_years: {
+                low: "Hire a domain-experienced advisor (5% equity, monthly cadence) to plug the experience gap on your cap table.",
+                mid: "Publish 2 case studies or thought-leadership posts in your industry to demonstrate depth.",
+              },
+              // Traction
+              traction_paying_users: {
+                low: "You have under 10 paying customers. Get out of the building: 20 customer-discovery calls in the next 30 days, convert 3 to paid.",
+                mid: "Convert free users to paid with a clear value moment. If retention is broken, fix that BEFORE acquiring more.",
+              },
+              traction_mrr_dot: {
+                low: "You have under ₦100K/month MRR. Land your first 3 paying customers — even at a discount. Revenue, however small, validates the model.",
+                mid: "Move from one-off sales to a recurring or subscription structure. Track MRR, not just total revenue.",
+              },
+              traction_mom_growth_pct: {
+                low: "Growth under 5% MoM means the product isn't resonating. Find out why — measure activation + retention + NPS.",
+                mid: "Identify the single channel that's working (paid, content, partnership) and double down on it. Stop spreading thin.",
+              },
+              traction_retention_90d_pct: {
+                low: "Retention under 30% at 90 days is a product problem. Talk to the people who churned.",
+                mid: "Set up cohort tracking: what % of users from January are still active in March? Improve that number monthly.",
+              },
+              // Capital
+              capital_runway_months: {
+                low: "Raise a bridge round now — friends, angels, or a SAFE. <3 months runway kills companies.",
+                mid: "Cut burn by 20% before raising. Investors want capital efficiency as much as growth.",
+              },
+              capital_total_raised_dot: {
+                low: "Apply to 3 angel networks or pitchathons to build your first raise track record. Start small.",
+                mid: "Publish a 'capital strategy' doc: who you'd target at each stage (pre-seed → seed → Series A).",
+              },
+              capital_burn_dot: {
+                low: "Burn is too high relative to your runway. Identify the 2 line items to cut this week — server, marketing.",
+                mid: "Set a monthly burn cap. If you exceed it, every team member sees the breakdown. Forced discipline.",
+              },
+              // Market
+              market_size_bucket: {
+                low: "Re-write your TAM/SAM/SOM. 'Big market' isn't enough — investors need numbers from your beachhead.",
+                mid: "Document 3 reference customers who represent your SOM. Show the segments you'll expand into.",
+              },
+              market_timing: {
+                low: "Identify a single external tailwind (regulation change, technology shift, behaviour change) that creates urgency now.",
+                mid: "Cite 2-3 concrete data points that show the market is moving in your favour right now.",
+              },
+              market_moat: {
+                low: "Write the moat paragraph NOW. 'Network effects', 'switching costs', 'data flywheel' — pick one and justify it with numbers.",
+                mid: "Map the top 5 competitors on a 2x2 (price vs. feature). Identify your wedge clearly.",
+              },
+              // Team
+              team_cofounder_count: {
+                low: "Solo founder = red flag. Bring on a co-founder with the skill you lack (technical, sales, ops).",
+                mid: "Formalise your team's commitments: vesting schedules, equity splits, role definitions in a one-pager.",
+              },
+              team_track_record: {
+                low: "Add the prior wins. Investors want proof the team can execute, not just enthusiasm.",
+                mid: "Link a public artifact: GitHub commits, shipped products, customer testimonials.",
+              },
+              // Opportunity
+              opportunity_clarity: {
+                low: "You don't know your ICP yet. Run 20 customer interviews this month — no product building, just listen.",
+                mid: "Narrow from 'everyone' to 1 specific persona. Write a 1-paragraph ICP description and circulate.",
+              },
+              opportunity_pmf_evidence: {
+                low: "No evidence? Get one customer in the next 30 days and ask them why they paid. Quote it on the profile.",
+                mid: "Add another data point. Two paying customers + 2 quotes is stronger than 1.",
+              },
       };
 
       function buildPerQuestionAdvice(
-        answers: Record<string, number>,
+        answers: Record<string, VantageAnswerValue>,
       ): string[] {
         const advice: string[] = [];
-        // For each question scored ≤ 3 (low), produce specific advice.
-        // Cap at 5 most actionable items.
+        // Per-question advice: any answer scoring <25 (out of 100) is a red flag.
         for (const cat of VANTAGE_CATEGORIES) {
           for (const q of cat.questions) {
             const v = answers[q.id];
-            if (typeof v !== "number") continue;
-            if (v <= 2) {
-              const a = UPGRADE_ADVICE[q.id];
-              if (a) advice.push(a.low);
-            } else if (v === 3) {
-              const a = UPGRADE_ADVICE[q.id];
-              if (a) advice.push(a.mid);
-            }
+            if (v === undefined) continue;
+            const score = scoreQuestion(q, v);
+            const a = UPGRADE_ADVICE[q.id];
+            if (!a) continue;
+            if (score < 25) advice.push(a.low);
+            else if (score < 60) advice.push(a.mid);
           }
         }
-        return advice.slice(0, 5);
+        return advice.slice(0, 6);
       }
 
       // Build a venture report — strengths / weaknesses / nextActions.
-            const sortedCats = Object.entries(catScores)
-              .map(([key, value]) => {
-                const cat = VANTAGE_CATEGORIES.find((c) => c.key === key);
-                return { key, label: cat?.label ?? key, score: value };
-              })
-              .sort((a, b) => b.score - a.score);
+      const sortedCats = Object.entries(catScores)
+        .map(([key, value]) => {
+          const cat = VANTAGE_CATEGORIES.find((c) => c.key === key);
+          return { key, label: cat?.label ?? key, score: value };
+        })
+        .sort((a, b) => b.score - a.score);
 
-            const strengths = sortedCats.filter((c) => c.score >= 75).slice(0, 3);
-            const weaknesses = sortedCats.filter((c) => c.score < 50).slice(0, 3);
-            const perQuestionAdvice = buildPerQuestionAdvice(answers as Record<string, number>);
+      const strengths = sortedCats.filter((c) => c.score >= 75).slice(0, 3);
+      const weaknesses = sortedCats.filter((c) => c.score < 50).slice(0, 3);
+      const perQuestionAdvice = buildPerQuestionAdvice(answers as Record<string, VantageAnswerValue>);
 
-            const nextActions: string[] = [];
+      const nextActions: string[] = [];
 
-            // 1. The most-specific upgrades come from low individual question scores.
-            // These are the highest-leverage actions a founder can take.
-            nextActions.push(...perQuestionAdvice);
+      // 1. The most-specific upgrades come from low individual question scores.
+      // These are the highest-leverage actions a founder can take.
+      nextActions.push(...perQuestionAdvice);
 
             // 2. If we have room, add a strategic next step tied to overall stage.
             if (vantagePoint < 400) {
@@ -370,7 +405,7 @@ function VantagePage() {
             const report = { strengths, weaknesses, nextActions, stage };
 
       const result = await submitAssessment({
-        answers: answers as Record<string, number>,
+        answers: answers as Record<string, VantageAnswerValue>,
         categoryScores: catScores,
         score,
         vantagePoint,
@@ -423,35 +458,116 @@ function VantagePage() {
             <p className="text-[10px] tracking-widest uppercase font-semibold text-primary">
               {current.category}
             </p>
-            <h2 className="mt-1 font-display text-xl font-light">{current.text}</h2>
-            {current.help && (
-              <div className="mt-3 flex items-stretch gap-2 rounded-md border border-dashed border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-                <div className="flex-1">
-                  <p className="font-medium text-foreground/80">Low (1-2)</p>
-                  <p>{current.help.low}</p>
+            {current.description && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                {current.description}
+              </p>
+            )}
+            <h2 className="mt-2 font-display text-xl font-light">{current.text}</h2>
+
+            {(current.kind ?? "likert") === "likert" && (
+              <>
+                {current.help && (
+                  <div className="mt-3 flex items-stretch gap-2 rounded-md border border-dashed border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                    <div className="flex-1">
+                      <p className="font-medium text-foreground/80">Low (1-2)</p>
+                      <p>{current.help.low}</p>
+                    </div>
+                    <div className="my-1 w-px bg-border" />
+                    <div className="flex-1">
+                      <p className="font-medium text-foreground/80">High (4-5)</p>
+                      <p>{current.help.high}</p>
+                    </div>
+                  </div>
+                )}
+                <div className="mt-6 grid gap-2">
+                  {SCALE.map((s) => (
+                    <button
+                      key={s.v}
+                      onClick={() => setAnswer(s.v)}
+                      className={cn(
+                        "flex items-center justify-between rounded-sm border p-4 text-left transition-all hover:border-primary/50",
+                        answers[current.id] === s.v
+                          ? "border-primary bg-primary/10"
+                          : "border-border",
+                      )}
+                    >
+                      <span className="text-sm font-medium">{s.label}</span>
+                      <span className="font-display text-sm text-muted-foreground">
+                        {s.v}
+                      </span>
+                    </button>
+                  ))}
                 </div>
-                <div className="my-1 w-px bg-border" />
-                <div className="flex-1">
-                  <p className="font-medium text-foreground/80">High (4-5)</p>
-                  <p>{current.help.high}</p>
+              </>
+            )}
+
+            {(current.kind ?? "likert") === "number" && (
+              <div className="mt-6">
+                <Label htmlFor={current.id} className="text-xs uppercase tracking-wider text-muted-foreground">
+                  {current.numberMeta?.suffix ?? "Value"}
+                </Label>
+                <Input
+                  id={current.id}
+                  type="number"
+                  min={0}
+                  step="any"
+                  placeholder={current.numberMeta?.placeholder}
+                  value={typeof answers[current.id] === "string" ? "" : (answers[current.id] as number | undefined) ?? ""}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    setAnswer(raw === "" ? undefined : Number(raw));
+                  }}
+                  className="mt-2"
+                />
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Counts toward your Vantage Point — 0 means "didn't report."
+                </p>
+              </div>
+            )}
+
+            {(current.kind ?? "likert") === "select" && (
+              <div className="mt-6 grid gap-2">
+                {current.options?.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setAnswer(opt.value)}
+                    className={cn(
+                      "flex items-center justify-between rounded-sm border p-4 text-left transition-all hover:border-primary/50",
+                      answers[current.id] === opt.value
+                        ? "border-primary bg-primary/10"
+                        : "border-border",
+                    )}
+                  >
+                    <span className="text-sm font-medium">{opt.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {(current.kind ?? "likert") === "text" && (
+              <div className="mt-6">
+                <Textarea
+                  id={current.id}
+                  placeholder={current.textMeta?.placeholder}
+                  maxLength={current.textMeta?.maxLength}
+                  value={(answers[current.id] as string) ?? ""}
+                  onChange={(e) =>
+                    setAnswer(e.target.value === "" ? undefined : e.target.value)
+                  }
+                  className="min-h-32"
+                />
+                <div className="mt-2 flex justify-between text-xs text-muted-foreground">
+                  <span>Scored on length + specificity, not vibes.</span>
+                  {current.textMeta?.maxLength && (
+                    <span>
+                      {(answers[current.id] as string)?.length ?? 0} /{" "}
+                      {current.textMeta.maxLength}
+                    </span>
+                  )}
                 </div>
               </div>
             )}
-            <div className="mt-6 grid gap-2">
-              {SCALE.map((s) => (
-                <button
-                  key={s.v}
-                  onClick={() => setAnswer(s.v)}
-                  className={cn(
-                    "flex items-center justify-between rounded-sm border p-4 text-left transition-all hover:border-primary/50",
-                    answers[current.id] === s.v ? "border-primary bg-primary/10" : "border-border",
-                  )}
-                >
-                  <span className="text-sm font-medium">{s.label}</span>
-                  <span className="font-display text-sm text-muted-foreground">{s.v}</span>
-                </button>
-              ))}
-            </div>
 
             <div className="mt-6 flex items-center justify-between">
               <Button
