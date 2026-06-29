@@ -128,18 +128,42 @@ export async function investorRoutes(app: FastifyInstance) {
         .set({ status: parsed.data.status, updatedAt: new Date() } as any)
         .where(eq(meetingRequests.id, req.params.id));
 
-      // Notify the *other* side of the meeting outcome.
+      // Notify the *other* side of the meeting outcome + open chat thread.
       try {
         const { notify } = await import("../lib/notify.js");
+        const { connections, connectionMessages } = await import("../db/schema.js");
         const m = existing[0];
         const status = parsed.data.status;
         if (status === "accepted") {
-          // The acceptor is the founder (founderId). The requester is investorId.
+          // Open or reactivate a connection between the two parties.
+          const [userA, userB] = [m.investorId, m.founderId].sort();
+          const existing_conn = await db
+            .select()
+            .from(connections)
+            .where(and(
+              eq(connections.userAId, userA),
+              eq(connections.userBId, userB),
+            ))
+            .limit(1);
+          if (existing_conn.length === 0) {
+            await db.insert(connections).values({
+              userAId: userA,
+              userBId: userB,
+              status: "active",
+              meetingId: m.id,
+              initiatedBy: m.investorId,
+            } as any);
+          } else if (existing_conn[0].status !== "active") {
+            await db
+              .update(connections)
+              .set({ status: "active" } as any)
+              .where(eq(connections.id, existing_conn[0].id));
+          }
           await notify({
             userId: m.investorId,
             type: "meeting_accepted",
             title: "Meeting accepted",
-            body: `A founder accepted your meeting request. Head to /meetings to start the chat.`,
+            body: `A founder accepted your meeting request. Open the conversation → /messages.`,
             link: "/meetings",
             icon: "CalendarCheck",
           });

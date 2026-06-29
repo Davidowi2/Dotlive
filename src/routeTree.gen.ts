@@ -52,8 +52,10 @@ import { Route as AuthenticatedCertificatesRouteImport } from './routes/_authent
 import { Route as AuthenticatedBuilderRouteImport } from './routes/_authenticated/builder'
 import { Route as AuthenticatedAcademyRouteImport } from './routes/_authenticated/academy'
 import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/admin/route'
+import { Route as AuthenticatedMessagesIndexRouteImport } from './routes/_authenticated/messages/index'
 import { Route as AuthenticatedCapitalIndexRouteImport } from './routes/_authenticated/capital/index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
+import { Route as AuthenticatedMessagesIdRouteImport } from './routes/_authenticated/messages/$id'
 import { Route as AuthenticatedJoinCodeRouteImport } from './routes/_authenticated/join.$code'
 import { Route as AuthenticatedDiscoverCommunitiesRouteImport } from './routes/_authenticated/discover/communities'
 import { Route as AuthenticatedDemoIdRouteImport } from './routes/_authenticated/demo.$id'
@@ -286,6 +288,12 @@ const AuthenticatedAdminRouteRoute = AuthenticatedAdminRouteRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedMessagesIndexRoute =
+  AuthenticatedMessagesIndexRouteImport.update({
+    id: '/messages/',
+    path: '/messages/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedCapitalIndexRoute =
   AuthenticatedCapitalIndexRouteImport.update({
     id: '/capital/',
@@ -296,6 +304,11 @@ const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AuthenticatedAdminRouteRoute,
+} as any)
+const AuthenticatedMessagesIdRoute = AuthenticatedMessagesIdRouteImport.update({
+  id: '/messages/$id',
+  path: '/messages/$id',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedJoinCodeRoute = AuthenticatedJoinCodeRouteImport.update({
   id: '/join/$code',
@@ -433,8 +446,10 @@ export interface FileRoutesByFullPath {
   '/demo/$id': typeof AuthenticatedDemoIdRoute
   '/discover/communities': typeof AuthenticatedDiscoverCommunitiesRoute
   '/join/$code': typeof AuthenticatedJoinCodeRoute
+  '/messages/$id': typeof AuthenticatedMessagesIdRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/capital/': typeof AuthenticatedCapitalIndexRoute
+  '/messages/': typeof AuthenticatedMessagesIndexRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
 }
 export interface FileRoutesByTo {
@@ -492,8 +507,10 @@ export interface FileRoutesByTo {
   '/demo/$id': typeof AuthenticatedDemoIdRoute
   '/discover/communities': typeof AuthenticatedDiscoverCommunitiesRoute
   '/join/$code': typeof AuthenticatedJoinCodeRoute
+  '/messages/$id': typeof AuthenticatedMessagesIdRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/capital': typeof AuthenticatedCapitalIndexRoute
+  '/messages': typeof AuthenticatedMessagesIndexRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
 }
 export interface FileRoutesById {
@@ -554,8 +571,10 @@ export interface FileRoutesById {
   '/_authenticated/demo/$id': typeof AuthenticatedDemoIdRoute
   '/_authenticated/discover/communities': typeof AuthenticatedDiscoverCommunitiesRoute
   '/_authenticated/join/$code': typeof AuthenticatedJoinCodeRoute
+  '/_authenticated/messages/$id': typeof AuthenticatedMessagesIdRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/capital/': typeof AuthenticatedCapitalIndexRoute
+  '/_authenticated/messages/': typeof AuthenticatedMessagesIndexRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
 }
 export interface FileRouteTypes {
@@ -616,8 +635,10 @@ export interface FileRouteTypes {
     | '/demo/$id'
     | '/discover/communities'
     | '/join/$code'
+    | '/messages/$id'
     | '/admin/'
     | '/capital/'
+    | '/messages/'
     | '/api/public/webhooks/paystack'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -675,8 +696,10 @@ export interface FileRouteTypes {
     | '/demo/$id'
     | '/discover/communities'
     | '/join/$code'
+    | '/messages/$id'
     | '/admin'
     | '/capital'
+    | '/messages'
     | '/api/public/webhooks/paystack'
   id:
     | '__root__'
@@ -736,8 +759,10 @@ export interface FileRouteTypes {
     | '/_authenticated/demo/$id'
     | '/_authenticated/discover/communities'
     | '/_authenticated/join/$code'
+    | '/_authenticated/messages/$id'
     | '/_authenticated/admin/'
     | '/_authenticated/capital/'
+    | '/_authenticated/messages/'
     | '/api/public/webhooks/paystack'
   fileRoutesById: FileRoutesById
 }
@@ -1065,6 +1090,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/messages/': {
+      id: '/_authenticated/messages/'
+      path: '/messages'
+      fullPath: '/messages/'
+      preLoaderRoute: typeof AuthenticatedMessagesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/capital/': {
       id: '/_authenticated/capital/'
       path: '/capital'
@@ -1078,6 +1110,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/'
       preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/messages/$id': {
+      id: '/_authenticated/messages/$id'
+      path: '/messages/$id'
+      fullPath: '/messages/$id'
+      preLoaderRoute: typeof AuthenticatedMessagesIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/join/$code': {
       id: '/_authenticated/join/$code'
@@ -1276,7 +1315,9 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCapitalPortfolioRoute: typeof AuthenticatedCapitalPortfolioRoute
   AuthenticatedDealsIdRoute: typeof AuthenticatedDealsIdRoute
   AuthenticatedJoinCodeRoute: typeof AuthenticatedJoinCodeRoute
+  AuthenticatedMessagesIdRoute: typeof AuthenticatedMessagesIdRoute
   AuthenticatedCapitalIndexRoute: typeof AuthenticatedCapitalIndexRoute
+  AuthenticatedMessagesIndexRoute: typeof AuthenticatedMessagesIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -1310,7 +1351,9 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCapitalPortfolioRoute: AuthenticatedCapitalPortfolioRoute,
   AuthenticatedDealsIdRoute: AuthenticatedDealsIdRoute,
   AuthenticatedJoinCodeRoute: AuthenticatedJoinCodeRoute,
+  AuthenticatedMessagesIdRoute: AuthenticatedMessagesIdRoute,
   AuthenticatedCapitalIndexRoute: AuthenticatedCapitalIndexRoute,
+  AuthenticatedMessagesIndexRoute: AuthenticatedMessagesIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
