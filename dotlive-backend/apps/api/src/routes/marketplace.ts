@@ -438,6 +438,61 @@ export async function marketplaceRoutes(app: FastifyInstance) {
             .orderBy(desc(jobListings.createdAt));
           return reply.send({ jobs: rows.map(serializeJob) });
         });
+        /** POST /api/orders/:id/dispute — client flags a completed order
+         *  as unsatisfactory. Marks the order "disputed" and notifies
+         *  admins. The admin team resolves via /admin/orders. */
+        app.post<{ Params: { id: string } }>(
+          "/orders/:id/dispute",
+          { preHandler: app.authenticate, config: { rateLimit: { max: 5, timeWindow: "1 minute" } } },
+          async (req, reply) => {
+            const { sub } = req.user as { sub: string };
+            const { reason } = (req.body ?? {}) as { reason?: string };
+            const order = await db
+              .select()
+              .from(serviceOrders)
+              .where(eq(serviceOrders.id, req.params.id))
+              .limit(1);
+            if (order.length === 0) return reply.code(404).send({ error: "Order not found" });
+            if (order[0].clientId !== sub) return reply.code(403).send({ error: "Not your order" });
+            if (!["in_progress", "completed"].includes(order[0].status as string)) {
+              return reply.code(409).send({ error: `Cannot dispute from status ${order[0].status}` });
+            }
+
+            await db
+              .update(serviceOrders)
+              .set({
+                status: "disputed",
+                disputeReason: reason ?? null,
+                disputedAt: new Date(),
+                updatedAt: new Date(),
+              } as any)
+              .where(eq(serviceOrders.id, req.params.id));
+
+            // Notify builder + admin.
+            const { notify } = await import("../lib/notify.js");
+            Promise.allSettled([
+              notify({
+                userId: order[0].builderId,
+                type: "order_disputed",
+                title: "Order disputed",
+                body: `Client opened a dispute on order ${req.params.id}.${reason ? ` Reason: ${reason.slice(0, 120)}` : ""}`,
+                link: `/builder/orders`,
+                icon: "AlertTriangle",
+              }),
+              notify({
+                userId: sub,
+                type: "order_disputed",
+                title: "Dispute opened",
+                body: `We received your dispute. An admin will review within 48h.`,
+                link: `/wallet`,
+                icon: "AlertTriangle",
+              }),
+            ]).catch(() => {});
+
+            return reply.send({ ok: true, orderId: req.params.id });
+          },
+        );
+
         /** POST /api/orders/:id/review — rate a completed service order. */
         app.post<{ Params: { id: string } }>(
           "/orders/:id/review",

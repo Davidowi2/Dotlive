@@ -10,6 +10,7 @@ export type NotificationType =
   | "job_posted"
   | "job_application_received"
   | "service_purchased"
+  | "order_disputed"
   | "community_invite"
   | "community_post"
   | "community_member_joined"

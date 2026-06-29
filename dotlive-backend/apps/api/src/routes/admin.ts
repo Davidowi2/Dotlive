@@ -1108,6 +1108,66 @@ export async function adminRoutes(app: FastifyInstance) {
           },
         );
 
+        /**
+         * One-off migration: order disputes (1.5).
+         * Adds dispute_reason + disputed_at columns to service_orders.
+         * POST /api/admin/migrate-disputes
+         *
+         * Idempotent — uses ADD COLUMN IF NOT EXISTS.
+         * Safe to call multiple times. Restricted to super_admin.
+         */
+        app.post(
+          "/migrate-disputes",
+          { preHandler: [app.authenticate] },
+          async (req, reply) => {
+            const adminId = (req.user as { sub: string }).sub;
+            const roles = await getUserRoles(adminId);
+            if (!roles.includes("super_admin")) {
+              return reply.code(403).send({ error: "Super admin only" });
+            }
+            try {
+              await db.execute(sql`
+                ALTER TABLE service_orders
+                ADD COLUMN IF NOT EXISTS dispute_reason text,
+                ADD COLUMN IF NOT EXISTS disputed_at timestamptz;
+              `);
+              req.log.info({ adminId }, "migrate-disputes applied");
+              return reply.send({ ok: true, applied: ["service_orders dispute columns"] });
+            } catch (err: any) {
+              req.log.error({ err }, "migrate-disputes failed");
+              return reply.code(500).send({ error: "Migration failed", details: String(err) });
+            }
+          },
+        );
+
+        /**
+         * One-off migration: builder profile PUT support.
+         * Adds 'available' column to builder_profiles (if missing).
+         * POST /api/admin/migrate-builder-profile
+         */
+        app.post(
+          "/migrate-builder-profile",
+          { preHandler: [app.authenticate] },
+          async (req, reply) => {
+            const adminId = (req.user as { sub: string }).sub;
+            const roles = await getUserRoles(adminId);
+            if (!roles.includes("super_admin")) {
+              return reply.code(403).send({ error: "Super admin only" });
+            }
+            try {
+              await db.execute(sql`
+                ALTER TABLE builder_profiles
+                ADD COLUMN IF NOT EXISTS available boolean DEFAULT true;
+              `);
+              req.log.info({ adminId }, "migrate-builder-profile applied");
+              return reply.send({ ok: true, applied: ["builder_profiles.available column"] });
+            } catch (err: any) {
+              req.log.error({ err }, "migrate-builder-profile failed");
+              return reply.code(500).send({ error: "Migration failed", details: String(err) });
+            }
+          },
+        );
+
 }
 
 /* ============================== helpers ============================== */

@@ -372,6 +372,8 @@ export const serviceOrders = pgTable("service_orders", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   completedAt: timestamp("completed_at", { withTimezone: true }),
+  disputeReason: text("dispute_reason"),
+  disputedAt: timestamp("disputed_at", { withTimezone: true }),
 },
   (t) => ({
       service_orders_client_idx: index("service_orders_client_idx").on(t.clientId),
