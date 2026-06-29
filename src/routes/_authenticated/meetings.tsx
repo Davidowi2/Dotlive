@@ -181,7 +181,7 @@ function MeetingsPage() {
                       <StatusBadge status={r.status} />
                       <span className="flex items-center gap-1 text-xs text-muted-foreground">
                         <Clock className="size-3" />
-                        {new Date(r.created_at).toLocaleDateString()}
+                        {new Date(r.createdAt ?? r.created_at).toLocaleDateString()}
                       </span>
                     </div>
                   </header>
@@ -268,7 +268,7 @@ function MeetingsPage() {
                   <div className="flex items-center gap-3">
                     <StatusBadge status={r.status} />
                     <span className="hidden tabular text-xs text-muted-foreground sm:inline">
-                      {new Date(r.created_at).toLocaleDateString()}
+                      {new Date(r.createdAt ?? r.created_at).toLocaleDateString()}
                     </span>
                   </div>
                 </div>
