@@ -66,7 +66,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Investor Portal", to: "/investor",    icon: Briefcase,   roles: ["investor"],                section: "capital" },
   { label: "My Portfolio",   to: "/portfolio",    icon: LineChart,    roles: ["investor"],                section: "capital" },
   { label: "Capital Partner", to: "/capital",     icon: Wallet,      roles: ["capital_partner"],         section: "capital" },
-  { label: "Judge Portal",  to: "/judge",         icon: Trophy,      roles: ["investor", "admin"],       section: "capital" },
+  { label: "Judge Portal",  to: "/judge",         icon: Trophy,      roles: ["judge"],                    section: "capital" },
   { label: "Meetings",      to: "/meetings",      icon: Bell,        roles: ["investor", "founder", "capital_partner"], section: "capital" },
   /* admin */
   { label: "Admin",         to: "/admin",         icon: Shield,      roles: ["admin"],                   section: "admin" },

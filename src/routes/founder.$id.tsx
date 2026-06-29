@@ -190,17 +190,17 @@ function PublicFounderProfile() {
             </div>
           </div>
           <div className="flex flex-col items-end gap-2">
-            {profile && Number(profile.sharePriceKobo ?? 0) > 0 && Number(profile.sharesAvailable ?? 0) > 0 ? (
-              <BuyerButton profile={profile} onBuy={onOpenBuy} />
-            ) : (
-              <Button asChild variant="hero">
-                <Link to="/auth" search={{ mode: "signup" }}>Join DOT to invest</Link>
-              </Button>
-            )}
-            <Button variant="outline" asChild>
-              <Link to="/discover">Find more founders</Link>
-            </Button>
-          </div>
+                      {profile && Number(profile.sharePriceKobo ?? 0) > 0 && Number(profile.sharesAvailable ?? 0) > 0 ? (
+                        <BuyerButton profile={profile} onBuy={onOpenBuy} />
+                      ) : !user ? (
+                        <Button asChild variant="hero">
+                          <Link to="/auth" search={{ mode: "signup" }}>Join DOT to invest</Link>
+                        </Button>
+                      ) : null}
+                      <Button variant="outline" asChild>
+                        <Link to="/discover">Find more founders</Link>
+                      </Button>
+                    </div>
         </div>
       </section>
 

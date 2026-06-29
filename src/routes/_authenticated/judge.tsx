@@ -29,13 +29,13 @@ function JudgePage() {
 
   const pending = MOCK_APPLICATIONS.filter((a) => !a.scored).length;
 
-  const gate = useRoleGate(["investor", "capital_partner", "admin"], { redirect: "/dashboard" });
+  const gate = useRoleGate(["judge"], { redirect: "/dashboard" });
   if (!gate.allowed) {
     return (
       <AppShell>
         <div className="p-12 text-center">
           <h2 className="text-2xl font-semibold">Judge access only</h2>
-          <p className="mt-2 text-muted-foreground">You need the investor or admin role to judge pitchathons.</p>
+          <p className="mt-2 text-muted-foreground">You need the judge role to score pitchathons. Contact an admin to be appointed.</p>
         </div>
       </AppShell>
     );
