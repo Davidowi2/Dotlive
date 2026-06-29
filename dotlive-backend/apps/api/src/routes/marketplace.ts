@@ -345,6 +345,23 @@ export async function marketplaceRoutes(app: FastifyInstance) {
       // Reputation is best-effort; don't fail the completion if it errors.
     }
 
+    // Mint a "gig completed" certificate for the builder (dedup-safe).
+    try {
+      const { mintCertificate } = await import("../lib/cert.js");
+      await mintCertificate(app, {
+        userId: o[0].builderId,
+        source: "gig",
+        sourceId: o[0].id,
+        title: `Gig: Order ${o[0].id.slice(0, 8)}`,
+        issuer: "DOT Marketplace",
+        level: "Foundations",
+        dotReward: 0,
+        meta: { orderId: o[0].id, amountDot: o[0].amountDot },
+      });
+    } catch {
+      // best effort
+    }
+
     const updated = await db
       .update(serviceOrders)
       .set({ status: "completed", completedAt: new Date(), updatedAt: new Date() } as any)

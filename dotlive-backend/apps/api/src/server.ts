@@ -354,6 +354,18 @@ app.get("/api/health", async () => {
             `);
 
             app.log.info("bootstrap migration: challenges + connections tables ensured");
+
+            // === certificates: add source/sourceId columns if missing ===
+            await db.execute(sql`
+              ALTER TABLE certificates
+                ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT 'course',
+                ADD COLUMN IF NOT EXISTS source_id text;
+            `);
+            await db.execute(sql`
+              CREATE INDEX IF NOT EXISTS certificates_source_idx
+                ON certificates(source, source_id);
+            `);
+            app.log.info("bootstrap migration: certificates source columns ensured");
           } catch (err) {
       dbError = err instanceof Error ? err.message : String(err);
     }

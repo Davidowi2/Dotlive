@@ -257,6 +257,26 @@ export async function challengeRoutes(app: FastifyInstance) {
           icon: "Trophy",
           sendEmail: true,
         });
+
+        // Mint a "challenge won" certificate.
+        try {
+          const { mintCertificate } = await import("../lib/cert.js");
+          await mintCertificate(app, {
+            userId: winnerId,
+            source: "challenge",
+            sourceId: c.id,
+            title: `Challenge: ${c.title}`,
+            issuer: c.communityId
+              ? "DOT Community Challenge"
+              : "DOT Challenge",
+            level: winningRank[winnerId] === 1 ? "Gold" : "Silver",
+            score: winningRank[winnerId] === 1 ? 100 : 80,
+            dotReward: 0, // prize already paid out via creditWallet above
+            meta: { rank: winningRank[winnerId], challengeId: c.id },
+          });
+        } catch (e) {
+          app.log?.error?.({ err: e }, "challenge cert mint failed");
+        }
       }
 
       // Mark non-winners refused.

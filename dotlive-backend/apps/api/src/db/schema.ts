@@ -1063,7 +1063,7 @@ export const communityPosts = pgTable("community_posts", {
 }));
 
 /* --------------------------- Certificates ----------------------- */
-/* Issued certificates from DOT Academy, challenges, or external issuers. */
+/* Issued certificates from DOT Academy, challenges, pitchathons, gigs, or admin-issued. */
 export const certificates = pgTable("certificates", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -1074,6 +1074,10 @@ export const certificates = pgTable("certificates", {
   dotEarned: integer("dot_earned").notNull().default(0),
   level: text("level"),                          // 'Foundations' | 'Intermediate' | 'Advanced'
   credentialId: text("credential_id").notNull().unique(),  // public ID for verification
+  // Source: 'course' | 'challenge' | 'pitchathon' | 'gig' | 'admin'
+  // sourceId is the underlying record id (challenge id, course id, etc)
+  source: text("source").notNull().default("course"),
+  sourceId: text("source_id"),
   issuedAt: timestamp("issued_at", { withTimezone: true }).notNull().defaultNow(),
   expiresAt: timestamp("expires_at", { withTimezone: true }),
   meta: jsonb("meta"),
@@ -1081,6 +1085,7 @@ export const certificates = pgTable("certificates", {
 }, (t) => ({
   certUserIdx: index("certificates_user_idx").on(t.userId),
   certCredentialIdx: unique("certificates_credential_unique").on(t.credentialId),
+  certSourceIdx: index("certificates_source_idx").on(t.source, t.sourceId),
 }));
 
 /* --------------------------- Wizard state ----------------------- */

@@ -150,6 +150,22 @@ export async function webhookRoutes(app: FastifyInstance) {
             .insert(courseEnrollments)
             .values({ courseId: matched[0].id, userId, status: "enrolled" } as any)
             .onConflictDoNothing();
+          // Auto-mint the "enrolled" certificate (dedup-safe).
+          try {
+            const { mintCertificate } = await import("../lib/cert.js");
+            await mintCertificate(app, {
+              userId,
+              source: "course",
+              sourceId: matched[0].id,
+              title: `Enrolled: ${matched[0].title}`,
+              issuer: "DOT Academy",
+              level: "Foundations",
+              dotReward: matched[0].dotReward ?? 0,
+              meta: { courseId: matched[0].id },
+            });
+          } catch {
+            // best effort
+          }
         }
       }
     } catch {

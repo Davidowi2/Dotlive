@@ -37,7 +37,26 @@ interface Certificate {
   dotEarned: number;
   level: string | null;
   credentialId: string;
+  source: string;
+  sourceId: string | null;
   issuedAt: string;
+}
+
+function SourceChip({ source }: { source: string }) {
+  const map: Record<string, { label: string; icon: string }> = {
+    course:     { label: "Academy",  icon: "🎓" },
+    challenge:  { label: "Challenge", icon: "🏆" },
+    pitchathon: { label: "Pitchathon", icon: "🎤" },
+    gig:        { label: "Gig",      icon: "💼" },
+    admin:      { label: "Issued",   icon: "📜" },
+  };
+  const m = map[source] ?? { label: source, icon: "📜" };
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+      <span aria-hidden>{m.icon}</span>
+      {m.label}
+    </span>
+  );
 }
 
 function CertificatesPage() {
@@ -190,6 +209,7 @@ function CertificatesPage() {
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="outline">{latest.level}</Badge>
+                  <SourceChip source={latest.source} />
                   <span className="font-mono text-[10px] text-muted-foreground">
                     {latest.credentialId}
                   </span>
