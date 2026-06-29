@@ -71,6 +71,22 @@ export async function webhookRoutes(app: FastifyInstance) {
       reference: ref,
     });
     await db.update(payments).set({ creditedAt: new Date() } as any).where(eq(payments.reference, ref));
+
+    // Notify user of deposit confirmed.
+    try {
+      const { notify } = await import("../lib/notify.js");
+      await notify({
+        userId: payment[0].userId,
+        type: "deposit_confirmed",
+        title: `+${payment[0].dotAmount} DOT deposited`,
+        body: `₦${payment[0].nairaAmount} cleared via Paystack. Funds are now in your wallet.`,
+        link: "/wallet",
+        icon: "Wallet",
+        sendEmail: true,
+      });
+    } catch {
+      // best-effort
+    }
     return reply.send({ ok: true });
   });
 

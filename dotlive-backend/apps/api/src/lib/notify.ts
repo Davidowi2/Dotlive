@@ -24,6 +24,12 @@ import { sendEmail } from "./email.js";
 export type NotificationType =
   | "transfer_received"
   | "transfer_sent"
+  | "deposit_confirmed"
+  | "withdrawal_approved"
+  | "withdrawal_rejected"
+  | "meeting_requested"
+  | "meeting_accepted"
+  | "role_granted"
   | "job_posted"
   | "job_application_received"
   | "service_purchased"
@@ -31,11 +37,12 @@ export type NotificationType =
   | "community_invite"
   | "community_post"
   | "community_member_joined"
+  | "community_challenge_won"
   | "venture_published"
   | "venture_followed"
   | "certificate_issued"
-  | "withdrawal_approved"
-  | "withdrawal_rejected"
+  | "pitchathon_judge_assigned"
+  | "pitchathon_submission_received"
   | "mention"
   | "system";
 

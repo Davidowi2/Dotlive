@@ -114,10 +114,60 @@ export async function investorRoutes(app: FastifyInstance) {
     async (req, reply) => {
       const parsed = meetingUpdateSchema.safeParse(req.body);
       if (!parsed.success) return reply.code(400).send({ error: "Invalid input" });
+      const { sub } = (req as any).user as { sub: string };
+      // Fetch the meeting first so we know both sides.
+      const existing = await db
+        .select()
+        .from(meetingRequests)
+        .where(eq(meetingRequests.id, req.params.id))
+        .limit(1);
+      if (existing.length === 0) return reply.code(404).send({ error: "Not found" });
+
       await db
         .update(meetingRequests)
         .set({ status: parsed.data.status, updatedAt: new Date() } as any)
         .where(eq(meetingRequests.id, req.params.id));
+
+      // Notify the *other* side of the meeting outcome.
+      try {
+        const { notify } = await import("../lib/notify.js");
+        const m = existing[0];
+        const status = parsed.data.status;
+        if (status === "accepted") {
+          // The acceptor is the founder (founderId). The requester is investorId.
+          await notify({
+            userId: m.investorId,
+            type: "meeting_accepted",
+            title: "Meeting accepted",
+            body: `A founder accepted your meeting request. Head to /meetings to start the chat.`,
+            link: "/meetings",
+            icon: "CalendarCheck",
+          });
+          // Notify founder too that their accept was logged (if distinct from actor).
+          if (m.founderId && m.founderId !== sub) {
+            await notify({
+              userId: m.founderId,
+              type: "meeting_requested",
+              title: "Meeting opened",
+              body: `You accepted a meeting. The chat thread with the investor is live.`,
+              link: "/meetings",
+              icon: "MessageSquare",
+            });
+          }
+        } else if (status === "declined") {
+          await notify({
+            userId: m.investorId,
+            type: "system",
+            title: "Meeting declined",
+            body: `A founder declined your meeting request.`,
+            link: "/discover",
+            icon: "X",
+          });
+        }
+      } catch (err) {
+        app.log?.warn?.({ err }, "meeting notify failed");
+      }
+
       return reply.send({ ok: true });
     },
   );

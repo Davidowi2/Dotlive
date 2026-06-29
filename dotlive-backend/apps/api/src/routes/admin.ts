@@ -917,6 +917,24 @@ export async function adminRoutes(app: FastifyInstance) {
               await db.execute(sql`INSERT INTO user_roles (user_id, role, granted_at) VALUES (${id}, ${r}, NOW()) ON CONFLICT DO NOTHING`);
             }
 
+            // Notify user of new role(s) granted (in-app + email).
+            try {
+              const { notify } = await import("../lib/notify.js");
+              const newOnes = (targetRoles as string[]).filter((r) => !(currentRoles as string[]).includes(r));
+              for (const r of newOnes) {
+                await notify({
+                  userId: id,
+                  type: "role_granted",
+                  title: `You were granted the \`${r}\` role`,
+                  body: `An admin assigned you a new role on DOT. Refresh to see new features.`,
+                  link: "/dashboard",
+                  icon: "Shield",
+                });
+              }
+            } catch (err) {
+              app.log.warn({ err }, "could not notify role grant");
+            }
+
             // Audit log
             try {
               await db.execute(sql`
