@@ -202,16 +202,28 @@ declare module "fastify" {
 
 app.get("/api/health", async () => {
   // Test DB connectivity so cold-start failures are visible
-  let dbOk = false;
-  let dbError: string | null = null;
-  try {
-    const { sql } = await import("drizzle-orm");
-    const { db } = await import("./db/client.js");
-    await db.execute(sql`SELECT 1`);
-    dbOk = true;
-  } catch (err) {
-    dbError = err instanceof Error ? err.message : String(err);
-  }
+    let dbOk = false;
+    let dbError: string | null = null;
+    try {
+      const { sql } = await import("drizzle-orm");
+      const { db } = await import("./db/client.js");
+      await db.execute(sql`SELECT 1`);
+      dbOk = true;
+
+      // Bootstrap migrations — ensure new columns exist before any
+      // route handler hits them. Idempotent (uses IF NOT EXISTS).
+      // Safe to re-run on every boot.
+      await db.execute(sql`
+        ALTER TABLE users
+          ADD COLUMN IF NOT EXISTS referral_code text,
+          ADD COLUMN IF NOT EXISTS referred_by text,
+          ADD COLUMN IF NOT EXISTS referral_count integer NOT NULL DEFAULT 0,
+          ADD COLUMN IF NOT EXISTS referral_earnings_dot numeric(20,2) NOT NULL DEFAULT 0;
+      `);
+      app.log.info("bootstrap migration: users referral columns ensured");
+    } catch (err) {
+      dbError = err instanceof Error ? err.message : String(err);
+    }
 
   return {
     ok: dbOk,
