@@ -2,8 +2,8 @@ import { useState, useEffect, useMemo } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Building2, MapPin, Globe, Gauge, TrendingUp, Target, BookOpen, Trophy,
-  Loader2, Shield, ArrowLeft, ArrowUpRight, Wallet, Heart, Users,
-  Briefcase, ExternalLink, Sparkles, Vote,
+    Loader2, Shield, ArrowLeft, ArrowUpRight, Wallet, Heart, Users,
+    Briefcase, ExternalLink, Sparkles, Vote, ShoppingCart,
 } from "lucide-react";
 
 import { SiteHeader } from "@/components/site/SiteHeader";

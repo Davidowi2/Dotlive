@@ -11,7 +11,11 @@ export type AppRole =
   | "admin"
   | "super_admin"
   | "vendor"
-  | "capital_partner";
+  | "capital_partner"
+  | "judge"
+  | "moderator"
+  | "support"
+  | "finance";
 
 export interface User {
   id: string;

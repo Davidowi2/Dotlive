@@ -26,6 +26,7 @@ interface DotAuthContextValue {
   login: (email: string, password: string) => Promise<void>;
   signup: (data: SignupData) => Promise<void>;
   logout: () => void;
+  signOut: () => void;
   isLoading: boolean;
   refresh: () => Promise<void>;
   hasRole: (role: string) => boolean;
@@ -126,7 +127,7 @@ export function DotAuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <DotAuthContext.Provider
-      value={{ user, token, login, signup, logout, isLoading, refresh, hasRole, primaryRole, roles }}
+      value={{ user, token, login, signup, logout, signOut: logout, isLoading, refresh, hasRole, primaryRole, roles }}
     >
       {children}
     </DotAuthContext.Provider>
@@ -152,9 +153,10 @@ export function useDotAuth(): DotAuthContextValue {
       login: async () => { throw new Error("DotAuthProvider not mounted"); },
       signup: async () => { throw new Error("DotAuthProvider not mounted"); },
       logout: () => {},
-      refresh: async () => {},
-      hasRole: () => false,
-    };
+            signOut: () => {},
+            refresh: async () => {},
+            hasRole: () => false,
+          };
   }
   return ctx;
 }

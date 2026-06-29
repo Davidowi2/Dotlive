@@ -182,6 +182,46 @@ export function fundabilityFromScores(scores: Record<string, number>): number {
   return Math.round(t * 0.6 + c * 0.4);
 }
 
+/**
+ * Server-side combined computation: returns all derived scores + a
+ * basic diagnostic report. Used by vantage.server.ts to prevent
+ * client-side score manipulation before DB insert.
+ */
+export function computeVantage(answers: VantageAnswers) {
+  const scores = categoryScores(answers);
+  const vantagePoint = vantagePointFromScores(scores);
+  const fundability = fundabilityFromScores(scores);
+  const investmentReadiness = scores["market"] ?? 0;
+  const stage = vantageStageFromScore(vantagePoint);
+  const report = {
+    strengths: Object.entries(scores)
+      .filter(([, v]) => v >= 75)
+      .map(([k]) => k),
+    weaknesses: Object.entries(scores)
+      .filter(([, v]) => v < 50)
+      .map(([k]) => k),
+    nextActions: [
+      vantagePoint < 400
+        ? "Recruit at least one co-founder with relevant industry experience."
+        : vantagePoint < 550
+        ? "Run a structured customer-discovery round (10+ interviews) before pitching."
+        : vantagePoint < 700
+        ? "Define a clear 12-month revenue plan with milestone-based projections."
+        : "Apply to DOT Demo — you're investor-ready.",
+    ],
+    stage,
+  };
+  return {
+    categoryScores: scores,
+    vantagePoint,
+    fundability,
+    investmentReadiness,
+    stage,
+    report,
+    score: vantagePoint,
+  };
+}
+
 /** Investment readiness 0..100 = market + founder weighted, but penalised by capital. */
 export function investmentReadinessFromScores(scores: Record<string, number>): number {
   const m = scores["market"] ?? 0;

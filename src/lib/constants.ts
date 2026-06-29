@@ -40,7 +40,11 @@ export type AppRole =
   | "investor"
   | "capital_partner"
   | "admin"
-  | "super_admin";
+  | "super_admin"
+  | "judge"
+  | "moderator"
+  | "support"
+  | "finance";
 
 export const ROLE_LABELS: Record<AppRole, string> = {
   founder: "Founder",
@@ -51,6 +55,10 @@ export const ROLE_LABELS: Record<AppRole, string> = {
   capital_partner: "Capital Partner",
   admin: "Admin",
   super_admin: "Super Admin",
+  judge: "Judge",
+  moderator: "Moderator",
+  support: "Support",
+  finance: "Finance",
 };
 
 // Roles a user can self-assign / switch into from the app

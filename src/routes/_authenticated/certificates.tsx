@@ -163,12 +163,12 @@ function CertificatesPage() {
               accent="gold"
             />
             <SummaryTile
-              icon={ShieldCheck}
-              label="Latest credential"
-              value={latest ? latest.level : "—"}
-              sub={latest ? latest.title : "complete a course to earn one"}
-              accent="muted"
-            />
+                          icon={ShieldCheck}
+                          label="Latest credential"
+                          value={latest ? (latest.level ?? "Issued") : "—"}
+                          sub={latest ? latest.title : "complete a course to earn one"}
+                          accent="muted"
+                        />
           </section>
 
           {/* ─── Section divider ───────────────────────────────────── */}
@@ -198,7 +198,7 @@ function CertificatesPage() {
                   {latest.title}
                 </h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Issued by {latest.issuer} Academy · {latest.course}
+                  Issued by {latest.issuer} Academy · {latest.courseId ?? "DOT Academy"}
                 </p>
 
                 <dl className="mt-4 grid grid-cols-3 gap-4 border-t border-border pt-4 text-sm">
@@ -216,7 +216,7 @@ function CertificatesPage() {
                     </dt>
                     <dd className="mt-1 flex items-center gap-1.5 text-sm">
                       <Calendar className="size-3.5 text-muted-foreground" />
-                      {latest.issued}
+                      {latest.issuedAt ? new Date(latest.issuedAt).toLocaleDateString() : "—"}
                     </dd>
                   </div>
                   <div>
@@ -299,7 +299,7 @@ function CertificatesPage() {
                       </dt>
                       <dd className="mt-0.5 flex items-center gap-1 text-foreground">
                         <Calendar className="size-3 text-muted-foreground" />
-                        {c.issued}
+                        {c.issuedAt ? new Date(c.issuedAt).toLocaleDateString() : "—"}
                       </dd>
                     </div>
                   </dl>

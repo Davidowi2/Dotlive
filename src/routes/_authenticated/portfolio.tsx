@@ -180,7 +180,7 @@ function PortfolioPage() {
                       </p>
                     </div>
                     <Button variant="outline" size="sm" asChild>
-                      <Link to="/founder/$dotId" params={{ dotId: p.founderDotId ?? p.founderId }}>
+                      <Link to="/founder/$id" params={{ id: p.founderDotId ?? p.founderId }}>
                         View venture
                         <ExternalLink className="size-3.5" />
                       </Link>

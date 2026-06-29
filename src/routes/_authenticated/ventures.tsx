@@ -291,20 +291,20 @@ function VenturesPage() {
             <TractionStat
               icon={TrendingUp}
               label="Annual revenue"
-              value={form.annualRevenueDot ? `${formatDot(form.annualRevenueDot)} DOT` : "—"}
+              value={form.annualRevenueDot ? `${formatDot(Number(form.annualRevenueDot))} DOT` : "—"}
               subValue={form.annualRevenueDot ? `≈ ${formatNaira(dotToNaira(Number(form.annualRevenueDot)))}` : undefined}
               filled={!!Number(form.annualRevenueDot)}
             />
             <TractionStat
               icon={Wallet}
               label="Total raised"
-              value={form.totalRaisedDot ? `${formatDot(form.totalRaisedDot)} DOT` : "—"}
+              value={form.totalRaisedDot ? `${formatDot(Number(form.totalRaisedDot))} DOT` : "—"}
               filled={!!Number(form.totalRaisedDot)}
             />
             <TractionStat
               icon={Briefcase}
               label="Funding goal"
-              value={form.fundingGoal ? `${formatDot(form.fundingGoal)} DOT` : "—"}
+              value={form.fundingGoal ? `${formatDot(Number(form.fundingGoal))} DOT` : "—"}
               filled={!!Number(form.fundingGoal)}
             />
           </div>

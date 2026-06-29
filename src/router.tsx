@@ -16,7 +16,7 @@ export const getRouter = () => {
     routeTree,
     queryClient,
     defaultPreload: "intent",
-  });
+  } as any);
 
   return router;
 };

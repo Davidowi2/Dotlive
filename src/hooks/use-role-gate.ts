@@ -19,7 +19,12 @@ export type AppRole =
   | "founder"
   | "investor"
   | "community_leader"
-  | "capital_partner";
+  | "capital_partner"
+  | "judge"
+  | "moderator"
+  | "support"
+  | "finance"
+  | "vendor";
 
 export function useRoleGate(
   allowed: AppRole[],

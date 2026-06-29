@@ -9,7 +9,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/button";
-import { PageSkeleton } from "@/components/app/PageSkeleton";
 import { cn } from "@/lib/utils";
 import {
   fetchNotifications,
@@ -110,27 +109,44 @@ function NotificationsPage() {
     : items.filter((n) => filterCategory(n.type) === filter);
   const unread = feedQ.data?.unreadCount ?? 0;
 
-  return (
-    <AppShell>
-      <PageHeader
-        eyebrow="Inbox"
-        title="Notifications"
-        subtitle={
-          unread === 0
-            ? "You're all caught up — no unread alerts."
-            : `${unread} unread — latest activity across your workspace.`
-        }
-        action={
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => markAllM.mutate()}
-            disabled={unread === 0 || markAllM.isPending}
-          >
-            <CheckCircle2 className="size-4" /> Mark all read
-          </Button>
-        }
-      />
+  if (feedQ.isLoading) {
+      return (
+        <AppShell>
+          <PageHeader
+            eyebrow="Inbox"
+            title="Notifications"
+            subtitle="Loading…"
+          />
+          <div className="mt-6 space-y-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-16 rounded-xl border border-border bg-card animate-pulse" />
+            ))}
+          </div>
+        </AppShell>
+      );
+    }
+
+    return (
+      <AppShell>
+        <PageHeader
+          eyebrow="Inbox"
+          title="Notifications"
+          subtitle={
+            unread === 0
+              ? "You're all caught up — no unread alerts."
+              : `${unread} unread — latest activity across your workspace.`
+          }
+          action={
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => markAllM.mutate()}
+              disabled={unread === 0 || markAllM.isPending}
+            >
+              <CheckCircle2 className="size-4" /> Mark all read
+            </Button>
+          }
+        />
 
       {/* Filter strip */}
       <div className="mt-6 flex flex-wrap items-center gap-2 text-xs">
@@ -153,10 +169,14 @@ function NotificationsPage() {
       </div>
 
       {/* Feed */}
-      <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-card">
-        {feedQ.isLoading ? (
-          <PageSkeleton lines={4} />
-        ) : filtered.length === 0 ? (
+            <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-card">
+              {feedQ.isLoading ? (
+                <div className="space-y-2 p-4">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="h-16 rounded-xl bg-muted/40 animate-pulse" />
+                  ))}
+                </div>
+              ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-16 text-center">
             <Bell className="size-8 text-muted-foreground/40" />
             <p className="text-sm text-muted-foreground">

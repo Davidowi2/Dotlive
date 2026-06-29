@@ -416,4 +416,93 @@ See `.env.example` for required variables. Key ones likely include:
 
 ---
 
-Last Updated: 2026-06-24
+## Full Project Audit (2026-06-29)
+
+### Overview
+A comprehensive audit of the DOT app, checking for errors, inconsistencies, and issues from the current state.
+
+---
+
+### TypeScript Errors Found (26 total errors)
+
+1.  **DotAuthContext missing `signOut` (AdminShell.tsx:30:11)`
+    - **Problem: AdminShell tries to destructure `signOut` from useDotAuth(), but context only provides `logout`
+    - **Files**: `src/contexts/DotAuthContext.tsx`, `src/components/app/AdminShell.tsx`
+
+2.  **AppRole missing `judge` type not in AppRole enum (AppShell.tsx:69:78, judge.tsx:32:29)
+    - **Problem**: `judge` role is used in code but not defined in `AppRole` type
+    - **Files**: `src/types/api.ts`, `src/components/app/AppShell.tsx`, `src/routes/_authenticated/judge.tsx`
+
+3.  **Missing `computeVantage` export from src/lib/vantage.ts (vantage.server.ts:4:10)
+    - **Problem**: vantage.server.ts tries to import `computeVantage` from ./vantage.ts, which only has categoryScores, vantagePointFromScores, etc., but no computeVantage()
+    - **Files**: `src/lib/vantage.ts`, `src/lib/vantage.server.ts`
+
+4.  **Router config issue (src/router.tsx:17:5)
+    - **Problem**: TanStack Router config passing `queryClient` directly to createRouter(), but `queryClient` doesn't match constructor options
+    - **Files**: `src/router.tsx`
+
+5.  **Button variant `muted` not valid (admin/members.tsx:316:21, 467:21)
+    - **Problem**: Button's variant `"muted"` used, not a valid variant for shadcn/ui Button (only `"default"`, `"destructive"`, `"outline"`, `"secondary"`, `"ghost"`, `"link"`)
+    - **Files**: `src/routes/_authenticated/admin/members.tsx`
+
+6.  **Certificate type issues (certificates.tsx:168:15, 201:63, 219:31, 302:28)
+    - **Problem**:
+      - `certificate.course` → should be `courseId` (certificates.tsx:201)`
+      - `certificate.issued` → should be `issuedAt`
+    - **Files**: `src/routes/_authenticated/certificates.tsx`
+
+7.  **EmptyState missing `body` and `cta` props (community/channels.tsx:173:11, 277:17)
+    - **Problem**: EmptyState component doesn't accept `body` or `cta` props - uses `description` and `action` instead
+    - **Files**: `src/routes/_authenticated/community/channels.tsx`, `src/components/app/EmptyState.tsx`
+
+8.  **PageSkeleton used incorrectly (notifications.tsx:158:12)
+    - **Problem**: PageSkeleton is an object with sub-components, not a direct component
+    - **Files**: `src/routes/_authenticated/notifications.tsx`, `src/components/app/PageSkeleton.tsx`
+
+9.  **Portfolio route uses wrong founder route (portfolio.tsx:183:29, 183:60)
+    - **Problem**: Tries to use `/founder/$dotId` instead of `/founder/$id`, and `dotId` param instead of `id`
+    - **Files**: `src/routes/_authenticated/portfolio.tsx`
+
+10. **PageHeader missing icon prop (referrals.tsx:50:11)
+    - **Problem**: PageHeader doesn't accept an `icon` prop
+    - **Files**: `src/routes/_authenticated/referrals.tsx`
+
+11. **Vantage.tsx missing state variables (vantage.tsx:381:7, 382:7)
+    - **Problem**: `setSubmittedNow` and `setStage` variables used but not declared
+    - **Files**: `src/routes/_authenticated/vantage.tsx`
+
+12. **Ventures.tsx passing string to number (ventures.tsx:294:59, 301:57, 307:54)
+    - **Problem**: Number fields receiving string values
+    - **Files**: `src/routes/_authenticated/ventures.tsx`
+
+13. **Work.tsx null to UserRole (work.tsx:354:31)
+    - **Problem**: Passing null to UserRole/UserRole[]
+    - **Files**: `src/routes/_authenticated/work.tsx`
+
+14. **Missing ShoppingCart import (founder.$id.tsx:402:8, 427:16)
+    - **Problem**: ShoppingCart from lucide-react is used but not imported
+    - **Files**: `src/routes/founder.$id.tsx`
+
+---
+
+### Audit Checklist
+- ✅ Dependencies installed (`node_modules` present
+- ✅ `package.json` looks correct
+- ⚠️ TypeScript errors (26 errors as above
+- ⏳ ESLint skipped
+- ❓ Dev server not yet started
+- ✅ Project structure looks good
+- ✅ Database schema documented
+- ✅ Supabase integration set up
+
+---
+
+### Next Steps (Fix List)
+1. Fix TypeScript errors (see list above
+2. Run `npm run lint` to check ESLint issues
+3. Start dev server and check for runtime errors
+4. Check if any missing .env variables
+
+---
+
+Last Updated: 2026-06-29

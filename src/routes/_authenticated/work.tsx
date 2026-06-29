@@ -351,7 +351,7 @@ function JobsTab() {
                               title="No jobs posted yet"
                               subtitle="Open positions from founders, builders, and venture owners. Anyone can post — set a DOT amount and find the right person."
                               postedBy="Any authenticated user — builders, founders, ventures, business owners"
-                              requiredRole={null}
+                              requiredRole="builder"
                               postHref={undefined}
                               postLabel="Post the first job"
                               accent="gold"

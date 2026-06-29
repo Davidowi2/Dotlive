@@ -27,6 +27,10 @@ interface EmptyStateProps {
    * Rendered below the description.
    */
   action?: ReactNode;
+  /** Alias for `description`. */
+  body?: string;
+  /** Alias for `action`. */
+  cta?: ReactNode;
   /**
    * card      (default) — dashed-border card. Use at the top level of a page
    *                        section when a list is empty (Academy, Sessions, etc.)
@@ -159,11 +163,13 @@ export function EmptyState({
   illustration,
   title,
   description,
-  action,
-  variant = "card",
-  accent,
-  className,
-}: EmptyStateProps) {
+    body,
+    action,
+    cta,
+    variant = "card",
+    accent,
+    className,
+  }: EmptyStateProps) {
   if (variant === "inline") {
     return (
       <div className={cn("flex flex-col items-center gap-2 py-10 text-center", className)}>
@@ -232,9 +238,9 @@ export function EmptyState({
       {/* body */}
       <div>
         <p className="font-display text-sm font-light text-foreground">{title}</p>
-        {description && (
-          <p className="mt-1 max-w-xs text-xs text-muted-foreground font-light">{description}</p>
-        )}
+        {description || body ? (
+                    <p className="mt-1 max-w-xs text-xs text-muted-foreground font-light">{description ?? body}</p>
+                  ) : null}
       </div>
       {/* footer */}
       {action && <div className="mt-3">{action}</div>}

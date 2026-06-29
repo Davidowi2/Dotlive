@@ -188,9 +188,11 @@ function VantagePage() {
     queryFn: getVantageHistory,
   });
   const [taking, setTaking] = useState(false);
-  const [idx, setIdx] = useState(0);
-  const [answers, setAnswers] = useState<VantageAnswers>({});
-  const [busy, setBusy] = useState(false);
+    const [idx, setIdx] = useState(0);
+    const [answers, setAnswers] = useState<VantageAnswers>({});
+    const [busy, setBusy] = useState(false);
+    const [submittedNow, setSubmittedNow] = useState<any>(null);
+    const [stage, setStage] = useState<"intro" | "taking" | "results">("intro");
 
   // Backend returns newest-first (desc createdAt), so the LATEST assessment
     // is index 0, not the last element. Without this, the page shows stale data.

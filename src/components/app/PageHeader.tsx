@@ -11,6 +11,8 @@ interface PageHeaderProps {
    * Use for context like "Welcome back," or "Founder · Stage: Assess"
    */
   eyebrow?: string;
+  /** Optional icon (lucide ReactNode) rendered next to the title */
+  icon?: ReactNode;
   /**
    * Optional right-side slot — typically a Button, Badge, or action group.
    * Rendered at the end of the flex row, shrinks to fit.
@@ -44,6 +46,7 @@ export function PageHeader({
   title,
   subtitle,
   eyebrow,
+  icon,
   action,
   variant = "default",
   className,
@@ -74,10 +77,13 @@ export function PageHeader({
             <span className="tracking-editorial text-primary">{eyebrow}</span>
           </div>
         )}
-        <h1 className="font-display text-4xl font-light tracking-tight">{title}</h1>
-        {subtitle && (
-          <p className="mt-2 max-w-2xl text-sm text-muted-foreground font-light">{subtitle}</p>
-        )}
+        <div className="flex items-center gap-3">
+                  <h1 className="font-display text-4xl font-light tracking-tight">{title}</h1>
+                  {icon}
+                </div>
+                {subtitle && (
+                  <p className="mt-2 max-w-2xl text-sm text-muted-foreground font-light">{subtitle}</p>
+                )}
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </div>

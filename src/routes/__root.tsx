@@ -7,7 +7,11 @@ import {
   Scripts,
   useRouter,
 } from "@tanstack/react-router";
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { fetchWizardState } from "@/api/wizard";
+import { useDotAuth } from "@/contexts/DotAuthContext";
+import { WizardOverlay } from "@/components/onboarding/WizardOverlay";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { DotAuthProvider } from "@/contexts/DotAuthContext";
@@ -208,8 +212,30 @@ function RootComponent() {
  * the user is authenticated.
  */
 function WizardHost() {
-  // DISABLED: was crashing SSR with 'No QueryClient set' during prerender.
-  // The WizardOverlay is still available via the /onboarding route and /help page.
-  // July launch ships without auto-mount to avoid SSR errors.
-  return null;
+  // Re-enabled now that the root QueryClient provides a fallback
+  // when the SSR-rendered tree calls useQuery before the provider
+  // mounts. The wizard is the front door for new accounts and the
+  // user explicitly asked us to make sure it works.
+  const { user } = useDotAuth();
+  const [open, setOpen] = useState(false);
+
+  // Show only for newly-signed-in users who haven't completed the wizard.
+  // The wizard endpoint records completion server-side.
+  const { data: state } = useQuery({
+    queryKey: ["wizard-state"],
+    queryFn: fetchWizardState,
+    enabled: !!user,
+    staleTime: 60 * 1000,
+  });
+
+  useEffect(() => {
+    if (state && !state.completed && !state.lastSeenAt) {
+      // Defer open to next tick so the app shell mounts first
+      const t = setTimeout(() => setOpen(true), 800);
+      return () => clearTimeout(t);
+    }
+  }, [state?.completed, state?.lastSeenAt]);
+
+  if (!state) return null;
+  return <WizardOverlay open={open} onClose={() => setOpen(false)} />;
 }
