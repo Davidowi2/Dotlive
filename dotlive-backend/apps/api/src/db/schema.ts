@@ -1188,3 +1188,97 @@ export const ventureAdvisors = pgTable("venture_advisors", {
 }, (t) => ({
   vaVentureIdx: index("venture_advisors_venture_idx").on(t.ventureId),
 }));
+
+/* --------------------------- Community Challenges ------------- */
+/**
+ * Leader-posted challenges WITHIN a community.
+ * Prize DOT is escrowed from the leader's wallet at creation;
+ * distributed to winners' wallets when leader picks them.
+ *
+ * NOTE: The global `challenges` table above (lines 692+) is platform-wide
+ * founder/builder challenges. This is a *separate* table for community-scoped
+ * challenges with prize escrow.
+ *
+ * Statuses:
+ *   draft      — being edited, not visible to members
+ *   open       — accepting submissions
+ *   judging    — submission window closed, leader reviewing
+ *   awarded    — winners announced, payouts complete
+ *   cancelled  — leader cancelled before judging, prizes refunded
+ */
+export const communityChallenges = pgTable("community_challenges", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  communityId: uuid("community_id").notNull().references(() => communities.id, { onDelete: "cascade" }),
+  postedByUserId: text("posted_by_user_id").notNull().references(() => users.id),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  prizeDot: numeric("prize_dot", { precision: 20, scale: 2 }).notNull(),
+  prizeTotalDot: numeric("prize_total_dot", { precision: 20, scale: 2 }).notNull(),     // max payout if all spots win
+  deadline: timestamp("deadline", { withTimezone: true }).notNull(),
+  maxWinners: integer("max_winners").notNull().default(1),
+  status: text("status").notNull().default("open"),
+  escrowReference: text("escrow_reference"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  chCommunityIdx: index("community_challenges_community_idx").on(t.communityId),
+  chStatusIdx: index("community_challenges_status_idx").on(t.status),
+  chDeadlineIdx: index("community_challenges_deadline_idx").on(t.deadline),
+}));
+
+export const communityChallengeSubmissions = pgTable("community_challenge_submissions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  challengeId: uuid("challenge_id").notNull().references(() => communityChallenges.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  body: text("body").notNull(),
+  attachmentUrl: text("attachment_url"),
+  status: text("status").notNull().default("submitted"),
+  winningRank: integer("winning_rank"),
+  payoutDot: numeric("payout_dot", { precision: 20, scale: 2 }),
+  submittedAt: timestamp("submitted_at", { withTimezone: true }).notNull().defaultNow(),
+  decidedAt: timestamp("decided_at", { withTimezone: true }),
+}, (t) => ({
+  csChallengeIdx: index("community_challenge_submissions_challenge_idx").on(t.challengeId),
+  csUserIdx: index("community_challenge_submissions_user_idx").on(t.userId),
+  csUniqueEntry: unique("community_challenge_submissions_unique").on(t.challengeId, t.userId),
+}));
+
+/* --------------------------- Connections (chat threads) ----- */
+/**
+ * A connection between two users, opened when a meeting is accepted.
+ * Statuses:
+ *   pending    — invite sent, awaiting acceptance
+ *   active     — both sides can message
+ *   closed     — either side ended the conversation
+ */
+export const connections = pgTable("connections", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userAId: text("user_a_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  userBId: text("user_b_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  status: text("status").notNull().default("pending"),
+  meetingId: uuid("meeting_id").references(() => meetingRequests.id, { onDelete: "set null" }),
+  initiatedBy: text("initiated_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  closedAt: timestamp("closed_at", { withTimezone: true }),
+}, (t) => ({
+  connUserAIdx: index("connections_user_a_idx").on(t.userAId),
+  connUserBIdx: index("connections_user_b_idx").on(t.userBId),
+  connUnique: unique("connections_unique").on(t.userAId, t.userBId),
+}));
+
+/* --------------------------- Messages ------------------------ */
+/**
+ * Text-only messages inside a connection thread.
+ * Polled every 5s (no WebSocket for v1).
+ */
+export const connectionMessages = pgTable("connection_messages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  connectionId: uuid("connection_id").notNull().references(() => connections.id, { onDelete: "cascade" }),
+  senderId: text("sender_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  body: text("body").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  readAt: timestamp("read_at", { withTimezone: true }),
+}, (t) => ({
+  msgConnIdx: index("connection_messages_conn_idx").on(t.connectionId),
+  msgCreatedIdx: index("connection_messages_created_idx").on(t.createdAt),
+}));

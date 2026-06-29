@@ -59,6 +59,7 @@ import { Route as AuthenticatedDiscoverCommunitiesRouteImport } from './routes/_
 import { Route as AuthenticatedDemoIdRouteImport } from './routes/_authenticated/demo.$id'
 import { Route as AuthenticatedDealsIdRouteImport } from './routes/_authenticated/deals.$id'
 import { Route as AuthenticatedCommunityChannelsRouteImport } from './routes/_authenticated/community/channels'
+import { Route as AuthenticatedCommunityChallengesRouteImport } from './routes/_authenticated/community/challenges'
 import { Route as AuthenticatedCapitalPortfolioRouteImport } from './routes/_authenticated/capital/portfolio'
 import { Route as AuthenticatedCIdRouteImport } from './routes/_authenticated/c.$id'
 import { Route as AuthenticatedAdminWalletsRouteImport } from './routes/_authenticated/admin/wallets'
@@ -323,6 +324,12 @@ const AuthenticatedCommunityChannelsRoute =
     path: '/channels',
     getParentRoute: () => AuthenticatedCommunityRoute,
   } as any)
+const AuthenticatedCommunityChallengesRoute =
+  AuthenticatedCommunityChallengesRouteImport.update({
+    id: '/challenges',
+    path: '/challenges',
+    getParentRoute: () => AuthenticatedCommunityRoute,
+  } as any)
 const AuthenticatedCapitalPortfolioRoute =
   AuthenticatedCapitalPortfolioRouteImport.update({
     id: '/capital/portfolio',
@@ -420,6 +427,7 @@ export interface FileRoutesByFullPath {
   '/admin/wallets': typeof AuthenticatedAdminWalletsRoute
   '/c/$id': typeof AuthenticatedCIdRoute
   '/capital/portfolio': typeof AuthenticatedCapitalPortfolioRoute
+  '/community/challenges': typeof AuthenticatedCommunityChallengesRoute
   '/community/channels': typeof AuthenticatedCommunityChannelsRoute
   '/deals/$id': typeof AuthenticatedDealsIdRoute
   '/demo/$id': typeof AuthenticatedDemoIdRoute
@@ -478,6 +486,7 @@ export interface FileRoutesByTo {
   '/admin/wallets': typeof AuthenticatedAdminWalletsRoute
   '/c/$id': typeof AuthenticatedCIdRoute
   '/capital/portfolio': typeof AuthenticatedCapitalPortfolioRoute
+  '/community/challenges': typeof AuthenticatedCommunityChallengesRoute
   '/community/channels': typeof AuthenticatedCommunityChannelsRoute
   '/deals/$id': typeof AuthenticatedDealsIdRoute
   '/demo/$id': typeof AuthenticatedDemoIdRoute
@@ -539,6 +548,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/wallets': typeof AuthenticatedAdminWalletsRoute
   '/_authenticated/c/$id': typeof AuthenticatedCIdRoute
   '/_authenticated/capital/portfolio': typeof AuthenticatedCapitalPortfolioRoute
+  '/_authenticated/community/challenges': typeof AuthenticatedCommunityChallengesRoute
   '/_authenticated/community/channels': typeof AuthenticatedCommunityChannelsRoute
   '/_authenticated/deals/$id': typeof AuthenticatedDealsIdRoute
   '/_authenticated/demo/$id': typeof AuthenticatedDemoIdRoute
@@ -600,6 +610,7 @@ export interface FileRouteTypes {
     | '/admin/wallets'
     | '/c/$id'
     | '/capital/portfolio'
+    | '/community/challenges'
     | '/community/channels'
     | '/deals/$id'
     | '/demo/$id'
@@ -658,6 +669,7 @@ export interface FileRouteTypes {
     | '/admin/wallets'
     | '/c/$id'
     | '/capital/portfolio'
+    | '/community/challenges'
     | '/community/channels'
     | '/deals/$id'
     | '/demo/$id'
@@ -718,6 +730,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/wallets'
     | '/_authenticated/c/$id'
     | '/_authenticated/capital/portfolio'
+    | '/_authenticated/community/challenges'
     | '/_authenticated/community/channels'
     | '/_authenticated/deals/$id'
     | '/_authenticated/demo/$id'
@@ -1101,6 +1114,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCommunityChannelsRouteImport
       parentRoute: typeof AuthenticatedCommunityRoute
     }
+    '/_authenticated/community/challenges': {
+      id: '/_authenticated/community/challenges'
+      path: '/challenges'
+      fullPath: '/community/challenges'
+      preLoaderRoute: typeof AuthenticatedCommunityChallengesRouteImport
+      parentRoute: typeof AuthenticatedCommunityRoute
+    }
     '/_authenticated/capital/portfolio': {
       id: '/_authenticated/capital/portfolio'
       path: '/capital/portfolio'
@@ -1185,11 +1205,14 @@ const AuthenticatedAdminRouteRouteWithChildren =
   )
 
 interface AuthenticatedCommunityRouteChildren {
+  AuthenticatedCommunityChallengesRoute: typeof AuthenticatedCommunityChallengesRoute
   AuthenticatedCommunityChannelsRoute: typeof AuthenticatedCommunityChannelsRoute
 }
 
 const AuthenticatedCommunityRouteChildren: AuthenticatedCommunityRouteChildren =
   {
+    AuthenticatedCommunityChallengesRoute:
+      AuthenticatedCommunityChallengesRoute,
     AuthenticatedCommunityChannelsRoute: AuthenticatedCommunityChannelsRoute,
   }
 

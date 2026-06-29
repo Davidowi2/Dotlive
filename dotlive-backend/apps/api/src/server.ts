@@ -32,6 +32,7 @@ import { academyRoutes }    from "./routes/academy.js";
 import { pitchathonRoutes } from "./routes/pitchathons.js";
 import { marketplaceRoutes} from "./routes/marketplace.js";
 import { communityRoutes }  from "./routes/community.js";
+import { challengeRoutes }  from "./routes/challenges.js";
 import { uploadRoutes }     from "./routes/upload.js";
 import { webhookRoutes }    from "./routes/webhooks.js";
 import { statsRoutes }      from "./routes/stats.js";
@@ -282,6 +283,76 @@ app.get("/api/health", async () => {
               CREATE INDEX IF NOT EXISTS venture_advisors_venture_idx ON venture_advisors(venture_id);
             `);
             app.log.info("bootstrap migration: venture enrichment tables ensured");
+
+            // === community challenges + chat (connections/messages) ===
+            await db.execute(sql`
+              CREATE TABLE IF NOT EXISTS community_challenges (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                community_id uuid NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+                posted_by_user_id text NOT NULL REFERENCES users(id),
+                title text NOT NULL,
+                description text NOT NULL,
+                prize_dot numeric(20,2) NOT NULL,
+                prize_total_dot numeric(20,2) NOT NULL,
+                deadline timestamptz NOT NULL,
+                max_winners integer NOT NULL DEFAULT 1,
+                status text NOT NULL DEFAULT 'open',
+                escrow_reference text,
+                created_at timestamptz NOT NULL DEFAULT now(),
+                updated_at timestamptz NOT NULL DEFAULT now()
+              );
+              CREATE INDEX IF NOT EXISTS community_challenges_community_idx ON community_challenges(community_id);
+              CREATE INDEX IF NOT EXISTS community_challenges_status_idx ON community_challenges(status);
+            `);
+
+            await db.execute(sql`
+              CREATE TABLE IF NOT EXISTS community_challenge_submissions (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                challenge_id uuid NOT NULL REFERENCES community_challenges(id) ON DELETE CASCADE,
+                user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                body text NOT NULL,
+                attachment_url text,
+                status text NOT NULL DEFAULT 'submitted',
+                winning_rank integer,
+                payout_dot numeric(20,2),
+                submitted_at timestamptz NOT NULL DEFAULT now(),
+                decided_at timestamptz,
+                UNIQUE(challenge_id, user_id)
+              );
+              CREATE INDEX IF NOT EXISTS community_challenge_submissions_challenge_idx ON community_challenge_submissions(challenge_id);
+              CREATE INDEX IF NOT EXISTS community_challenge_submissions_user_idx ON community_challenge_submissions(user_id);
+            `);
+
+            await db.execute(sql`
+              CREATE TABLE IF NOT EXISTS connections (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                user_a_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                user_b_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                status text NOT NULL DEFAULT 'pending',
+                meeting_id uuid REFERENCES meeting_requests(id) ON DELETE SET NULL,
+                initiated_by text NOT NULL REFERENCES users(id),
+                created_at timestamptz NOT NULL DEFAULT now(),
+                closed_at timestamptz,
+                UNIQUE(user_a_id, user_b_id)
+              );
+              CREATE INDEX IF NOT EXISTS connections_user_a_idx ON connections(user_a_id);
+              CREATE INDEX IF NOT EXISTS connections_user_b_idx ON connections(user_b_id);
+            `);
+
+            await db.execute(sql`
+              CREATE TABLE IF NOT EXISTS connection_messages (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                connection_id uuid NOT NULL REFERENCES connections(id) ON DELETE CASCADE,
+                sender_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                body text NOT NULL,
+                created_at timestamptz NOT NULL DEFAULT now(),
+                read_at timestamptz
+              );
+              CREATE INDEX IF NOT EXISTS connection_messages_conn_idx ON connection_messages(connection_id);
+              CREATE INDEX IF NOT EXISTS connection_messages_created_idx ON connection_messages(created_at);
+            `);
+
+            app.log.info("bootstrap migration: challenges + connections tables ensured");
           } catch (err) {
       dbError = err instanceof Error ? err.message : String(err);
     }
@@ -329,6 +400,7 @@ await app.register(academyRoutes,     { prefix: "/api" });
 await app.register(pitchathonRoutes,  { prefix: "/api" });
 await app.register(marketplaceRoutes, { prefix: "/api" });
 await app.register(communityRoutes,   { prefix: "/api" });
+await app.register(challengeRoutes,   { prefix: "/api" });
 await app.register(uploadRoutes,      { prefix: "/api" });
 await app.register(webhookRoutes,     { prefix: "/api" });
 await app.register(statsRoutes,       { prefix: "/api" });
