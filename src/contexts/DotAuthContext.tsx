@@ -130,6 +130,24 @@ export function DotAuthProvider({ children }: { children: ReactNode }) {
 
 export function useDotAuth(): DotAuthContextValue {
   const ctx = useContext(DotAuthContext);
-  if (!ctx) throw new Error("useDotAuth must be used within DotAuthProvider");
+  if (!ctx) {
+    // Return a safe no-op default instead of throwing. During SSR
+    // streaming or initial hydration, the DotAuthProvider may not be
+    // mounted yet — throwing here cascades to the error boundary
+    // and "This page didn't load". Components that need a real
+    // value should check `isLoading` first.
+    return {
+      user: null,
+      token: null,
+      isLoading: true,
+      roles: [],
+      primaryRole: null,
+      login: async () => { throw new Error("DotAuthProvider not mounted"); },
+      signup: async () => { throw new Error("DotAuthProvider not mounted"); },
+      logout: () => {},
+      refresh: async () => {},
+      hasRole: () => false,
+    };
+  }
   return ctx;
 }
