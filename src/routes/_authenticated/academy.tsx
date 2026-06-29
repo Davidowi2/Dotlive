@@ -1,358 +1,376 @@
+/**
+ * DOT Academy — Whop-powered course catalog with fully custom UI.
+ *
+ * Architecture:
+ *   - Course catalog, course detail, my-learning list all custom UI here.
+ *   - Course content + checkout hosted by Whop.
+ *   - Whop webhook (POST /api/webhooks/whop) auto-enrolls the buyer via
+ *     whopProductId match (see dotlive-backend/apps/api/src/routes/webhooks.ts).
+ *   - On Whop "completion" event we call /api/academy/complete → wallet credit.
+ *
+ * Users see ZERO of Whop until checkout.  The route /academy → catalog,
+ * /academy/$id → detail, /academy/learn → my-learning.
+ */
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
-  BookOpen,
-  ExternalLink,
-  CheckCircle2,
-  Award,
-  Gift,
-  Sparkles,
-  PlayCircle,
   GraduationCap,
+  Sparkles,
+  ExternalLink,
+  ChevronRight,
   ArrowRight,
+  Check,
+  Trophy,
 } from "lucide-react";
-import { AppShell } from "@/components/app/AppShell";
-import { PageHeader } from "@/components/app/PageHeader";
-import { EmptyState } from "@/components/app/EmptyState";
-import { PageSkeleton } from "@/components/app/PageSkeleton";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useDotAuth } from "@/contexts/DotAuthContext";
-import { listCourses, getMyEnrollments, enrollInCourse, completeCourse } from "@/api/academy";
-import { formatDot } from "@/lib/constants";
-import type { Course } from "@/types/api";
-import { cn } from "@/lib/utils";
-import { toast } from "sonner";
+import { useState } from "react";
+
+import { SiteHeader } from "@/components/site/SiteHeader";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  listCourses,
+  getMyEnrollments,
+  enrollInCourse,
+} from "@/api/academy";
+type Course = Awaited<ReturnType<typeof listCourses>>[number];
+type Enrollment = Awaited<ReturnType<typeof getMyEnrollments>>[number];
 
 export const Route = createFileRoute("/_authenticated/academy")({
   head: () => ({
     meta: [
-      { title: "DOT Academy — DOT" },
-      { name: "description", content: "Founder education powered by DOT Academy." },
+      { title: "DOT Academy — Courses that move the needle" },
+      {
+        name: "description",
+        content:
+          "Learn from operators who've shipped. CATALOG delivered by Whop, progress tracked by DOT, rewards on completion.",
+      },
     ],
   }),
   component: AcademyPage,
 });
 
-/**
- * Academy
- *
- * Course catalogue delivered via Whop. Each course has a DOT reward and an
- * optional Vantage boost on completion. We split the catalogue into
- * "In progress" and "Available" so founders can resume quickly.
- */
+/* -------------------- Page -------------------- */
+
 function AcademyPage() {
-  const { user } = useDotAuth();
-  const qc = useQueryClient();
-
-  const { data: courses = [], isLoading } = useQuery({
-    queryKey: ["courses"],
-    queryFn: listCourses,
-  });
-
-  const { data: enrollments = [] } = useQuery({
-    queryKey: ["my-enrollments"],
+  const courses = useQuery({ queryKey: ["academy-courses"], queryFn: listCourses });
+  const enrollments = useQuery({
+    queryKey: ["academy-enrollments"],
     queryFn: getMyEnrollments,
-    enabled: !!user,
   });
-
-  const enrollMutation = useMutation({
-    mutationFn: (courseId: string) => enrollInCourse(courseId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["my-enrollments"] }),
-  });
-
-  const completeMutation = useMutation({
-    mutationFn: (courseId: string) => completeCourse(courseId),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["my-enrollments"] });
-      qc.invalidateQueries({ queryKey: ["wallet"] });
-    },
-  });
-
-  const enrollMap = new Map(enrollments.map((e) => [e.courseId, e]));
-
-  async function enroll(courseId: string, whopUrl: string | null) {
-    if (!user) return;
-    try {
-      await enrollMutation.mutateAsync(courseId);
-      toast.success("Enrolled! Opening course on Whop.");
-      if (whopUrl) window.open(whopUrl, "_blank", "noopener");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not enroll");
-    }
-  }
-
-  async function complete(courseId: string, reward: number) {
-    if (!user) return;
-    try {
-      await completeMutation.mutateAsync(courseId);
-      toast.success(
-        reward > 0 ? `Completed! +${formatDot(reward)} DOT earned.` : "Marked complete!"
-      );
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not update");
-    }
-  }
-
-  const completedCount = enrollments.filter((e) => e.status === "completed").length;
-  const inProgressCount = enrollments.filter((e) => e.status === "enrolled").length;
-  const totalDotEarned = courses.reduce((sum, c) => {
-    const enr = enrollMap.get(c.id);
-    return sum + (enr?.status === "completed" ? c.dotReward : 0);
-  }, 0);
-
-  const inProgress = courses.filter((c) => {
-    const enr = enrollMap.get(c.id);
-    return enr && enr.status !== "completed";
-  });
-  const available = courses.filter((c) => !enrollMap.get(c.id));
 
   return (
-    <AppShell>
-      <PageHeader
-        eyebrow="Learn"
-        title="DOT Academy"
-        subtitle="Founder education delivered via Whop. Complete tracks to earn DOT and boost Vantage."
-        action={
-          <Badge variant="secondary">
-            <Award className="mr-1 size-3" /> {completedCount} completed
-          </Badge>
-        }
-      />
-
-      {isLoading ? (
-        <PageSkeleton.CardGrid count={6} cols={3} />
-      ) : courses.length === 0 ? (
-        <EmptyState
-          icon={GraduationCap}
-          title="No courses yet"
-          description="Check back soon — new learning tracks are being added."
+    <div className="flex min-h-screen flex-col bg-background">
+      <SiteHeader />
+      <main className="flex-1">
+        <Hero
+          enrolledCount={enrollments.data?.length ?? 0}
         />
-      ) : (
-        <>
-          {/* ── Snapshot strip ──────────────────────────────────── */}
-          <section className="mt-8 grid gap-3 sm:grid-cols-3">
-            <SnapshotTile
-              icon={BookOpen}
-              label="Total courses"
-              value={String(courses.length)}
-              tone="primary"
-            />
-            <SnapshotTile
-              icon={PlayCircle}
-              label="In progress"
-              value={String(inProgressCount)}
-              tone="teal"
-            />
-            <SnapshotTile
-              icon={Gift}
-              label="DOT earned"
-              value={`${formatDot(totalDotEarned)} DOT`}
-              tone="gold"
-            />
-          </section>
 
-          {/* ── In progress ─────────────────────────────────────── */}
-          {inProgress.length > 0 && (
-            <>
-              <div className="my-10 flex items-center gap-3 text-[10px] tracking-widest uppercase text-muted-foreground/60">
-                <span className="h-px flex-1 bg-border" />
-                <span>Continue learning</span>
-                <span className="h-px flex-1 bg-border" />
-              </div>
+        <div className="mx-auto max-w-6xl px-6 pb-24">
+          <SectionHeading title="My Learning" subtitle="Continue where you left off." />
+          <MyLearning enrollments={enrollments.data?.enrollments ?? []} />
 
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {inProgress.map((c) => {
-                  const enr = enrollMap.get(c.id);
-                  const done = enr?.status === "completed";
-                  return (
-                    <CourseCard
-                      key={c.id}
-                      course={c}
-                      status={done ? "completed" : "in_progress"}
-                      onEnroll={() => enroll(c.id, c.whopUrl)}
-                      onComplete={() => complete(c.id, c.dotReward)}
-                    />
-                  );
-                })}
-              </div>
-            </>
-          )}
-
-          {/* ── Available courses ───────────────────────────────── */}
-          {available.length > 0 && (
-            <>
-              <div className="my-10 flex items-center gap-3 text-[10px] tracking-widest uppercase text-muted-foreground/60">
-                <span className="h-px flex-1 bg-border" />
-                <span>Catalogue</span>
-                <span className="h-px flex-1 bg-border" />
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {available.map((c) => (
-                  <CourseCard
-                    key={c.id}
-                    course={c}
-                    status="available"
-                    onEnroll={() => enroll(c.id, c.whopUrl)}
-                    onComplete={() => complete(c.id, c.dotReward)}
-                  />
-                ))}
-              </div>
-            </>
-          )}
-
-          {/* ── Footer tip ──────────────────────────────────────── */}
-          {courses.length > 0 && (
-            <div className="mt-10 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-border bg-card/50 px-5 py-4">
-              <p className="text-xs text-muted-foreground">
-                Completed tracks pay out DOT to your wallet and raise your Vantage Point.
-              </p>
-              <Button variant="outline" size="sm" asChild>
-                <Link to="/vantage">
-                  See Vantage <ArrowRight className="size-3.5" />
-                </Link>
-              </Button>
-            </div>
-          )}
-        </>
-      )}
-    </AppShell>
-  );
-}
-
-/* ── Course card ──────────────────────────────────────────────────────── */
-
-type CourseStatus = "available" | "in_progress" | "completed";
-
-interface CourseCardProps {
-  course: Course;
-  status: CourseStatus;
-  onEnroll: () => void;
-  onComplete: () => void;
-}
-
-function CourseCard({ course: c, status, onEnroll, onComplete }: CourseCardProps) {
-  const done = status === "completed";
-  const inProgress = status === "in_progress";
-
-  return (
-    <div
-      className={cn(
-        "relative flex flex-col rounded-2xl border border-border bg-card p-5 transition-colors",
-        done && "border-primary/30 bg-primary/5",
-        inProgress && "border-teal/30 bg-teal/5"
-      )}
-    >
-      {/* Status badge (top-right) */}
-      {(done || inProgress) && (
-        <div className="absolute right-4 top-4">
-          {done ? (
-            <Badge variant="secondary" className="border-primary/30 bg-primary/10 text-primary">
-              <CheckCircle2 className="mr-1 size-3" /> Done
-            </Badge>
-          ) : (
-            <Badge variant="secondary" className="border-teal/30 bg-teal/10 text-teal">
-              <PlayCircle className="mr-1 size-3" /> In progress
-            </Badge>
-          )}
+          <SectionHeading
+            title="Featured Courses"
+            subtitle="Hand-picked for African founders. Practical, not theoretical."
+          />
+          <CatalogGrid
+            courses={courses.data ?? []}
+            enrollments={enrollments.data ?? []}
+            isLoading={courses.isLoading}
+          />
         </div>
-      )}
+      </main>
+    </div>
+  );
+}
 
-      {/* Icon + category */}
-      <div className="flex items-center justify-between">
-        <span
-          className={cn(
-            "flex size-10 items-center justify-center rounded-xl",
-            done ? "bg-primary/10 text-primary"
-              : inProgress ? "bg-teal/10 text-teal"
-              : "bg-muted text-muted-foreground"
-          )}
-        >
-          <BookOpen className="size-5" />
-        </span>
-        {c.category && <Badge variant="outline">{c.category}</Badge>}
+/* -------------------- Hero -------------------- */
+
+function Hero({ enrolledCount }: { enrolledCount: number }) {
+  return (
+    <section className="relative overflow-hidden border-b border-border bg-card/30 py-20">
+      <div className="absolute inset-0 -z-10 opacity-40 pointer-events-none">
+        <div className="absolute -left-32 top-20 size-96 rounded-full bg-primary/10 blur-3xl" />
       </div>
-
-      {/* Title + description */}
-      <h3 className="mt-4 pr-16 font-display text-lg font-light tracking-tight">{c.title}</h3>
-      {c.description && (
-        <p className="mt-1 line-clamp-3 flex-1 text-sm font-light text-muted-foreground">
-          {c.description}
+      <div className="mx-auto max-w-6xl px-6">
+        <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-primary">
+          <GraduationCap className="size-3.5" />
+          DOT Academy
+        </div>
+        <h1 className="mt-4 font-display font-light leading-[0.95] tracking-tight text-foreground"
+          style={{ fontSize: "clamp(2.5rem, 6vw, 5rem)" }}>
+          Learn from operators<br />
+          who actually shipped.
+        </h1>
+        <p className="mt-6 max-w-2xl text-lg text-muted-foreground">
+          Each course is delivered via Whop for checkout &amp; content. We track
+          your progress here. Complete a course and earn DOT + a
+          verifiable certificate.
         </p>
-      )}
-
-      {/* Rewards row */}
-      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-        {c.dotReward > 0 && (
-          <span className="inline-flex items-center gap-1 font-medium text-gold">
-            <Gift className="size-3" /> +{formatDot(c.dotReward)} DOT
-          </span>
-        )}
-        {c.vantageBoost > 0 && (
-          <span className="inline-flex items-center gap-1 text-muted-foreground">
-            <Sparkles className="size-3" /> +{c.vantageBoost} Vantage
-          </span>
-        )}
+        <div className="mt-8 flex flex-wrap items-center gap-x-8 gap-y-4 border-t border-border pt-6 text-sm">
+          <div>
+            <p className="font-display text-2xl font-light tabular">{enrolledCount}</p>
+            <p className="text-xs uppercase tracking-widest text-muted-foreground">
+              Courses enrolled
+            </p>
+          </div>
+          <div className="h-8 w-px bg-border" />
+          <div>
+            <p className="font-display text-2xl font-light tabular">100+</p>
+            <p className="text-xs uppercase tracking-widest text-muted-foreground">
+              Hours of content
+            </p>
+          </div>
+          <div className="h-8 w-px bg-border" />
+          <div>
+            <p className="font-display text-2xl font-light tabular">USD</p>
+            <p className="text-xs uppercase tracking-widest text-muted-foreground">
+              Paid via Whop
+            </p>
+          </div>
+        </div>
       </div>
+    </section>
+  );
+}
 
-      {/* Actions */}
-      <div className="mt-4 flex gap-2">
-        {done ? (
-          <Button variant="outline" className="flex-1" disabled>
-            <CheckCircle2 className="size-4 text-primary" /> Completed
-          </Button>
-        ) : inProgress ? (
-          <>
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={() => c.whopUrl && window.open(c.whopUrl, "_blank", "noopener")}
-            >
-              <ExternalLink className="size-4" /> Resume
-            </Button>
-            <Button variant="hero" onClick={onComplete}>
-              Mark done
-            </Button>
-          </>
-        ) : (
-          <Button variant="hero" className="flex-1" onClick={onEnroll}>
-            Enroll <ExternalLink className="size-4" />
-          </Button>
-        )}
+/* -------------------- Section heading -------------------- */
+
+function SectionHeading({ title, subtitle }: { title: string; subtitle: string }) {
+  return (
+    <div className="mt-16 mb-6 flex items-end justify-between border-b border-border pb-3">
+      <div>
+        <h2 className="font-display text-2xl font-light tracking-tight">{title}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
       </div>
     </div>
   );
 }
 
-/* ── Snapshot tile ────────────────────────────────────────────────────── */
+/* -------------------- My Learning -------------------- */
 
-interface SnapshotTileProps {
-  icon: typeof BookOpen;
-  label: string;
-  value: string;
-  tone: "primary" | "teal" | "gold";
+function MyLearning({ enrollments }: { enrollments: Enrollment[] }) {
+  if (enrollments.length === 0) {
+    return (
+      <div className="rounded-2xl border border-dashed border-border bg-card/40 p-8 text-center text-sm text-muted-foreground">
+        You haven't enrolled in anything yet. Pick a course below to start.
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-4 md:grid-cols-3">
+      {enrollments.slice(0, 3).map((e) => (
+        <Card key={e.id}>
+          <CardContent className="p-5">
+            <p className="text-xs uppercase tracking-widest text-muted-foreground">
+              {e.status === "completed" ? "Completed" : "Enrolled"}
+            </p>
+            <h3 className="mt-1 font-display text-lg font-light">
+              {e.course?.title ?? "Course"}
+            </h3>
+            <p className="mt-2 text-sm text-muted-foreground line-clamp-2">
+              {e.course?.description ?? "—"}
+            </p>
+            <Button
+              variant={e.status === "completed" ? "outline" : "default"}
+              size="sm"
+              asChild
+              className="mt-4"
+            >
+              <a
+                href={e.status === "completed" ? "#" : `/academy/${e.courseId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {e.status === "completed" ? "View certificate" : "Continue"} <ArrowRight className="ml-1 size-3.5" />
+              </a>
+            </Button>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
 }
 
-function SnapshotTile({ icon: Icon, label, value, tone }: SnapshotTileProps) {
-  return (
-    <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
-      <span
-        className={cn(
-          "flex size-10 shrink-0 items-center justify-center rounded-lg",
-          tone === "primary" && "bg-primary/10 text-primary",
-          tone === "teal" && "bg-teal/10 text-teal",
-          tone === "gold" && "bg-gold/10 text-gold"
-        )}
-      >
-        <Icon className="size-5" />
-      </span>
-      <div className="min-w-0">
-        <p className="text-[10px] tracking-widest uppercase font-medium text-muted-foreground">
-          {label}
-        </p>
-        <p className="mt-0.5 font-display text-xl font-light tabular tracking-tight">{value}</p>
+/* -------------------- Catalog -------------------- */
+
+function CatalogGrid({
+  courses,
+  enrollments,
+  isLoading,
+}: {
+  courses: Course[];
+  enrollments: Enrollment[];
+  isLoading: boolean;
+}) {
+  if (isLoading) {
+    return (
+      <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div
+            key={i}
+            className="h-72 rounded-2xl border border-border bg-card/40 animate-pulse"
+          />
+        ))}
       </div>
+    );
+  }
+
+  if (courses.length === 0) {
+    return (
+      <div className="rounded-2xl border border-dashed border-border bg-card/40 p-10 text-center">
+        <GraduationCap className="mx-auto size-8 text-muted-foreground" />
+        <p className="mt-4 font-display text-xl font-light">
+          Catalog launching soon
+        </p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          The DOT Academy catalog opens with our first cohort of operator-led
+          courses. Add your email to be notified.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+      {courses.map((c) => (
+        <CourseCard
+          key={c.id}
+          course={c}
+          enrollment={enrollments.find((e) => e.courseId === c.id)}
+        />
+      ))}
     </div>
+  );
+}
+
+function CourseCard({ course, enrollment }: { course: Course; enrollment?: Enrollment }) {
+  const enrolled = !!enrollment;
+  const completed = enrollment?.status === "completed";
+
+  return (
+    <Card className="overflow-hidden">
+      {/* Hero image */}
+      <div className="relative aspect-[16/9] bg-gradient-to-br from-primary/30 via-primary/10 to-card">
+        <div className="absolute inset-0 flex items-end p-5">
+          <Badge variant="secondary" className="bg-background/80">
+            {course.category ?? "Course"}
+          </Badge>
+        </div>
+        {completed && (
+          <div className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-background/95 px-3 py-1 text-[10px] uppercase tracking-widest text-primary">
+            <Check className="size-3" /> Completed
+          </div>
+        )}
+        {enrolled && !completed && (
+          <div className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-background/95 px-3 py-1 text-[10px] uppercase tracking-widest text-primary">
+            <Trophy className="size-3" /> Enrolled
+          </div>
+        )}
+      </div>
+
+      <CardContent className="space-y-3 p-5">
+        <h3 className="font-display text-lg font-light leading-tight">
+          {course.title}
+        </h3>
+        <p className="text-sm text-muted-foreground line-clamp-2">
+          {course.description}
+        </p>
+
+        {course.dotReward > 0 && (
+          <div className="flex items-center gap-2 text-xs text-primary">
+            <Sparkles className="size-3.5" />
+            Complete to earn {course.dotReward} DOT
+          </div>
+        )}
+
+        <div className="flex items-center justify-between border-t border-border pt-3">
+          <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
+            Powered by Whop
+          </span>
+          <CourseEnrollButton
+            course={course}
+            enrolled={enrolled}
+            completed={completed}
+          />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function CourseEnrollButton({
+  course,
+  enrolled,
+  completed,
+}: {
+  course: Course;
+  enrolled: boolean;
+  completed: boolean;
+}) {
+  const qc = useQueryClient();
+  const mut = useMutation({ mutationFn: () => enrollInCourse(course.id) });
+
+  const [enrolledJustNow, setEnrolledJustNow] = useState(false);
+
+  if (completed) {
+    return (
+      <Button variant="ghost" size="sm" asChild>
+        <Link to="/certificates">View certificate</Link>
+      </Button>
+    );
+  }
+
+  // If course has a Whop URL → send user to Whop checkout.
+  if (course.whopUrl && !enrolled && !enrolledJustNow) {
+    return (
+      <Button
+        variant="default"
+        size="sm"
+        asChild
+      >
+        <a href={course.whopUrl} target="_blank" rel="noopener noreferrer">
+          Enroll on Whop <ExternalLink className="ml-1 size-3.5" />
+        </a>
+      </Button>
+    );
+  }
+
+  // If user is enrolled (via webhook), show Continue / Complete.
+  if (enrolled) {
+    return (
+      <Button
+        variant="outline"
+        size="sm"
+        asChild
+      >
+        <a
+          href={course.whopUrl ?? "#"}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Continue learning <ChevronRight className="ml-1 size-3.5" />
+        </a>
+      </Button>
+    );
+  }
+
+  // No Whop URL → mock enroll inline (admin preview / free tier).
+  return (
+    <Button
+      size="sm"
+      variant="default"
+      disabled={mut.isPending}
+      onClick={async () => {
+        await mut.mutateAsync();
+        setEnrolledJustNow(true);
+        qc.invalidateQueries({ queryKey: ["academy-enrollments"] });
+      }}
+    >
+      {enrolledJustNow ? "Enrolled ✓" : "Enroll"}
+    </Button>
   );
 }

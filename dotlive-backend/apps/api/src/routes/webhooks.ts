@@ -134,6 +134,27 @@ export async function webhookRoutes(app: FastifyInstance) {
       description: `Whop deposit · ${payload.data.id}`,
       reference: `whop:${payload.data.id}`,
     });
+
+    // Try to match a published course by Whop product ID and auto-enroll.
+    try {
+      const { courses, courseEnrollments } = await import("../db/schema.js");
+      const productId = payload.data?.product_id as string | undefined;
+      if (productId) {
+        const matched = await db
+          .select()
+          .from(courses)
+          .where(eq(courses.whopProductId, productId))
+          .limit(1);
+        if (matched.length > 0) {
+          await db
+            .insert(courseEnrollments)
+            .values({ courseId: matched[0].id, userId, status: "enrolled" } as any)
+            .onConflictDoNothing();
+        }
+      }
+    } catch {
+      // best effort — courses may not exist yet
+    }
     return reply.send({ ok: true });
   });
 }
