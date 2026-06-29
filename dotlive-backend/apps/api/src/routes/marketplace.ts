@@ -153,28 +153,27 @@ export async function marketplaceRoutes(app: FastifyInstance) {
 
   /** POST /api/jobs — founders only */
   app.post("/jobs", { preHandler: app.authenticate }, async (req, reply) => {
-    const { sub } = req.user as { sub: string };
-    if (!(await userHasRole(sub, "founder"))) {
-      return reply.code(403).send({ error: "Only founders can post jobs" });
-    }
-    const parsed = jobCreate.safeParse(req.body);
-    if (!parsed.success) return reply.code(400).send({ error: "Invalid input" });
+      const { sub } = req.user as { sub: string };
+      // Open to any authenticated user — builders, founders, ventures, business owners.
+      // Per ops direction, job posting is a Tier 1 action available to all roles.
+      const parsed = jobCreate.safeParse(req.body);
+      if (!parsed.success) return reply.code(400).send({ error: "Invalid input" });
 
-    const inserted = await db
-      .insert(jobListings)
-      .values({
-        ventureId: sub,
-        title: parsed.data.title,
-        description: parsed.data.description,
-        category: parsed.data.category,
-        salaryDot: String(parsed.data.salaryDot),
-        employmentType: parsed.data.employmentType,
-        requirements: parsed.data.requirements,
-        isOpen: true,
-      } as any)
-      .returning();
-    return reply.send({ job: inserted[0] });
-  });
+      const inserted = await db
+        .insert(jobListings)
+        .values({
+          ventureId: sub,
+          title: parsed.data.title,
+          description: parsed.data.description,
+          category: parsed.data.category,
+          salaryDot: String(parsed.data.salaryDot),
+          employmentType: parsed.data.employmentType,
+          requirements: parsed.data.requirements,
+          isOpen: true,
+        } as any)
+        .returning();
+      return reply.send({ job: inserted[0] });
+    });
 
   /** GET /api/jobs/:id */
   app.get<{ Params: { id: string } }>("/jobs/:id", async (req, reply) => {

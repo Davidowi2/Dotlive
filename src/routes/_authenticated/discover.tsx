@@ -127,10 +127,32 @@ function DiscoverPage() {
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Network"
-        title="Discover"
-        subtitle="Browse ventures, founders and communities across the DOT network."
-      />
+              eyebrow="Network"
+              title="Discover"
+              subtitle="Browse ventures, founders, communities, and open gigs across the DOT network."
+            />
+
+            {/* Surface-level navigation — clarifies what Discover vs Communities vs DOT Work are */}
+            <div className="mt-4 flex flex-wrap gap-2 text-xs">
+              <Link
+                to="/discover"
+                className="rounded-full border border-primary bg-primary/10 px-3 py-1 font-medium text-primary"
+              >
+                Ventures
+              </Link>
+              <Link
+                to="/discover/communities"
+                className="rounded-full border border-border bg-card px-3 py-1 text-muted-foreground hover:border-primary/40 hover:text-foreground"
+              >
+                Communities
+              </Link>
+              <Link
+                to="/work"
+                className="rounded-full border border-border bg-card px-3 py-1 text-muted-foreground hover:border-primary/40 hover:text-foreground"
+              >
+                Open gigs
+              </Link>
+            </div>
 
       <div className="mt-6 space-y-6">
         {/* Search + sort */}

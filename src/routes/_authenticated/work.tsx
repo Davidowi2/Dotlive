@@ -268,8 +268,10 @@ function OrderDialog({ service, onClose }: { service: Service | null; onClose: (
 
 /* ═══════════════════════ JOBS TAB ═══════════════════════ */
 function JobsTab() {
-  const { roles, user } = useDotAuth();
-  const isFounder = roles.includes("founder") || roles.includes("admin") || roles.includes("super_admin");
+  const { user } = useDotAuth();
+  // Tier 1: any authenticated user can post a job.
+  // Per ops direction: builders, founders, ventures, business owners — all can post.
+  const canPostJob = !!user;
   const [category, setCategory] = useState("");
   const [search, setSearch] = useState("");
   const [minSalary, setMinSalary] = useState("");
@@ -327,17 +329,17 @@ function JobsTab() {
           onChange={(e) => setMinSalary(e.target.value)}
           className="sm:w-36"
         />
-        {isFounder ? (
-          <Button variant="hero" onClick={() => setShowPostForm(true)}>
-            <Plus className="size-4" /> Post a Job
-          </Button>
-        ) : (
-          <Button variant="outline" asChild>
-            <Link to="/onboarding">
-              <Lock className="size-4" /> Upgrade to Post
-            </Link>
-          </Button>
-        )}
+        {canPostJob ? (
+                  <Button variant="hero" onClick={() => setShowPostForm(true)}>
+                    <Plus className="size-4" /> Post a Job
+                  </Button>
+                ) : (
+                  <Button variant="outline" asChild>
+                    <Link to="/auth" search={{ mode: "signup" }}>
+                      <Lock className="size-4" /> Sign in to Post
+                    </Link>
+                  </Button>
+                )}
       </div>
 
       {/* Listing */}
@@ -345,16 +347,16 @@ function JobsTab() {
               <PageSkeleton.TransactionRows rows={5} />
             ) : filtered.length === 0 ? (
               <EcosystemEmptyState
-                icon={Briefcase}
-                title="No jobs posted yet"
-                subtitle="Open positions from founders. Founders post these to find builders for full-time, contract, and part-time work."
-                postedBy="Founders and Admins"
-                requiredRole="founder"
-                postHref={undefined}
-                postLabel="Post the first job"
-                accent="gold"
-                secondaryAction={{ label: "Browse gigs", href: "/work" }}
-              />
+                              icon={Briefcase}
+                              title="No jobs posted yet"
+                              subtitle="Open positions from founders, builders, and venture owners. Anyone can post — set a DOT amount and find the right person."
+                              postedBy="Any authenticated user — builders, founders, ventures, business owners"
+                              requiredRole={null}
+                              postHref={undefined}
+                              postLabel="Post the first job"
+                              accent="gold"
+                              secondaryAction={{ label: "Browse gigs", href: "/work" }}
+                            />
             ) : (
               <div className="mt-6 space-y-3">
                 {filtered.map((j) => (
