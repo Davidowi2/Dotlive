@@ -11,7 +11,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
   Users, Search, MapPin, ChevronRight, Sparkles,
-  Award, Loader2, Building2, GraduationCap, Briefcase, Globe,
+  Award, Loader2, Building2, GraduationCap, Briefcase, Globe, Lock,
 } from "lucide-react";
 
 import { AppShell } from "@/components/app/AppShell";
@@ -38,6 +38,7 @@ interface Community {
   tier: string;
   region: string | null;
   memberCount: number;
+  isPrivate?: boolean;
   createdAt: string;
   leader: { name: string | null; dotId: string } | null;
 }
@@ -47,6 +48,11 @@ const TIER_META: Record<string, { label: string; className: string; icon: any }>
   verified:    { label: "Verified",    className: "bg-emerald-500/10 text-emerald-500",      icon: Award },
   campus:      { label: "Campus",      className: "bg-blue-500/10 text-blue-500",            icon: GraduationCap },
   enterprise:  { label: "Enterprise",  className: "bg-purple-500/10 text-purple-500",        icon: Briefcase },
+};
+
+const PRIVACY_META = {
+  private: { label: "Private", className: "bg-amber-500/10 text-amber-600 border-amber-500/20", icon: Lock },
+  public:  { label: "Public",  className: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20", icon: Globe },
 };
 
 const CATEGORY_ICONS: Record<string, any> = {
@@ -180,8 +186,9 @@ function CommunityCard({ community }: { community: Community }) {
   const tierMeta = TIER_META[community.tier] ?? TIER_META.free;
   const TierIcon = tierMeta.icon;
   const CategoryIcon = CATEGORY_ICONS[community.category ?? ""] ?? Users;
+  const privacyMeta = community.isPrivate ? PRIVACY_META.private : PRIVACY_META.public;
+  const PrivacyIcon = privacyMeta.icon;
 
-  // Initials from name
   const initials = community.name
     .split(/[\s-]+/)
     .slice(0, 2)
@@ -191,15 +198,21 @@ function CommunityCard({ community }: { community: Community }) {
   return (
     <Card className="group transition-all hover:border-primary/40 hover:shadow-md">
       <CardContent className="p-5 space-y-4">
-        {/* Top: avatar + tier badge */}
-        <div className="flex items-start justify-between gap-3">
+        {/* Top: avatar + badges */}
+        <div className="flex items-start justify-between gap-2">
           <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 font-display text-lg font-bold text-primary">
             {initials || "•"}
           </div>
-          <Badge className={cn("shrink-0 gap-1 text-[10px]", tierMeta.className)}>
-            <TierIcon className="size-3" />
-            {tierMeta.label}
-          </Badge>
+          <div className="flex flex-wrap justify-end gap-1.5">
+            <Badge className={cn("shrink-0 gap-1 text-[10px]", privacyMeta.className)}>
+              <PrivacyIcon className="size-3" />
+              {privacyMeta.label}
+            </Badge>
+            <Badge className={cn("shrink-0 gap-1 text-[10px]", tierMeta.className)}>
+              <TierIcon className="size-3" />
+              {tierMeta.label}
+            </Badge>
+          </div>
         </div>
 
         {/* Title + description */}
@@ -210,27 +223,24 @@ function CommunityCard({ community }: { community: Community }) {
           </p>
         </div>
 
-        {/* Meta: region + category + member count */}
+        {/* Meta */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
           {community.region && (
             <span className="inline-flex items-center gap-1">
-              <MapPin className="size-3" />
-              {community.region}
+              <MapPin className="size-3" />{community.region}
             </span>
           )}
           {community.category && (
             <span className="inline-flex items-center gap-1">
-              <CategoryIcon className="size-3" />
-              {community.category.replace(/_/g, " ")}
+              <CategoryIcon className="size-3" />{community.category.replace(/_/g, " ")}
             </span>
           )}
           <span className="inline-flex items-center gap-1">
-            <Users className="size-3" />
-            {community.memberCount} members
+            <Users className="size-3" />{community.memberCount} members
           </span>
         </div>
 
-        {/* Footer: leader + arrow */}
+        {/* Footer: leader + join */}
         <div className="flex items-center justify-between border-t border-border pt-3">
           <div className="text-xs">
             <p className="text-muted-foreground">Led by</p>
@@ -241,10 +251,17 @@ function CommunityCard({ community }: { community: Community }) {
               )}
             </p>
           </div>
-          <Button variant="ghost" size="sm" className="gap-1 text-primary">
-            View
-            <ChevronRight className="size-3.5" />
-          </Button>
+          {community.isPrivate ? (
+            <Button variant="outline" size="sm" className="gap-1 text-xs" asChild>
+              <a href="/community">
+                <Lock className="size-3" /> Need code
+              </a>
+            </Button>
+          ) : (
+            <Button variant="ghost" size="sm" className="gap-1 text-primary">
+              View <ChevronRight className="size-3.5" />
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>
