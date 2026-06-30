@@ -95,7 +95,7 @@ function MarketplacePage() {
           isFounder ? (
             <Button onClick={() => setShowPostJob(true)} size="sm">
               <Plus className="size-4" />
-              Post a Job
+              Post a Gig
             </Button>
           ) : undefined
         }

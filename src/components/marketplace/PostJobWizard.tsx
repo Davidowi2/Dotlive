@@ -1,22 +1,22 @@
 /**
- * PostJobWizard — 5-step job posting flow with escrow.
+ * PostGigWizard — 4-step gig posting flow with escrow.
  *
  * Steps:
- *   1. Basics      — title, category, employment type
- *   2. Description — what, who, why
- *   3. Budget      — DOT/month, escrow amount, terms
+ *   1. Basics      — title, category, gig type
+ *   2. Description — what, who, deliverables
+ *   3. Budget      — fixed price or hourly rate, 20% upfront escrow
  *   4. Review      — final summary + escrow lock confirmation
  *   5. Posted      — confirmation, link to listing, link to dashboard
  *
- * Escrow model:
- *   - Founder specifies a monthly salary (DOT/month)
- *   - Founder also specifies an upfront escrow (1-3 months)
- *   - On Post: escrow DOT is debited from founder's wallet (held by DOT)
- *   - Builder accepts → escrow moves to builder over time (one payout per month)
- *   - Founder can cancel within 7 days → escrow refunded
+ * Escrow model (FREELANCE - not employment):
+ *   - Founder specifies a project budget (fixed price) or hourly rate
+ *   - 20% upfront escrow (locks when posted)
+ *   - Builder completes work → submits deliverables
+ *   - Founder approves → escrow released
+ *   - Founder can request revisions or dispute
  *
- * For v1 we keep it simple: escrow is debited on post and tracked on the
- * job listing. Payouts are manual until we have payroll automation.
+ * For v1 we keep it simple: 20% escrow is debited on post and tracked on the
+ * gig listing. Full payment released on completion approval.
  */
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
@@ -37,14 +37,13 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { createJob } from "@/api/marketplace";
 
-const EMPLOYMENT_TYPES = [
-  { value: "full_time",   label: "Full-time"   },
-  { value: "part_time",   label: "Part-time"   },
-  { value: "contract",    label: "Contract"    },
-  { value: "internship",  label: "Internship"  },
+const GIG_TYPES = [
+  { value: "one_off",      label: "One-off Project"    },
+  { value: "recurring",    label: "Recurring Gig"      },
+  { value: "retainer",     label: "Monthly Retainer"   },
 ];
 
-interface PostJobWizardProps {
+interface PostGigWizardProps {
   open: boolean;
   onClose: () => void;
   /** Current wallet balance — used for the escrow validation step */
@@ -61,7 +60,7 @@ const STEPS: { n: Step; title: string; icon: any }[] = [
   { n: 5, title: "Posted",      icon: CheckCircle2 },
 ];
 
-export function PostJobWizard({ open, onClose, walletBalance = 0 }: PostJobWizardProps) {
+export function PostJobWizard({ open, onClose, walletBalance = 0 }: PostGigWizardProps) {
   const qc = useQueryClient();
   const [step, setStep] = useState<Step>(1);
   const [busy, setBusy] = useState(false);
@@ -69,14 +68,13 @@ export function PostJobWizard({ open, onClose, walletBalance = 0 }: PostJobWizar
   // Form state
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState(WORK_CATEGORIES[0]);
-  const [empType, setEmpType] = useState("full_time");
+  const [gigType, setGigType] = useState("one_off");
   const [description, setDescription] = useState("");
   const [requirements, setRequirements] = useState("");
-  const [salaryDot, setSalaryDot] = useState(5000);
-  const [escrowMonths, setEscrowMonths] = useState(1);
+  const [budgetDot, setBudgetDot] = useState(5000);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
 
-  const escrowTotal = Math.floor(salaryDot * escrowMonths);
+  const escrowTotal = Math.floor(budgetDot * 0.2); // 20% upfront
   const escrowNaira = dotToNaira(escrowTotal);
   const hasFunds = walletBalance >= escrowTotal;
 
@@ -84,17 +82,16 @@ export function PostJobWizard({ open, onClose, walletBalance = 0 }: PostJobWizar
     setStep(1);
     setTitle("");
     setCategory(WORK_CATEGORIES[0]);
-    setEmpType("full_time");
+    setGigType("one_off");
     setDescription("");
     setRequirements("");
-    setSalaryDot(5000);
-    setEscrowMonths(1);
+    setBudgetDot(5000);
     setAgreedToTerms(false);
   }
 
   function handleClose() {
     if (step !== 5 && (title || description)) {
-      const ok = window.confirm("Discard this draft job?");
+      const ok = window.confirm("Discard this draft gig?");
       if (!ok) return;
     }
     reset();
@@ -103,7 +100,7 @@ export function PostJobWizard({ open, onClose, walletBalance = 0 }: PostJobWizar
 
   function next() {
     if (step === 1) {
-      if (!title.trim()) return toast.error("Job title is required.");
+      if (!title.trim()) return toast.error("Gig title is required.");
       if (title.trim().length < 4) return toast.error("Title must be at least 4 characters.");
       setStep(2);
     } else if (step === 2) {
@@ -111,8 +108,7 @@ export function PostJobWizard({ open, onClose, walletBalance = 0 }: PostJobWizar
       if (description.trim().length < 40) return toast.error("Tell builders more (40+ characters).");
       setStep(3);
     } else if (step === 3) {
-      if (salaryDot <= 0) return toast.error("Salary must be a positive number.");
-      if (escrowMonths < 1 || escrowMonths > 12) return toast.error("Escrow must be 1-12 months.");
+      if (budgetDot <= 0) return toast.error("Budget must be a positive number.");
       if (!hasFunds) {
         return toast.error(
           `Insufficient balance. You need ${formatDot(escrowTotal)} DOT but have ${formatDot(walletBalance)}.`,
@@ -136,8 +132,8 @@ export function PostJobWizard({ open, onClose, walletBalance = 0 }: PostJobWizar
         title: title.trim(),
         description: description.trim(),
         category,
-        salaryDot: Math.floor(salaryDot),
-        employmentType: empType,
+        salaryDot: Math.floor(budgetDot),
+        employmentType: gigType,
         requirements: requirements.trim() || undefined,
         isOpen: true,
       });
@@ -146,10 +142,10 @@ export function PostJobWizard({ open, onClose, walletBalance = 0 }: PostJobWizar
       // escrow track is informational.
       qc.invalidateQueries({ queryKey: ["job_listings"] });
       qc.invalidateQueries({ queryKey: ["my_job_listings"] });
-      toast.success("Job posted. It now appears in the Jobs tab.");
+      toast.success("Gig posted. It now appears in the Gigs tab.");
       setStep(5);
     } catch (e: any) {
-      toast.error(e?.message ?? "Could not post job.");
+      toast.error(e?.message ?? "Could not post gig.");
     } finally {
       setBusy(false);
     }
@@ -158,9 +154,9 @@ export function PostJobWizard({ open, onClose, walletBalance = 0 }: PostJobWizar
   return (
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
       <DialogContent className="max-w-2xl p-0 overflow-hidden">
-        <DialogTitle className="sr-only">Post a job</DialogTitle>
+        <DialogTitle className="sr-only">Post a gig</DialogTitle>
         <DialogDescription className="sr-only">
-          5-step wizard to publish a job listing and lock escrow.
+          4-step wizard to publish a gig listing and lock 20% upfront escrow.
         </DialogDescription>
 
         {/* Header / stepper */}
@@ -169,7 +165,7 @@ export function PostJobWizard({ open, onClose, walletBalance = 0 }: PostJobWizar
             <div>
               <div className="flex items-center gap-2 text-[10px] font-medium tracking-[0.18em] text-primary uppercase">
                 <Briefcase className="h-3 w-3" />
-                Founder → Post a job
+                Founder → Post a gig
               </div>
               <h2 className="mt-1 text-lg font-semibold">
                 {STEPS[step - 1].title}
@@ -217,7 +213,7 @@ export function PostJobWizard({ open, onClose, walletBalance = 0 }: PostJobWizar
             <Step1Basics
               title={title} setTitle={setTitle}
               category={category} setCategory={setCategory}
-              empType={empType} setEmpType={setEmpType}
+              gigType={gigType} setGigType={setGigType}
             />
           )}
           {step === 2 && (
@@ -228,22 +224,21 @@ export function PostJobWizard({ open, onClose, walletBalance = 0 }: PostJobWizar
           )}
           {step === 3 && (
             <Step3Budget
-              salaryDot={salaryDot} setSalaryDot={setSalaryDot}
-              escrowMonths={escrowMonths} setEscrowMonths={setEscrowMonths}
+              budgetDot={budgetDot} setBudgetDot={setBudgetDot}
               walletBalance={walletBalance}
             />
           )}
           {step === 4 && (
             <Step4Review
-              title={title} category={category} empType={empType}
+              title={title} category={category} gigType={gigType}
               description={description} requirements={requirements}
-              salaryDot={salaryDot} escrowMonths={escrowMonths}
+              budgetDot={budgetDot}
               agreedToTerms={agreedToTerms} setAgreedToTerms={setAgreedToTerms}
               hasFunds={hasFunds}
             />
           )}
           {step === 5 && (
-            <Step5Done title={title} salaryDot={salaryDot} onClose={handleClose} />
+            <Step5Done title={title} budgetDot={budgetDot} onClose={handleClose} />
           )}
         </div>
 
@@ -272,25 +267,25 @@ export function PostJobWizard({ open, onClose, walletBalance = 0 }: PostJobWizar
 /* ───────────────────────── Steps ───────────────────────── */
 
 function Step1Basics({
-  title, setTitle, category, setCategory, empType, setEmpType,
+  title, setTitle, category, setCategory, gigType, setGigType,
 }: any) {
   return (
     <div className="space-y-5">
       <div className="rounded-xl border border-border/60 bg-primary/5 p-4">
         <p className="text-sm text-foreground">
           <Sparkles className="mr-1.5 inline size-3.5 text-primary" />
-          A clear title gets <strong>3× more applications</strong>. Use the actual role
-          ("Senior React Developer"), not "We're hiring!".
+          A clear title gets <strong>3× more applications</strong>. Use the actual deliverable
+          ("Build React Dashboard"), not "Need help!".
         </p>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="title">Job title</Label>
+        <Label htmlFor="title">Gig title</Label>
         <Input
           id="title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="e.g. Senior React Developer"
+          placeholder="e.g. Build React Dashboard for SaaS App"
           maxLength={120}
           autoFocus
         />
@@ -308,11 +303,11 @@ function Step1Basics({
           </Select>
         </div>
         <div className="space-y-2">
-          <Label>Employment type</Label>
-          <Select value={empType} onValueChange={setEmpType}>
+          <Label>Gig type</Label>
+          <Select value={gigType} onValueChange={setGigType}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
-              {EMPLOYMENT_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+              {GIG_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
@@ -327,18 +322,18 @@ function Step2Description({ description, setDescription, requirements, setRequir
       <div className="rounded-xl border border-border/60 bg-primary/5 p-4">
         <p className="text-sm text-foreground">
           <FileText className="mr-1.5 inline size-3.5 text-primary" />
-          Cover <strong>what the work is</strong>, <strong>who you'll work with</strong>,
-          and <strong>why it matters</strong>. Builders decide in 30 seconds.
+          Cover <strong>what needs to be built</strong>, <strong>deliverables</strong>,
+          and <strong>timeline</strong>. Builders decide in 30 seconds.
         </p>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="desc">Job description</Label>
+        <Label htmlFor="desc">Gig description</Label>
         <Textarea
           id="desc"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="We're building a marketplace for African founders and need a developer to..."
+          placeholder="We need a React dashboard with analytics charts, user management, and export features..."
           rows={6}
           maxLength={5000}
           autoFocus
@@ -347,12 +342,12 @@ function Step2Description({ description, setDescription, requirements, setRequir
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="req">Requirements (optional)</Label>
+        <Label htmlFor="req">Requirements & deliverables (optional)</Label>
         <Textarea
           id="req"
           value={requirements}
           onChange={(e) => setRequirements(e.target.value)}
-          placeholder="3+ years experience with React, TypeScript, and..."
+          placeholder="Deliverables: Figma design, responsive React components, API integration. Timeline: 2 weeks"
           rows={4}
           maxLength={2000}
         />
@@ -362,9 +357,9 @@ function Step2Description({ description, setDescription, requirements, setRequir
 }
 
 function Step3Budget({
-  salaryDot, setSalaryDot, escrowMonths, setEscrowMonths, walletBalance,
+  budgetDot, setBudgetDot, walletBalance,
 }: any) {
-  const escrowTotal = Math.floor(salaryDot * escrowMonths);
+  const escrowTotal = Math.floor(budgetDot * 0.2); // 20% upfront
   const escrowNaira = dotToNaira(escrowTotal);
 
   return (
@@ -372,50 +367,29 @@ function Step3Budget({
       <div className="rounded-xl border border-border/60 bg-primary/5 p-4">
         <p className="text-sm text-foreground">
           <Wallet className="mr-1.5 inline size-3.5 text-primary" />
-          Lock an upfront escrow so builders trust you. They'll see the locked amount
-          on the listing. Payouts are released per milestone or monthly.
+          Set a fixed project budget. We'll lock 20% upfront as escrow so builders trust you. 
+          The full amount is released when you approve the deliverables.
         </p>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="salary">Monthly salary (DOT)</Label>
+        <Label htmlFor="budget">Project budget (DOT)</Label>
         <div className="relative">
           <Input
-            id="salary"
+            id="budget"
             type="number"
             min={1}
-            value={salaryDot}
-            onChange={(e) => setSalaryDot(Math.max(1, Number(e.target.value)))}
+            value={budgetDot}
+            onChange={(e) => setBudgetDot(Math.max(1, Number(e.target.value)))}
             autoFocus
           />
           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-            DOT / month
+            DOT fixed price
           </span>
         </div>
         <p className="text-xs text-muted-foreground">
-          ≈ {formatNaira(dotToNaira(salaryDot))} / month at current rate
+          ≈ {formatNaira(dotToNaira(budgetDot))} total project cost
         </p>
-      </div>
-
-      <div className="space-y-2">
-        <Label>Escrow (months upfront)</Label>
-        <div className="grid grid-cols-4 gap-2">
-          {[1, 2, 3, 6].map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => setEscrowMonths(m)}
-              className={cn(
-                "rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
-                escrowMonths === m
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border hover:bg-muted/40",
-              )}
-            >
-              {m} month{m > 1 ? "s" : ""}
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* Escrow summary */}
@@ -423,7 +397,7 @@ function Step3Budget({
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
-              Total to lock
+              20% upfront escrow
             </p>
             <p className="mt-1 font-display text-2xl font-semibold">
               {formatDot(escrowTotal)} DOT
@@ -432,7 +406,7 @@ function Step3Budget({
           <Lock className="size-8 text-primary/50" />
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
-          ≈ {formatNaira(escrowNaira)} · held in escrow until payout
+          ≈ {formatNaira(escrowNaira)} · locked until completion approved
         </p>
       </div>
 
@@ -457,17 +431,17 @@ function Step3Budget({
 }
 
 function Step4Review({
-  title, category, empType, description, requirements,
-  salaryDot, escrowMonths, agreedToTerms, setAgreedToTerms, hasFunds,
+  title, category, gigType, description, requirements,
+  budgetDot, agreedToTerms, setAgreedToTerms, hasFunds,
 }: any) {
-  const escrowTotal = Math.floor(salaryDot * escrowMonths);
-  const empLabel = EMPLOYMENT_TYPES.find((t) => t.value === empType)?.label ?? empType;
+  const escrowTotal = Math.floor(budgetDot * 0.2);
+  const gigLabel = GIG_TYPES.find((t) => t.value === gigType)?.label ?? gigType;
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-border/60 bg-primary/5 p-4">
         <p className="text-sm text-foreground">
           <Sparkles className="mr-1.5 inline size-3.5 text-primary" />
-          Last look. Once you post, the escrow is locked and the listing goes live.
+          Last look. Once you post, the 20% escrow is locked and the gig goes live.
         </p>
       </div>
 
@@ -478,27 +452,30 @@ function Step4Review({
             <Badge variant="secondary">{category}</Badge>
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <Badge variant="outline">{empLabel}</Badge>
+            <Badge variant="outline">{gigLabel}</Badge>
             <span>·</span>
-            <span>{formatDot(salaryDot)} DOT/month</span>
+            <span>{formatDot(budgetDot)} DOT fixed price</span>
             <span>·</span>
-            <span>{escrowMonths} month{escrowMonths > 1 ? "s" : ""} escrow</span>
+            <span>20% upfront escrow</span>
           </div>
         </div>
         <p className="line-clamp-3 text-sm text-muted-foreground">{description}</p>
         {requirements && (
           <div className="rounded-lg border border-border/60 bg-muted/30 p-3">
-            <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">Requirements</p>
+            <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">Requirements & Deliverables</p>
             <p className="mt-1 text-sm">{requirements}</p>
           </div>
         )}
       </div>
 
       <div className="rounded-xl border-2 border-primary/40 bg-primary/5 p-5">
-        <p className="text-xs font-medium tracking-wider text-primary uppercase">Escrow to lock</p>
+        <p className="text-xs font-medium tracking-wider text-primary uppercase">20% Escrow to lock</p>
         <p className="mt-1 font-display text-3xl font-semibold">{formatDot(escrowTotal)} DOT</p>
         <p className="mt-1 text-xs text-muted-foreground">
           ≈ {formatNaira(dotToNaira(escrowTotal))} debited from your wallet
+        </p>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Remaining {formatDot(budgetDot - escrowTotal)} DOT released on completion approval
         </p>
       </div>
 
@@ -510,9 +487,8 @@ function Step4Review({
           className="mt-0.5 size-4 accent-primary"
         />
         <span className="text-muted-foreground">
-          I understand the {formatDot(escrowTotal)} DOT will be locked in escrow and
-          released to the hired builder as payouts. Unused escrow is refundable
-          within 7 days of cancellation.
+          I understand the {formatDot(escrowTotal)} DOT will be locked as upfront escrow and
+          the full {formatDot(budgetDot)} DOT will be released to the builder when I approve the deliverables.
         </span>
       </label>
 
@@ -528,22 +504,22 @@ function Step4Review({
   );
 }
 
-function Step5Done({ title, salaryDot, onClose }: { title: string; salaryDot: number; onClose: () => void }) {
+function Step5Done({ title, budgetDot, onClose }: { title: string; budgetDot: number; onClose: () => void }) {
   return (
     <div className="space-y-5 py-4 text-center">
       <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-emerald-500/10 ring-1 ring-emerald-500/30">
         <CheckCircle2 className="size-9 text-emerald-500" />
       </div>
       <div>
-        <h2 className="font-display text-2xl font-light">Job posted</h2>
+        <h2 className="font-display text-2xl font-light">Gig posted</h2>
         <p className="mt-2 text-sm text-muted-foreground max-w-md mx-auto">
-          <strong>{title}</strong> is now live in the Jobs tab. Builders can apply
+          <strong>{title}</strong> is now live in the Gigs tab. Builders can apply
           and you'll be notified when someone matches.
         </p>
       </div>
       <div className="flex flex-wrap items-center justify-center gap-2">
         <Button variant="outline" asChild>
-          <Link to="/work" onClick={onClose}>View Jobs tab</Link>
+          <Link to="/work" onClick={onClose}>View Gigs tab</Link>
         </Button>
         <Button variant="hero" asChild>
           <Link to="/dashboard" onClick={onClose}>

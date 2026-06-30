@@ -1,15 +1,15 @@
 /**
- * DOT Work — Personal labor dashboard.
+ * DOT Work — Personal freelance dashboard.
  *
  * Per direction: this is the USER's view of THEIR participation in the
- * working community. NOT a marketplace for browsing/posting gigs.
+ * freelance community. NOT a marketplace for browsing/posting gigs.
  *
- *   Overview      — active contracts, pending applications, this-week earnings
- *   Applications  — jobs I've applied for
+ *   Overview      — active contracts, pending proposals, this-week earnings
+ *   Proposals     — gigs I've applied for
  *   Contracts     — active service orders (in progress, delivered, completed)
  *   Earnings      — total DOT earned, by-period breakdown
  *
- * To HIRE or POST jobs, go to /discover → Open roles.
+ * To HIRE or POST gigs, go to /discover → Open gigs.
  */
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -49,7 +49,7 @@ import { ORDER_STATUS_META } from "@/lib/constants";
 export const Route = createFileRoute("/_authenticated/work")({
   head: () => ({
     meta: [
-      { title: "DOT Work — Your Labor Dashboard" },
+      { title: "DOT Work — Your Freelance Dashboard" },
     ],
   }),
   component: WorkPage,
@@ -78,7 +78,7 @@ export function WorkPage() {
       <Tabs defaultValue="overview" className="mt-6">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="applications">Applications</TabsTrigger>
+          <TabsTrigger value="applications">Proposals</TabsTrigger>
           <TabsTrigger value="contracts">Contracts</TabsTrigger>
           <TabsTrigger value="earnings">Earnings</TabsTrigger>
         </TabsList>
@@ -114,7 +114,7 @@ function OverviewTab() {
   const activeContracts = orders.filter((o) =>
     o.status === "in_progress" || o.status === "delivered",
   ).length;
-  const pendingApps = jobs.length; // approximation: jobs the user sees
+  const pendingProposals = jobs.length; // approximation: gigs the user sees
   const earnedDot = orders
     .filter((o) => o.status === "completed")
     .reduce((sum, o) => sum + (Number(o.amountDot) || 0), 0);
@@ -137,9 +137,9 @@ function OverviewTab() {
         />
         <StatCard
           icon={ClipboardList}
-          label="Open applications"
-          value={pendingApps}
-          sub={pendingApps === 0 ? "Apply to a role" : "Visible in Applications tab"}
+          label="Open proposals"
+          value={pendingProposals}
+          sub={pendingProposals === 0 ? "Apply to a gig" : "Visible in Proposals tab"}
         />
         <StatCard
           icon={TrendingUp}
@@ -153,12 +153,12 @@ function OverviewTab() {
       <div className="rounded-2xl border border-border bg-card p-6">
         <h3 className="font-display text-lg font-light tracking-tight">Where to next</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          DOT Work is your dashboard for labor participation. Open roles live in Discover.
+          DOT Work is your dashboard for freelance participation. Open gigs live in Discover.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <Button variant="outline" asChild>
             <Link to="/discover" search={{ tab: "open-roles" }}>
-              <Search className="mr-2 size-4" /> Find open roles
+              <Search className="mr-2 size-4" /> Find open gigs
               <ArrowUpRight className="ml-1.5 size-3.5" />
             </Link>
           </Button>
@@ -181,7 +181,7 @@ function OverviewTab() {
           <h3 className="font-display text-lg font-light tracking-tight">Latest activity</h3>
           <p className="mt-2 text-sm text-muted-foreground">
             {orders.length === 0
-              ? "You haven't started any contracts yet. Apply to an open role to begin."
+              ? "You haven't started any contracts yet. Apply to an open gig to begin."
               : `${orders.length} order${orders.length === 1 ? "" : "s"} on file.`}
           </p>
           {orders.length > 0 && (
@@ -200,7 +200,7 @@ function OverviewTab() {
   );
 }
 
-/* ═══════════════════ APPLICATIONS TAB ═══════════════════ */
+/* ═══════════════════ PROPOSALS TAB ═══════════════════ */
 function ApplicationsTab() {
   const [search, setSearch] = useState("");
   const { data: jobs = [], isLoading } = useQuery({
@@ -227,12 +227,12 @@ function ApplicationsTab() {
       <div className="mt-6">
         <EmptyState
           icon={ClipboardList}
-          title="No applications yet"
-          description="Find an open role on Discover and apply. Your applications will track here."
+          title="No proposals yet"
+          description="Find an open gig on Discover and apply. Your proposals will track here."
           action={
             <Button asChild>
               <Link to="/discover" search={{ tab: "open-roles" }}>
-                Browse open roles
+                Browse open gigs
               </Link>
             </Button>
           }
@@ -244,7 +244,7 @@ function ApplicationsTab() {
   return (
     <div className="mt-6 space-y-4">
       <Input
-        placeholder="Filter applications…"
+        placeholder="Filter proposals…"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
