@@ -575,8 +575,8 @@ function Dashboard() {
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               {[
                 { label: "Browse gigs", desc: "Find work and earn DOT", to: "/work", icon: Store, cta: "Go to Gigs", accent: "text-primary border-primary/30" },
-                { label: "Browse jobs", desc: "Full-time & contract roles", to: "/work", icon: Briefcase, cta: "Go to Jobs", accent: "text-gold border-gold/30" },
-                { label: "Sell your skills", desc: "List a service", to: "/work", icon: Hammer, cta: "Start selling", accent: "text-primary border-primary/30" },
+                { label: "Marketplace", desc: "See open service listings", to: "/marketplace", icon: Briefcase, cta: "Browse listings", accent: "text-gold border-gold/30" },
+                { label: "Sell your skills", desc: "List a service or gig", to: "/work", icon: Hammer, cta: "Start selling", accent: "text-primary border-primary/30" },
                 { label: "Academy", desc: "Learn and earn DOT rewards", to: "/academy", icon: BookOpen, cta: "Start learning", accent: "text-primary border-primary/30" },
               ].map((q) => {
                 const Icon = q.icon;

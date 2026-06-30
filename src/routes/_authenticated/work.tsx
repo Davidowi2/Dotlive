@@ -257,12 +257,12 @@ function ApplicationsTab() {
             <div className="min-w-0">
               <p className="font-medium">{j.title}</p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                {j.category} · {j.employmentType ?? "—"}
+                {j.category} · {j.employmentType ? j.employmentType.replace(/_/g, " ") : "Gig"}
               </p>
             </div>
             <div className="shrink-0 text-right">
               <p className="font-medium tabular text-primary">{formatDot(j.salaryDot)} DOT</p>
-              <p className="text-xs text-muted-foreground">posted</p>
+              <p className="text-xs text-muted-foreground">budget</p>
             </div>
           </li>
         ))}

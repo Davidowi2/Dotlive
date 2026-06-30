@@ -5,11 +5,9 @@
  *   - Ventures (founder businesses)
  *   - Builders (talent)
  *   - Communities
- *   - Jobs / Open roles
+ *   - Gigs / Open gigs
  *
  * One input, one results page. No tiers, no categories required.
- * Inspired by Reddit's universal search: every result is a card with
- * vertical, type badge, name, and key signal.
  */
 import { useState, useMemo } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -131,14 +129,14 @@ function SearchPage() {
         href: `/community/${c.id ?? c.slug}`,
       });
     }
-    for (const j of combined.jobs) {
+      for (const j of combined.jobs) {
       out.push({
         id: j.id,
         vertical: "job",
         title: j.title,
         subtitle: j.description ?? "",
         meta: `${formatDot(j.salaryDot)} DOT`,
-        href: `/discover/open-roles/${j.id}`,
+        href: `/marketplace`,
       });
     }
     return out;
@@ -155,7 +153,7 @@ function SearchPage() {
     <AppShell>
       <PageHeader
         title="Search"
-        subtitle="Find ventures, builders, communities, and open roles across DOT."
+      subtitle="Find ventures, builders, communities, and open gigs across DOT."
       />
 
       <div className="mt-6">
@@ -187,7 +185,7 @@ function SearchPage() {
               {totals.venture > 0 && <Chip count={totals.venture} label="Ventures" />}
               {totals.builder > 0 && <Chip count={totals.builder} label="Builders" />}
               {totals.community > 0 && <Chip count={totals.community} label="Communities" />}
-              {totals.job > 0 && <Chip count={totals.job} label="Open roles" />}
+              {totals.job > 0 && <Chip count={totals.job} label="Open gigs" />}
             </div>
 
             {hits.length === 0 ? (
@@ -236,10 +234,10 @@ function SearchPage() {
               description="Find builders by skill or availability."
             />
             <SuggestionCard
-              to="/discover?tab=open-roles"
+              to="/marketplace"
               icon={Briefcase}
-              label="Open roles"
-              description="Find jobs posted by founders."
+              label="Open gigs"
+              description="Find freelance gigs posted by founders."
             />
           </div>
         )}
@@ -282,7 +280,7 @@ function SearchHitCard({ hit }: { hit: SearchHit }) {
         <div className="flex items-center gap-2">
           <span className="font-medium">{hit.title}</span>
           <Badge variant="muted" className="text-[10px] uppercase">
-            {hit.vertical}
+            {hit.vertical === "job" ? "gig" : hit.vertical}
           </Badge>
         </div>
         {hit.subtitle && (
