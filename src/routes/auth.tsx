@@ -14,6 +14,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   InputOTP,
   InputOTPGroup,
   InputOTPSlot,
@@ -657,13 +664,32 @@ function SigninForm({
       }
       setBusy(true);
       try {
+        // Build metadata object with all collected user preferences
+        const metadata: Record<string, any> = {
+          intent: chosenIntent,
+        };
+
+        // Add intent-specific data
+        if (chosenIntent === "earn" || chosenIntent === "learn") {
+          metadata.selectedTopics = chips;
+        } else if (chosenIntent === "business") {
+          metadata.businessStage = businessStage;
+        } else if (chosenIntent === "invest") {
+          metadata.investRange = investRange;
+        }
+
+        // Add country if captured
+        if (country) {
+          metadata.country = country;
+        }
+
         const res = await dotApi.post<{ token: string; user: any }>(
           "/api/auth/complete-signup",
           {
             signupToken,
             password,
             name: name.trim(),
-            // Pass metadata in the user table via separate endpoint after — for now skip
+            metadata, // ← NOW SENDING ALL COLLECTED DATA
           }
         );
         setToken(res.token);
@@ -787,6 +813,21 @@ function SigninForm({
                                     </div>
                                   )}
                                 </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="su-country">Where are you based?</Label>
+                  <Select value={country} onValueChange={setCountry}>
+                    <SelectTrigger id="su-country">
+                      <SelectValue placeholder="Select your country" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {AFRICAN_COUNTRIES_SHORT.map((c) => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">This helps us personalize your experience.</p>
+                </div>
 
                 {/* Consent */}
                 <label className="flex cursor-pointer items-start gap-3">

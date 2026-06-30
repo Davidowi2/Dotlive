@@ -125,8 +125,12 @@ function Onboarding() {
     setRole(r);
     if (r === "founder") {
       setStep(2);
+    } else if (r === "builder") {
+      // Redirect to builder onboarding wizard
+      sessionStorage.setItem("dot_onboarding_builder", "true");
+      navigate({ to: "/onboarding/builder" });
     } else {
-      // skip founder-profile step
+      // skip to consent step for other roles
       setStep(3);
     }
   }

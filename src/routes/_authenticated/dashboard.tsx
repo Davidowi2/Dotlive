@@ -170,7 +170,7 @@ function Dashboard() {
       />
 
       {/* ── HERO: Wallet + Vantage ──────────────────────────────── */}
-      <section className="mt-8 grid gap-4 lg:grid-cols-5">
+      <section className="mt-8 grid grid-cols-1 gap-4 lg:grid-cols-5">
         {/* Wallet — gold accent, prominent */}
         <div
           className={cn(
@@ -403,7 +403,7 @@ function Dashboard() {
 
       {/* ── STAT CARDS — accent-themed, no hardcoded colors ────── */}
       {isBuilderOnly ? (
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             label="DOT Balance"
             value={formatDot(balance)}
@@ -435,7 +435,7 @@ function Dashboard() {
           />
         </section>
       ) : (
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             label="Vantage Point"
             value={formatDot(vantagePoint)}

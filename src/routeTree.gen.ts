@@ -57,6 +57,7 @@ import { Route as AuthenticatedMessagesIndexRouteImport } from './routes/_authen
 import { Route as AuthenticatedCapitalIndexRouteImport } from './routes/_authenticated/capital/index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedWorkLeaderboardRouteImport } from './routes/_authenticated/work/leaderboard'
+import { Route as AuthenticatedOnboardingBuilderRouteImport } from './routes/_authenticated/onboarding/builder'
 import { Route as AuthenticatedMessagesIdRouteImport } from './routes/_authenticated/messages/$id'
 import { Route as AuthenticatedJoinCodeRouteImport } from './routes/_authenticated/join.$code'
 import { Route as AuthenticatedDiscoverCommunitiesRouteImport } from './routes/_authenticated/discover/communities'
@@ -320,6 +321,12 @@ const AuthenticatedWorkLeaderboardRoute =
     path: '/leaderboard',
     getParentRoute: () => AuthenticatedWorkRoute,
   } as any)
+const AuthenticatedOnboardingBuilderRoute =
+  AuthenticatedOnboardingBuilderRouteImport.update({
+    id: '/builder',
+    path: '/builder',
+    getParentRoute: () => AuthenticatedOnboardingRoute,
+  } as any)
 const AuthenticatedMessagesIdRoute = AuthenticatedMessagesIdRouteImport.update({
   id: '/messages/$id',
   path: '/messages/$id',
@@ -439,7 +446,7 @@ export interface FileRoutesByFullPath {
   '/marketplace': typeof AuthenticatedMarketplaceRoute
   '/meetings': typeof AuthenticatedMeetingsRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
-  '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/onboarding': typeof AuthenticatedOnboardingRouteWithChildren
   '/pitchathons': typeof AuthenticatedPitchathonsRoute
   '/portfolio': typeof AuthenticatedPortfolioRoute
   '/profile': typeof AuthenticatedProfileRoute
@@ -469,6 +476,7 @@ export interface FileRoutesByFullPath {
   '/discover/communities': typeof AuthenticatedDiscoverCommunitiesRoute
   '/join/$code': typeof AuthenticatedJoinCodeRoute
   '/messages/$id': typeof AuthenticatedMessagesIdRoute
+  '/onboarding/builder': typeof AuthenticatedOnboardingBuilderRoute
   '/work/leaderboard': typeof AuthenticatedWorkLeaderboardRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/capital/': typeof AuthenticatedCapitalIndexRoute
@@ -503,7 +511,7 @@ export interface FileRoutesByTo {
   '/marketplace': typeof AuthenticatedMarketplaceRoute
   '/meetings': typeof AuthenticatedMeetingsRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
-  '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/onboarding': typeof AuthenticatedOnboardingRouteWithChildren
   '/pitchathons': typeof AuthenticatedPitchathonsRoute
   '/portfolio': typeof AuthenticatedPortfolioRoute
   '/profile': typeof AuthenticatedProfileRoute
@@ -533,6 +541,7 @@ export interface FileRoutesByTo {
   '/discover/communities': typeof AuthenticatedDiscoverCommunitiesRoute
   '/join/$code': typeof AuthenticatedJoinCodeRoute
   '/messages/$id': typeof AuthenticatedMessagesIdRoute
+  '/onboarding/builder': typeof AuthenticatedOnboardingBuilderRoute
   '/work/leaderboard': typeof AuthenticatedWorkLeaderboardRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/capital': typeof AuthenticatedCapitalIndexRoute
@@ -570,7 +579,7 @@ export interface FileRoutesById {
   '/_authenticated/marketplace': typeof AuthenticatedMarketplaceRoute
   '/_authenticated/meetings': typeof AuthenticatedMeetingsRoute
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
-  '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
+  '/_authenticated/onboarding': typeof AuthenticatedOnboardingRouteWithChildren
   '/_authenticated/pitchathons': typeof AuthenticatedPitchathonsRoute
   '/_authenticated/portfolio': typeof AuthenticatedPortfolioRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
@@ -600,6 +609,7 @@ export interface FileRoutesById {
   '/_authenticated/discover/communities': typeof AuthenticatedDiscoverCommunitiesRoute
   '/_authenticated/join/$code': typeof AuthenticatedJoinCodeRoute
   '/_authenticated/messages/$id': typeof AuthenticatedMessagesIdRoute
+  '/_authenticated/onboarding/builder': typeof AuthenticatedOnboardingBuilderRoute
   '/_authenticated/work/leaderboard': typeof AuthenticatedWorkLeaderboardRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/capital/': typeof AuthenticatedCapitalIndexRoute
@@ -667,6 +677,7 @@ export interface FileRouteTypes {
     | '/discover/communities'
     | '/join/$code'
     | '/messages/$id'
+    | '/onboarding/builder'
     | '/work/leaderboard'
     | '/admin/'
     | '/capital/'
@@ -731,6 +742,7 @@ export interface FileRouteTypes {
     | '/discover/communities'
     | '/join/$code'
     | '/messages/$id'
+    | '/onboarding/builder'
     | '/work/leaderboard'
     | '/admin'
     | '/capital'
@@ -797,6 +809,7 @@ export interface FileRouteTypes {
     | '/_authenticated/discover/communities'
     | '/_authenticated/join/$code'
     | '/_authenticated/messages/$id'
+    | '/_authenticated/onboarding/builder'
     | '/_authenticated/work/leaderboard'
     | '/_authenticated/admin/'
     | '/_authenticated/capital/'
@@ -1163,6 +1176,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedWorkLeaderboardRouteImport
       parentRoute: typeof AuthenticatedWorkRoute
     }
+    '/_authenticated/onboarding/builder': {
+      id: '/_authenticated/onboarding/builder'
+      path: '/builder'
+      fullPath: '/onboarding/builder'
+      preLoaderRoute: typeof AuthenticatedOnboardingBuilderRouteImport
+      parentRoute: typeof AuthenticatedOnboardingRoute
+    }
     '/_authenticated/messages/$id': {
       id: '/_authenticated/messages/$id'
       path: '/messages/$id'
@@ -1354,6 +1374,20 @@ const AuthenticatedDiscoverRouteWithChildren =
     AuthenticatedDiscoverRouteChildren,
   )
 
+interface AuthenticatedOnboardingRouteChildren {
+  AuthenticatedOnboardingBuilderRoute: typeof AuthenticatedOnboardingBuilderRoute
+}
+
+const AuthenticatedOnboardingRouteChildren: AuthenticatedOnboardingRouteChildren =
+  {
+    AuthenticatedOnboardingBuilderRoute: AuthenticatedOnboardingBuilderRoute,
+  }
+
+const AuthenticatedOnboardingRouteWithChildren =
+  AuthenticatedOnboardingRoute._addFileChildren(
+    AuthenticatedOnboardingRouteChildren,
+  )
+
 interface AuthenticatedWorkRouteChildren {
   AuthenticatedWorkLeaderboardRoute: typeof AuthenticatedWorkLeaderboardRoute
 }
@@ -1381,7 +1415,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMarketplaceRoute: typeof AuthenticatedMarketplaceRoute
   AuthenticatedMeetingsRoute: typeof AuthenticatedMeetingsRoute
   AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
-  AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
+  AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRouteWithChildren
   AuthenticatedPitchathonsRoute: typeof AuthenticatedPitchathonsRoute
   AuthenticatedPortfolioRoute: typeof AuthenticatedPortfolioRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
@@ -1418,7 +1452,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMarketplaceRoute: AuthenticatedMarketplaceRoute,
   AuthenticatedMeetingsRoute: AuthenticatedMeetingsRoute,
   AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
-  AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
+  AuthenticatedOnboardingRoute: AuthenticatedOnboardingRouteWithChildren,
   AuthenticatedPitchathonsRoute: AuthenticatedPitchathonsRoute,
   AuthenticatedPortfolioRoute: AuthenticatedPortfolioRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,

@@ -25,6 +25,7 @@ import {
   Wallet,
   ArrowUpRight,
   Hammer,
+  Plus,
 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
@@ -34,6 +35,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { PostJobWizard } from "@/components/marketplace/PostJobWizard";
 import { useDotAuth } from "@/contexts/DotAuthContext";
 import { useWallet } from "@/hooks/use-dot-data";
 import { listJobs, listOrders } from "@/api/marketplace";
@@ -54,19 +56,32 @@ export const Route = createFileRoute("/_authenticated/work")({
 });
 
 export function WorkPage() {
+  const [showPostJob, setShowPostJob] = useState(false);
+  const { user } = useDotAuth();
+  const { data: walletBalance = 0 } = useWallet();
+  const isFounder = user?.roles?.includes("founder");
+
   return (
     <AppShell>
       <PageHeader
         title="DOT Work"
         subtitle="Your labor dashboard — applications, contracts, earnings."
         action={
-          <Link
-            to="/work/leaderboard"
-            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium hover:border-primary/40"
-          >
-            <Trophy className="size-3.5 text-amber-500" />
-            Leaderboard
-          </Link>
+          <div className="flex items-center gap-2">
+            {isFounder && (
+              <Button onClick={() => setShowPostJob(true)} size="sm">
+                <Plus className="size-4" />
+                Post a Job
+              </Button>
+            )}
+            <Link
+              to="/work/leaderboard"
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium hover:border-primary/40"
+            >
+              <Trophy className="size-3.5 text-amber-500" />
+              Leaderboard
+            </Link>
+          </div>
         }
       />
       <Tabs defaultValue="overview" className="mt-6">
@@ -81,6 +96,13 @@ export function WorkPage() {
         <TabsContent value="contracts"><ContractsTab /></TabsContent>
         <TabsContent value="earnings"><EarningsTab /></TabsContent>
       </Tabs>
+
+      {/* Post Job Wizard */}
+      <PostJobWizard
+        open={showPostJob}
+        onClose={() => setShowPostJob(false)}
+        walletBalance={walletBalance}
+      />
     </AppShell>
   );
 }
@@ -109,7 +131,7 @@ function OverviewTab() {
   return (
     <div className="mt-6 space-y-6">
       {/* Top stats */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           icon={Gauge}
           label="Wallet"

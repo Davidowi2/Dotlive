@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { QRCodeCanvas } from "qrcode.react";
 import {
   Users,
@@ -14,6 +14,8 @@ import {
   UserPlus,
   ArrowRight,
   Lock,
+  MessageSquare,
+  Hash,
 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { BackButton } from "@/components/app/BackButton";
@@ -27,6 +29,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useDotAuth } from "@/contexts/DotAuthContext";
 import {
@@ -45,6 +48,7 @@ export const Route = createFileRoute("/_authenticated/community")({
 
 function CommunityPage() {
   const { user, roles } = useDotAuth();
+  const navigate = useNavigate();
   const canCreateCommunity = roles.some((r) => r === "community_leader" || r === "admin" || r === "super_admin");
   const qc = useQueryClient();
   const [name, setName] = useState("");
@@ -262,8 +266,23 @@ function CommunityPage() {
               }
             />
 
+      {/* ─── Tabs for Overview and Channels ─────────────────────── */}
+      <Tabs defaultValue="overview" className="mt-6">
+        <TabsList>
+          <TabsTrigger value="overview" className="gap-2">
+            <Users className="size-4" />
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="channels" className="gap-2">
+            <MessageSquare className="size-4" />
+            Channels
+          </TabsTrigger>
+        </TabsList>
+
+        {/* ─── Overview Tab ─────────────────────────────────────── */}
+        <TabsContent value="overview" className="mt-6">
       {/* ─── Stats ─────────────────────────────────────────────────── */}
-      <section className="mt-8">
+      <section>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             label="Members"
@@ -379,7 +398,7 @@ function CommunityPage() {
           </div>
 
           <div className="mt-5 flex justify-center rounded-sm border border-border bg-background p-5">
-            <QRCodeCanvas value={joinUrl} size={140} />
+            <QRCodeCanvas value={joinUrl} size={140} className="max-w-full h-auto" />
           </div>
 
           <div className="mt-5 space-y-2">
@@ -411,6 +430,35 @@ function CommunityPage() {
           </div>
         </div>
       </section>
+        </TabsContent>
+
+        {/* ─── Channels Tab ─────────────────────────────────────── */}
+        <TabsContent value="channels" className="mt-6">
+          <div className="rounded-lg border border-border bg-card p-8 text-center">
+            <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-primary/10">
+              <Hash className="size-8 text-primary" />
+            </div>
+            <h3 className="mt-4 font-display text-xl font-semibold">
+              Community Channels
+            </h3>
+            <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+              Join live conversations with your community members. Discuss ideas, share updates, and collaborate in real-time.
+            </p>
+            <Button
+              asChild
+              variant="hero"
+              size="lg"
+              className="mt-6"
+            >
+              <Link to="/community/channels">
+                <MessageSquare className="size-4" />
+                Open Channels
+                <ArrowRight className="size-4" />
+              </Link>
+            </Button>
+          </div>
+        </TabsContent>
+      </Tabs>
     </AppShell>
   );
 }

@@ -11,7 +11,7 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Search, Briefcase, Star, Coins, Clock, MapPin,
-  ArrowUpRight, Loader2,
+  ArrowUpRight, Loader2, Plus,
 } from "lucide-react";
 
 import { AppShell } from "@/components/app/AppShell";
@@ -22,6 +22,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/app/EmptyState";
+import { PostJobWizard } from "@/components/marketplace/PostJobWizard";
+import { useDotAuth } from "@/contexts/DotAuthContext";
+import { useWallet } from "@/hooks/use-dot-data";
 import { dotApi } from "@/api/client";
 
 export const Route = createFileRoute("/_authenticated/marketplace")({
@@ -52,6 +55,10 @@ async function listServices(): Promise<Service[]> {
 function MarketplacePage() {
   const [q, setQ] = useState("");
   const [category, setCategory] = useState<string>("");
+  const [showPostJob, setShowPostJob] = useState(false);
+  const { user } = useDotAuth();
+  const { data: walletBalance = 0 } = useWallet();
+  const isFounder = user?.roles?.includes("founder");
 
   const { data: services = [], isLoading } = useQuery({
     queryKey: ["services"],
@@ -84,6 +91,14 @@ function MarketplacePage() {
         eyebrow="Marketplace"
         title="Open gigs"
         subtitle="Builders post services. Hire them, fund escrow, ship it."
+        action={
+          isFounder ? (
+            <Button onClick={() => setShowPostJob(true)} size="sm">
+              <Plus className="size-4" />
+              Post a Job
+            </Button>
+          ) : undefined
+        }
       />
 
       {/* Filters */}
@@ -151,6 +166,13 @@ function MarketplacePage() {
           ))}
         </div>
       )}
+      
+      {/* Post Job Wizard */}
+      <PostJobWizard
+        open={showPostJob}
+        onClose={() => setShowPostJob(false)}
+        walletBalance={walletBalance}
+      />
     </AppShell>
   );
 }
