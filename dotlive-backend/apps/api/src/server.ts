@@ -287,6 +287,26 @@ app.get("/api/health", async () => {
             `);
             app.log.info("bootstrap migration: venture enrichment tables ensured");
 
+            // === users profile fields (for /settings edit + /profile display) ===
+            await db.execute(sql`
+              ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS bio text,
+                ADD COLUMN IF NOT EXISTS headline varchar(140),
+                ADD COLUMN IF NOT EXISTS location varchar(120),
+                ADD COLUMN IF NOT EXISTS twitter_url text,
+                ADD COLUMN IF NOT EXISTS linkedin_url text,
+                ADD COLUMN IF NOT EXISTS github_url text,
+                ADD COLUMN IF NOT EXISTS notif_meetings boolean NOT NULL DEFAULT true,
+                ADD COLUMN IF NOT EXISTS notif_vantage boolean NOT NULL DEFAULT true,
+                ADD COLUMN IF NOT EXISTS notif_wallet boolean NOT NULL DEFAULT true,
+                ADD COLUMN IF NOT EXISTS notif_community boolean NOT NULL DEFAULT true,
+                ADD COLUMN IF NOT EXISTS notif_academy boolean NOT NULL DEFAULT true,
+                ADD COLUMN IF NOT EXISTS language varchar(8) NOT NULL DEFAULT 'en',
+                ADD COLUMN IF NOT EXISTS currency varchar(8) NOT NULL DEFAULT 'NGN',
+                ADD COLUMN IF NOT EXISTS timezone varchar(80) NOT NULL DEFAULT 'Africa/Lagos';
+            `);
+            app.log.info("bootstrap migration: users profile fields ensured");
+
             // === community challenges + chat (connections/messages) ===
             await db.execute(sql`
               CREATE TABLE IF NOT EXISTS community_challenges (

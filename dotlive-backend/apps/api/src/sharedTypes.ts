@@ -8,6 +8,7 @@ export type AppRole =
   | "founder"
   | "investor"
   | "community_leader"
+  | "judge"
   | "admin"
   | "super_admin"
   | "vendor"

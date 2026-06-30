@@ -60,6 +60,27 @@ export async function getMyApplications(): Promise<PitchathonApplication[]> {
   return res.applications ?? [];
 }
 
+/** List pitchathons (judge portal needs to pick which one to score). */
+export async function getPitchathons(): Promise<Pitchathon[]> {
+  const res = await dotApi.get<{ pitchathons: Pitchathon[] }>("/api/pitchathons");
+  return res.pitchathons ?? [];
+}
+
+/** List applications for a given pitchathon (judge-only). */
+export interface JudgeApplication extends PitchathonApplication {
+  myScore?: { id: string; score: number; note: string | null } | null;
+  avgScore: number | null;
+  scoreCount: number;
+}
+export async function getJudgeApplications(
+  pitchathonId: string
+): Promise<JudgeApplication[]> {
+  const res = await dotApi.get<{ applications: JudgeApplication[] }>(
+    `/api/pitchathons/${pitchathonId}/applications`
+  );
+  return res.applications ?? [];
+}
+
 export async function scoreSubmission(
   pitchathonId: string,
   data: { applicationId: string; score: number; note?: string }

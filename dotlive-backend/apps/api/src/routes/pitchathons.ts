@@ -64,6 +64,20 @@ export async function pitchathonRoutes(app: FastifyInstance) {
     }
   );
 
+  /** GET /api/events/registrations/me — list event IDs the current user registered for. */
+  app.get(
+    "/events/registrations/me",
+    { preHandler: app.authenticate },
+    async (req, reply) => {
+      const { sub } = req.user as { sub: string };
+      const rows = await db
+        .select({ eventId: eventRegistrations.eventId, attended: eventRegistrations.attended })
+        .from(eventRegistrations)
+        .where(eq(eventRegistrations.userId, sub));
+      return reply.send({ registrations: rows });
+    }
+  );
+
   /* ---------- Pitchathons ---------- */
   app.get("/pitchathons", async (_req, reply) => {
     const rows = await db.select().from(pitchathons).orderBy(desc(pitchathons.createdAt));
@@ -119,9 +133,10 @@ export async function pitchathonRoutes(app: FastifyInstance) {
     { preHandler: app.authenticate },
     async (req, reply) => {
       const { sub } = req.user as { sub: string };
-      const isJudge = await userHasRole(sub, "capital_partner");
+      const isJudge = await userHasRole(sub, "judge");
+      const isCapitalPartner = await userHasRole(sub, "capital_partner");
       const isAdmin = await userHasRole(sub, "admin");
-      if (!isJudge && !isAdmin) return reply.code(403).send({ error: "Judges only" });
+      if (!isJudge && !isCapitalPartner && !isAdmin) return reply.code(403).send({ error: "Judges only" });
 
       const parsed = z
         .object({
@@ -149,6 +164,54 @@ export async function pitchathonRoutes(app: FastifyInstance) {
       }
     },
   );
+
+  /** GET /api/pitchathons/:id/applications — list applications for a pitchathon.
+   *  Used by the judge portal to show pending submissions.                */
+  app.get<{ Params: { id: string } }>(
+    "/pitchathons/:id/applications",
+    { preHandler: app.authenticate },
+    async (req, reply) => {
+      const { sub } = req.user as { sub: string };
+      const isJudge = await userHasRole(sub, "judge");
+      const isCapitalPartner = await userHasRole(sub, "capital_partner");
+      const isAdmin = await userHasRole(sub, "admin");
+      if (!isJudge && !isCapitalPartner && !isAdmin) {
+        return reply.code(403).send({ error: "Judges only" });
+      }
+      // Pull all applications for the pitchathon, then attach a "myScore"
+      // for the current judge and an aggregate "avgScore" across judges.
+      const apps = await db
+        .select()
+        .from(pitchathonApplications)
+        .where(eq(pitchathonApplications.pitchathonId, req.params.id))
+        .orderBy(desc(pitchathonApplications.createdAt));
+
+      const out: any[] = [];
+      for (const a of apps) {
+        const allScores = await db
+          .select()
+          .from(pitchathonScores)
+          .where(eq(pitchathonScores.applicationId, a.id));
+        const my = allScores.find((s) => s.judgeId === sub) ?? null;
+        const avg = allScores.length
+          ? Math.round(
+              (allScores.reduce((s, r) => s + r.score, 0) / allScores.length) * 10,
+            ) / 10
+          : null;
+        out.push({ ...a, myScore: my, avgScore: avg, scoreCount: allScores.length });
+      }
+      return reply.send({ applications: out });
+    },
+  );
+
+  /** GET /api/pitchathons — list all pitchathons. */
+  app.get("/pitchathons", async (_req, reply) => {
+    const rows = await db
+      .select()
+      .from(pitchathons)
+      .orderBy(desc(pitchathons.startDate));
+    return reply.send({ pitchathons: rows });
+  });
 
   /** GET /api/pitchathons/:id/leaderboard — ranked applications by avg score. */
   app.get<{ Params: { id: string } }>(

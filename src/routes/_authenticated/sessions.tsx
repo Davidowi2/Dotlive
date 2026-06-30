@@ -35,9 +35,20 @@ function SessionsPage() {
     },
   });
 
-  // Registrations: we'll skip this query for now since there's no /api/events/:id/registrations/me endpoint.
-  // The register() mutation below refreshes this list anyway.
-  const registered = new Set<string>();
+  // Registrations: fetch the user's registered event IDs from the API
+  // so the "Register" button reflects real state across reloads.
+  const registrationsQ = useQuery({
+    queryKey: ["event-registrations-me"],
+    queryFn: async () => {
+      const res = await dotApi.get<{
+        registrations: { eventId: string; attended: boolean }[];
+      }>("/api/events/registrations/me");
+      return res?.registrations ?? [];
+    },
+  });
+  const registered = new Set<string>(
+    (registrationsQ.data ?? []).map((r) => r.eventId)
+  );
 
   async function register(eventId: string, cost: number) {
     if (!user) return;
@@ -50,6 +61,7 @@ function SessionsPage() {
         });
       }
       await dotApi.post(`/api/events/${eventId}/register`, {});
+      qc.invalidateQueries({ queryKey: ["event-registrations-me"] });
       qc.invalidateQueries({ queryKey: ["my-registrations"] });
       qc.invalidateQueries({ queryKey: ["wallet"] });
       qc.invalidateQueries({ queryKey: ["transactions"] });

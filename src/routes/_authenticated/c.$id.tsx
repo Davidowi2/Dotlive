@@ -6,12 +6,11 @@
  */
 
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Users, ArrowRight, Sparkles } from "lucide-react";
+import { Users, ArrowRight } from "lucide-react";
 import { PageHeader } from "@/components/app/PageHeader";
 import { dotApi } from "@/api/client";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/_authenticated/c/$id")({
   head: () => ({ meta: [{ title: "Community Hub — DOT" }] }),

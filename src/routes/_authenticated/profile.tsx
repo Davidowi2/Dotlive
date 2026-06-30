@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   User as UserIcon,
   Globe,
@@ -83,9 +83,9 @@ function PublicProfilePage() {
               {copied ? "Copied" : "Copy link"}
             </Button>
             <Button asChild variant="hero" size="sm">
-              <a href="/settings">
+              <Link to="/settings" search={{}}>
                 <Sparkles className="size-4" /> Edit details
-              </a>
+              </Link>
             </Button>
           </div>
         }
@@ -212,7 +212,18 @@ function PublicProfilePage() {
               <MapPin className="mt-0.5 size-3.5 text-muted-foreground" />
               <div>
                 <dt className="text-xs text-muted-foreground">Region</dt>
-                <dd className="text-muted-foreground">Not set</dd>
+                <dd className="font-medium">
+                  {(user as any).location ?? <span className="text-muted-foreground">Not set</span>}
+                </dd>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <Briefcase className="mt-0.5 size-3.5 text-muted-foreground" />
+              <div>
+                <dt className="text-xs text-muted-foreground">Headline</dt>
+                <dd className="font-medium">
+                  {(user as any).headline ?? <span className="text-muted-foreground">Not set</span>}
+                </dd>
               </div>
             </div>
             <div className="flex items-start gap-2">
@@ -282,7 +293,7 @@ function PublicProfilePage() {
           <code className="font-mono text-foreground/80">/founder/{dotId}</code>
         </span>
         <Button asChild variant="link" size="sm" className="h-auto p-0">
-          <a href="/settings">Edit profile in Settings →</a>
+          <Link to="/settings" search={{}}>Edit profile in Settings →</Link>
         </Button>
       </div>
     </AppShell>

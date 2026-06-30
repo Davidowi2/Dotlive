@@ -16,6 +16,23 @@ import type { AppRole } from "../sharedTypes.js";
 const profilePatchSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   avatarUrl: z.string().url().nullable().optional(),
+  // Editable profile fields. All optional; only present keys are written.
+  bio: z.string().max(500).nullable().optional(),
+  headline: z.string().max(140).nullable().optional(),
+  location: z.string().max(120).nullable().optional(),
+  twitterUrl: z.string().url().or(z.literal("")).nullable().optional(),
+  linkedinUrl: z.string().url().or(z.literal("")).nullable().optional(),
+  githubUrl: z.string().url().or(z.literal("")).nullable().optional(),
+  // Notification preferences (boolean toggles in /settings).
+  notif_meetings: z.boolean().optional(),
+  notif_vantage: z.boolean().optional(),
+  notif_wallet: z.boolean().optional(),
+  notif_community: z.boolean().optional(),
+  notif_academy: z.boolean().optional(),
+  // Locale.
+  language: z.string().max(8).optional(),
+  currency: z.string().max(8).optional(),
+  timezone: z.string().max(80).optional(),
 });
 
 const roleRequestSchema = z.object({
@@ -38,8 +55,16 @@ export async function userRoutes(app: FastifyInstance) {
     if (!parsed.success) return reply.code(400).send({ error: "Invalid input" });
 
     const updates: Record<string, unknown> = { updatedAt: new Date() };
-    if (parsed.data.name !== undefined) updates.name = parsed.data.name;
-    if (parsed.data.avatarUrl !== undefined) updates.avatarUrl = parsed.data.avatarUrl;
+    const PATCHABLE = [
+      "name", "avatarUrl", "bio", "headline", "location",
+      "twitterUrl", "linkedinUrl", "githubUrl",
+      "notif_meetings", "notif_vantage", "notif_wallet",
+      "notif_community", "notif_academy",
+      "language", "currency", "timezone",
+    ] as const;
+    for (const k of PATCHABLE) {
+      if (parsed.data[k] !== undefined) updates[k] = parsed.data[k];
+    }
     await db.update(users).set(updates as any).where(eq(users.id, sub));
     const user = await loadUserWithRoles(sub);
     return reply.send({ user });
