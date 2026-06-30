@@ -54,9 +54,9 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Notifications", to: "/notifications", icon: Bell,            section: "main" },
   /* growth — founder progression */
   { label: "Vantage",       to: "/vantage",       icon: Gauge,       roles: ["founder"],                 section: "growth" },
-  { label: "Wallet",        to: "/wallet",        icon: Wallet,                                     section: "growth" },
-  { label: "Refer & Earn",  to: "/referrals",     icon: Users,                                      section: "growth" },
-  { label: "Leaderboard",   to: "/work/leaderboard", icon: Trophy,                                  section: "growth" },
+  { label: "Wallet",        to: "/wallet",           icon: Wallet,                                     section: "growth" },
+  { label: "Refer & Earn",  to: "/referrals",        icon: Users,                                      section: "growth" },
+  { label: "Leaderboard",   to: "/work/leaderboard", icon: Trophy,                                     section: "growth" },
   { label: "Builder Arena", to: "/builder",       icon: Trophy,      roles: ["builder"],                 section: "growth" },
   { label: "DOT Work",      to: "/work",          icon: Hammer,                                     section: "growth" },
   { label: "Academy",       to: "/academy",       icon: BookOpen,                                      section: "growth" },
@@ -64,8 +64,8 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Pitchathons",   to: "/pitchathons",   icon: Trophy,      roles: ["founder"],                 section: "growth" },
   { label: "Certificates",  to: "/certificates",  icon: Award,       roles: ["founder"],                 section: "growth" },
   /* community */
-    { label: "My Community",  to: "/community",     icon: Users,       roles: ["community_leader", "admin", "super_admin"], section: "community" },
-    { label: "Communities",   to: "/discover/communities", icon: Compass,  section: "community" },
+    { label: "My Community",  to: "/community",           icon: Users,   roles: ["community_leader", "admin", "super_admin"], section: "community" },
+    { label: "Communities",   to: "/discover/communities", icon: Compass, section: "community" },
   /* capital */
   { label: "DOT Demo",      to: "/demo",          icon: Building2,                                  section: "capital" },
   { label: "My Venture",    to: "/ventures",      icon: LineChart,    roles: ["founder"],                 section: "capital" },
@@ -187,7 +187,16 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </div>
                 <ul className="space-y-0.5">
                   {section.items.map((item) => {
-                    const active = pathname === item.to || pathname.startsWith(item.to + "/");
+                    // Exact match OR starts-with ONLY for non-ambiguous routes.
+                    // Exclude cases where a SIBLING nav item is more specific
+                    // (e.g. /discover should NOT highlight for /discover/communities).
+                    const siblingPaths = section.items
+                      .filter((s) => s.to !== item.to && s.to.startsWith(item.to + "/"))
+                      .map((s) => s.to);
+                    const active =
+                      pathname === item.to ||
+                      (pathname.startsWith(item.to + "/") &&
+                        !siblingPaths.some((s) => pathname === s || pathname.startsWith(s + "/")));
                     return (
                       <li key={item.to}>
                         <Link

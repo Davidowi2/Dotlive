@@ -134,7 +134,7 @@ function AdminWalletsPage() {
           <div className="mb-4 flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 text-sm text-amber-700">
             <AlertTriangle className="mt-0.5 size-4 shrink-0" />
             <div>
-              Admin-only. Every transfer is logged to <code>admin_audit_log</code> AND <code>token_operations</code>.
+              Operator-only. Every transfer is logged to <code>admin_audit_log</code> AND <code>token_operations</code>.
               Use only for customer support, refunds, or as authorized by the client.
             </div>
           </div>

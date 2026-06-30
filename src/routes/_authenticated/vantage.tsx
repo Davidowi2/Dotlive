@@ -880,6 +880,54 @@ function ResultsSurface({
           }
         />
       </section>
+
+      {/* ─── Prominent "What to do next" section ─────────────── */}
+      {(() => {
+        const nextActions: string[] = (latest.report as any)?.nextActions ?? [];
+        if (!nextActions.length) return null;
+        return (
+          <section className="rounded-2xl border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-background p-6 sm:p-8">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                <Sparkles className="size-5" />
+              </div>
+              <div>
+                <h2 className="font-display text-xl font-semibold">What to do next</h2>
+                <p className="text-sm text-muted-foreground">
+                  Specific actions ranked by impact. Do these in order to move your Vantage Point.
+                </p>
+              </div>
+            </div>
+            <ol className="space-y-3">
+              {nextActions.map((action, i) => (
+                <li key={i} className="flex items-start gap-4 rounded-xl border border-border bg-card p-4 hover:border-primary/40 transition-colors">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary tabular">
+                    {i + 1}
+                  </span>
+                  <p className="flex-1 text-sm leading-relaxed text-foreground/90 pt-1">{action}</p>
+                  {i === 0 && (
+                    <span className="shrink-0 rounded-full bg-gold/10 px-2 py-0.5 text-[10px] font-semibold text-gold uppercase tracking-wide">
+                      Top priority
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ol>
+            <div className="mt-6 flex flex-wrap gap-2">
+              <Button variant="hero" asChild>
+                <a href="#retake" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
+                  <RefreshCw className="size-4" /> Retake after making progress
+                </a>
+              </Button>
+              <Button variant="outline" asChild>
+                <a href="/demo">
+                  <Sparkles className="size-4" /> View on DOT Demo
+                </a>
+              </Button>
+            </div>
+          </section>
+        );
+      })()}
     </div>
   );
 }

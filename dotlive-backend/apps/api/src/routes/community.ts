@@ -14,11 +14,15 @@ import { userHasRole } from "../lib/auth.js";
 const createSchema = z.object({
   name: z.string().min(1).max(200),
   description: z.string().max(2000).optional(),
+  region: z.string().max(100).optional(),
+  category: z.string().max(100).optional(),
+  isPrivate: z.boolean().default(false),
 });
 
 const joinSchema = z.object({
-  referralCode: z.string().min(1).max(64),
-});
+  referralCode: z.string().min(1).max(64).optional(),
+  code: z.string().min(1).max(64).optional(),
+}).refine((d) => d.referralCode || d.code, { message: "referralCode or code required" });
 
 export async function communityRoutes(app: FastifyInstance) {
   /** POST /api/communities — create a new community */
@@ -32,11 +36,13 @@ export async function communityRoutes(app: FastifyInstance) {
     }
 
     const id = crypto.randomUUID();
-    const referralCode = crypto.randomBytes(4).toString("hex");
+    const referralCode = crypto.randomBytes(4).toString("hex").toUpperCase();
     await db.insert(communities).values({
       id,
       name: parsed.data.name,
       description: parsed.data.description ?? null,
+      region: parsed.data.region ?? null,
+      category: parsed.data.category ?? null,
       leaderId: sub,
       referralCode,
       createdAt: new Date(),
@@ -125,7 +131,7 @@ export async function communityRoutes(app: FastifyInstance) {
     const comm = await db
       .select()
       .from(communities)
-      .where(eq(communities.referralCode, parsed.data.referralCode))
+      .where(eq(communities.referralCode, parsed.data.referralCode ?? parsed.data.code ?? ""))
       .limit(1);
     if (!comm[0]) return reply.code(404).send({ error: "Community not found" });
 

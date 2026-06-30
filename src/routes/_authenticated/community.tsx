@@ -503,7 +503,7 @@ function JoinByCodPanel() {
     if (!code.trim()) return;
     setJoining(true);
     try {
-      await dotApi.post("/api/communities/join", { code: code.trim().toUpperCase() });
+      await dotApi.post("/api/communities/join", { referralCode: code.trim().toUpperCase() });
       qc.invalidateQueries({ queryKey: ["my-community"] });
       toast.success("You've joined the community!");
     } catch (err: any) {

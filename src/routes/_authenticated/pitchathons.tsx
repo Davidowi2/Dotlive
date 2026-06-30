@@ -121,7 +121,7 @@ function PitchathonsPage() {
       <AppShell>
         <div className="p-12 text-center">
           <h2 className="text-2xl font-semibold">Pitchathons access only</h2>
-          <p className="mt-2 text-muted-foreground">You need the founder, investor, or admin role to view pitchathons.</p>
+          <p className="mt-2 text-muted-foreground">You need the founder, investor, or operator role to view pitchathons.</p>
         </div>
       </AppShell>
     );

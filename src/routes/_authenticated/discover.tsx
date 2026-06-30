@@ -5,7 +5,8 @@ import {
   Gauge, TrendingUp, Heart, MessageCircle, Bookmark,
   Share2, Plus, Flame, Clock, Zap, Building2,
   Megaphone, Coins, MoreHorizontal, Loader2, Send,
-  ChevronDown, Vote, Users, Compass, Trophy,
+  ChevronDown, Vote, Users, Compass, Trophy, Lock, Globe,
+  ChevronRight, Award, GraduationCap,
 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
@@ -27,6 +28,9 @@ import { useDotAuth } from "@/contexts/DotAuthContext";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/discover")({
+  validateSearch: (s: Record<string, unknown>) => ({
+    tab: (s.tab as string | undefined) ?? "feed",
+  }),
   head: () => ({ meta: [{ title: "Discover — DOT" }] }),
   component: DiscoverPage,
 });
@@ -114,7 +118,10 @@ const INDUSTRIES = ["Fintech","Agriculture","Commerce","Health","Energy","Educat
 
 /* ═══════════════════ MAIN PAGE ═══════════════════════════════════ */
 function DiscoverPage() {
-  const [mainTab, setMainTab] = useState<"feed" | "ventures" | "builders">("feed");
+  const search = Route.useSearch();
+  const [mainTab, setMainTab] = useState<"feed" | "ventures" | "communities">(
+    (search.tab === "communities" ? "communities" : search.tab === "ventures" ? "ventures" : "feed") as any
+  );
 
   return (
     <AppShell>
@@ -126,34 +133,20 @@ function DiscoverPage() {
 
       {/* Top nav tabs */}
       <div className="mt-4 flex flex-wrap gap-2 text-xs">
-        <button
-          onClick={() => setMainTab("feed")}
-          className={cn(
-            "rounded-full border px-3 py-1 font-medium transition-colors",
-            mainTab === "feed"
-              ? "border-primary bg-primary/10 text-primary"
-              : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground",
-          )}
-        >
-          Feed
-        </button>
-        <button
-          onClick={() => setMainTab("ventures")}
-          className={cn(
-            "rounded-full border px-3 py-1 font-medium transition-colors",
-            mainTab === "ventures"
-              ? "border-primary bg-primary/10 text-primary"
-              : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground",
-          )}
-        >
-          Ventures
-        </button>
-        <Link
-          to="/discover/communities"
-          className="rounded-full border border-border bg-card px-3 py-1 text-muted-foreground hover:border-primary/40 hover:text-foreground"
-        >
-          Communities
-        </Link>
+        {(["feed", "ventures", "communities"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setMainTab(t)}
+            className={cn(
+              "rounded-full border px-3 py-1 font-medium capitalize transition-colors",
+              mainTab === t
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground",
+            )}
+          >
+            {t}
+          </button>
+        ))}
         <Link
           to="/marketplace"
           className="rounded-full border border-border bg-card px-3 py-1 text-muted-foreground hover:border-primary/40 hover:text-foreground"
@@ -165,6 +158,7 @@ function DiscoverPage() {
       <div className="mt-6">
         {mainTab === "feed" && <FeedTab />}
         {mainTab === "ventures" && <VenturesBrowseTab />}
+        {mainTab === "communities" && <CommunitiesTab />}
       </div>
     </AppShell>
   );
@@ -917,5 +911,197 @@ function VentureStat({ icon: Icon, label, value }: { icon: any; label: string; v
       </div>
       <div className="mt-0.5 text-sm font-medium tabular-nums">{value}</div>
     </div>
+  );
+}
+
+/* ═══════════════════ COMMUNITIES TAB ════════════════════════════ */
+interface Community {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string | null;
+  tier: string;
+  region: string | null;
+  memberCount: number;
+  isPrivate?: boolean;
+  createdAt: string;
+  leader: { name: string | null; dotId: string } | null;
+}
+
+const COMMUNITY_TIER_META: Record<string, { label: string; className: string; icon: any }> = {
+  free:       { label: "Free",       className: "bg-muted text-muted-foreground",         icon: Globe },
+  verified:   { label: "Verified",   className: "bg-emerald-500/10 text-emerald-500",     icon: Award },
+  campus:     { label: "Campus",     className: "bg-blue-500/10 text-blue-500",           icon: GraduationCap },
+  enterprise: { label: "Enterprise", className: "bg-purple-500/10 text-purple-500",       icon: Briefcase },
+};
+
+function CommunitiesTab() {
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("all");
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["discover", "communities"],
+    queryFn: () => dotApi.get<{ communities: Community[] }>("/api/communities"),
+    staleTime: 60_000,
+  });
+  const communities = data?.communities ?? [];
+
+  const filtered = useMemo(() => {
+    return communities.filter((c) => {
+      if (filter !== "all" && c.tier !== filter) return false;
+      if (search) {
+        const s = search.toLowerCase();
+        if (!c.name.toLowerCase().includes(s) && !(c.description?.toLowerCase().includes(s) ?? false)) return false;
+      }
+      return true;
+    });
+  }, [communities, search, filter]);
+
+  return (
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <p className="text-sm text-muted-foreground">
+            {communities.length} communities across the DOT network
+          </p>
+        </div>
+        <Link
+          to="/community"
+          className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/5 px-3 py-1 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+        >
+          <Plus className="size-3" /> Create / Manage yours
+        </Link>
+      </div>
+
+      {/* Search + filter */}
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <Input
+            placeholder="Search communities…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {["all", "verified", "enterprise", "campus", "free"].map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={cn(
+                "rounded-full border px-2.5 py-1 text-xs font-medium capitalize transition-colors",
+                filter === f
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border text-muted-foreground hover:border-primary/40",
+              )}
+            >
+              {f === "all" ? "All" : f}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Grid */}
+      {isLoading ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="h-48 animate-pulse rounded-2xl bg-muted/40" />
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          icon={Users}
+          title="No communities match"
+          description={search ? "Try a different search term." : "Be the first to start one."}
+          action={<Button asChild><Link to="/community">Create a community</Link></Button>}
+        />
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((c) => <DiscoverCommunityCard key={c.id} community={c} />)}
+        </div>
+      )}
+
+      {/* CTA */}
+      <div className="rounded-2xl border border-primary/20 bg-primary/5 p-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="font-display text-lg">Run your own community?</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Referral links, member tracking, and DOT-based rewards all included.
+          </p>
+        </div>
+        <Button variant="hero" asChild>
+          <Link to="/community">Start a community</Link>
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function DiscoverCommunityCard({ community }: { community: Community }) {
+  const tierMeta = COMMUNITY_TIER_META[community.tier] ?? COMMUNITY_TIER_META.free;
+  const TierIcon = tierMeta.icon;
+  const initials = community.name.split(/[\s-]+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("");
+  const isPrivate = community.isPrivate;
+
+  return (
+    <Card className="group transition-all hover:border-primary/40 hover:shadow-md">
+      <CardContent className="p-5 space-y-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 font-display text-lg font-bold text-primary">
+            {initials || "•"}
+          </div>
+          <div className="flex flex-wrap gap-1 justify-end">
+            {isPrivate ? (
+              <Badge className="text-[10px] bg-amber-500/10 text-amber-600 border-amber-500/20">
+                <Lock className="size-2.5 mr-1" /> Private
+              </Badge>
+            ) : (
+              <Badge className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                <Globe className="size-2.5 mr-1" /> Public
+              </Badge>
+            )}
+            <Badge className={cn("text-[10px]", tierMeta.className)}>
+              <TierIcon className="size-2.5 mr-1" />{tierMeta.label}
+            </Badge>
+          </div>
+        </div>
+
+        <div>
+          <h3 className="font-display text-base font-semibold leading-tight">{community.name}</h3>
+          <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+            {community.description ?? "A DOT community."}
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          {community.region && (
+            <span className="flex items-center gap-1"><MapPin className="size-3" />{community.region}</span>
+          )}
+          <span className="flex items-center gap-1">
+            <Users className="size-3" />{community.memberCount ?? 0} members
+          </span>
+        </div>
+
+        <div className="flex items-center justify-between border-t border-border pt-3">
+          <div className="text-xs">
+            <p className="text-muted-foreground">Led by</p>
+            <p className="font-medium">{community.leader?.name ?? "Community Leader"}</p>
+          </div>
+          {isPrivate ? (
+            <Button variant="outline" size="sm" className="gap-1 text-xs" asChild>
+              <Link to="/community">
+                <Lock className="size-3" /> Need code
+              </Link>
+            </Button>
+          ) : (
+            <Button variant="ghost" size="sm" className="gap-1 text-primary">
+              View <ChevronRight className="size-3.5" />
+            </Button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

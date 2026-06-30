@@ -164,11 +164,11 @@ export function EcosystemEmptyState({
         )}
       </div>
 
-      {/* Admin-only note */}
+      {/* Operator-only note */}
       {hasAnyAdminRole && !hasRequiredRole && (
         <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <ShieldCheck className="size-3" />
-          Staff can also post this from the admin panel.
+          Operators can also post this from the Operator panel.
         </p>
       )}
     </div>
