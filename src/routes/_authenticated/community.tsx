@@ -16,6 +16,11 @@ import {
   Lock,
   MessageSquare,
   Hash,
+  Globe,
+  Shield,
+  Key,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { BackButton } from "@/components/app/BackButton";
@@ -39,6 +44,8 @@ import {
   createCommunity,
   type CommunityMember,
 } from "@/api/community";
+import { dotApi } from "@/api/client";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/community")({
@@ -55,6 +62,8 @@ function CommunityPage() {
   const [description, setDescription] = useState("");
   const [region, setRegion] = useState("");
   const [category, setCategory] = useState("");
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [joinTab, setJoinTab] = useState<"create" | "join">("create");
 
   const { data: community, isLoading } = useQuery({
     queryKey: ["my-community"],
@@ -127,115 +136,135 @@ function CommunityPage() {
         />
 
         {!canCreateCommunity ? (
-          // ─── Gate screen for non-leaders ───
-          <section className="mt-8 max-w-xl rounded-sm border-2 border-dashed border-primary/30 bg-primary/5 p-8 text-center">
-            <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-primary/15">
-              <Lock className="size-6 text-primary" />
-            </div>
-            <h2 className="mt-4 font-display text-xl font-semibold">
-              Becoming a Community Leader is a 1,000 DOT commitment
-            </h2>
-            <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-              Builders join communities. Leaders <em>run</em> them. Leaders set
-              the on-shore rules, host sessions, and earn a referral share when
-              founders in their community raise capital.
-            </p>
+          // ─── Gate + Join by code for non-leaders ───
+          <section className="mt-8 max-w-xl space-y-4">
+            {/* Join by code */}
+            <JoinByCodPanel />
 
-            <div className="mt-6 grid gap-3 text-left sm:grid-cols-3">
-              <div className="rounded-lg border border-border bg-card p-3">
-                <p className="text-[10px] font-medium tracking-widest uppercase text-muted-foreground">Earn</p>
-                <p className="mt-1 font-display text-sm font-semibold">5% referral share</p>
-                <p className="text-xs text-muted-foreground">on every raise in your community</p>
+            <div className="rounded-sm border-2 border-dashed border-primary/30 bg-primary/5 p-8 text-center">
+              <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-primary/15">
+                <Lock className="size-6 text-primary" />
               </div>
-              <div className="rounded-lg border border-border bg-card p-3">
-                <p className="text-[10px] font-medium tracking-widest uppercase text-muted-foreground">Reach</p>
-                <p className="mt-1 font-display text-sm font-semibold">Regional founders</p>
-                <p className="text-xs text-muted-foreground">your member list, your events</p>
+              <h2 className="mt-4 font-display text-xl font-semibold">
+                Becoming a Community Leader is a 1,000 DOT commitment
+              </h2>
+              <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+                Builders join communities. Leaders <em>run</em> them. Leaders set
+                the rules, host sessions, and earn a referral share when founders raise capital.
+              </p>
+              <div className="mt-6 grid gap-3 text-left sm:grid-cols-3">
+                <div className="rounded-lg border border-border bg-card p-3">
+                  <p className="text-[10px] font-medium tracking-widest uppercase text-muted-foreground">Earn</p>
+                  <p className="mt-1 font-display text-sm font-semibold">5% referral share</p>
+                  <p className="text-xs text-muted-foreground">on every raise in your community</p>
+                </div>
+                <div className="rounded-lg border border-border bg-card p-3">
+                  <p className="text-[10px] font-medium tracking-widest uppercase text-muted-foreground">Reach</p>
+                  <p className="mt-1 font-display text-sm font-semibold">Regional founders</p>
+                  <p className="text-xs text-muted-foreground">your member list, your events</p>
+                </div>
+                <div className="rounded-lg border border-border bg-card p-3">
+                  <p className="text-[10px] font-medium tracking-widest uppercase text-muted-foreground">Status</p>
+                  <p className="mt-1 font-display text-sm font-semibold">Leader badge</p>
+                  <p className="text-xs text-muted-foreground">on every community page</p>
+                </div>
               </div>
-              <div className="rounded-lg border border-border bg-card p-3">
-                <p className="text-[10px] font-medium tracking-widest uppercase text-muted-foreground">Status</p>
-                <p className="mt-1 font-display text-sm font-semibold">Leader badge</p>
-                <p className="text-xs text-muted-foreground">on every community page</p>
+              <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+                <Button asChild variant="hero">
+                  <Link to="/settings">Become a Community Leader <ArrowRight className="size-4" /></Link>
+                </Button>
+                <Button asChild variant="ghost">
+                  <Link to="/discover/communities">Browse existing communities</Link>
+                </Button>
               </div>
-            </div>
-
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-              <Button asChild variant="hero">
-                <Link to="/settings">
-                  Become a Community Leader
-                  <ArrowRight className="size-4" />
-                </Link>
-              </Button>
-              <Button asChild variant="ghost">
-                <Link to="/discover/communities">
-                  Browse existing communities
-                </Link>
-              </Button>
             </div>
           </section>
         ) : (
-        <form
-          onSubmit={handleCreate}
-          className="mt-8 max-w-xl space-y-5 rounded-sm border border-border bg-card p-6"
-        >
-          <div className="space-y-2">
-            <Label htmlFor="name">Community name</Label>
-            <Input
-              id="name"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Lagos Builders"
-            />
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="region">Region</Label>
-              <Input
-                id="region"
-                value={region}
-                onChange={(e) => setRegion(e.target.value)}
-                placeholder="Lagos, Nigeria"
-              />
+          <div className="mt-8 max-w-xl space-y-4">
+            {/* Toggle: Create or Join */}
+            <div className="flex gap-1 rounded-xl border border-border bg-muted/30 p-1">
+              <button
+                onClick={() => setJoinTab("create")}
+                className={cn(
+                  "flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-sm font-medium transition-colors",
+                  joinTab === "create" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <Plus className="size-3.5" /> Create community
+              </button>
+              <button
+                onClick={() => setJoinTab("join")}
+                className={cn(
+                  "flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-sm font-medium transition-colors",
+                  joinTab === "join" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <Key className="size-3.5" /> Join by code
+              </button>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="cat">Category</Label>
-              <Input
-                id="cat"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                placeholder="Tech / Agric"
-              />
-            </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="desc">Description</Label>
-            <Textarea
-              id="desc"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-              placeholder="What kind of founders belong here?"
-            />
-          </div>
+            {joinTab === "join" ? (
+              <JoinByCodPanel />
+            ) : (
+            <form
+              onSubmit={handleCreate}
+              className="space-y-5 rounded-sm border border-border bg-card p-6"
+            >
+              <div className="space-y-2">
+                <Label htmlFor="name">Community name</Label>
+                <Input id="name" required value={name} onChange={(e) => setName(e.target.value)} placeholder="Lagos Builders" />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="region">Region</Label>
+                  <Input id="region" value={region} onChange={(e) => setRegion(e.target.value)} placeholder="Lagos, Nigeria" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="cat">Category</Label>
+                  <Input id="cat" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Tech / Agric" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="desc">Description</Label>
+                <Textarea id="desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="What kind of founders belong here?" />
+              </div>
 
-          <div className="flex items-center justify-between border-t border-border pt-4">
-            <p className="text-xs text-muted-foreground">
-              You become the community leader and receive a referral code.
-            </p>
-            <Button type="submit" variant="hero" disabled={createMutation.isPending}>
-              {createMutation.isPending ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Plus className="size-4" />
-              )}
-              Create community
-              <ArrowRight className="size-4" />
-            </Button>
+              {/* Privacy toggle */}
+              <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 p-3">
+                <div className="flex items-center gap-2.5">
+                  {isPrivate ? <Lock className="size-4 text-amber-500" /> : <Globe className="size-4 text-emerald-500" />}
+                  <div>
+                    <p className="text-sm font-medium">{isPrivate ? "Private community" : "Public community"}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {isPrivate
+                        ? "Members join via unique invite code only — not listed publicly"
+                        : "Listed on Discover — anyone can request to join"}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsPrivate((p) => !p)}
+                  className={cn(
+                    "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                    isPrivate ? "bg-amber-500" : "bg-emerald-500",
+                  )}
+                >
+                  <span className={cn("inline-block size-4 rounded-full bg-white shadow transition-transform", isPrivate ? "translate-x-6" : "translate-x-1")} />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between border-t border-border pt-4">
+                <p className="text-xs text-muted-foreground">You become the leader and receive a referral code.</p>
+                <Button type="submit" variant="hero" disabled={createMutation.isPending}>
+                  {createMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+                  Create community
+                  <ArrowRight className="size-4" />
+                </Button>
+              </div>
+            </form>
+            )}
           </div>
-        </form>
         )}
       </AppShell>
     );
@@ -460,5 +489,52 @@ function CommunityPage() {
         </TabsContent>
       </Tabs>
     </AppShell>
+  );
+}
+
+/* ─── Join by code panel ─────────────────────────────────────────── */
+function JoinByCodPanel() {
+  const [code, setCode] = useState("");
+  const [joining, setJoining] = useState(false);
+  const qc = useQueryClient();
+
+  async function handleJoin(e: React.FormEvent) {
+    e.preventDefault();
+    if (!code.trim()) return;
+    setJoining(true);
+    try {
+      await dotApi.post("/api/communities/join", { code: code.trim().toUpperCase() });
+      qc.invalidateQueries({ queryKey: ["my-community"] });
+      toast.success("You've joined the community!");
+    } catch (err: any) {
+      toast.error(err?.message ?? "Invalid or expired code");
+    } finally {
+      setJoining(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleJoin} className="rounded-xl border border-border bg-card p-5">
+      <div className="flex items-center gap-2 mb-3">
+        <Key className="size-4 text-primary" />
+        <h3 className="font-semibold text-sm">Join a private community</h3>
+      </div>
+      <p className="text-xs text-muted-foreground mb-3">
+        Have an invite code from a community leader? Enter it below to join instantly.
+      </p>
+      <div className="flex gap-2">
+        <Input
+          value={code}
+          onChange={(e) => setCode(e.target.value.toUpperCase())}
+          placeholder="e.g. LAGOS-2024"
+          className="font-mono uppercase tracking-widest"
+          maxLength={20}
+        />
+        <Button type="submit" disabled={!code.trim() || joining}>
+          {joining ? <Loader2 className="size-4 animate-spin" /> : <ArrowRight className="size-4" />}
+          Join
+        </Button>
+      </div>
+    </form>
   );
 }

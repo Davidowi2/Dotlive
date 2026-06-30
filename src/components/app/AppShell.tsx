@@ -75,7 +75,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Judge Portal",  to: "/judge",         icon: Trophy,      roles: ["judge"],                    section: "capital" },
   { label: "Meetings",      to: "/meetings",      icon: Bell,        roles: ["investor", "founder", "capital_partner"], section: "capital" },
   /* operator (formerly "admin" — internal staff, not a self-assignable role) */
-  { label: "Operator",      to: "/admin",         icon: Shield,      roles: ["admin"],                   section: "operator" },
+  { label: "Operator",      to: "/admin",         icon: Shield,      roles: ["admin", "super_admin"],    section: "admin" },
   /* always */
   { label: "Settings",      to: "/settings",      icon: Settings,                                   section: "main" },
   { label: "Help",          to: "/help",          icon: HelpCircle,                                section: "main" },
@@ -86,7 +86,7 @@ const SECTION_META: Record<string, { label: string }> = {
   growth:    { label: "Growth" },
   community: { label: "Community" },
   capital:   { label: "Capital" },
-  admin:     { label: "Admin" },
+  admin:     { label: "Operator" },
 };
 
 export function AppShell({ children }: { children: ReactNode }) {
