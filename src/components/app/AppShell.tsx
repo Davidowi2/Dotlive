@@ -177,7 +177,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="mx-auto flex w-full max-w-7xl flex-1 gap-0 px-4 py-6 sm:px-6 lg:px-8">
         {/* Sidebar — sectioned, with active indicator */}
         <aside className="hidden w-56 shrink-0 border-r border-border pr-6 lg:block">
-          <nav className="sticky top-20 space-y-6">
+          <nav className="sticky top-20 space-y-6 overflow-y-auto max-h-[calc(100vh-6rem)]">
             {sections.map((section) => (
               <div key={section.key}>
                 <div className="mb-2 px-2">
