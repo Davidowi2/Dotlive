@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState } from "react";
 import {
   ArrowRight,
   BarChart3,
@@ -218,8 +219,8 @@ function HeroSection() {
         }}
       />
 
-      <div className="mx-auto max-w-7xl w-full px-6 py-24 lg:px-12 lg:py-32">
-        <div className="grid lg:grid-cols-12 gap-12 items-center">
+      <div className="mx-auto max-w-7xl w-full px-4 py-16 sm:px-6 sm:py-24 lg:px-12 lg:py-32">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
           {/* Left — copy column */}
           <div className="lg:col-span-7">
             {/* Eyebrow — Africa's Venture Valuation Network */}
@@ -234,7 +235,7 @@ function HeroSection() {
             {/* Giant serif headline */}
             <h1
               className="font-display font-light leading-[0.95] tracking-[-0.035em] text-foreground"
-              style={{ fontSize: "clamp(3rem, 8.5vw, 7rem)" }}
+              style={{ fontSize: "clamp(2rem, 6vw, 7rem)" }}
             >
               Prove credibility.<br />
               Attract talent.<br />
@@ -268,7 +269,7 @@ function HeroSection() {
             </div>
 
             {/* Inline stat strip — replaces fake trust line */}
-            <div className="mt-16 flex flex-wrap items-center gap-x-10 gap-y-4 pt-8 border-t border-border">
+            <div className="mt-12 sm:mt-16 grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-x-6 gap-y-4 sm:gap-x-10 pt-8 border-t border-border">
               <div>
                 <p className="font-display text-2xl font-light text-foreground tabular">7</p>
                 <p className="mt-1 text-[10px] tracking-widest uppercase text-muted-foreground">Progression stages</p>
@@ -441,6 +442,46 @@ function HeroCardMockup() {
  */
 
 function StartupScoreHeroSection() {
+  const [selectedCurrency, setSelectedCurrency] = useState("USD");
+  
+  // Conversion rates (base: USD)
+  const conversionRates: Record<string, number> = {
+    USD: 1,
+    NGN: 1650,     // 1 USD = 1,650 Naira (approximate)
+    ZAR: 18.5,     // 1 USD = 18.5 Rand
+    EUR: 0.92,     // 1 USD = 0.92 Euro
+    BTC: 0.000024, // 1 USD = 0.000024 BTC (approximate)
+  };
+  
+  const formatCurrency = (usdAmount: number, currency: string): string => {
+    const converted = usdAmount * conversionRates[currency];
+    
+    if (currency === "BTC") {
+      return `₿${converted.toFixed(6)}`;
+    }
+    
+    const symbols: Record<string, string> = {
+      USD: "$",
+      NGN: "₦",
+      ZAR: "R",
+      EUR: "€",
+      BTC: "₿",
+    };
+    
+    const symbol = symbols[currency] || "$";
+    
+    if (converted >= 1_000_000_000) {
+      return `${symbol}${(converted / 1_000_000_000).toFixed(1)}B`;
+    }
+    if (converted >= 1_000_000) {
+      return `${symbol}${(converted / 1_000_000).toFixed(1)}M`;
+    }
+    if (converted >= 1_000) {
+      return `${symbol}${(converted / 1_000).toFixed(1)}K`;
+    }
+    return `${symbol}${converted.toFixed(0)}`;
+  };
+  
   const variants = ["A", "B", "C", "D"];
   const headlines: Record<string, { title: React.ReactNode; sub: string }> = {
     A: {
@@ -485,8 +526,8 @@ function StartupScoreHeroSection() {
 
   return (
     <section className="border-b border-border bg-background">
-      <div className="mx-auto max-w-7xl px-6 py-20 lg:px-12 lg:py-28">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
+      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-12 lg:py-28">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-12 items-center">
           {/* Left — A/B headline + CTA */}
           <div>
             {/* Variant chips */}
@@ -549,7 +590,17 @@ function StartupScoreHeroSection() {
               <div className="mb-5 flex items-center gap-2 rounded-lg border border-border bg-muted/20 p-1 text-[10px] tracking-widest uppercase font-semibold">
                 <span className="text-muted-foreground px-2">Currency:</span>
                 {["NGN", "USD", "ZAR", "EUR", "BTC"].map((c) => (
-                  <span key={c} className={`px-2 py-0.5 rounded ${c === "USD" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>{c}</span>
+                  <button
+                    key={c}
+                    onClick={() => setSelectedCurrency(c)}
+                    className={`px-2 py-0.5 rounded transition-colors cursor-pointer hover:bg-primary/20 ${
+                      c === selectedCurrency
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    {c}
+                  </button>
                 ))}
               </div>
 
@@ -557,7 +608,7 @@ function StartupScoreHeroSection() {
               <div className="grid grid-cols-2 gap-3 mb-5">
                 <div className="rounded-xl border border-border bg-background p-4">
                   <p className="text-[10px] tracking-widest uppercase text-muted-foreground">Estimated Value</p>
-                  <p className="font-display text-2xl font-light mt-1">$2.0B</p>
+                  <p className="font-display text-2xl font-light mt-1">{formatCurrency(2_000_000_000, selectedCurrency)}</p>
                 </div>
                 <div className="rounded-xl border border-border bg-background p-4">
                   <p className="text-[10px] tracking-widest uppercase text-muted-foreground">DOT Score</p>
@@ -565,7 +616,7 @@ function StartupScoreHeroSection() {
                 </div>
                 <div className="rounded-xl border border-border bg-background p-4">
                   <p className="text-[10px] tracking-widest uppercase text-muted-foreground">Potential</p>
-                  <p className="font-display text-2xl font-light mt-1">$6.7B+</p>
+                  <p className="font-display text-2xl font-light mt-1">{formatCurrency(6_700_000_000, selectedCurrency)}+</p>
                 </div>
                 <div className="rounded-xl border border-border bg-background p-4">
                   <p className="text-[10px] tracking-widest uppercase text-muted-foreground">Status</p>
