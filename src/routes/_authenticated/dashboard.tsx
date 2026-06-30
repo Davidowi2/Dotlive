@@ -66,6 +66,42 @@ const JOURNEY_RAIL = [
   { label: "Pitch",    icon: Rocket,         accent: "gold"    as const },
 ];
 
+/**
+ * Helper to check if builder profile is complete.
+ * Returns false if any key field is missing.
+ */
+function isProfileComplete(profile: any): boolean {
+  return !!(
+    profile?.skills && profile.skills.length >= 3 &&
+    profile?.hourlyRate && Number(profile.hourlyRate) > 0 &&
+    profile?.headline && profile.headline.length > 10 &&
+    profile?.portfolio && profile.portfolio.length > 0
+  );
+}
+
+/**
+ * Individual profile completion step component.
+ */
+function ProfileStep({ completed, label, desc, link }: { completed: boolean; label: string; desc: string; link: string }) {
+  return (
+    <Link
+      to={link}
+      className="flex items-center gap-3 rounded-lg border border-border bg-background/40 p-3 text-sm transition-colors hover:border-primary/40 hover:bg-background/60"
+    >
+      <span className={cn(
+        "flex size-6 shrink-0 items-center justify-center rounded-full",
+        completed ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
+      )}>
+        {completed ? <CheckCircle2 className="size-4" /> : <span className="size-2 rounded-full bg-current" />}
+      </span>
+      <div className="flex-1 min-w-0">
+        <p className={cn("font-medium", completed && "line-through text-muted-foreground")}>{label}</p>
+        <p className="text-xs text-muted-foreground">{desc}</p>
+      </div>
+    </Link>
+  );
+}
+
 function Dashboard() {
   const { user, primaryRole, roles } = useDotAuth();
   const { data: walletData, isLoading: walletLoading } = useQuery({
@@ -478,6 +514,54 @@ function Dashboard() {
         <span className="h-px flex-1 bg-border" />
       </div>
 
+      {/* ── BUILDER PROFILE COMPLETION (if incomplete) ─────── */}
+      {isBuilderOnly && builderProfile && !isProfileComplete(builderProfile) && (
+        <section className="mb-6 rounded-2xl border border-gold/30 bg-gold/5 p-6">
+          <div className="flex items-start gap-3">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-gold/20">
+              <Sparkles className="size-5 text-gold" />
+            </div>
+            <div className="flex-1">
+              <h2 className="font-display text-lg font-semibold text-gold">Complete Your Builder Profile</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Follow these steps to maximize your visibility and start landing gigs.
+              </p>
+              <div className="mt-4 space-y-2">
+                <ProfileStep
+                  completed={!!(builderProfile.skills && builderProfile.skills.length >= 3)}
+                  label="Add at least 3 skills"
+                  desc="Help clients find you"
+                  link="/settings"
+                />
+                <ProfileStep
+                  completed={!!(builderProfile.hourlyRate && Number(builderProfile.hourlyRate) > 0)}
+                  label="Set your hourly rate"
+                  desc="Show what you charge"
+                  link="/settings"
+                />
+                <ProfileStep
+                  completed={!!(builderProfile.headline && builderProfile.headline.length > 10)}
+                  label="Write a professional headline"
+                  desc="30-60 characters that sell your expertise"
+                  link="/settings"
+                />
+                <ProfileStep
+                  completed={!!(builderProfile.portfolio && builderProfile.portfolio.length > 0)}
+                  label="Add portfolio samples"
+                  desc="Show your best work"
+                  link="/settings"
+                />
+              </div>
+              <Button variant="default" size="sm" className="mt-4 bg-gold hover:bg-gold/90" asChild>
+                <Link to="/settings">
+                  Complete Profile <ArrowRight className="ml-1 size-3.5" />
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* ── NEXT ACTIONS + EXPLORE ────────────────────────────── */}
       {isBuilderOnly ? (
         <section className="grid gap-6 lg:grid-cols-3">
@@ -527,7 +611,7 @@ function Dashboard() {
             </p>
             <div className="mt-5 space-y-3">
               <Link
-                to="/work"
+                to="/settings"
                 className="flex items-center gap-3 rounded-xl border border-border p-3 text-sm transition-colors hover:border-primary/40 hover:bg-accent/50"
               >
                 <UserCircle className="size-5 shrink-0 text-primary" />
@@ -541,7 +625,7 @@ function Dashboard() {
                   <p className="text-sm font-medium text-gold">Become a Founder</p>
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Post jobs, take Vantage, raise funds. Costs 2,000 DOT.
+                  Post gigs, take Vantage, raise funds. Costs 2,000 DOT.
                 </p>
                 <Button variant="outline" size="sm" className="mt-3 border-gold/40 text-gold hover:bg-gold/10" asChild>
                   <Link to="/onboarding">

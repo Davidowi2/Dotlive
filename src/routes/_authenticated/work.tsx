@@ -65,23 +65,14 @@ export function WorkPage() {
     <AppShell>
       <PageHeader
         title="DOT Work"
-        subtitle="Your labor dashboard — applications, contracts, earnings."
+        subtitle="Your freelance dashboard — gigs, proposals, earnings."
         action={
-          <div className="flex items-center gap-2">
-            {isFounder && (
-              <Button onClick={() => setShowPostJob(true)} size="sm">
-                <Plus className="size-4" />
-                Post a Job
-              </Button>
-            )}
-            <Link
-              to="/work/leaderboard"
-              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium hover:border-primary/40"
-            >
-              <Trophy className="size-3.5 text-amber-500" />
-              Leaderboard
-            </Link>
-          </div>
+          isFounder ? (
+            <Button onClick={() => setShowPostJob(true)} size="sm">
+              <Plus className="size-4" />
+              Post a Gig
+            </Button>
+          ) : undefined
         }
       />
       <Tabs defaultValue="overview" className="mt-6">
