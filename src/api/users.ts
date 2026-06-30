@@ -60,3 +60,18 @@ export async function getRoleRequirements(): Promise<RoleRequirement[]> {
   const res = await dotApi.get<{ requirements: RoleRequirement[] }>("/api/users/role-requirements");
   return res.requirements;
 }
+
+export async function updateMyBuilderProfile(input: {
+  headline: string;
+  bio?: string;
+  skills: string[];
+  available: boolean;
+  hourlyDot?: number;
+  portfolioUrl?: string;
+  linkedinUrl?: string;
+  twitterUrl?: string;
+  githubUrl?: string;
+  location?: string;
+}) {
+  return dotApi.post("/api/users/me/builder-profile", input);
+}

@@ -179,6 +179,9 @@ export const founderProfiles = pgTable("founder_profiles", {
  * Supabase had this table; the Neon schema didn't. Added so the
  * /api/users/me/builder-profile endpoint can read/write to it.
  * PK = id (the user's id, one profile per user). id is text.
+ *
+ * Public reputation surface for builders — 2026-06 upgrade.
+ * Stats are denormalized (refreshed when an order completes).
  */
 export const builderProfiles = pgTable("builder_profiles", {
   id: text("id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
@@ -186,9 +189,26 @@ export const builderProfiles = pgTable("builder_profiles", {
   bio: text("bio"),
   skills: text("skills").array().notNull().default([]),
   available: boolean("available").notNull().default(true),
+  // New public-profile fields.
+  hourlyDot: numeric("hourly_dot", { precision: 20, scale: 2 }),
+  portfolioUrl: text("portfolio_url"),
+  linkedinUrl: text("linkedin_url"),
+  twitterUrl: text("twitter_url"),
+  githubUrl: text("github_url"),
+  location: text("location"),
+  // Denormalized public stats.
+  totalEarnedDot: numeric("total_earned_dot", { precision: 20, scale: 2 }).notNull().default("0"),
+  totalCompletedOrders: integer("total_completed_orders").notNull().default(0),
+  avgRating: numeric("avg_rating", { precision: 3, scale: 2 }).notNull().default("0"),
+  reviewCount: integer("review_count").notNull().default(0),
+  lastActiveAt: timestamp("last_active_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => ({
+  bpAvailableIdx: index("builder_profiles_available_idx").on(t.available),
+  bpEarnedIdx: index("builder_profiles_earned_idx").on(t.totalEarnedDot),
+  bpCompletedIdx: index("builder_profiles_completed_idx").on(t.totalCompletedOrders),
+}));
 
 /* --------------------------- Courses --------------------------- */
 export const courses = pgTable("courses", {
@@ -1286,4 +1306,22 @@ export const connectionMessages = pgTable("connection_messages", {
 }, (t) => ({
   msgConnIdx: index("connection_messages_conn_idx").on(t.connectionId),
   msgCreatedIdx: index("connection_messages_created_idx").on(t.createdAt),
+}));
+
+/* --------------------------- Builder reviews ------------------ */
+/**
+ * Post-order rating (1..5) + comment. One review per (orderId, reviewerId).
+ * Reviews power the avgRating on builderProfiles.
+ */
+export const builderReviews = pgTable("builder_reviews", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  builderId: text("builder_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  reviewerId: text("reviewer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  orderId: text("order_id").notNull(),
+  rating: integer("rating").notNull(), // 1..5
+  comment: text("comment"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  brBuilderIdx: index("builder_reviews_builder_idx").on(t.builderId),
+  brOrderIdx: unique("builder_reviews_order_unique").on(t.orderId, t.reviewerId),
 }));

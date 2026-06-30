@@ -35,6 +35,7 @@ import { communityRoutes }  from "./routes/community.js";
 import { challengeRoutes }  from "./routes/challenges.js";
 import { connectionRoutes } from "./routes/connections.js";
 import { leaderboardRoutes } from "./routes/leaderboard.js";
+import { builderArenaRoutes } from "./routes/builders.js";
 import { uploadRoutes }     from "./routes/upload.js";
 import { webhookRoutes }    from "./routes/webhooks.js";
 import { statsRoutes }      from "./routes/stats.js";
@@ -367,6 +368,41 @@ app.get("/api/health", async () => {
                 ON certificates(source, source_id);
             `);
             app.log.info("bootstrap migration: certificates source columns ensured");
+
+            // === builder arena: new public-profile fields + reviews table ===
+            await db.execute(sql`
+              ALTER TABLE builder_profiles
+                ADD COLUMN IF NOT EXISTS hourly_dot numeric(20,2),
+                ADD COLUMN IF NOT EXISTS portfolio_url text,
+                ADD COLUMN IF NOT EXISTS linkedin_url text,
+                ADD COLUMN IF NOT EXISTS twitter_url text,
+                ADD COLUMN IF NOT EXISTS github_url text,
+                ADD COLUMN IF NOT EXISTS location text,
+                ADD COLUMN IF NOT EXISTS total_earned_dot numeric(20,2) NOT NULL DEFAULT '0',
+                ADD COLUMN IF NOT EXISTS total_completed_orders integer NOT NULL DEFAULT 0,
+                ADD COLUMN IF NOT EXISTS avg_rating numeric(3,2) NOT NULL DEFAULT '0',
+                ADD COLUMN IF NOT EXISTS review_count integer NOT NULL DEFAULT 0,
+                ADD COLUMN IF NOT EXISTS last_active_at timestamptz;
+            `);
+            await db.execute(sql`
+              CREATE INDEX IF NOT EXISTS builder_profiles_available_idx ON builder_profiles(available);
+              CREATE INDEX IF NOT EXISTS builder_profiles_earned_idx ON builder_profiles(total_earned_dot);
+              CREATE INDEX IF NOT EXISTS builder_profiles_completed_idx ON builder_profiles(total_completed_orders);
+            `);
+            await db.execute(sql`
+              CREATE TABLE IF NOT EXISTS builder_reviews (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                builder_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                reviewer_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                order_id text NOT NULL,
+                rating integer NOT NULL,
+                comment text,
+                created_at timestamptz NOT NULL DEFAULT now(),
+                UNIQUE(order_id, reviewer_id)
+              );
+              CREATE INDEX IF NOT EXISTS builder_reviews_builder_idx ON builder_reviews(builder_id);
+            `);
+            app.log.info("bootstrap migration: builder arena tables ensured");
           } catch (err) {
       dbError = err instanceof Error ? err.message : String(err);
     }
@@ -417,6 +453,7 @@ await app.register(communityRoutes,   { prefix: "/api" });
 await app.register(challengeRoutes,   { prefix: "/api" });
 await app.register(connectionRoutes,  { prefix: "/api" });
 await app.register(leaderboardRoutes, { prefix: "/api" });
+await app.register(builderArenaRoutes, { prefix: "/api" });
 await app.register(uploadRoutes,      { prefix: "/api" });
 await app.register(webhookRoutes,     { prefix: "/api" });
 await app.register(statsRoutes,       { prefix: "/api" });

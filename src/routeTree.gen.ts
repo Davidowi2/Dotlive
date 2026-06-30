@@ -65,6 +65,7 @@ import { Route as AuthenticatedCommunityChannelsRouteImport } from './routes/_au
 import { Route as AuthenticatedCommunityChallengesRouteImport } from './routes/_authenticated/community/challenges'
 import { Route as AuthenticatedCapitalPortfolioRouteImport } from './routes/_authenticated/capital/portfolio'
 import { Route as AuthenticatedCIdRouteImport } from './routes/_authenticated/c.$id'
+import { Route as AuthenticatedBuilderIdRouteImport } from './routes/_authenticated/builder/$id'
 import { Route as AuthenticatedAdminWalletsRouteImport } from './routes/_authenticated/admin/wallets'
 import { Route as AuthenticatedAdminTokensRouteImport } from './routes/_authenticated/admin/tokens'
 import { Route as AuthenticatedAdminRolesRouteImport } from './routes/_authenticated/admin/roles'
@@ -361,6 +362,11 @@ const AuthenticatedCIdRoute = AuthenticatedCIdRouteImport.update({
   path: '/c/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedBuilderIdRoute = AuthenticatedBuilderIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AuthenticatedBuilderRoute,
+} as any)
 const AuthenticatedAdminWalletsRoute =
   AuthenticatedAdminWalletsRouteImport.update({
     id: '/wallets',
@@ -413,7 +419,7 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/academy': typeof AuthenticatedAcademyRoute
-  '/builder': typeof AuthenticatedBuilderRoute
+  '/builder': typeof AuthenticatedBuilderRouteWithChildren
   '/certificates': typeof AuthenticatedCertificatesRoute
   '/community': typeof AuthenticatedCommunityRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -445,6 +451,7 @@ export interface FileRoutesByFullPath {
   '/admin/roles': typeof AuthenticatedAdminRolesRoute
   '/admin/tokens': typeof AuthenticatedAdminTokensRoute
   '/admin/wallets': typeof AuthenticatedAdminWalletsRoute
+  '/builder/$id': typeof AuthenticatedBuilderIdRoute
   '/c/$id': typeof AuthenticatedCIdRoute
   '/capital/portfolio': typeof AuthenticatedCapitalPortfolioRoute
   '/community/challenges': typeof AuthenticatedCommunityChallengesRoute
@@ -475,7 +482,7 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/academy': typeof AuthenticatedAcademyRoute
-  '/builder': typeof AuthenticatedBuilderRoute
+  '/builder': typeof AuthenticatedBuilderRouteWithChildren
   '/certificates': typeof AuthenticatedCertificatesRoute
   '/community': typeof AuthenticatedCommunityRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -507,6 +514,7 @@ export interface FileRoutesByTo {
   '/admin/roles': typeof AuthenticatedAdminRolesRoute
   '/admin/tokens': typeof AuthenticatedAdminTokensRoute
   '/admin/wallets': typeof AuthenticatedAdminWalletsRoute
+  '/builder/$id': typeof AuthenticatedBuilderIdRoute
   '/c/$id': typeof AuthenticatedCIdRoute
   '/capital/portfolio': typeof AuthenticatedCapitalPortfolioRoute
   '/community/challenges': typeof AuthenticatedCommunityChallengesRoute
@@ -540,7 +548,7 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/_authenticated/academy': typeof AuthenticatedAcademyRoute
-  '/_authenticated/builder': typeof AuthenticatedBuilderRoute
+  '/_authenticated/builder': typeof AuthenticatedBuilderRouteWithChildren
   '/_authenticated/certificates': typeof AuthenticatedCertificatesRoute
   '/_authenticated/community': typeof AuthenticatedCommunityRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
@@ -572,6 +580,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/roles': typeof AuthenticatedAdminRolesRoute
   '/_authenticated/admin/tokens': typeof AuthenticatedAdminTokensRoute
   '/_authenticated/admin/wallets': typeof AuthenticatedAdminWalletsRoute
+  '/_authenticated/builder/$id': typeof AuthenticatedBuilderIdRoute
   '/_authenticated/c/$id': typeof AuthenticatedCIdRoute
   '/_authenticated/capital/portfolio': typeof AuthenticatedCapitalPortfolioRoute
   '/_authenticated/community/challenges': typeof AuthenticatedCommunityChallengesRoute
@@ -637,6 +646,7 @@ export interface FileRouteTypes {
     | '/admin/roles'
     | '/admin/tokens'
     | '/admin/wallets'
+    | '/builder/$id'
     | '/c/$id'
     | '/capital/portfolio'
     | '/community/challenges'
@@ -699,6 +709,7 @@ export interface FileRouteTypes {
     | '/admin/roles'
     | '/admin/tokens'
     | '/admin/wallets'
+    | '/builder/$id'
     | '/c/$id'
     | '/capital/portfolio'
     | '/community/challenges'
@@ -763,6 +774,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/roles'
     | '/_authenticated/admin/tokens'
     | '/_authenticated/admin/wallets'
+    | '/_authenticated/builder/$id'
     | '/_authenticated/c/$id'
     | '/_authenticated/capital/portfolio'
     | '/_authenticated/community/challenges'
@@ -1194,6 +1206,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/builder/$id': {
+      id: '/_authenticated/builder/$id'
+      path: '/$id'
+      fullPath: '/builder/$id'
+      preLoaderRoute: typeof AuthenticatedBuilderIdRouteImport
+      parentRoute: typeof AuthenticatedBuilderRoute
+    }
     '/_authenticated/admin/wallets': {
       id: '/_authenticated/admin/wallets'
       path: '/wallets'
@@ -1263,6 +1282,17 @@ const AuthenticatedAdminRouteRouteWithChildren =
     AuthenticatedAdminRouteRouteChildren,
   )
 
+interface AuthenticatedBuilderRouteChildren {
+  AuthenticatedBuilderIdRoute: typeof AuthenticatedBuilderIdRoute
+}
+
+const AuthenticatedBuilderRouteChildren: AuthenticatedBuilderRouteChildren = {
+  AuthenticatedBuilderIdRoute: AuthenticatedBuilderIdRoute,
+}
+
+const AuthenticatedBuilderRouteWithChildren =
+  AuthenticatedBuilderRoute._addFileChildren(AuthenticatedBuilderRouteChildren)
+
 interface AuthenticatedCommunityRouteChildren {
   AuthenticatedCommunityChallengesRoute: typeof AuthenticatedCommunityChallengesRoute
   AuthenticatedCommunityChannelsRoute: typeof AuthenticatedCommunityChannelsRoute
@@ -1318,7 +1348,7 @@ const AuthenticatedWorkRouteWithChildren =
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRouteRoute: typeof AuthenticatedAdminRouteRouteWithChildren
   AuthenticatedAcademyRoute: typeof AuthenticatedAcademyRoute
-  AuthenticatedBuilderRoute: typeof AuthenticatedBuilderRoute
+  AuthenticatedBuilderRoute: typeof AuthenticatedBuilderRouteWithChildren
   AuthenticatedCertificatesRoute: typeof AuthenticatedCertificatesRoute
   AuthenticatedCommunityRoute: typeof AuthenticatedCommunityRouteWithChildren
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
@@ -1354,7 +1384,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRouteRoute: AuthenticatedAdminRouteRouteWithChildren,
   AuthenticatedAcademyRoute: AuthenticatedAcademyRoute,
-  AuthenticatedBuilderRoute: AuthenticatedBuilderRoute,
+  AuthenticatedBuilderRoute: AuthenticatedBuilderRouteWithChildren,
   AuthenticatedCertificatesRoute: AuthenticatedCertificatesRoute,
   AuthenticatedCommunityRoute: AuthenticatedCommunityRouteWithChildren,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,

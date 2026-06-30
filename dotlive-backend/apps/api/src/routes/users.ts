@@ -251,27 +251,28 @@ export async function userRoutes(app: FastifyInstance) {
     const bio = (body.bio as string) ?? null;
     const skills = Array.isArray(body.skills) ? (body.skills as string[]) : [];
     const available = body.available !== false;
+    const hourlyDot =
+      body.hourlyDot != null && body.hourlyDot !== "" ? Number(body.hourlyDot) : null;
+    const portfolioUrl = (body.portfolioUrl as string) ?? null;
+    const linkedinUrl = (body.linkedinUrl as string) ?? null;
+    const twitterUrl = (body.twitterUrl as string) ?? null;
+    const githubUrl = (body.githubUrl as string) ?? null;
+    const location = (body.location as string) ?? null;
 
-    // Use Drizzle UPSERT — the previous raw-SQL version failed with
-    // "column skills is of type text[] but expression is of type record"
-    // because pg's parameterized binding didn't accept the JS array directly.
-    // Drizzle serializes text[] arrays correctly.
     await db
       .insert(builderProfiles)
       .values({
         id: sub,
-        headline,
-        bio,
-        skills,
-        available,
+        headline, bio, skills, available,
+        hourlyDot: hourlyDot != null ? String(hourlyDot) : null,
+        portfolioUrl, linkedinUrl, twitterUrl, githubUrl, location,
       } as any)
       .onConflictDoUpdate({
         target: builderProfiles.id,
         set: {
-          headline,
-          bio,
-          skills,
-          available,
+          headline, bio, skills, available,
+          hourlyDot: hourlyDot != null ? String(hourlyDot) : null,
+          portfolioUrl, linkedinUrl, twitterUrl, githubUrl, location,
           updatedAt: new Date(),
         } as any,
       });
@@ -287,23 +288,28 @@ export async function userRoutes(app: FastifyInstance) {
     const bio = (body.bio as string) ?? null;
     const skills = Array.isArray(body.skills) ? (body.skills as string[]) : [];
     const available = body.available !== false;
+    const hourlyDot =
+      body.hourlyDot != null && body.hourlyDot !== "" ? Number(body.hourlyDot) : null;
+    const portfolioUrl = (body.portfolioUrl as string) ?? null;
+    const linkedinUrl = (body.linkedinUrl as string) ?? null;
+    const twitterUrl = (body.twitterUrl as string) ?? null;
+    const githubUrl = (body.githubUrl as string) ?? null;
+    const location = (body.location as string) ?? null;
 
     await db
       .insert(builderProfiles)
       .values({
         id: sub,
-        headline,
-        bio,
-        skills,
-        available,
+        headline, bio, skills, available,
+        hourlyDot: hourlyDot != null ? String(hourlyDot) : null,
+        portfolioUrl, linkedinUrl, twitterUrl, githubUrl, location,
       } as any)
       .onConflictDoUpdate({
         target: builderProfiles.id,
         set: {
-          headline,
-          bio,
-          skills,
-          available,
+          headline, bio, skills, available,
+          hourlyDot: hourlyDot != null ? String(hourlyDot) : null,
+          portfolioUrl, linkedinUrl, twitterUrl, githubUrl, location,
           updatedAt: new Date(),
         } as any,
       });

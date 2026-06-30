@@ -70,7 +70,13 @@ function LeaderboardPage() {
         <ol className="mt-8 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           {leaders.map((l, i) => (
             <li key={l.id}>
-              <LeaderRow leader={l} rank={i + 1} sort={sort} />
+              <Link
+                to="/builder/$id"
+                params={{ id: l.id }}
+                className="block rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary/40"
+              >
+                <LeaderRow leader={l} rank={i + 1} sort={sort} />
+              </Link>
             </li>
           ))}
         </ol>
