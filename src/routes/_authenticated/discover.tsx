@@ -147,7 +147,7 @@ function DiscoverPage() {
                 Communities
               </Link>
               <Link
-                to="/work"
+                to="/marketplace"
                 className="rounded-full border border-border bg-card px-3 py-1 text-muted-foreground hover:border-primary/40 hover:text-foreground"
               >
                 Open gigs

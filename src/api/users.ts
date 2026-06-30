@@ -49,7 +49,22 @@ export async function getMyRoles(): Promise<string[]> {
  * Look up a user by their DOT ID (public profile).
  */
 export async function getByDotId(dotId: string): Promise<User> {
-  const res = await dotApi.get<{ user: User }>(`/api/users/by-dot-id/${dotId}`);
+  const res = await dotApi.get<{ profile: User }>(`/api/users/by-dot/${dotId}`);
+  return res.profile;
+}
+
+export interface PublicUser {
+  id: string;
+  name: string | null;
+  avatarUrl: string | null;
+  dotId: string | null;
+  headline: string | null;
+  location: string | null;
+  createdAt: string;
+}
+
+export async function getUserPublic(id: string): Promise<PublicUser> {
+  const res = await dotApi.get<{ user: PublicUser }>(`/api/users/${id}/public`);
   return res.user;
 }
 

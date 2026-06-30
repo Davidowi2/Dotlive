@@ -40,6 +40,7 @@ import { Route as AuthenticatedPitchathonsRouteImport } from './routes/_authenti
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
 import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
 import { Route as AuthenticatedMeetingsRouteImport } from './routes/_authenticated/meetings'
+import { Route as AuthenticatedMarketplaceRouteImport } from './routes/_authenticated/marketplace'
 import { Route as AuthenticatedKycRouteImport } from './routes/_authenticated/kyc'
 import { Route as AuthenticatedJudgeRouteImport } from './routes/_authenticated/judge'
 import { Route as AuthenticatedInvestorRouteImport } from './routes/_authenticated/investor'
@@ -229,6 +230,12 @@ const AuthenticatedMeetingsRoute = AuthenticatedMeetingsRouteImport.update({
   path: '/meetings',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedMarketplaceRoute =
+  AuthenticatedMarketplaceRouteImport.update({
+    id: '/marketplace',
+    path: '/marketplace',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedKycRoute = AuthenticatedKycRouteImport.update({
   id: '/kyc',
   path: '/kyc',
@@ -429,6 +436,7 @@ export interface FileRoutesByFullPath {
   '/investor': typeof AuthenticatedInvestorRoute
   '/judge': typeof AuthenticatedJudgeRoute
   '/kyc': typeof AuthenticatedKycRoute
+  '/marketplace': typeof AuthenticatedMarketplaceRoute
   '/meetings': typeof AuthenticatedMeetingsRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
@@ -492,6 +500,7 @@ export interface FileRoutesByTo {
   '/investor': typeof AuthenticatedInvestorRoute
   '/judge': typeof AuthenticatedJudgeRoute
   '/kyc': typeof AuthenticatedKycRoute
+  '/marketplace': typeof AuthenticatedMarketplaceRoute
   '/meetings': typeof AuthenticatedMeetingsRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
@@ -558,6 +567,7 @@ export interface FileRoutesById {
   '/_authenticated/investor': typeof AuthenticatedInvestorRoute
   '/_authenticated/judge': typeof AuthenticatedJudgeRoute
   '/_authenticated/kyc': typeof AuthenticatedKycRoute
+  '/_authenticated/marketplace': typeof AuthenticatedMarketplaceRoute
   '/_authenticated/meetings': typeof AuthenticatedMeetingsRoute
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
@@ -624,6 +634,7 @@ export interface FileRouteTypes {
     | '/investor'
     | '/judge'
     | '/kyc'
+    | '/marketplace'
     | '/meetings'
     | '/notifications'
     | '/onboarding'
@@ -687,6 +698,7 @@ export interface FileRouteTypes {
     | '/investor'
     | '/judge'
     | '/kyc'
+    | '/marketplace'
     | '/meetings'
     | '/notifications'
     | '/onboarding'
@@ -752,6 +764,7 @@ export interface FileRouteTypes {
     | '/_authenticated/investor'
     | '/_authenticated/judge'
     | '/_authenticated/kyc'
+    | '/_authenticated/marketplace'
     | '/_authenticated/meetings'
     | '/_authenticated/notifications'
     | '/_authenticated/onboarding'
@@ -1029,6 +1042,13 @@ declare module '@tanstack/react-router' {
       path: '/meetings'
       fullPath: '/meetings'
       preLoaderRoute: typeof AuthenticatedMeetingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/marketplace': {
+      id: '/_authenticated/marketplace'
+      path: '/marketplace'
+      fullPath: '/marketplace'
+      preLoaderRoute: typeof AuthenticatedMarketplaceRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/kyc': {
@@ -1358,6 +1378,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedInvestorRoute: typeof AuthenticatedInvestorRoute
   AuthenticatedJudgeRoute: typeof AuthenticatedJudgeRoute
   AuthenticatedKycRoute: typeof AuthenticatedKycRoute
+  AuthenticatedMarketplaceRoute: typeof AuthenticatedMarketplaceRoute
   AuthenticatedMeetingsRoute: typeof AuthenticatedMeetingsRoute
   AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
@@ -1394,6 +1415,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedInvestorRoute: AuthenticatedInvestorRoute,
   AuthenticatedJudgeRoute: AuthenticatedJudgeRoute,
   AuthenticatedKycRoute: AuthenticatedKycRoute,
+  AuthenticatedMarketplaceRoute: AuthenticatedMarketplaceRoute,
   AuthenticatedMeetingsRoute: AuthenticatedMeetingsRoute,
   AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,

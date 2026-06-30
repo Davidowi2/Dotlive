@@ -14,9 +14,11 @@ export interface Leader {
 
 export async function getLeaderboard(
   sort: "earnings" | "contracts" | "reputation" = "earnings",
+  window: "all" | "monthly" | "weekly" | "daily" = "all",
 ) {
-  const res = await dotApi.get<{ sort: string; leaders: Leader[] }>(
-    `/api/leaderboard?sort=${sort}&limit=50`,
+  const qs = new URLSearchParams({ sort, window });
+  const res = await dotApi.get<{ sort: string; window: string; leaders: Leader[] }>(
+    `/api/leaderboard?${qs.toString()}`,
   );
   return res;
 }

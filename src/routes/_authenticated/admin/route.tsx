@@ -45,7 +45,7 @@ function AdminLayout() {
       <AdminShell role="Access denied">
         <div className="mx-auto max-w-xl py-20 text-center">
           <ShieldAlert className="mx-auto size-12 text-muted-foreground" />
-          <h2 className="mt-4 font-display text-2xl">Admin only</h2>
+          <h2 className="mt-4 font-display text-2xl">Restricted area</h2>
           <p className="mt-2 text-sm text-muted-foreground">
             Sign in with an admin account to access the admin dashboard.
           </p>
@@ -71,7 +71,8 @@ function AdminLayout() {
   ];
 
   return (
-    <AdminShell role={isSuperAdmin ? "Super Admin" : "Admin"}>
+    <AdminShell role={isSuperAdmin ? "Lead Operator" : "Operator"}>
+      {/* Lead-Operator only tools sit below; the regular Operator dashboard is in /admin */}
       <div className="grid gap-4 sm:gap-6 lg:grid-cols-[200px_1fr] xl:grid-cols-[220px_1fr]">
         {/* Admin sidebar (desktop only — mobile users use the bottom of the
             topbar's "Back to app" button or browser back) */}

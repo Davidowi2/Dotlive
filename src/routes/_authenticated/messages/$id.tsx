@@ -19,6 +19,7 @@ import {
   type ConnectionThread,
   type ConnectionMessage,
 } from "@/api/connections";
+import { getUserPublic, type PublicUser } from "@/api/users";
 
 export const Route = createFileRoute("/_authenticated/messages/$id")({
   head: () => ({ meta: [{ title: "Conversation · DOT" }] }),
@@ -74,6 +75,18 @@ function MessageThread() {
   const isActive = thread.status === "active";
   const otherId = thread.userAId === user?.id ? thread.userBId : thread.userAId;
 
+  // Look up the other user's name + avatar so the thread header
+  // isn't just a raw UUID.
+  const { data: otherUser } = useQuery<PublicUser | null>({
+    queryKey: ["user-public", otherId],
+    queryFn: () => getUserPublic(otherId).catch(() => null),
+    enabled: !!otherId,
+    staleTime: 60_000,
+  });
+
+  const otherName = otherUser?.name ?? `User ${otherId?.slice(0, 6) ?? ""}`;
+  const otherDotId = otherUser?.dotId;
+
   return (
     <AppShell>
       <div className="mx-auto flex h-[calc(100vh-12rem)] max-w-3xl flex-col">
@@ -87,11 +100,11 @@ function MessageThread() {
             <ArrowLeft className="size-4" />
           </Link>
           <div className="min-w-0 flex-1">
-            <h1 className="font-display text-lg font-light">
-              Thread
+            <h1 className="font-display text-lg font-light tracking-tight">
+              {otherName}
             </h1>
             <p className="text-xs text-muted-foreground">
-              With user {otherId?.slice(0, 8)}…
+              {otherDotId ?? otherId?.slice(0, 8)}
             </p>
           </div>
           {isActive && (

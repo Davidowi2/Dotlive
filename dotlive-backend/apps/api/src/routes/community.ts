@@ -154,6 +154,46 @@ export async function communityRoutes(app: FastifyInstance) {
     return reply.send({ members: (rows as any).rows ?? [] });
   });
 
+  /** GET /api/community/my — leader's own community (if any)
+   *  Returns the community the current user LEADS, used by /community
+   *  to show "your community" after creation. */
+  app.get("/community/my", { preHandler: app.authenticate }, async (req, reply) => {
+    const { sub } = req.user as { sub: string };
+    const rows = await db
+      .select({
+        id: communities.id,
+        name: communities.name,
+        description: communities.description,
+        leaderId: communities.leaderId,
+        referralCode: communities.referralCode,
+        category: communities.category,
+        tier: communities.tier,
+        region: communities.region,
+        memberCount: communities.memberCount,
+        createdAt: communities.createdAt,
+      })
+      .from(communities)
+      .where(eq(communities.leaderId, sub))
+      .orderBy(desc(communities.createdAt))
+      .limit(1);
+    const r = rows[0];
+    if (!r) return reply.send({ community: null });
+    return reply.send({
+      community: {
+        id: r.id,
+        name: r.name,
+        description: r.description,
+        leaderId: r.leaderId,
+        referralCode: r.referralCode,
+        category: r.category,
+        tier: r.tier ?? "starter",
+        region: r.region,
+        memberCount: r.memberCount ?? 0,
+        createdAt: r.createdAt,
+      },
+    });
+  });
+
   /** GET /api/community/membership — current user's community membership */
   app.get("/community/membership", { preHandler: app.authenticate }, async (req, reply) => {
     const { sub } = req.user as { sub: string };

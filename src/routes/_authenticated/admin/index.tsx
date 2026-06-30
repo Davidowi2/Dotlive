@@ -33,7 +33,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { dotApi } from "@/api/client";
 
 export const Route = createFileRoute("/_authenticated/admin/")({
-  head: () => ({ meta: [{ title: "Admin Dashboard — DOT" }] }),
+  head: () => ({ meta: [{ title: "Operator Dashboard — DOT" }] }),
   component: AdminDashboardPage,
 });
 
@@ -120,7 +120,7 @@ function AdminDashboardPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Admin Console
+            Operator Console
           </p>
           <h1 className="mt-1 font-display text-2xl font-semibold text-foreground sm:text-3xl">
             Dashboard

@@ -22,14 +22,25 @@ export const Route = createFileRoute("/_authenticated/work/leaderboard")({
   component: LeaderboardPage,
 });
 
+type Sort = "earnings" | "contracts" | "reputation";
+type Window = "all" | "monthly" | "weekly" | "daily";
+
 function LeaderboardPage() {
-  const [sort, setSort] = useState<"earnings" | "contracts" | "reputation">("earnings");
+  const [sort, setSort] = useState<Sort>("earnings");
+  const [window, setWindow] = useState<Window>("all");
   const { data, isLoading } = useQuery({
-    queryKey: ["leaderboard", sort],
-    queryFn: () => getLeaderboard(sort),
+    queryKey: ["leaderboard", sort, window],
+    queryFn: () => getLeaderboard(sort, window),
     refetchInterval: 60_000,
   });
   const leaders: Leader[] = data?.leaders ?? [];
+
+  const WINDOW_LABEL: Record<Window, string> = {
+    all: "All-time",
+    monthly: "Last 30 days",
+    weekly: "Last 7 days",
+    daily: "Last 24 hours",
+  };
 
   return (
     <AppShell>
@@ -38,21 +49,32 @@ function LeaderboardPage() {
         title="DOT Work Leaderboard"
         subtitle="Top builders by DOT earned, contracts completed, and reputation. Refreshes every 60s."
         action={
-          <Tabs value={sort} onValueChange={(v) => setSort(v as any)}>
-            <TabsList>
-              <TabsTrigger value="earnings">
-                <Trophy className="mr-1.5 size-3.5" /> Earnings
-              </TabsTrigger>
-              <TabsTrigger value="contracts">
-                <Briefcase className="mr-1.5 size-3.5" /> Contracts
-              </TabsTrigger>
-              <TabsTrigger value="reputation">
-                <Award className="mr-1.5 size-3.5" /> Reputation
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <div className="flex flex-wrap items-center gap-3">
+            <Tabs value={sort} onValueChange={(v) => setSort(v as Sort)}>
+              <TabsList>
+                <TabsTrigger value="earnings">
+                  <Trophy className="mr-1.5 size-3.5" /> Earnings
+                </TabsTrigger>
+                <TabsTrigger value="contracts">
+                  <Briefcase className="mr-1.5 size-3.5" /> Contracts
+                </TabsTrigger>
+                <TabsTrigger value="reputation">
+                  <Award className="mr-1.5 size-3.5" /> Reputation
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <Tabs value={window} onValueChange={(v) => setWindow(v as Window)}>
+              <TabsList>
+                <TabsTrigger value="daily">24h</TabsTrigger>
+                <TabsTrigger value="weekly">7d</TabsTrigger>
+                <TabsTrigger value="monthly">30d</TabsTrigger>
+                <TabsTrigger value="all">All</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
         }
       />
+      <p className="mt-2 text-xs text-muted-foreground">{WINDOW_LABEL[window]}</p>
 
       {isLoading ? (
         <div className="mt-8 grid gap-3 md:grid-cols-2 lg:grid-cols-3">

@@ -66,13 +66,14 @@ export interface VantageCategory {
  * Scale: 1 (Very low) → 5 (Very high).  See vantage.tsx SCALE.
  */
 export const VANTAGE_CATEGORIES: VantageCategory[] = [
-  /* ---------------- 1. FOUNDER (30%) — 1 slider + 2 structured ----------- */
+  /* ---------------- 1. FOUNDER (35%) — 2 questions ---------------------- *
+   * Personal commitment + track record. Highest weight because investors
+   * bet on people first.                                                  */
   {
     key: "founder",
     label: "Founder",
-    description:
-      "Who is building this, how committed are they, and what's their track record?",
-    weight: 30,
+    description: "Who is building this and how committed are they, personally?",
+    weight: 35,
     questions: [
       {
         id: "founder_conviction",
@@ -80,7 +81,7 @@ export const VANTAGE_CATEGORIES: VantageCategory[] = [
         kind: "likert",
         help: {
           low: "Open exploration — not the main thing I'm focused on",
-          high: "All-in, committed for the next 5+ years",
+          high: "All-in, full-time, committed for the next 5+ years",
         },
       },
       {
@@ -88,31 +89,21 @@ export const VANTAGE_CATEGORIES: VantageCategory[] = [
         text: "What is your current employment status?",
         kind: "select",
         options: [
-          { value: "ft_elsewhere", label: "Full-time at another company", score: 10 },
-          { value: "pt_venture", label: "Part-time on this venture", score: 30 },
-          { value: "ft_venture", label: "Full-time on this venture", score: 80 },
-          { value: "ft_venture_with_income", label: "Full-time + earning revenue", score: 100 },
+          { value: "ft_elsewhere",          label: "Full-time at another job",        score: 10 },
+          { value: "pt_venture",            label: "Part-time on this venture",       score: 30 },
+          { value: "ft_venture",            label: "Full-time on this venture",       score: 80 },
+          { value: "ft_venture_with_revenue", label: "Full-time + earning revenue",   score: 100 },
         ],
-      },
-      {
-        id: "founder_experience_years",
-        text: "Years of experience in this industry or adjacent space",
-        kind: "number",
-        numberMeta: {
-          maxAt: 10,
-          placeholder: "e.g. 5",
-          suffix: "years",
-        },
       },
     ],
   },
 
-  /* ---------------- 2. TRACTION (30%) — 4 numeric ------------------------ */
+  /* ---------------- 2. TRACTION (30%) — 2 questions --------------------- *
+   * Two signals matter most: paying users + month-over-month growth.       */
   {
     key: "traction",
     label: "Traction",
-    description:
-      "Hard numbers, not narratives. Investors check these signals first.",
+    description: "Hard numbers — paying customers + growth.",
     weight: 30,
     questions: [
       {
@@ -126,18 +117,8 @@ export const VANTAGE_CATEGORIES: VantageCategory[] = [
         },
       },
       {
-        id: "traction_mrr_dot",
-        text: "Monthly recurring revenue (DOT)",
-        kind: "number",
-        numberMeta: {
-          maxAt: 50000,
-          placeholder: "e.g. 2500",
-          suffix: "DOT / month",
-        },
-      },
-      {
         id: "traction_mom_growth_pct",
-        text: "Month-over-month growth (%)",
+        text: "Month-over-month revenue or user growth (%)",
         kind: "number",
         numberMeta: {
           maxAt: 25,
@@ -145,24 +126,15 @@ export const VANTAGE_CATEGORIES: VantageCategory[] = [
           suffix: "%",
         },
       },
-      {
-        id: "traction_retention_90d_pct",
-        text: "90-day retention rate (%)",
-        kind: "number",
-        numberMeta: {
-          maxAt: 80,
-          placeholder: "e.g. 60",
-          suffix: "%",
-        },
-      },
     ],
   },
 
-  /* ---------------- 3. CAPITAL (20%) — 3 numeric ------------------------- */
+  /* ---------------- 3. CAPITAL (20%) — 2 questions ---------------------- *
+   * Runway + how much has been raised to date.                            */
   {
     key: "capital",
     label: "Capital",
-    description: "Runway and capital efficiency determine survival.",
+    description: "Runway and how much you've raised.",
     weight: 20,
     questions: [
       {
@@ -185,115 +157,33 @@ export const VANTAGE_CATEGORIES: VantageCategory[] = [
           suffix: "DOT",
         },
       },
-      {
-        id: "capital_burn_dot",
-        text: "Monthly burn (DOT)",
-        kind: "number",
-        numberMeta: {
-          maxAt: 100000,
-          placeholder: "e.g. 8500",
-          suffix: "DOT / month",
-        },
-      },
     ],
   },
 
-  /* ---------------- 4. MARKET (10%) — 1 numeric + 1 slider + 1 text ----- */
+  /* ---------------- 4. MARKET (15%) — 2 questions ----------------------- *
+   * Why now + what's your moat. One short text answer.                    */
   {
     key: "market",
     label: "Market",
-    description:
-      "How big is the opportunity, why is now, and what's your wedge?",
-    weight: 10,
+    description: "Why is now the right time — and what stops competitors?",
+    weight: 15,
     questions: [
       {
-        id: "market_size_bucket",
-        text: "Total Addressable Market (TAM)",
-        kind: "select",
-        options: [
-          { value: "lt_1m", label: "Under ₦1M / $10K", score: 5 },
-          { value: "1m_10m", label: "₦1M – ₦10M", score: 20 },
-          { value: "10m_100m", label: "₦10M – ₦100M", score: 50 },
-          { value: "100m_1b", label: "₦100M – ₦1B", score: 80 },
-          { value: "gt_1b", label: "Over ₦1B / $1M+", score: 100 },
-        ],
-      },
-      {
         id: "market_timing",
-        text: "Why is now the right time?",
+        text: "Why is now the right time for this venture?",
         kind: "likert",
         help: {
           low: "Just an idea — no specific tailwind",
-          high: "Strong tailwind (regulation, technology, behaviour change)",
+          high: "Strong tailwind (regulation, technology, behaviour shift)",
         },
       },
       {
         id: "market_moat",
-        text: "What's your competitive moat / why will you win?",
+        text: "What is your competitive moat — why will you win?",
         kind: "text",
         textMeta: {
           placeholder:
-            "One paragraph — what's hard for competitors to copy about your position?",
-          maxLength: 500,
-        },
-      },
-    ],
-  },
-
-  /* ---------------- 5. TEAM (5%) — 1 numeric + 1 text ------------------- */
-  {
-    key: "team",
-    label: "Team",
-    description:
-      "Solo founder or team? Complementary skills? Track record?",
-    weight: 5,
-    questions: [
-      {
-        id: "team_cofounder_count",
-        text: "Number of full-time co-founders (you + 1, you + 2, etc.)",
-        kind: "number",
-        numberMeta: {
-          maxAt: 3,
-          placeholder: "e.g. 2",
-        },
-      },
-      {
-        id: "team_track_record",
-        text: "Brief track record — what have this team shipped together before?",
-        kind: "text",
-        textMeta: {
-          placeholder:
-            "A few bullets: where you worked, what you built, what you learned.",
-          maxLength: 500,
-        },
-      },
-    ],
-  },
-
-  /* ---------------- 6. OPPORTUNITY (5%) — 1 slider + 1 text ------------- */
-  {
-    key: "opportunity",
-    label: "Opportunity",
-    description:
-      "How specific is the problem and how well do you understand the customer?",
-    weight: 5,
-    questions: [
-      {
-        id: "opportunity_clarity",
-        text: "How clearly do you understand the customer and the problem?",
-        kind: "likert",
-        help: {
-          low: "Vague — \"everyone is my customer\"",
-          high: "Specific ICP + 20+ customer-discovery interviews done",
-        },
-      },
-      {
-        id: "opportunity_pmf_evidence",
-        text: "Evidence of product-market fit (paste a number or quote)",
-        kind: "text",
-        textMeta: {
-          placeholder:
-            "One number or one quote: e.g. '40% WoW retention', or a real customer quote.",
+            "One short paragraph. What's hard for competitors to copy about your position?",
           maxLength: 500,
         },
       },

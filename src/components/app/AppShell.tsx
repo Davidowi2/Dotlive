@@ -9,6 +9,7 @@ import {
   Trophy,
   Building2,
   Users,
+  Compass,
   Briefcase,
   Hammer,
   Shield,
@@ -62,8 +63,8 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Pitchathons",   to: "/pitchathons",   icon: Trophy,      roles: ["founder"],                 section: "growth" },
   { label: "Certificates",  to: "/certificates",  icon: Award,       roles: ["founder"],                 section: "growth" },
   /* community */
-    { label: "Communities",   to: "/discover/communities", icon: Users, section: "community" },
-    { label: "Community",     to: "/community",     icon: Users,       roles: ["community_leader"],        section: "community" },
+    { label: "My Community",  to: "/community",     icon: Users,       roles: ["community_leader", "admin", "super_admin"], section: "community" },
+    { label: "Communities",   to: "/discover/communities", icon: Compass,  section: "community" },
   /* capital */
   { label: "DOT Demo",      to: "/demo",          icon: Building2,                                  section: "capital" },
   { label: "My Venture",    to: "/ventures",      icon: LineChart,    roles: ["founder"],                 section: "capital" },
@@ -72,8 +73,8 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Capital Partner", to: "/capital",     icon: Wallet,      roles: ["capital_partner"],         section: "capital" },
   { label: "Judge Portal",  to: "/judge",         icon: Trophy,      roles: ["judge"],                    section: "capital" },
   { label: "Meetings",      to: "/meetings",      icon: Bell,        roles: ["investor", "founder", "capital_partner"], section: "capital" },
-  /* admin */
-  { label: "Admin",         to: "/admin",         icon: Shield,      roles: ["admin"],                   section: "admin" },
+  /* operator (formerly "admin" — internal staff, not a self-assignable role) */
+  { label: "Operator",      to: "/admin",         icon: Shield,      roles: ["admin"],                   section: "operator" },
   /* always */
   { label: "Settings",      to: "/settings",      icon: Settings,                                   section: "main" },
   { label: "Help",          to: "/help",          icon: HelpCircle,                                section: "main" },
