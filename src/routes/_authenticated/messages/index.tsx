@@ -59,12 +59,13 @@ function MessagesIndex() {
         ) : active.length === 0 ? (
           <div className="mt-4 rounded-2xl border border-dashed border-border bg-card/40 p-8 text-center">
             <MessageSquare className="mx-auto size-8 text-muted-foreground" />
-            <p className="mt-3 text-sm text-muted-foreground">
-              No active threads yet. Threads open when a meeting is accepted.
+            <p className="mt-3 font-medium">No active threads yet</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Threads open automatically when you accept a meeting request.
             </p>
             <Link
               to="/discover/people"
-              className="mt-3 inline-block text-sm font-medium text-primary"
+              className="mt-4 inline-block rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary hover:bg-primary/20"
             >
               Discover founders →
             </Link>

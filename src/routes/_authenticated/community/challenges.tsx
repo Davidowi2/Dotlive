@@ -24,10 +24,12 @@ import {
   Check,
   Sparkles,
   ChevronRight,
+  Inbox,
 } from "lucide-react";
 
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
+import { EmptyState } from "@/components/app/EmptyState";
 import { BackButton } from "@/components/app/BackButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -108,9 +110,23 @@ function ChallengesPage() {
             ))}
           </div>
         ) : open.length === 0 ? (
-          <div className="mt-4 rounded-2xl border border-dashed border-border bg-card/40 p-8 text-center text-sm text-muted-foreground">
-            No open challenges right now. Check back soon.
-          </div>
+          <EmptyState
+            icon={<Inbox className="size-7" />}
+            title="No open challenges"
+            description={
+              isLeader
+                ? "Be the first to launch a challenge and stake your DOT prize."
+                : "The leader hasn't posted a challenge yet. Check back soon."
+            }
+            action={
+              isLeader ? (
+                <Button onClick={() => setShowPostForm(true)}>
+                  <Trophy className="mr-2 size-4" />
+                  Post a challenge
+                </Button>
+              ) : undefined
+            }
+          />
         ) : (
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             {open.map((c) => (
@@ -260,12 +276,21 @@ function PostChallengeForm({
             <X className="size-4" />
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground">
-          The prize pool ({prizeDot} × {maxWinners} ={" "}
-          <span className="font-semibold text-foreground">{prizeDot * maxWinners} DOT</span>)
-          will be escrowed from your wallet immediately. Refunded if you cancel
-          before awarding.
-        </p>
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
+          <div className="flex items-start gap-2">
+            <Lock className="mt-0.5 size-4 shrink-0 text-amber-500" />
+            <div>
+              <p className="font-medium">
+                {prizeDot * maxWinners} DOT will be escrowed now
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Held in your wallet until you pick winners (released to them) or
+                cancel before deadline (refunded). Unspent balance auto-refunds
+                at the deadline if any slot goes unfilled.
+              </p>
+            </div>
+          </div>
+        </div>
         <div className="grid gap-3 md:grid-cols-2">
           <div>
             <Label htmlFor="title">Title</Label>
