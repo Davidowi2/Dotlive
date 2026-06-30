@@ -18,6 +18,7 @@ import {
   Briefcase,
   ClipboardList,
   DollarSign,
+  Trophy,
   Gauge,
   Search,
   TrendingUp,
@@ -58,6 +59,15 @@ export function WorkPage() {
       <PageHeader
         title="DOT Work"
         subtitle="Your labor dashboard — applications, contracts, earnings."
+        action={
+          <Link
+            to="/work/leaderboard"
+            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium hover:border-primary/40"
+          >
+            <Trophy className="size-3.5 text-amber-500" />
+            Leaderboard
+          </Link>
+        }
       />
       <Tabs defaultValue="overview" className="mt-6">
         <TabsList>
