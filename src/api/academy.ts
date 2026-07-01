@@ -15,10 +15,15 @@ export async function getMyEnrollments(): Promise<CourseEnrollment[]> {
 }
 
 export async function enrollInCourse(courseId: string): Promise<CourseEnrollment> {
-  const res = await dotApi.post<{ enrollment: CourseEnrollment }>(`/api/academy/enroll/${courseId}`);
+  const res = await dotApi.post<{ enrollment: CourseEnrollment }>(
+    "/api/academy/enroll",
+    { courseId }
+  );
   return res.enrollment;
 }
 
-export async function completeCourse(courseId: string): Promise<{ enrollment: CourseEnrollment; dotEarned: number }> {
-  return dotApi.post(`/api/academy/complete/${courseId}`);
+export async function completeCourse(
+  courseId: string
+): Promise<{ enrollment: CourseEnrollment; dotEarned: number }> {
+  return dotApi.post("/api/academy/complete", { courseId });
 }
