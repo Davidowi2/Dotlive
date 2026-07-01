@@ -515,6 +515,27 @@ const start = async () => {
   try {
     await app.listen({ port: PORT, host: "0.0.0.0" });
     app.log.info(`DOT API listening on http://0.0.0.0:${PORT}`);
+
+    // ── Self-ping keep-alive (Render free tier stays awake) ──────
+    // Render spins down free services after 15 min of inactivity.
+    // We ping our own /api/health every 10 minutes so the process
+    // never goes idle. This runs INSIDE the server process — no
+    // external script or cron service needed.
+    if (NODE_ENV === "production") {
+      const SELF_URL = `http://0.0.0.0:${PORT}/api/health`;
+      const PING_INTERVAL = 10 * 60 * 1000; // 10 minutes
+
+      setInterval(async () => {
+        try {
+          const res = await fetch(SELF_URL);
+          app.log.info(`[keep-alive] self-ping ${res.status} — ${new Date().toISOString()}`);
+        } catch (e) {
+          app.log.warn(`[keep-alive] self-ping failed — ${(e as Error).message}`);
+        }
+      }, PING_INTERVAL);
+
+      app.log.info(`[keep-alive] Self-ping active every 10 minutes → ${SELF_URL}`);
+    }
   } catch (err) {
     app.log.error(err);
     process.exit(1);
