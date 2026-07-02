@@ -543,7 +543,7 @@ await app.register(academyRoutes,     { prefix: "/api" });
 await app.register(pitchathonRoutes,  { prefix: "/api" });
 await app.register(marketplaceRoutes, { prefix: "/api" });
 await app.register(communityRoutes,   { prefix: "/api" });
-await app.register(challengeRoutes,   { prefix: "/api" });
+await app.register(challengeRoutes,   { prefix: "/api/community" });
 await app.register(connectionRoutes,  { prefix: "/api" });
 await app.register(leaderboardRoutes, { prefix: "/api" });
 await app.register(builderArenaRoutes, { prefix: "/api" });

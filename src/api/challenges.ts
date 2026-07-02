@@ -1,8 +1,11 @@
 /**
- * Challenges API client.
- * Mirrors /api/challenges on the backend.
+ * Community Challenges API client.
+ * Routes are prefixed /api/community/challenges on the backend
+ * to avoid conflict with builder arena /api/challenges.
  */
 import { dotApi } from "./client";
+
+const BASE = "/api/community/challenges";
 
 export interface Challenge {
   id: string;
@@ -35,18 +38,13 @@ export interface ChallengeSubmission {
 
 export async function listChallenges(communityId: string, status?: string) {
   const res = await dotApi.get<{ challenges: Challenge[] }>(
-    `/api/challenges?communityId=${encodeURIComponent(communityId)}${
-      status ? `&status=${status}` : ""
-    }`,
+    `${BASE}?communityId=${encodeURIComponent(communityId)}${status ? `&status=${status}` : ""}`,
   );
   return res.challenges ?? [];
 }
 
 export async function getChallenge(id: string) {
-  const res = await dotApi.get<{ challenge: Challenge; submissions: ChallengeSubmission[] }>(
-    `/api/challenges/${id}`,
-  );
-  return res;
+  return dotApi.get<{ challenge: Challenge; submissions: ChallengeSubmission[] }>(`${BASE}/${id}`);
 }
 
 export async function createChallenge(input: {
@@ -57,28 +55,22 @@ export async function createChallenge(input: {
   maxWinners: number;
   deadline: string;
 }) {
-  const res = await dotApi.post<{ challenge: Challenge }>("/api/challenges", input);
+  const res = await dotApi.post<{ challenge: Challenge }>(BASE, input);
   return res.challenge;
 }
 
 export async function cancelChallenge(challengeId: string) {
-  await dotApi.post(`/api/challenges/${challengeId}/cancel`);
+  await dotApi.post(`${BASE}/${challengeId}/cancel`);
 }
 
 export async function submitToChallenge(
   challengeId: string,
   input: { body: string; attachmentUrl?: string },
 ) {
-  const res = await dotApi.post<{ submission: ChallengeSubmission }>(
-    `/api/challenges/${challengeId}/submit`,
-    input,
-  );
+  const res = await dotApi.post<{ submission: ChallengeSubmission }>(`${BASE}/${challengeId}/submit`, input);
   return res.submission;
 }
 
-export async function awardChallenge(
-  challengeId: string,
-  winnerUserIds: string[],
-) {
-  await dotApi.post(`/api/challenges/${challengeId}/award`, { winnerUserIds });
+export async function awardChallenge(challengeId: string, winnerUserIds: string[]) {
+  await dotApi.post(`${BASE}/${challengeId}/award`, { winnerUserIds });
 }
