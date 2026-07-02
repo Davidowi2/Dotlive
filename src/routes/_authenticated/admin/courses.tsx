@@ -10,7 +10,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { GraduationCap, Save, Trash2, Plus, Loader2, ExternalLink, Check, X, BookOpen } from "lucide-react";
-import { AdminShell } from "@/components/app/AdminShell";
 import { PageHeader } from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,12 +40,13 @@ function AdminCoursesPage() {
   const coursesQ = useQuery({
     queryKey: ["admin-courses"],
     queryFn: listAdminCourses,
+    staleTime: 30_000,
   });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
   return (
-    <AdminShell role="Operator">
+    <div>
       <PageHeader
         eyebrow="Academy"
         title="Courses"
@@ -116,7 +116,7 @@ function AdminCoursesPage() {
           )}
         </div>
       </section>
-    </AdminShell>
+    </div>
   );
 }
 

@@ -8,7 +8,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { KeyRound, Save, Eye, EyeOff, Loader2, ExternalLink, ShieldCheck, RefreshCw, Check, Package } from "lucide-react";
-import { AdminShell } from "@/components/app/AdminShell";
 import { PageHeader } from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,7 +28,7 @@ function AdminIntegrationsPage() {
     queryFn: getIntegrations,
   });
   return (
-    <AdminShell role="Operator">
+    <div>
       <PageHeader
         eyebrow="Whop"
         title="Integrations"
@@ -90,7 +89,7 @@ function AdminIntegrationsPage() {
       </section>
 
       <SyncFromWhop />
-    </AdminShell>
+    </div>
   );
 }
 

@@ -26,7 +26,6 @@ import {
   BookOpen,
   Award,
 } from "lucide-react";
-import { AdminShell } from "@/components/app/AdminShell";
 import { PageHeader } from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,7 +62,7 @@ function AdminTestWebhookPage() {
   });
 
   return (
-    <AdminShell role="Operator">
+    <div>
       <PageHeader
         eyebrow="Verify"
         title="Test Whop webhook"
@@ -190,7 +189,7 @@ function AdminTestWebhookPage() {
           </CardContent>
         </Card>
       </div>
-    </AdminShell>
+    </div>
   );
 }
 

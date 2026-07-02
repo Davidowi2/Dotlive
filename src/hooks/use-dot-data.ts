@@ -312,8 +312,8 @@ export function useBuilderStats(builderId?: string) {
     staleTime: 120_000,
     queryFn: async () => {
       try {
-        // Uses the public builder profile endpoint instead of admin endpoint
-        const data = await dotApi.get<any>(`/api/builders/${builderId}`);
+        // Uses the public builder arena endpoint
+        const data = await dotApi.get<any>(`/api/builders/${builderId}/arena`);
         const profile = data?.builder?.profile ?? {};
         return {
           ordersCompleted: Number(profile.totalCompletedOrders ?? 0),
