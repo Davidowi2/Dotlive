@@ -593,7 +593,106 @@ app.setErrorHandler((err, req, reply) => {
 
 /* ── Boot ────────────────────────────────────────────────────── */
 
+/* ── Boot ────────────────────────────────────────────────────── */
+
+/**
+ * runBootstrapMigrations — runs critical DDL at startup so tables
+ * exist before the first request hits any route handler.
+ * All statements use IF NOT EXISTS — safe to run on every boot.
+ */
+async function runBootstrapMigrations() {
+  try {
+    const { sql } = await import("drizzle-orm");
+    const { db } = await import("./db/client.js");
+
+    // integration_secrets — required by /api/admin/integrations
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS integration_secrets (
+        key   text PRIMARY KEY,
+        value text NOT NULL,
+        updated_at timestamptz NOT NULL DEFAULT now()
+      )
+    `);
+
+    // password_reset_tokens — required by auth/forgot-password
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id    text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        token      text NOT NULL UNIQUE,
+        expires_at timestamptz NOT NULL,
+        used_at    timestamptz,
+        created_at timestamptz NOT NULL DEFAULT now()
+      )
+    `);
+
+    // feed tables — required by /api/feed
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS feed_posts (
+        id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        type          text NOT NULL DEFAULT 'general',
+        title         text,
+        body          text NOT NULL,
+        author_id     text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        tags          text[] NOT NULL DEFAULT '{}',
+        likes_count   integer NOT NULL DEFAULT 0,
+        comments_count integer NOT NULL DEFAULT 0,
+        budget_dot    numeric(20,2),
+        gig_type      text,
+        funding_goal  numeric(20,2),
+        funding_round text,
+        created_at    timestamptz NOT NULL DEFAULT now(),
+        updated_at    timestamptz NOT NULL DEFAULT now()
+      )
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS feed_post_likes (
+        post_id    uuid NOT NULL REFERENCES feed_posts(id) ON DELETE CASCADE,
+        user_id    text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (post_id, user_id)
+      )
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS feed_post_bookmarks (
+        post_id    uuid NOT NULL REFERENCES feed_posts(id) ON DELETE CASCADE,
+        user_id    text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (post_id, user_id)
+      )
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS feed_comments (
+        id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        post_id    uuid NOT NULL REFERENCES feed_posts(id) ON DELETE CASCADE,
+        author_id  text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        body       text NOT NULL,
+        likes_count integer NOT NULL DEFAULT 0,
+        created_at timestamptz NOT NULL DEFAULT now()
+      )
+    `);
+
+    // communities: is_private column
+    await db.execute(sql`
+      ALTER TABLE communities ADD COLUMN IF NOT EXISTS is_private boolean NOT NULL DEFAULT false
+    `);
+
+    // events: whop_url column
+    await db.execute(sql`
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS whop_url text
+    `);
+
+    console.log("[startup] Bootstrap migrations complete");
+  } catch (err) {
+    console.error("[startup] Bootstrap migration error:", err);
+    // Don't crash — migrations are best-effort for existing tables
+  }
+}
+
 const start = async () => {
+  // Run critical migrations before accepting requests
+  await runBootstrapMigrations();
+
   try {
     await app.listen({ port: PORT, host: "0.0.0.0" });
     app.log.info(`DOT API listening on http://0.0.0.0:${PORT}`);

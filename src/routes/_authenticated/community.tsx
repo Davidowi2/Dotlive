@@ -279,7 +279,7 @@ function CommunityPage() {
   }
 
   const code = referralCode ?? community.referralCode;
-  const joinUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/join/${code}`;
+  const joinUrl = `https://dotlive-lake.vercel.app/join/${code}`;
   const activeCount = members.filter((m) => m.status === "active").length;
 
   /* Honest: vantage completed / avg vantage aren't computed yet —

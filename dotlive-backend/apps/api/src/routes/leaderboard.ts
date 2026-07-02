@@ -67,24 +67,24 @@ export async function leaderboardRoutes(app: FastifyInstance) {
           COALESCE(w.balance, 0)::numeric AS dot_balance,
           COALESCE((
             SELECT SUM(amount)::numeric
-            FROM "transaction" t
-            WHERE t."userId" = u.id AND t.type IN ('credit', 'Gig Order', 'Service Order')
+            FROM transactions t
+            WHERE t.user_id = u.id AND t.type IN ('credit', 'Gig Order', 'Service Order')
               ${sinceClause}
           ), 0) AS dot_earned,
           COALESCE((
             SELECT COUNT(*)::int
             FROM service_orders so
-            WHERE so."builderId" = u.id AND so.status = 'completed'
-              ${window === "all" ? sql`` : window === "daily" ? sql`AND so."updated_at" >= NOW() - INTERVAL '1 day'` : window === "weekly" ? sql`AND so."updated_at" >= NOW() - INTERVAL '7 days'` : sql`AND so."updated_at" >= NOW() - INTERVAL '30 days'`}
+            WHERE so.builder_id = u.id AND so.status = 'completed'
+              ${window === "all" ? sql`` : window === "daily" ? sql`AND so.updated_at >= NOW() - INTERVAL '1 day'` : window === "weekly" ? sql`AND so.updated_at >= NOW() - INTERVAL '7 days'` : sql`AND so.updated_at >= NOW() - INTERVAL '30 days'`}
           ), 0) AS contracts_completed,
           COALESCE((
             SELECT score::int
             FROM user_reputation ur
-            WHERE ur."userId" = u.id
+            WHERE ur.user_id = u.id
             LIMIT 1
           ), 0) AS reputation
         FROM users u
-        LEFT JOIN wallets w ON w."userId" = u.id
+        LEFT JOIN wallets w ON w.user_id = u.id
       )
       SELECT
         id, name, avatar_url, headline, location, dot_id,

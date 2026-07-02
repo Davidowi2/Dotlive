@@ -125,22 +125,22 @@ async function refreshBuilderStats(builderId: string) {
     SET
       total_earned_dot = COALESCE((
         SELECT SUM(amount)::numeric
-        FROM "transaction" t
-        WHERE t."userId" = ${builderId}
+        FROM transactions t
+        WHERE t.user_id = ${builderId}
           AND t.type IN ('credit', 'Gig Order', 'Service Order')
       ), 0),
       total_completed_orders = COALESCE((
         SELECT COUNT(*)::int
         FROM service_orders so
-        WHERE so."builderId" = ${builderId} AND so.status = 'completed'
+        WHERE so.builder_id = ${builderId} AND so.status = 'completed'
       ), 0),
       avg_rating = COALESCE((
         SELECT ROUND(AVG(rating)::numeric, 2)
         FROM builder_reviews
-        WHERE "builderId" = ${builderId}
+        WHERE builder_id = ${builderId}
       ), 0),
       review_count = COALESCE((
-        SELECT COUNT(*)::int FROM builder_reviews WHERE "builderId" = ${builderId}
+        SELECT COUNT(*)::int FROM builder_reviews WHERE builder_id = ${builderId}
       ), 0),
       last_active_at = NOW(),
       updated_at = NOW()

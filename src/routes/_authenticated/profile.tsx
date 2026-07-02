@@ -53,10 +53,7 @@ function PublicProfilePage() {
 
   const initial = (user.name || user.email || "?").charAt(0).toUpperCase();
   const dotId = user.dotId ?? "—";
-  const profileUrl =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/founder/${dotId}`
-      : `/founder/${dotId}`;
+  const profileUrl = `https://dotlive-lake.vercel.app/founder/${dotId}`;
 
   function handleCopy() {
     void navigator.clipboard.writeText(profileUrl).then(() => {
