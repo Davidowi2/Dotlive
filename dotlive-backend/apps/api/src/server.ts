@@ -602,20 +602,19 @@ app.setErrorHandler((err, req, reply) => {
  */
 async function runBootstrapMigrations() {
   try {
-    const { sql } = await import("drizzle-orm");
-    const { db } = await import("./db/client.js");
+    const { sql: neonSql } = await import("./db/client.js");
 
     // integration_secrets — required by /api/admin/integrations
-    await db.execute(sql`
+    await neonSql`
       CREATE TABLE IF NOT EXISTS integration_secrets (
         key   text PRIMARY KEY,
         value text NOT NULL,
         updated_at timestamptz NOT NULL DEFAULT now()
       )
-    `);
+    `;
 
     // password_reset_tokens — required by auth/forgot-password
-    await db.execute(sql`
+    await neonSql`
       CREATE TABLE IF NOT EXISTS password_reset_tokens (
         id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id    text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -624,10 +623,10 @@ async function runBootstrapMigrations() {
         used_at    timestamptz,
         created_at timestamptz NOT NULL DEFAULT now()
       )
-    `);
+    `;
 
-    // feed tables — required by /api/feed
-    await db.execute(sql`
+    // feed tables
+    await neonSql`
       CREATE TABLE IF NOT EXISTS feed_posts (
         id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         type          text NOT NULL DEFAULT 'general',
@@ -644,24 +643,24 @@ async function runBootstrapMigrations() {
         created_at    timestamptz NOT NULL DEFAULT now(),
         updated_at    timestamptz NOT NULL DEFAULT now()
       )
-    `);
-    await db.execute(sql`
+    `;
+    await neonSql`
       CREATE TABLE IF NOT EXISTS feed_post_likes (
         post_id    uuid NOT NULL REFERENCES feed_posts(id) ON DELETE CASCADE,
         user_id    text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         created_at timestamptz NOT NULL DEFAULT now(),
         PRIMARY KEY (post_id, user_id)
       )
-    `);
-    await db.execute(sql`
+    `;
+    await neonSql`
       CREATE TABLE IF NOT EXISTS feed_post_bookmarks (
         post_id    uuid NOT NULL REFERENCES feed_posts(id) ON DELETE CASCADE,
         user_id    text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         created_at timestamptz NOT NULL DEFAULT now(),
         PRIMARY KEY (post_id, user_id)
       )
-    `);
-    await db.execute(sql`
+    `;
+    await neonSql`
       CREATE TABLE IF NOT EXISTS feed_comments (
         id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         post_id    uuid NOT NULL REFERENCES feed_posts(id) ON DELETE CASCADE,
@@ -670,22 +669,17 @@ async function runBootstrapMigrations() {
         likes_count integer NOT NULL DEFAULT 0,
         created_at timestamptz NOT NULL DEFAULT now()
       )
-    `);
+    `;
 
     // communities: is_private column
-    await db.execute(sql`
-      ALTER TABLE communities ADD COLUMN IF NOT EXISTS is_private boolean NOT NULL DEFAULT false
-    `);
+    await neonSql`ALTER TABLE communities ADD COLUMN IF NOT EXISTS is_private boolean NOT NULL DEFAULT false`;
 
     // events: whop_url column
-    await db.execute(sql`
-      ALTER TABLE events ADD COLUMN IF NOT EXISTS whop_url text
-    `);
+    await neonSql`ALTER TABLE events ADD COLUMN IF NOT EXISTS whop_url text`;
 
     console.log("[startup] Bootstrap migrations complete");
   } catch (err) {
     console.error("[startup] Bootstrap migration error:", err);
-    // Don't crash — migrations are best-effort for existing tables
   }
 }
 

@@ -742,7 +742,7 @@ function WalletPage() {
               <Row label="DOT credited" value={`${formatDot(receipt.dot)} DOT`} />
               <Row label="Amount paid" value={formatNaira(receipt.naira)} />
               <Row label="Reference" value={receipt.reference} mono />
-              <Row label="Date" value={new Date().toLocaleString()} />
+              <Row label="Date" value="—" />
             </div>
           )}
           <DialogFooter>

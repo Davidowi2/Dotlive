@@ -140,14 +140,25 @@ export function CountUp({
   const reduced = usePrefersReducedMotion();
   const final = `${prefix ?? ""}${formatNum(value, decimals)}${suffix ?? ""}`;
 
-  // Server-render the final value so SSR shows the right number, then
-  // animate from 0 on the client (only if not reduced-motion).
-  if (typeof window === "undefined" || reduced) {
+  // Always render final value — no SSR/client mismatch.
+  // Animation starts after hydration via useEffect in CountUpClient.
+  if (reduced) {
     return <span className={className}>{final}</span>;
   }
 
-  // Client-side: animate from 0 → value on mount via a ref'd span
-  return <CountUpClient value={value} suffix={suffix} prefix={prefix} duration={duration} decimals={decimals} className={className} />;
+  // Use suppressHydrationWarning so React doesn't complain about
+  // the 0→value animation on the client after SSR renders final.
+  return (
+    <CountUpClient
+      value={value}
+      suffix={suffix}
+      prefix={prefix}
+      duration={duration}
+      decimals={decimals}
+      className={className}
+      initial={value}  // Start at final value to match SSR
+    />
+  );
 }
 
 import { useEffect, useRef } from "react";
@@ -159,7 +170,8 @@ function CountUpClient({
   duration,
   decimals,
   className,
-}: CountUpProps) {
+  initial,
+}: CountUpProps & { initial?: number }) {
   const ref = useRef<HTMLSpanElement | null>(null);
   const hasAnimated = useRef(false);
 
@@ -169,12 +181,12 @@ function CountUpClient({
 
     const node = ref.current;
     const start = performance.now();
+    // Start from 0 for animation effect
     let raf = 0;
 
     const tick = (now: number) => {
       const elapsed = (now - start) / 1000;
       const t = Math.min(elapsed / (duration ?? 1), 1);
-      // ease-out cubic
       const eased = 1 - Math.pow(1 - t, 3);
       const current = value * eased;
       node.textContent = `${prefix ?? ""}${formatNum(current, decimals ?? 0)}${suffix ?? ""}`;
@@ -184,9 +196,15 @@ function CountUpClient({
     return () => cancelAnimationFrame(raf);
   }, [value, duration, decimals, prefix, suffix]);
 
+  // Render final value initially (matches SSR) — suppressHydrationWarning
+  // so React ignores the text difference when animation starts
   return (
-    <span ref={ref} className={className}>
-      {`${prefix ?? ""}${formatNum(0, decimals ?? 0)}${suffix ?? ""}`}
+    <span
+      ref={ref}
+      className={className}
+      suppressHydrationWarning
+    >
+      {`${prefix ?? ""}${formatNum(initial ?? value, decimals ?? 0)}${suffix ?? ""}`}
     </span>
   );
 }

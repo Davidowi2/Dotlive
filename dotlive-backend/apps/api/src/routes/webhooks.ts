@@ -96,10 +96,12 @@ export async function webhookRoutes(app: FastifyInstance) {
     // Read secret from DB first, fall back to env var
     let secret: string | undefined = process.env.WHOP_WEBHOOK_SECRET;
     try {
-      const dbRow = await (db.execute as any)(sql`
+      const dbRows = await sql`
         SELECT value FROM integration_secrets WHERE key = 'whop_webhook_secret' LIMIT 1
-      `);
-      const dbVal = ((dbRow as any).rows ?? [])[0]?.value as string | undefined;
+      `;
+      const dbVal = Array.isArray(dbRows) && dbRows[0]?.value
+        ? String(dbRows[0].value)
+        : undefined;
       if (dbVal) secret = dbVal;
     } catch { /* fall back to env */ }
 
@@ -291,31 +293,31 @@ export async function webhookRoutes(app: FastifyInstance) {
         (await userHasRole(sub, "super_admin"));
       if (!ok) return reply.code(403).send({ error: "Operator only" });
 
-      // Ensure table exists (idempotent fallback in case bootstrap hasn't run)
+      // Ensure table exists - use raw Neon sql tag directly
       try {
-        await (db.execute as any)(sql`
+        await sql`
           CREATE TABLE IF NOT EXISTS integration_secrets (
             key   text PRIMARY KEY,
             value text NOT NULL,
             updated_at timestamptz NOT NULL DEFAULT now()
           )
-        `);
-      } catch { /* already exists */ }
+        `;
+      } catch { /* already exists or race condition - fine */ }
 
-      // Table is created in server.ts bootstrap migration
-      const rows = await (db.execute as any)(sql`
+      const rows = await sql`
         SELECT key, value, updated_at AS "updatedAt"
         FROM integration_secrets
         WHERE key IN ('whop_api_key', 'whop_webhook_secret')
-      `);
-      const arr = (rows as any).rows ?? [];
+      `;
+      // Neon sql tag returns array directly
+      const arr = Array.isArray(rows) ? rows : [];
       const safe: Record<string, { set: boolean; preview: string; updatedAt: string | null }> = {};
       for (const r of arr) {
         const v = String(r.value ?? "");
         safe[r.key] = {
           set: true,
           preview: v.length > 6 ? `${v.slice(0, 4)}…${v.slice(-2)}` : "•••",
-          updatedAt: r.updatedAt,
+          updatedAt: r.updatedAt ?? null,
         };
       }
       return reply.send({
@@ -345,22 +347,22 @@ export async function webhookRoutes(app: FastifyInstance) {
       const parsed = z.object({ value: z.string().min(1).max(2000) }).safeParse(req.body);
       if (!parsed.success) return reply.code(400).send({ error: "Invalid input" });
 
-      // Ensure table exists (idempotent fallback)
+      // Ensure table exists - use raw Neon sql tag
       try {
-        await (db.execute as any)(sql`
+        await sql`
           CREATE TABLE IF NOT EXISTS integration_secrets (
             key   text PRIMARY KEY,
             value text NOT NULL,
             updated_at timestamptz NOT NULL DEFAULT now()
           )
-        `);
+        `;
       } catch { /* already exists */ }
 
-      await (db.execute as any)(sql`
+      await sql`
         INSERT INTO integration_secrets (key, value, updated_at)
         VALUES (${req.params.key}, ${parsed.data.value}, now())
-        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now();
-      `);
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()
+      `;
       return reply.send({ ok: true, key: req.params.key });
     }
   );
@@ -379,10 +381,12 @@ export async function webhookRoutes(app: FastifyInstance) {
       if (!ok) return reply.code(403).send({ error: "Operator only" });
 
       // Table is created in server.ts bootstrap migration
-      const keyRow = await (db.execute as any)(sql`
+      const keyRows = await sql`
         SELECT value FROM integration_secrets WHERE key = 'whop_api_key'
-      `);
-      const apiKey = ((keyRow as any).rows ?? [])[0]?.value as string | undefined;
+      `;
+      const apiKey = Array.isArray(keyRows) && keyRows[0]?.value
+        ? String(keyRows[0].value)
+        : undefined;
       if (!apiKey) return reply.code(400).send({ error: "Whop API key not set. Add it in Integrations first." });
 
       // Fetch products from Whop API v5
