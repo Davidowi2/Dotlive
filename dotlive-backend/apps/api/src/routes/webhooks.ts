@@ -291,6 +291,17 @@ export async function webhookRoutes(app: FastifyInstance) {
         (await userHasRole(sub, "super_admin"));
       if (!ok) return reply.code(403).send({ error: "Operator only" });
 
+      // Ensure table exists (idempotent fallback in case bootstrap hasn't run)
+      try {
+        await (db.execute as any)(sql`
+          CREATE TABLE IF NOT EXISTS integration_secrets (
+            key   text PRIMARY KEY,
+            value text NOT NULL,
+            updated_at timestamptz NOT NULL DEFAULT now()
+          )
+        `);
+      } catch { /* already exists */ }
+
       // Table is created in server.ts bootstrap migration
       const rows = await (db.execute as any)(sql`
         SELECT key, value, updated_at AS "updatedAt"
@@ -333,6 +344,17 @@ export async function webhookRoutes(app: FastifyInstance) {
       }
       const parsed = z.object({ value: z.string().min(1).max(2000) }).safeParse(req.body);
       if (!parsed.success) return reply.code(400).send({ error: "Invalid input" });
+
+      // Ensure table exists (idempotent fallback)
+      try {
+        await (db.execute as any)(sql`
+          CREATE TABLE IF NOT EXISTS integration_secrets (
+            key   text PRIMARY KEY,
+            value text NOT NULL,
+            updated_at timestamptz NOT NULL DEFAULT now()
+          )
+        `);
+      } catch { /* already exists */ }
 
       await (db.execute as any)(sql`
         INSERT INTO integration_secrets (key, value, updated_at)
