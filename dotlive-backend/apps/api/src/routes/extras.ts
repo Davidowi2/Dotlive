@@ -3,13 +3,12 @@
  *
  *   GET  /api/community                     → current user's community (singular)
  *   POST /api/community/join                → join a community by code
- *   GET  /api/community/my                  → my community
  *   GET  /api/community/referral-code       → my community referral code
  *   POST /api/auth/forgot-password          → issue a password reset token (Resend email)
  *   POST /api/auth/reset-password           → consume a password reset token
  *   GET  /api/ventures/my                   → my ventures
  *   GET  /api/pitchathons/applications/me   → my pitchathon applications
- *   GET  /api/admin/audit                   → admin audit log
+ * NOTE: /api/community/my is owned by community.ts — NOT extras.ts
  */
 
 import type { FastifyInstance } from "fastify";
@@ -50,28 +49,9 @@ export async function extrasRoutes(app: FastifyInstance) {
       },
     });
   });
-
-  app.get("/community/my", { preHandler: app.authenticate }, async (req, reply) => {
-    const id = (req.user as { sub: string }).sub;
-    const rows = await db.execute(sql`
-      SELECT
-        c.id, c.name, c.tier, c.member_count,
-        'member'::text AS my_role, m.joined_at
-      FROM community_members m
-      JOIN communities c ON c.id = m.community_id
-      WHERE m.founder_id = ${id}
-      ORDER BY m.joined_at DESC
-    `);
-    const list = (rows as any)[0] ?? (rows as any).rows ?? [];
-    const arr = Array.isArray(list) ? list : [list];
-    return reply.send({
-      communities: arr.map((r: any) => ({
-        id: r.id, name: r.name, slug: r.slug, tier: r.tier,
-        memberCount: Number(r.member_count ?? 0),
-        myRole: r.my_role, joinedAt: r.joined_at,
-      })),
-    });
-  });
+  // Note: /api/community/my is now owned by routes/community.ts (returns
+  // the community the current user LEADS). The old extras.ts version
+  // (which returned the communities the user is a member of) is gone.
 
   const joinSchema = z.object({ code: z.string().min(3).max(80) });
   app.post("/community/join", { preHandler: app.authenticate }, async (req, reply) => {
