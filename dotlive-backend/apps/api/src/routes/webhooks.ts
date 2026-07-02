@@ -93,8 +93,17 @@ export async function webhookRoutes(app: FastifyInstance) {
 
   /** POST /api/webhooks/whop */
   app.post("/webhooks/whop", async (req, reply) => {
-    const secret = process.env.WHOP_WEBHOOK_SECRET;
-    if (!secret) return reply.code(503).send({ error: "Whop not configured" });
+    // Read secret from DB first, fall back to env var
+    let secret: string | undefined = process.env.WHOP_WEBHOOK_SECRET;
+    try {
+      const dbRow = await (db.execute as any)(sql`
+        SELECT value FROM integration_secrets WHERE key = 'whop_webhook_secret' LIMIT 1
+      `);
+      const dbVal = ((dbRow as any).rows ?? [])[0]?.value as string | undefined;
+      if (dbVal) secret = dbVal;
+    } catch { /* fall back to env */ }
+
+    if (!secret) return reply.code(503).send({ error: "Whop webhook secret not configured. Add it in Operator → Integrations." });
 
     const raw = (req as any).rawBody as Buffer | undefined;
     if (!raw) return reply.code(400).send({ error: "Missing raw body" });
@@ -282,14 +291,7 @@ export async function webhookRoutes(app: FastifyInstance) {
         (await userHasRole(sub, "super_admin"));
       if (!ok) return reply.code(403).send({ error: "Operator only" });
 
-      // Make sure the table exists.
-      await (db.execute as any)(sql`
-        CREATE TABLE IF NOT EXISTS integration_secrets (
-          key text PRIMARY KEY,
-          value text NOT NULL,
-          updated_at timestamptz NOT NULL DEFAULT now()
-        );
-      `);
+      // Table is created in server.ts bootstrap migration
       const rows = await (db.execute as any)(sql`
         SELECT key, value, updated_at AS "updatedAt"
         FROM integration_secrets
@@ -333,13 +335,6 @@ export async function webhookRoutes(app: FastifyInstance) {
       if (!parsed.success) return reply.code(400).send({ error: "Invalid input" });
 
       await (db.execute as any)(sql`
-        CREATE TABLE IF NOT EXISTS integration_secrets (
-          key text PRIMARY KEY,
-          value text NOT NULL,
-          updated_at timestamptz NOT NULL DEFAULT now()
-        );
-      `);
-      await (db.execute as any)(sql`
         INSERT INTO integration_secrets (key, value, updated_at)
         VALUES (${req.params.key}, ${parsed.data.value}, now())
         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now();
@@ -361,14 +356,7 @@ export async function webhookRoutes(app: FastifyInstance) {
       const ok = (await userHasRole(sub, "admin")) || (await userHasRole(sub, "super_admin"));
       if (!ok) return reply.code(403).send({ error: "Operator only" });
 
-      // Get stored Whop API key
-      await (db.execute as any)(sql`
-        CREATE TABLE IF NOT EXISTS integration_secrets (
-          key text PRIMARY KEY,
-          value text NOT NULL,
-          updated_at timestamptz NOT NULL DEFAULT now()
-        );
-      `);
+      // Table is created in server.ts bootstrap migration
       const keyRow = await (db.execute as any)(sql`
         SELECT value FROM integration_secrets WHERE key = 'whop_api_key'
       `);

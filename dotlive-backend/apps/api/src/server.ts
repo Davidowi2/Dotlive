@@ -496,6 +496,16 @@ app.get("/api/health", async () => {
               ALTER TABLE events ADD COLUMN IF NOT EXISTS whop_url text;
             `);
             app.log.info("bootstrap migration: events.whop_url ensured");
+
+            // === integration_secrets table ===
+            await db.execute(sql`
+              CREATE TABLE IF NOT EXISTS integration_secrets (
+                key   text PRIMARY KEY,
+                value text NOT NULL,
+                updated_at timestamptz NOT NULL DEFAULT now()
+              );
+            `);
+            app.log.info("bootstrap migration: integration_secrets table ensured");
           } catch (err) {
       dbError = err instanceof Error ? err.message : String(err);
     }
