@@ -389,37 +389,46 @@ export async function webhookRoutes(app: FastifyInstance) {
         : undefined;
       if (!apiKey) return reply.code(400).send({ error: "Whop API key not set. Add it in Integrations first." });
 
-      // Fetch products from Whop API - try multiple API versions
+      // Fetch products from Whop API
+      // apik_ keys are company API keys - use the correct v2 endpoint
       let whopProducts: any[] = [];
-      try {
-        // Try current stable API first
-        const res = await fetch("https://api.whop.com/api/v2/products?pagination[per]=50", {
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-          },
-        });
-        if (res.ok) {
-          const data = await res.json() as any;
-          whopProducts = data.data ?? data.products ?? data.items ?? [];
-        } else {
-          // Try v5 fallback
-          const res2 = await fetch("https://api.whop.com/api/v5/products", {
+      const endpoints = [
+        "https://api.whop.com/api/v2/products",
+        "https://api.whop.com/api/v2/products?pagination[per]=50",
+        "https://api.whop.com/api/v1/products",
+        "https://api.whop.com/v2/products",
+      ];
+      let lastError = "";
+      let succeeded = false;
+
+      for (const endpoint of endpoints) {
+        try {
+          const res = await fetch(endpoint, {
             headers: {
               Authorization: `Bearer ${apiKey}`,
               "Content-Type": "application/json",
+              "Accept": "application/json",
             },
           });
-          if (!res2.ok) {
-            const err = await res2.text();
-            return reply.code(400).send({ error: `Whop API error ${res2.status}: ${err.slice(0, 300)}` });
+          if (res.ok) {
+            const data = await res.json() as any;
+            whopProducts = data.data ?? data.products ?? data.items ?? [];
+            succeeded = true;
+            break;
+          } else {
+            const errText = await res.text();
+            lastError = `${endpoint} → ${res.status}: ${errText.slice(0, 150)}`;
           }
-          const data2 = await res2.json() as any;
-          whopProducts = data2.data ?? data2.products ?? data2 ?? [];
+        } catch (e) {
+          lastError = `${endpoint} → ${(e as Error).message}`;
         }
-      } catch (e) {
-        return reply.code(500).send({ error: `Could not reach Whop: ${(e as Error).message}` });
+      }
+
+      if (!succeeded && whopProducts.length === 0) {
+        // If all endpoints fail but we got some partial data, try listing manually
+        return reply.code(400).send({
+          error: `Could not fetch from Whop API. Last error: ${lastError}. Please check your API key is a Company API key (starts with apik_) from whop.com/developer.`,
+        });
       }
 
       // Import each product as a course (skip if already exists by whopProductId)

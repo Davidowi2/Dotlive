@@ -217,7 +217,11 @@ function SyncFromWhop() {
       toast.success(`Synced — ${data.created} new, ${data.skipped} already existed`);
     },
     onError: (e: any) => {
-      toast.error(e?.message ?? "Sync failed — check your Whop API key");
+      const msg = e?.message ?? "Sync failed";
+      toast.error(msg.includes("apik_") || msg.includes("API key")
+        ? "Check your Whop API key — use a Company API key from whop.com/developer (starts with apik_)"
+        : msg
+      );
     },
   });
 
