@@ -24,26 +24,33 @@ export async function builderArenaRoutes(app: FastifyInstance) {
   /** GET /api/builders/:id/arena */
   app.get<{ Params: { id: string } }>("/builders/:id/arena", async (req, reply) => {
     const id = req.params.id;
-    const [userRow] = await db
-      .select({
-        id: users.id,
-        name: users.name,
-        avatarUrl: users.avatarUrl,
-        dotId: users.dotId,
-        createdAt: users.createdAt,
-      })
-      .from(users)
-      .where(eq(users.id, id))
-      .limit(1);
-    if (!userRow) return reply.code(404).send({ error: "Builder not found" });
-    const [profile] = await db
-      .select()
-      .from(builderProfiles)
-      .where(eq(builderProfiles.id, id))
-      .limit(1);
-    return reply.send({
-      builder: { ...userRow, profile: profile ?? null },
-    });
+    try {
+      const [userRow] = await db
+        .select({
+          id: users.id,
+          name: users.name,
+          avatarUrl: users.avatarUrl,
+          dotId: users.dotId,
+          createdAt: users.createdAt,
+        })
+        .from(users)
+        .where(eq(users.id, id))
+        .limit(1);
+      if (!userRow) return reply.code(404).send({ error: "Builder not found" });
+
+      let profile = null;
+      try {
+        const [p] = await db.select().from(builderProfiles).where(eq(builderProfiles.id, id)).limit(1);
+        profile = p ?? null;
+      } catch {
+        // builder_profiles may not have all columns yet — return user data only
+      }
+
+      return reply.send({ builder: { ...userRow, profile } });
+    } catch (e) {
+      req.log.error(e, "builder/arena query failed");
+      return reply.code(500).send({ error: `DB error: ${(e as Error).message}` });
+    }
   });
 
   /** GET /api/builders/:id/reviews */

@@ -137,8 +137,13 @@ export async function academyRoutes(app: FastifyInstance) {
         (await userHasRole(sub, "admin")) ||
         (await userHasRole(sub, "super_admin"));
       if (!ok) return reply.code(403).send({ error: "Operator only" });
-      const rows = await db.select().from(courses).orderBy(desc(courses.createdAt));
-      return reply.send({ courses: rows });
+      try {
+        const rows = await db.select().from(courses).orderBy(desc(courses.createdAt));
+        return reply.send({ courses: rows });
+      } catch (e) {
+        req.log.error(e, "admin/courses query failed");
+        return reply.code(500).send({ error: `DB error: ${(e as Error).message}` });
+      }
     }
   );
 

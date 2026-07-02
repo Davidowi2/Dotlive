@@ -389,21 +389,35 @@ export async function webhookRoutes(app: FastifyInstance) {
         : undefined;
       if (!apiKey) return reply.code(400).send({ error: "Whop API key not set. Add it in Integrations first." });
 
-      // Fetch products from Whop API v5
+      // Fetch products from Whop API - try multiple API versions
       let whopProducts: any[] = [];
       try {
-        const res = await fetch("https://api.whop.com/api/v5/products", {
+        // Try current stable API first
+        const res = await fetch("https://api.whop.com/api/v2/products?pagination[per]=50", {
           headers: {
             Authorization: `Bearer ${apiKey}`,
             "Content-Type": "application/json",
+            "Accept": "application/json",
           },
         });
-        if (!res.ok) {
-          const err = await res.text();
-          return reply.code(400).send({ error: `Whop API error ${res.status}: ${err.slice(0, 200)}` });
+        if (res.ok) {
+          const data = await res.json() as any;
+          whopProducts = data.data ?? data.products ?? data.items ?? [];
+        } else {
+          // Try v5 fallback
+          const res2 = await fetch("https://api.whop.com/api/v5/products", {
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              "Content-Type": "application/json",
+            },
+          });
+          if (!res2.ok) {
+            const err = await res2.text();
+            return reply.code(400).send({ error: `Whop API error ${res2.status}: ${err.slice(0, 300)}` });
+          }
+          const data2 = await res2.json() as any;
+          whopProducts = data2.data ?? data2.products ?? data2 ?? [];
         }
-        const data = await res.json() as any;
-        whopProducts = data.data ?? data.products ?? data ?? [];
       } catch (e) {
         return reply.code(500).send({ error: `Could not reach Whop: ${(e as Error).message}` });
       }
