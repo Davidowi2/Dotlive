@@ -79,10 +79,7 @@ export async function pitchathonRoutes(app: FastifyInstance) {
   );
 
   /* ---------- Pitchathons ---------- */
-  app.get("/pitchathons", async (_req, reply) => {
-    const rows = await db.select().from(pitchathons).orderBy(desc(pitchathons.createdAt));
-    return reply.send({ pitchathons: rows });
-  });
+  // (GET /pitchathons is declared later in the admin section.)
 
   app.post<{ Params: { id: string } }>(
     "/pitchathons/:id/apply",
