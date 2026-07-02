@@ -107,20 +107,19 @@ function Dashboard() {
   const { data: walletData, isLoading: walletLoading } = useQuery({
     queryKey: ["wallet"],
     queryFn: getBalance,
-    staleTime: 30_000,
+    staleTime: 60_000,   // cache 1 min — wallet doesn't change that fast
   });
   const balance = walletData?.balance ?? 0;
   const { data: founder, isLoading: founderLoading } = useFounderProfile();
   const { data: assessments = [], isLoading: assessLoading } = useAssessments();
-  const { data: enrollments = [], isLoading: enrollLoading } = useMyEnrollments();
+  // Non-blocking — load after initial render
+  const { data: enrollments = [] } = useMyEnrollments();
   const { data: membership } = useMyMembership();
   const { data: builderProfile } = useMyBuilderProfile();
   const { data: builderStats } = useBuilderStats(user?.id ?? undefined);
 
-  // Derive a profile-like object from the DotAuth user
+  const isLoading = walletLoading || founderLoading || assessLoading;
   const profile = user ? { name: user.name, id: user.id } : null;
-
-  const isLoading = walletLoading || founderLoading || assessLoading || enrollLoading;
 
   if (isLoading) {
     return (

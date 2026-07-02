@@ -1084,19 +1084,7 @@ function PillarCard({
           ? "text-destructive"
           : "text-muted-foreground";
 
-  // Mini bar chart: 8 evenly-spaced fake datapoints weighted around the score,
-  // plus a marker at the end. Visually communicates "trajectory" without
-  // requiring a full history.
-  const mini = useMemo(() => {
-    const center = score;
-    return Array.from({ length: 8 }, (_, i) => {
-      const t = i / 7;
-      const wobble = Math.sin(i * 1.7 + center) * 6;
-      const baseline = 40 + t * 20;
-      const v = Math.round(center * 0.6 + baseline + wobble);
-      return Math.max(5, Math.min(100, v));
-    });
-  }, [score]);
+  // Mini bar chart removed — fake datapoints mislead users
 
   return (
     <div className="rounded-sm border border-border bg-card p-5">
@@ -1126,20 +1114,6 @@ function PillarCard({
         className="mt-3"
         aria-label={`${pillar.label} score`}
       />
-
-      {/* Mini bar chart — 8 thin bars, taller = higher score */}
-      <div className="mt-4 flex h-10 items-end gap-1">
-        {mini.map((v, i) => (
-          <div
-            key={i}
-            className={cn(
-              "flex-1 rounded-sm",
-              i === mini.length - 1 ? "bg-primary" : "bg-primary/25",
-            )}
-            style={{ height: `${v}%` }}
-          />
-        ))}
-      </div>
 
       {delta !== undefined && TrendIcon && (
         <div className="mt-3 flex items-center gap-1.5">

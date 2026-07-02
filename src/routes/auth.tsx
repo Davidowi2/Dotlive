@@ -750,7 +750,7 @@ function SigninForm({
                   <Sparkles className="size-3" /> 500 DOT starter grant
                 </span>
                 <span className="inline-flex items-center gap-1">
-                  <Users className="size-3" /> 8,950+ founders
+                  <Users className="size-3" /> Join the network
                 </span>
               </div>
 

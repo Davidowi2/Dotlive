@@ -10,7 +10,6 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { label: "Platform", to: "/platform" },
   { label: "Journey", to: "/journey" },
-  { label: "Communities", to: "/communities" },
   { label: "Investors", to: "/investors" },
 ];
 

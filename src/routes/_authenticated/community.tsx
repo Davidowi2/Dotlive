@@ -39,6 +39,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useDotAuth } from "@/contexts/DotAuthContext";
 import {
   getMyCommunity,
+  getMyAllCommunities,
   listMembers,
   getReferralCode,
   createCommunity,
@@ -64,32 +65,39 @@ function CommunityPage() {
   const [category, setCategory] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
   const [joinTab, setJoinTab] = useState<"create" | "join">("create");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const { data: community, isLoading } = useQuery({
-    queryKey: ["my-community"],
-    queryFn: getMyCommunity,
+  // Load ALL communities the user is part of (led + member)
+  const { data: myCommunities = [], isLoading } = useQuery({
+    queryKey: ["my-communities"],
+    queryFn: getMyAllCommunities,
     enabled: !!user,
+    staleTime: 60_000,
   });
 
+  // Pick the selected community — default to first one (usually the one they lead)
+  const community = myCommunities.find((c) => c.id === selectedId) ?? myCommunities[0] ?? null;
   const communityId = community?.id;
 
   const { data: members = [] } = useQuery({
     queryKey: ["community-members", communityId],
     queryFn: () => listMembers(communityId!),
     enabled: !!communityId,
+    staleTime: 60_000,
   });
 
   const { data: referralCode } = useQuery({
-    queryKey: ["referral-code"],
+    queryKey: ["referral-code", communityId],
     queryFn: getReferralCode,
     enabled: !!communityId,
+    staleTime: 60_000,
   });
 
   const createMutation = useMutation({
     mutationFn: (data: { name: string; description: string; region: string; category: string }) =>
       createCommunity(data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["my-community"] });
+      qc.invalidateQueries({ queryKey: ["my-communities"] });
       toast.success("Community created!");
     },
     onError: (err) => {
@@ -283,6 +291,33 @@ function CommunityPage() {
         <div className="mb-3">
           <BackButton label="Back to communities" fallback="/discover/communities" />
         </div>
+
+        {/* Community switcher — if user is in multiple communities */}
+        {myCommunities.length > 1 && (
+          <div className="mb-4 flex flex-wrap gap-2">
+            {myCommunities.map((c: any) => (
+              <button
+                key={c.id}
+                onClick={() => setSelectedId(c.id)}
+                className={cn(
+                  "flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                  community?.id === c.id
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground",
+                )}
+              >
+                <span className="flex size-5 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
+                  {c.name?.charAt(0).toUpperCase()}
+                </span>
+                {c.name}
+                {(c as any).role === "leader" && (
+                  <span className="rounded bg-gold/10 px-1 text-[10px] text-gold">Leader</span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+
         <PageHeader
           eyebrow="Community OS"
           title={community.name}

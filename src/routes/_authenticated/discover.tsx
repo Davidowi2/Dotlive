@@ -676,14 +676,20 @@ function ComposeModal({ onClose }: { onClose: () => void }) {
 
 /* ─── Trending Sidebar ────────────────────────────────────────────── */
 function TrendingSidebar() {
-  const trendingTopics = [
-    { tag: "fintech", count: 24 },
-    { tag: "nigeria", count: 19 },
-    { tag: "funding", count: 15 },
-    { tag: "builders", count: 12 },
-    { tag: "dotwork", count: 10 },
-    { tag: "africa", count: 8 },
-  ];
+  const { data: trending = [] } = useQuery({
+    queryKey: ["feed-trending-tags"],
+    queryFn: async () => {
+      try {
+        const r = await dotApi.get<{ tags: { tag: string; count: number }[] }>("/api/feed/trending-tags");
+        return r.tags ?? [];
+      } catch {
+        return [];
+      }
+    },
+    staleTime: 300_000, // 5 minutes
+  });
+
+  if (trending.length === 0) return null;
 
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
@@ -691,7 +697,7 @@ function TrendingSidebar() {
         <Flame className="size-4 text-primary" /> Trending
       </h3>
       <div className="space-y-2">
-        {trendingTopics.map((t) => (
+        {trending.map((t) => (
           <div key={t.tag} className="flex items-center justify-between text-sm">
             <span className="text-primary cursor-pointer hover:underline">#{t.tag}</span>
             <span className="text-xs text-muted-foreground">{t.count} posts</span>

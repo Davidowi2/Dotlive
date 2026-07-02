@@ -424,6 +424,65 @@ app.get("/api/health", async () => {
               CREATE INDEX IF NOT EXISTS builder_reviews_builder_idx ON builder_reviews(builder_id);
             `);
             app.log.info("bootstrap migration: builder arena tables ensured");
+
+            // === feed_posts table (social feed) ===
+            await db.execute(sql`
+              CREATE TABLE IF NOT EXISTS feed_posts (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                type text NOT NULL DEFAULT 'general',
+                title text,
+                body text NOT NULL,
+                author_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                tags text[] NOT NULL DEFAULT '{}',
+                likes_count integer NOT NULL DEFAULT 0,
+                comments_count integer NOT NULL DEFAULT 0,
+                budget_dot numeric(20,2),
+                gig_type text,
+                funding_goal numeric(20,2),
+                funding_round text,
+                created_at timestamptz NOT NULL DEFAULT now(),
+                updated_at timestamptz NOT NULL DEFAULT now()
+              );
+              CREATE INDEX IF NOT EXISTS feed_posts_author_idx ON feed_posts(author_id);
+              CREATE INDEX IF NOT EXISTS feed_posts_type_idx ON feed_posts(type);
+              CREATE INDEX IF NOT EXISTS feed_posts_created_idx ON feed_posts(created_at DESC);
+            `);
+            await db.execute(sql`
+              CREATE TABLE IF NOT EXISTS feed_post_likes (
+                post_id uuid NOT NULL REFERENCES feed_posts(id) ON DELETE CASCADE,
+                user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                created_at timestamptz NOT NULL DEFAULT now(),
+                PRIMARY KEY (post_id, user_id)
+              );
+            `);
+            await db.execute(sql`
+              CREATE TABLE IF NOT EXISTS feed_post_bookmarks (
+                post_id uuid NOT NULL REFERENCES feed_posts(id) ON DELETE CASCADE,
+                user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                created_at timestamptz NOT NULL DEFAULT now(),
+                PRIMARY KEY (post_id, user_id)
+              );
+            `);
+            await db.execute(sql`
+              CREATE TABLE IF NOT EXISTS feed_comments (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                post_id uuid NOT NULL REFERENCES feed_posts(id) ON DELETE CASCADE,
+                author_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                body text NOT NULL,
+                likes_count integer NOT NULL DEFAULT 0,
+                created_at timestamptz NOT NULL DEFAULT now()
+              );
+              CREATE INDEX IF NOT EXISTS feed_comments_post_idx ON feed_comments(post_id);
+              CREATE INDEX IF NOT EXISTS feed_comments_author_idx ON feed_comments(author_id);
+            `);
+            app.log.info("bootstrap migration: feed tables ensured");
+
+            // === communities: is_private column ===
+            await db.execute(sql`
+              ALTER TABLE communities
+                ADD COLUMN IF NOT EXISTS is_private boolean NOT NULL DEFAULT false;
+            `);
+            app.log.info("bootstrap migration: communities.is_private ensured");
           } catch (err) {
       dbError = err instanceof Error ? err.message : String(err);
     }

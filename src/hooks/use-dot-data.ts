@@ -160,6 +160,7 @@ export function useFounderProfile() {
   return useQuery({
     queryKey: ["founder_profile", user?.id],
     enabled: !!user && !!token,
+    staleTime: 60_000,
     queryFn: async () => {
       try {
         const { profile } = await dotApi.get<{ profile: FounderProfile | null }>(
@@ -179,6 +180,7 @@ export function useAssessments() {
   return useQuery({
     queryKey: ["assessments", user?.id],
     enabled: !!user && !!token,
+    staleTime: 120_000,  // assessments don't change often
     queryFn: async () => {
       try {
         const { assessments } = await dotApi.get<{ assessments: Assessment[] }>(
@@ -192,12 +194,12 @@ export function useAssessments() {
   });
 }
 
-/** Academy enrollments */
 export function useMyEnrollments() {
   const { user, token } = useDotAuth();
   return useQuery({
     queryKey: ["enrollments", user?.id],
     enabled: !!user && !!token,
+    staleTime: 120_000,
     queryFn: async () => {
       try {
         const { enrollments } = await dotApi.get<{ enrollments: Enrollment[] }>(
@@ -211,12 +213,12 @@ export function useMyEnrollments() {
   });
 }
 
-/** Community membership — returns null if not a member */
 export function useMyMembership() {
   const { user, token } = useDotAuth();
   return useQuery({
     queryKey: ["membership", user?.id],
     enabled: !!user && !!token,
+    staleTime: 120_000,
     queryFn: async () => {
       try {
         const { membership } = await dotApi.get<{ membership: CommunityMember | null }>(

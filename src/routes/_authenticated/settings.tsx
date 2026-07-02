@@ -8,10 +8,10 @@
  */
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import {
   Bell, Shield, Palette, Globe, Trash2, LogOut, Mail,
-  User as UserIcon, Save, Loader2, Check, ExternalLink,
+  User as UserIcon, Save, Loader2, Check, ExternalLink, Hammer,
 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
@@ -79,7 +79,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 
 /* ─── page ─── */
 function SettingsPage() {
-  const { user, logout, refresh } = useDotAuth();
+  const { user, logout, refresh, roles } = useDotAuth();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [tab, setTab] = useState("account");
@@ -180,6 +180,71 @@ function SettingsPage() {
     }
   }
 
+  // ─── Builder profile
+  const [builderHeadline, setBuilderHeadline] = useState("");
+  const [builderBio, setBuilderBio] = useState("");
+  const [builderSkills, setBuilderSkills] = useState<string[]>([]);
+  const [skillInput, setSkillInput] = useState("");
+  const [builderHourlyRate, setBuilderHourlyRate] = useState("");
+  const [builderPortfolio, setBuilderPortfolio] = useState("");
+  const [builderLocation, setBuilderLocation] = useState("");
+  const [builderAvailable, setBuilderAvailable] = useState(true);
+  const [savingBuilder, setSavingBuilder] = useState(false);
+
+  // Load existing builder profile
+  useQuery({
+    queryKey: ["builder-profile-settings"],
+    queryFn: async () => {
+      try {
+        const r = await dotApi.get<{ profile: any }>("/api/users/me/builder-profile");
+        const p = r.profile ?? {};
+        setBuilderHeadline(p.headline ?? "");
+        setBuilderBio(p.bio ?? "");
+        setBuilderSkills(p.skills ?? []);
+        setBuilderHourlyRate(p.hourlyDot ?? "");
+        setBuilderPortfolio(p.portfolioUrl ?? "");
+        setBuilderLocation(p.location ?? "");
+        setBuilderAvailable(p.available ?? true);
+        return p;
+      } catch { return {}; }
+    },
+    enabled: !!user && roles.includes("builder"),
+  });
+
+  function addSkill() {
+    const s = skillInput.trim();
+    if (s && !builderSkills.includes(s) && builderSkills.length < 20) {
+      setBuilderSkills((prev) => [...prev, s]);
+      setSkillInput("");
+    }
+  }
+
+  function removeSkill(s: string) {
+    setBuilderSkills((prev) => prev.filter((x) => x !== s));
+  }
+
+  async function saveBuilderProfile() {
+    setSavingBuilder(true);
+    try {
+      await dotApi.patch("/api/users/me/builder-profile", {
+        headline: builderHeadline.trim() || undefined,
+        bio: builderBio.trim() || undefined,
+        skills: builderSkills,
+        hourlyDot: builderHourlyRate || undefined,
+        portfolioUrl: builderPortfolio.trim() || undefined,
+        location: builderLocation.trim() || undefined,
+        available: builderAvailable,
+      });
+      qc.invalidateQueries({ queryKey: ["builder-profile-settings"] });
+      qc.invalidateQueries({ queryKey: ["builder-arena"] });
+      toast.success("Builder profile saved");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Could not save");
+    } finally {
+      setSavingBuilder(false);
+    }
+  }
+
   // ─── Security
   function handleSignOut() {
     logout();
@@ -214,6 +279,9 @@ function SettingsPage() {
       <Tabs value={tab} onValueChange={setTab} className="mt-6">
         <TabsList>
           <TabsTrigger value="account"><UserIcon className="size-3.5" /> Account</TabsTrigger>
+          {roles.includes("builder") && (
+            <TabsTrigger value="builder"><Hammer className="size-3.5" /> Builder</TabsTrigger>
+          )}
           <TabsTrigger value="notifications"><Bell className="size-3.5" /> Notifications</TabsTrigger>
           <TabsTrigger value="appearance"><Palette className="size-3.5" /> Appearance</TabsTrigger>
           <TabsTrigger value="security"><Shield className="size-3.5" /> Security</TabsTrigger>
@@ -309,6 +377,136 @@ function SettingsPage() {
             </div>
           </Section>
         </TabsContent>
+
+        {/* ── Builder (builders only) ───────────────────────── */}
+        {roles.includes("builder") && (
+          <TabsContent value="builder" className="space-y-6">
+            <Section icon={Hammer} title="Builder profile" description="This is what clients see when they browse for talent.">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <Field label="Professional headline" hint="30-80 chars — the first thing clients read">
+                    <Input
+                      value={builderHeadline}
+                      onChange={(e) => setBuilderHeadline(e.target.value)}
+                      placeholder="e.g. Full-stack TypeScript · React · Node.js"
+                      maxLength={80}
+                    />
+                  </Field>
+                </div>
+                <div className="sm:col-span-2">
+                  <Field label="Bio" hint="What you build, who you've built it for, what makes your work different">
+                    <Textarea
+                      rows={4}
+                      value={builderBio}
+                      onChange={(e) => setBuilderBio(e.target.value)}
+                      placeholder="Concrete wins over fluff."
+                      maxLength={1000}
+                    />
+                  </Field>
+                </div>
+                <Field label="Hourly rate (DOT)" hint="What you charge per hour">
+                  <Input
+                    type="number"
+                    min="0"
+                    value={builderHourlyRate}
+                    onChange={(e) => setBuilderHourlyRate(e.target.value)}
+                    placeholder="e.g. 50"
+                  />
+                </Field>
+                <Field label="Location">
+                  <Input
+                    value={builderLocation}
+                    onChange={(e) => setBuilderLocation(e.target.value)}
+                    placeholder="Lagos, Nigeria"
+                  />
+                </Field>
+                <div className="sm:col-span-2">
+                  <Field label="Portfolio URL">
+                    <Input
+                      value={builderPortfolio}
+                      onChange={(e) => setBuilderPortfolio(e.target.value)}
+                      placeholder="https://yourportfolio.com"
+                    />
+                  </Field>
+                </div>
+              </div>
+
+              {/* Skills */}
+              <div className="space-y-3">
+                <label className="block text-[10px] uppercase tracking-widest text-muted-foreground">
+                  Skills ({builderSkills.length}/20 — minimum 3)
+                </label>
+                <div className="flex flex-wrap gap-1.5 min-h-[36px] rounded-xl border border-border bg-muted/20 p-2">
+                  {builderSkills.map((s) => (
+                    <span
+                      key={s}
+                      className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary"
+                    >
+                      {s}
+                      <button
+                        type="button"
+                        onClick={() => removeSkill(s)}
+                        className="ml-0.5 rounded-full hover:bg-primary/20 p-0.5 text-primary/70 hover:text-primary"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                  {builderSkills.length === 0 && (
+                    <span className="text-xs text-muted-foreground px-1 py-0.5">Add your skills below</span>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    value={skillInput}
+                    onChange={(e) => setSkillInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSkill(); } }}
+                    placeholder="Type a skill and press Enter (e.g. React, Figma, Python)"
+                    className="flex-1"
+                  />
+                  <Button type="button" variant="outline" onClick={addSkill} disabled={!skillInput.trim()}>
+                    Add
+                  </Button>
+                </div>
+                {/* Quick-add chips */}
+                <div className="flex flex-wrap gap-1.5">
+                  {["TypeScript","React","Node.js","Python","Figma","Solidity","SQL","AWS","Flutter","Next.js","Go","Rust","Design","Marketing","Copywriting","Sales","Finance","DevOps"].filter(s => !builderSkills.includes(s)).slice(0, 12).map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => { if (!builderSkills.includes(s)) setBuilderSkills(p => [...p, s]); }}
+                      className="rounded-full border border-dashed border-border px-2.5 py-0.5 text-xs text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors"
+                    >
+                      + {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Available toggle */}
+              <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-3">
+                <div>
+                  <p className="text-sm font-medium">Available for hire</p>
+                  <p className="text-xs text-muted-foreground">Show a green "Available" badge on your profile</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setBuilderAvailable((v) => !v)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${builderAvailable ? "bg-primary" : "bg-muted"}`}
+                >
+                  <span className={`inline-block size-4 rounded-full bg-white shadow transition-transform ${builderAvailable ? "translate-x-6" : "translate-x-1"}`} />
+                </button>
+              </div>
+
+              <div className="flex justify-end border-t border-border pt-4">
+                <Button onClick={saveBuilderProfile} disabled={savingBuilder || builderSkills.length < 3}>
+                  {savingBuilder ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+                  {savingBuilder ? "Saving…" : builderSkills.length < 3 ? `Add ${3 - builderSkills.length} more skill${3 - builderSkills.length !== 1 ? "s" : ""}` : "Save builder profile"}
+                </Button>
+              </div>
+            </Section>
+          </TabsContent>
+        )}
 
         {/* ── Notifications ─────────────────────────────────── */}
         <TabsContent value="notifications" className="space-y-6">

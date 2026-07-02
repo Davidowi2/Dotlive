@@ -57,12 +57,12 @@ export function NotificationBell() {
   const ref = useRef<HTMLDivElement>(null);
   const qc = useQueryClient();
 
-  // Poll unread count every 30s (cheap endpoint)
+  // Poll unread count every 60s (cheap endpoint)
   const unreadQ = useQuery({
     queryKey: ["notifications", "unread-count"],
     queryFn: fetchUnreadCount,
-    refetchInterval: 30_000,
-    staleTime: 25_000,
+    refetchInterval: 60_000,
+    staleTime: 55_000,
   });
 
   // Dropdown feed (only fetched when open)

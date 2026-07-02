@@ -32,6 +32,31 @@ export async function getMyCommunity(): Promise<Community | null> {
   }
 }
 
+/** All communities the user is a member of (including ones they lead) */
+export async function getMyAllCommunities(): Promise<Community[]> {
+  try {
+    // Fetch both: community I lead + communities I'm a member of
+    const [ledRes, memberRes] = await Promise.allSettled([
+      dotApi.get<{ community: Community | null }>("/api/community/my"),
+      dotApi.get<{ membership: any }>("/api/community/membership"),
+    ]);
+    const results: Community[] = [];
+    if (ledRes.status === "fulfilled" && ledRes.value.community) {
+      results.push({ ...ledRes.value.community, role: "leader" } as any);
+    }
+    if (memberRes.status === "fulfilled" && memberRes.value.membership) {
+      const m = memberRes.value.membership;
+      // Only add if not already in results (different from led)
+      if (!results.find((r) => r.id === m.community?.id)) {
+        results.push({ ...m.community, role: "member" } as any);
+      }
+    }
+    return results;
+  } catch {
+    return [];
+  }
+}
+
 export async function listMembers(communityId: string): Promise<CommunityMember[]> {
   const res = await dotApi.get<{ members: CommunityMember[] }>(`/api/community/${communityId}/members`);
   return res.members ?? [];

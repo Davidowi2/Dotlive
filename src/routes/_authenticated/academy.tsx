@@ -28,6 +28,8 @@ import { SiteHeader } from "@/components/site/SiteHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useDotAuth } from "@/contexts/DotAuthContext";
+import { formatDot } from "@/lib/constants";
 import {
   listCourses,
   getMyEnrollments,
@@ -35,6 +37,29 @@ import {
 } from "@/api/academy";
 type Course = Awaited<ReturnType<typeof listCourses>>[number];
 type Enrollment = Awaited<ReturnType<typeof getMyEnrollments>>[number];
+
+/**
+ * Build a Whop checkout URL with DOT-required metadata attached.
+ *
+ *   ?metadata[user_id]=<our user id>
+ *   ?metadata[amount_usd_cents]=<DOT * 100>  (1 DOT = $1 placeholder)
+ *
+ * The webhook handler reads these two fields to credit the wallet.
+ * If `course.dotReward` is unset we fall back to the course id + a
+ * safe 100 DOT default so the webhook has something to credit.
+ */
+function buildWhopUrl(whopUrl: string, userId: string, dot: number): string {
+  try {
+    const url = new URL(whopUrl);
+    url.searchParams.set("metadata[user_id]", userId);
+    url.searchParams.set("metadata[amount_usd_cents]", String(Math.max(1, Math.floor(dot * 100))));
+    return url.toString();
+  } catch {
+    // Whop URL is malformed — append as raw query string.
+    const sep = whopUrl.includes("?") ? "&" : "?";
+    return `${whopUrl}${sep}metadata[user_id]=${encodeURIComponent(userId)}&metadata[amount_usd_cents]=${Math.max(1, Math.floor(dot * 100))}`;
+  }
+}
 
 export const Route = createFileRoute("/_authenticated/academy")({
   head: () => ({
@@ -53,6 +78,7 @@ export const Route = createFileRoute("/_authenticated/academy")({
 /* -------------------- Page -------------------- */
 
 function AcademyPage() {
+  const { user } = useDotAuth();
   const courses = useQuery({ queryKey: ["academy-courses"], queryFn: listCourses });
   const enrollments = useQuery({
     queryKey: ["academy-enrollments"],
@@ -241,15 +267,31 @@ function CatalogGrid({
           key={c.id}
           course={c}
           enrollment={enrollments.find((e) => e.courseId === c.id)}
+          userId={user?.id}
         />
       ))}
     </div>
   );
 }
 
-function CourseCard({ course, enrollment }: { course: Course; enrollment?: Enrollment }) {
+function CourseCard({
+  course,
+  enrollment,
+  userId,
+}: {
+  course: Course;
+  enrollment?: Enrollment;
+  userId?: string;
+}) {
   const enrolled = !!enrollment;
   const completed = enrollment?.status === "completed";
+
+  // Build the Whop checkout URL with metadata attached.
+  // The webhook handler reads metadata[user_id] + metadata[amount_usd_cents].
+  const whopCheckoutUrl =
+    course.whopUrl && userId
+      ? buildWhopUrl(course.whopUrl, userId, course.dotReward ?? 100)
+      : course.whopUrl;
 
   return (
     <Card className="overflow-hidden">
@@ -324,7 +366,7 @@ function CourseEnrollButton({
     );
   }
 
-  // If course has a Whop URL → send user to Whop checkout.
+  // If course has a Whop URL → send user to Whop checkout (with metadata).
   if (course.whopUrl && !enrolled && !enrolledJustNow) {
     return (
       <Button
@@ -332,7 +374,7 @@ function CourseEnrollButton({
         size="sm"
         asChild
       >
-        <a href={course.whopUrl} target="_blank" rel="noopener noreferrer">
+        <a href={whopCheckoutUrl} target="_blank" rel="noopener noreferrer">
           Enroll on Whop <ExternalLink className="ml-1 size-3.5" />
         </a>
       </Button>
@@ -348,7 +390,7 @@ function CourseEnrollButton({
         asChild
       >
         <a
-          href={course.whopUrl ?? "#"}
+          href={whopCheckoutUrl ?? "#"}
           target="_blank"
           rel="noopener noreferrer"
         >
