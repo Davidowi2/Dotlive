@@ -164,6 +164,8 @@ function IntegrationCard({
 
       {/* Wrap in form to satisfy browser accessibility and fix DOM warning */}
       <form id={`integration-form-${fieldName}`} onSubmit={handleSave} className="mt-3 space-y-2">
+        {/* Hidden username field satisfies browser password manager expectations */}
+        <input type="text" name="username" autoComplete="username" className="hidden" readOnly value="dotlive-operator" aria-hidden="true" tabIndex={-1} />
         <div className="relative">
           <Input
             id={fieldName}
