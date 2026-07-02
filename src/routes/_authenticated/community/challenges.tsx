@@ -55,7 +55,8 @@ export const Route = createFileRoute("/_authenticated/community/challenges")({
 
 function ChallengesPage() {
   const { id: communityId } = Route.useParams();
-  const { user } = useDotAuth();
+  const { user, roles } = useDotAuth();
+  const isLeader = roles.includes("community_leader") || roles.includes("admin") || roles.includes("super_admin");
   const [selectedChallengeId, setSelectedChallengeId] = useState<string | null>(null);
   const [showPostForm, setShowPostForm] = useState(false);
 
