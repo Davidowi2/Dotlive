@@ -309,12 +309,18 @@ export function useBuilderStats(builderId?: string) {
   return useQuery({
     queryKey: ["builder_stats", builderId],
     enabled: !!builderId,
+    staleTime: 120_000,
     queryFn: async () => {
       try {
-        const stats = await dotApi.get<BuilderStats>(
-          `/api/admin/builders/${builderId}/stats`,
-        );
-        return stats ?? { ordersCompleted: 0, totalEarned: 0, avgRating: 0, reviewCount: 0 };
+        // Uses the public builder profile endpoint instead of admin endpoint
+        const data = await dotApi.get<any>(`/api/builders/${builderId}`);
+        const profile = data?.builder?.profile ?? {};
+        return {
+          ordersCompleted: Number(profile.totalCompletedOrders ?? 0),
+          totalEarned: Number(profile.totalEarnedDot ?? 0),
+          avgRating: Number(profile.avgRating ?? 0),
+          reviewCount: Number(profile.reviewCount ?? 0),
+        } as BuilderStats;
       } catch {
         return { ordersCompleted: 0, totalEarned: 0, avgRating: 0, reviewCount: 0 };
       }
@@ -424,7 +430,7 @@ export function useMyChallenges() {
     queryKey: ["my_challenges", user?.id],
     enabled: !!user && !!token,
     queryFn: async () => {
-      return dotApi.get<{ posted: any[]; submissions: any[] }>("/api/challenges/mine");
+      return dotApi.get<{ posted: any[]; submissions: any[] }>("/api/builder/challenges/mine");
     },
   });
 }

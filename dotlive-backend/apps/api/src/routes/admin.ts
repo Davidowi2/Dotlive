@@ -952,23 +952,10 @@ export async function adminRoutes(app: FastifyInstance) {
             return reply.send({ ok: true, roles: targetRoles, previousRoles: currentRoles });
           });
 
-          /* ── CONTENT CREATION — admin can create courses/events/pitchathons ── */
-
-          /** POST /api/admin/courses */
-          app.post("/courses", { preHandler: app.authenticate }, async (req, reply) => {
-            const { sub: adminId } = req.user as { sub: string };
-            const roles = await getUserRoles(adminId);
-            if (!roles.includes("admin") && !roles.includes("super_admin")) {
-              return reply.code(403).send({ error: "Admin only" });
-            }
-            const body = (req.body ?? {}) as Record<string, unknown>;
-            const id = crypto.randomUUID();
-            await db.execute(sql`
-              INSERT INTO courses (id, title, description, category, whop_url, dot_reward, vantage_boost, is_published, created_at)
-              VALUES (${id}, ${(body.title as string) ?? ""}, ${(body.description as string) ?? null}, ${(body.category as string) ?? null}, ${(body.whopUrl as string) ?? null}, ${Number(body.dotReward ?? 0)}, ${Number(body.vantageBoost ?? 0)}, ${body.isPublished !== false}, NOW())
-            `);
-            return reply.send({ id });
-          });
+          /* ── CONTENT CREATION — admin can create events/pitchathons ── */
+          // Note: /api/admin/courses is owned by academy.ts (canonical).
+          // The old POST /api/admin/courses in this file was a duplicate
+          // and has been removed.
 
           /** POST /api/admin/events */
           app.post("/events", { preHandler: app.authenticate }, async (req, reply) => {

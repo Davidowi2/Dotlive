@@ -73,7 +73,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "My Portfolio",   to: "/portfolio",    icon: LineChart,    roles: ["investor"],                section: "capital" },
   { label: "Capital Partner", to: "/capital",     icon: Wallet,      roles: ["capital_partner"],         section: "capital" },
   { label: "Judge Portal",  to: "/judge",         icon: Trophy,      roles: ["judge"],                    section: "capital" },
-  { label: "Meetings",      to: "/meetings",      icon: Bell,        roles: ["investor", "founder", "capital_partner"], section: "capital" },
+  { label: "Meetings",      to: "/demo",          icon: Bell,        roles: ["investor", "founder", "capital_partner"], section: "capital" },
   /* operator (formerly "admin" — internal staff, not a self-assignable role) */
   { label: "Operator",      to: "/admin",         icon: Shield,      roles: ["admin", "super_admin"],    section: "admin" },
   /* always */

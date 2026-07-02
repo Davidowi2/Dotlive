@@ -96,7 +96,7 @@ function AcademyPage() {
 
         <div className="mx-auto max-w-6xl px-6 pb-24">
           <SectionHeading title="My Learning" subtitle="Continue where you left off." />
-          <MyLearning enrollments={enrollments.data?.enrollments ?? []} />
+          <MyLearning enrollments={enrollments.data ?? []} />
 
           <SectionHeading
             title="Featured Courses"

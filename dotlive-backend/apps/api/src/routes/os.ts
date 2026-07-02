@@ -100,7 +100,7 @@ export async function osRoutes(app: FastifyInstance) {
     ventureId: z.string().optional(),
   });
 
-  app.post("/challenges", { preHandler: app.authenticate }, async (req, reply) => {
+  app.post("/builder/challenges", { preHandler: app.authenticate }, async (req, reply) => {
     const { sub } = req.user as { sub: string };
     // Allowed posters: founders, admins, capital_partners, community_leaders, vendors
     const allowed = await Promise.all([
@@ -168,7 +168,7 @@ export async function osRoutes(app: FastifyInstance) {
     return reply.send({ challenge: inserted[0] });
   });
 
-  app.get("/challenges", async (req, reply) => {
+  app.get("/builder/challenges", async (req, reply) => {
     const q = req.query as { skill?: string; posterType?: string };
     const filters: any[] = [eq(challenges.status, "open")];
     if (q.skill) filters.push(eq(challenges.skill, q.skill));
@@ -183,7 +183,7 @@ export async function osRoutes(app: FastifyInstance) {
     return reply.send({ challenges: rows });
   });
 
-  app.get("/challenges/mine", { preHandler: app.authenticate }, async (req, reply) => {
+  app.get("/builder/challenges/mine", { preHandler: app.authenticate }, async (req, reply) => {
     const { sub } = req.user as { sub: string };
     const posted = await db
       .select()
@@ -200,7 +200,7 @@ export async function osRoutes(app: FastifyInstance) {
     return reply.send({ posted, submissions: subs });
   });
 
-  app.get("/challenges/:id", async (req, reply) => {
+  app.get("/builder/challenges/:id", async (req, reply) => {
     const { id } = req.params as { id: string };
     const row = await db.select().from(challenges).where(eq(challenges.id, id)).limit(1);
     if (row.length === 0) return reply.code(404).send({ error: "Not found" });
@@ -213,7 +213,7 @@ export async function osRoutes(app: FastifyInstance) {
   });
 
   app.post<{ Params: { id: string } }>(
-    "/challenges/:id/submit",
+    "/builder/challenges/:id/submit",
     { preHandler: app.authenticate },
     async (req, reply) => {
       const { sub } = req.user as { sub: string };
@@ -264,7 +264,7 @@ export async function osRoutes(app: FastifyInstance) {
   });
 
   app.post<{ Params: { id: string } }>(
-    "/challenges/:id/review",
+    "/builder/challenges/:id/review",
     { preHandler: app.authenticate },
     async (req, reply) => {
       const { sub } = req.user as { sub: string };

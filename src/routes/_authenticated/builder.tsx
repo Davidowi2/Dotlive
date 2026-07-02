@@ -80,7 +80,7 @@ function BuilderArenaPage() {
     }
     setBusy(true);
     try {
-      await dotApi.post(`/api/challenges/${submitFor.id}/submit`, {
+      await dotApi.post(`/api/builder/challenges/${submitFor.id}/submit`, {
         content: submitContent.trim(),
         link: submitLink.trim() || undefined,
       });
