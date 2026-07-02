@@ -490,6 +490,12 @@ app.get("/api/health", async () => {
                 ADD COLUMN IF NOT EXISTS is_private boolean NOT NULL DEFAULT false;
             `);
             app.log.info("bootstrap migration: communities.is_private ensured");
+
+            // === events: add whop_url column for live sessions ===
+            await db.execute(sql`
+              ALTER TABLE events ADD COLUMN IF NOT EXISTS whop_url text;
+            `);
+            app.log.info("bootstrap migration: events.whop_url ensured");
           } catch (err) {
       dbError = err instanceof Error ? err.message : String(err);
     }

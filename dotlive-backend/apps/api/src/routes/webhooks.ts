@@ -347,5 +347,94 @@ export async function webhookRoutes(app: FastifyInstance) {
       return reply.send({ ok: true, key: req.params.key });
     }
   );
+
+  /* ------------------------------------------------------------------ *
+   *  ADMIN: POST /api/admin/integrations/sync-whop
+   *  Pull all products from Whop API and upsert as courses in DOT DB.
+   * ------------------------------------------------------------------ */
+  app.post(
+    "/admin/integrations/sync-whop",
+    { preHandler: app.authenticate },
+    async (req, reply) => {
+      const { sub } = req.user as { sub: string };
+      const { userHasRole } = await import("../lib/auth.js");
+      const ok = (await userHasRole(sub, "admin")) || (await userHasRole(sub, "super_admin"));
+      if (!ok) return reply.code(403).send({ error: "Operator only" });
+
+      // Get stored Whop API key
+      await (db.execute as any)(sql`
+        CREATE TABLE IF NOT EXISTS integration_secrets (
+          key text PRIMARY KEY,
+          value text NOT NULL,
+          updated_at timestamptz NOT NULL DEFAULT now()
+        );
+      `);
+      const keyRow = await (db.execute as any)(sql`
+        SELECT value FROM integration_secrets WHERE key = 'whop_api_key'
+      `);
+      const apiKey = ((keyRow as any).rows ?? [])[0]?.value as string | undefined;
+      if (!apiKey) return reply.code(400).send({ error: "Whop API key not set. Add it in Integrations first." });
+
+      // Fetch products from Whop API v5
+      let whopProducts: any[] = [];
+      try {
+        const res = await fetch("https://api.whop.com/api/v5/products", {
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+        });
+        if (!res.ok) {
+          const err = await res.text();
+          return reply.code(400).send({ error: `Whop API error ${res.status}: ${err.slice(0, 200)}` });
+        }
+        const data = await res.json() as any;
+        whopProducts = data.data ?? data.products ?? data ?? [];
+      } catch (e) {
+        return reply.code(500).send({ error: `Could not reach Whop: ${(e as Error).message}` });
+      }
+
+      // Import each product as a course (skip if already exists by whopProductId)
+      const { courses } = await import("../db/schema.js");
+      const { eq } = await import("drizzle-orm");
+      let created = 0;
+      let skipped = 0;
+      const products: any[] = [];
+
+      for (const product of whopProducts) {
+        const productId = product.id as string;
+        const name = (product.name ?? product.title ?? "Untitled course") as string;
+        const description = (product.description ?? null) as string | null;
+        // Whop checkout URL — use the product's checkout URL or build from slug
+        const checkoutUrl = (product.checkout_url ?? product.url ?? null) as string | null;
+
+        // Check if already imported
+        const existing = await db.select({ id: courses.id }).from(courses)
+          .where(eq(courses.whopProductId, productId)).limit(1);
+
+        if (existing.length > 0) {
+          skipped++;
+          products.push({ id: productId, name, isNew: false });
+          continue;
+        }
+
+        // Create new course
+        await db.insert(courses).values({
+          title: name,
+          description,
+          category: "Whop",
+          whopUrl: checkoutUrl,
+          whopProductId: productId,
+          dotReward: 100, // default — operator can edit
+          vantageBoost: 0,
+          isPublished: true,
+        } as any);
+        created++;
+        products.push({ id: productId, name, isNew: true });
+      }
+
+      return reply.send({ created, skipped, products });
+    }
+  );
 }
 // @ts-nocheck

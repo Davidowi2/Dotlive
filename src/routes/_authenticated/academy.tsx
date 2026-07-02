@@ -79,10 +79,11 @@ export const Route = createFileRoute("/_authenticated/academy")({
 
 function AcademyPage() {
   const { user } = useDotAuth();
-  const courses = useQuery({ queryKey: ["academy-courses"], queryFn: listCourses });
+  const courses = useQuery({ queryKey: ["academy-courses"], queryFn: listCourses, staleTime: 120_000 });
   const enrollments = useQuery({
     queryKey: ["academy-enrollments"],
     queryFn: getMyEnrollments,
+    staleTime: 60_000,
   });
 
   return (
@@ -105,6 +106,7 @@ function AcademyPage() {
             courses={courses.data ?? []}
             enrollments={enrollments.data ?? []}
             isLoading={courses.isLoading}
+            userId={user?.id}
           />
         </div>
       </main>
@@ -227,10 +229,12 @@ function CatalogGrid({
   courses,
   enrollments,
   isLoading,
+  userId,
 }: {
   courses: Course[];
   enrollments: Enrollment[];
   isLoading: boolean;
+  userId?: string;
 }) {
   if (isLoading) {
     return (
@@ -263,12 +267,12 @@ function CatalogGrid({
   return (
     <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
       {courses.map((c) => (
-        <CourseCard
-          key={c.id}
-          course={c}
-          enrollment={enrollments.find((e) => e.courseId === c.id)}
-          userId={user?.id}
-        />
+            <CourseCard
+              key={c.id}
+              course={c}
+              enrollment={enrollments.find((e) => e.courseId === c.id)}
+              userId={userId}
+            />
       ))}
     </div>
   );
@@ -286,8 +290,6 @@ function CourseCard({
   const enrolled = !!enrollment;
   const completed = enrollment?.status === "completed";
 
-  // Build the Whop checkout URL with metadata attached.
-  // The webhook handler reads metadata[user_id] + metadata[amount_usd_cents].
   const whopCheckoutUrl =
     course.whopUrl && userId
       ? buildWhopUrl(course.whopUrl, userId, course.dotReward ?? 100)
@@ -337,6 +339,7 @@ function CourseCard({
             course={course}
             enrolled={enrolled}
             completed={completed}
+            whopCheckoutUrl={whopCheckoutUrl ?? undefined}
           />
         </div>
       </CardContent>
@@ -348,14 +351,15 @@ function CourseEnrollButton({
   course,
   enrolled,
   completed,
+  whopCheckoutUrl,
 }: {
   course: Course;
   enrolled: boolean;
   completed: boolean;
+  whopCheckoutUrl?: string;
 }) {
   const qc = useQueryClient();
   const mut = useMutation({ mutationFn: () => enrollInCourse(course.id) });
-
   const [enrolledJustNow, setEnrolledJustNow] = useState(false);
 
   if (completed) {
@@ -366,14 +370,9 @@ function CourseEnrollButton({
     );
   }
 
-  // If course has a Whop URL → send user to Whop checkout (with metadata).
-  if (course.whopUrl && !enrolled && !enrolledJustNow) {
+  if (whopCheckoutUrl && !enrolled && !enrolledJustNow) {
     return (
-      <Button
-        variant="default"
-        size="sm"
-        asChild
-      >
+      <Button variant="default" size="sm" asChild>
         <a href={whopCheckoutUrl} target="_blank" rel="noopener noreferrer">
           Enroll on Whop <ExternalLink className="ml-1 size-3.5" />
         </a>
@@ -381,26 +380,17 @@ function CourseEnrollButton({
     );
   }
 
-  // If user is enrolled (via webhook), show Continue / Complete.
   if (enrolled) {
     return (
-      <Button
-        variant="outline"
-        size="sm"
-        asChild
-      >
-        <a
-          href={whopCheckoutUrl ?? "#"}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
+      <Button variant="outline" size="sm" asChild>
+        <a href={whopCheckoutUrl ?? "#"} target="_blank" rel="noopener noreferrer">
           Continue learning <ChevronRight className="ml-1 size-3.5" />
         </a>
       </Button>
     );
   }
 
-  // No Whop URL → mock enroll inline (admin preview / free tier).
+  // Free / no Whop URL — inline enroll
   return (
     <Button
       size="sm"
@@ -412,7 +402,7 @@ function CourseEnrollButton({
         qc.invalidateQueries({ queryKey: ["academy-enrollments"] });
       }}
     >
-      {enrolledJustNow ? "Enrolled ✓" : "Enroll"}
+      {enrolledJustNow ? "Enrolled ✓" : "Enroll free"}
     </Button>
   );
 }

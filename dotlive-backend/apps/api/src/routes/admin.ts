@@ -980,8 +980,17 @@ export async function adminRoutes(app: FastifyInstance) {
             const body = (req.body ?? {}) as Record<string, unknown>;
             const id = crypto.randomUUID();
             await db.execute(sql`
-              INSERT INTO events (id, title, description, speaker, event_date, dot_cost, capacity, created_at)
-              VALUES (${id}, ${(body.title as string) ?? ""}, ${(body.description as string) ?? null}, ${(body.speaker as string) ?? null}, ${body.eventDate ? new Date(body.eventDate as string) : null}, ${Number(body.dotCost ?? 0)}, ${Number(body.capacity ?? 100)}, NOW())
+              INSERT INTO events (id, title, description, speaker, event_date, dot_cost, capacity, whop_url, created_at)
+              VALUES (
+                ${id}, ${(body.title as string) ?? ""},
+                ${(body.description as string) ?? null},
+                ${(body.speaker as string) ?? null},
+                ${body.eventDate ? new Date(body.eventDate as string) : null},
+                ${Number(body.dotCost ?? 0)},
+                ${Number(body.capacity ?? 100)},
+                ${(body.whopUrl as string) ?? null},
+                NOW()
+              )
             `);
             return reply.send({ id });
           });

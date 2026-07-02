@@ -7,7 +7,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { KeyRound, Save, Eye, EyeOff, Loader2, ExternalLink, ShieldCheck } from "lucide-react";
+import { KeyRound, Save, Eye, EyeOff, Loader2, ExternalLink, ShieldCheck, RefreshCw, Check, Package } from "lucide-react";
 import { AdminShell } from "@/components/app/AdminShell";
 import { PageHeader } from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { getIntegrations, setIntegration } from "@/api/adminAcademy";
+import { dotApi } from "@/api/client";
 
 export const Route = createFileRoute("/_authenticated/admin/integrations")({
   head: () => ({ meta: [{ title: "Integrations — Admin — DOT" }] }),
@@ -81,11 +82,14 @@ function AdminIntegrationsPage() {
               <li>Subscribe to <code className="rounded bg-muted px-1 py-0.5">checkout.completed</code> events.</li>
               <li>Copy the <strong>signing secret</strong> Whop gives you → paste it above.</li>
               <li>Add your <code className="rounded bg-muted px-1 py-0.5">prod_…</code> ID to a course via <a href="/admin/courses" className="text-primary hover:underline">/admin/courses</a>.</li>
+              <li>Or click <strong>"Sync from Whop"</strong> below to auto-import all your products as courses.</li>
               <li>Test the chain with <a href="/admin/test-webhook" className="text-primary hover:underline">/admin/test-webhook</a> before going live.</li>
             </ol>
           </div>
         </div>
       </section>
+
+      <SyncFromWhop />
     </AdminShell>
   );
 }
@@ -165,5 +169,83 @@ function IntegrationCard({
         {preview?.set ? "Update" : "Save"}
       </Button>
     </div>
+  );
+}
+
+/* ─── Sync from Whop ─────────────────────────────────────────── */
+function SyncFromWhop() {
+  const qc = useQueryClient();
+  const [result, setResult] = useState<{ created: number; skipped: number; products: any[] } | null>(null);
+
+  const syncMut = useMutation({
+    mutationFn: async () => {
+      const r = await dotApi.post<{ created: number; skipped: number; products: any[] }>(
+        "/api/admin/integrations/sync-whop", {}
+      );
+      return r;
+    },
+    onSuccess: (data) => {
+      setResult(data);
+      qc.invalidateQueries({ queryKey: ["admin-courses"] });
+      qc.invalidateQueries({ queryKey: ["academy-courses"] });
+      toast.success(`Synced from Whop — ${data.created} new, ${data.skipped} already existed`);
+    },
+    onError: (e: any) => {
+      toast.error(e?.message ?? "Sync failed — check your Whop API key");
+    },
+  });
+
+  return (
+    <section className="mt-4 rounded-2xl border border-primary/20 bg-primary/5 p-6">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <RefreshCw className="size-4 text-primary" />
+            <h2 className="font-display text-base font-semibold">Sync from Whop</h2>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Pull all your Whop products and automatically create them as courses in DOT Academy.
+            Products already imported are skipped (no duplicates).
+          </p>
+        </div>
+        <Button
+          onClick={() => syncMut.mutate()}
+          disabled={syncMut.isPending}
+          variant="hero"
+        >
+          {syncMut.isPending
+            ? <><Loader2 className="size-4 animate-spin" /> Syncing…</>
+            : <><RefreshCw className="size-4" /> Sync now</>
+          }
+        </Button>
+      </div>
+
+      {result && (
+        <div className="mt-4 space-y-2">
+          <div className="flex gap-3 text-sm">
+            <span className="flex items-center gap-1.5 text-primary font-medium">
+              <Check className="size-3.5" /> {result.created} imported
+            </span>
+            <span className="text-muted-foreground">{result.skipped} already existed</span>
+          </div>
+          {result.products.length > 0 && (
+            <div className="rounded-xl border border-border bg-card divide-y divide-border">
+              {result.products.map((p: any) => (
+                <div key={p.id} className="flex items-center gap-3 px-4 py-3 text-sm">
+                  <Package className="size-4 text-muted-foreground shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium truncate">{p.name}</p>
+                    <p className="text-xs text-muted-foreground font-mono">{p.id}</p>
+                  </div>
+                  <Badge variant={p.isNew ? "default" : "secondary"}>
+                    {p.isNew ? "Imported" : "Skipped"}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </section>
   );
 }

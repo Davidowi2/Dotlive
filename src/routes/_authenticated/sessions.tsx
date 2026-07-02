@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { CalendarCheck, User, Loader2, Check, Coins } from "lucide-react";
+import { CalendarCheck, User, Loader2, Check, Coins, ExternalLink } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
 import { EmptyState } from "@/components/app/EmptyState";
@@ -128,19 +128,22 @@ function SessionsPage() {
                   className="mt-4 w-full"
                   variant={isReg ? "outline" : "hero"}
                   size="sm"
-                  disabled={isReg}
-                  onClick={() => register(ev.id, ev.dotCost ?? 0)}
+                  disabled={isReg && !ev.whopUrl}
+                  onClick={() => !isReg && register(ev.id, ev.dotCost ?? 0)}
                 >
                   {isReg ? (
-                    <>
-                      <Check className="size-4" /> Registered
-                    </>
+                    ev.whopUrl ? (
+                      <a href={ev.whopUrl} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 w-full justify-center">
+                        <Check className="size-4" /> Join on Whop
+                      </a>
+                    ) : (
+                      <><Check className="size-4" /> Registered</>
+                    )
                   ) : ev.dotCost > 0 ? (
-                    <>
-                      <Coins className="size-4" /> Pay {formatDot(ev.dotCost)} DOT
-                    </>
+                    <><Coins className="size-4" /> Pay {formatDot(ev.dotCost)} DOT</>
                   ) : (
-                    "Register"
+                    "Register free"
                   )}
                 </Button>
               </article>
