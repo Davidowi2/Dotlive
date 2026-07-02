@@ -677,6 +677,41 @@ async function runBootstrapMigrations() {
     // events: whop_url column
     await neonSql`ALTER TABLE events ADD COLUMN IF NOT EXISTS whop_url text`;
 
+    // courses: ensure whop_product_id column exists
+    await neonSql`ALTER TABLE courses ADD COLUMN IF NOT EXISTS whop_product_id text`;
+    await neonSql`ALTER TABLE courses ADD COLUMN IF NOT EXISTS whop_url text`;
+
+    // builder_reviews table (for arena stats)
+    await neonSql`
+      CREATE TABLE IF NOT EXISTS builder_reviews (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        builder_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        reviewer_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        order_id text NOT NULL,
+        rating integer NOT NULL,
+        comment text,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        UNIQUE(order_id, reviewer_id)
+      )
+    `;
+    await neonSql`CREATE INDEX IF NOT EXISTS builder_reviews_builder_idx ON builder_reviews(builder_id)`;
+
+    // builder_profiles: ensure all columns exist
+    await neonSql`
+      ALTER TABLE builder_profiles
+        ADD COLUMN IF NOT EXISTS hourly_dot numeric(20,2),
+        ADD COLUMN IF NOT EXISTS portfolio_url text,
+        ADD COLUMN IF NOT EXISTS linkedin_url text,
+        ADD COLUMN IF NOT EXISTS twitter_url text,
+        ADD COLUMN IF NOT EXISTS github_url text,
+        ADD COLUMN IF NOT EXISTS location text,
+        ADD COLUMN IF NOT EXISTS total_earned_dot numeric(20,2) NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS total_completed_orders integer NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS avg_rating numeric(3,2) NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS review_count integer NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS last_active_at timestamptz
+    `;
+
     console.log("[startup] Bootstrap migrations complete");
   } catch (err) {
     console.error("[startup] Bootstrap migration error:", err);

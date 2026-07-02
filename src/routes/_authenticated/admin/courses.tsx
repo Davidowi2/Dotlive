@@ -17,7 +17,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/app/EmptyState";
-import { PageSkeleton } from "@/components/app/PageSkeleton";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -73,8 +72,17 @@ function AdminCoursesPage() {
       )}
 
       <section className="mt-6">
-        {coursesQ.isLoading && <PageSkeleton lines={4} />}
-        {coursesQ.data && coursesQ.data.length === 0 && (
+        {coursesQ.isLoading && (
+          <div className="space-y-3">
+            {[1,2,3].map(i => <div key={i} className="h-20 animate-pulse rounded-2xl bg-muted/40" />)}
+          </div>
+        )}
+        {coursesQ.isError && (
+          <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+            Could not load courses — {(coursesQ.error as any)?.message ?? "server error"}. Check Render logs.
+          </div>
+        )}
+        {coursesQ.data && coursesQ.data.length === 0 && !coursesQ.isError && (
           <EmptyState
             icon={<BookOpen className="size-7" />}
             title="No courses yet"

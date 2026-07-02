@@ -23,7 +23,8 @@ export interface AdminCourse {
 }
 
 export async function listAdminCourses(): Promise<AdminCourse[]> {
-  const res = await dotApi.get<{ courses: AdminCourse[] }>("/api/admin/courses");
+  const res = await dotApi.get<{ courses: AdminCourse[] } | { error: string }>("/api/admin/courses");
+  if ("error" in res) throw new Error(res.error);
   return res.courses ?? [];
 }
 
