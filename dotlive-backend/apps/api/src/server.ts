@@ -308,6 +308,13 @@ app.get("/api/health", async () => {
             `);
             app.log.info("bootstrap migration: users profile fields ensured");
 
+            // === courses updatedAt + whop_product_id safety net ===
+            await db.execute(sql`
+              ALTER TABLE courses
+                ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
+            `);
+            app.log.info("bootstrap migration: courses updatedAt ensured");
+
             // === community challenges + chat (connections/messages) ===
             await db.execute(sql`
               CREATE TABLE IF NOT EXISTS community_challenges (

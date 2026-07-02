@@ -9,6 +9,7 @@
 
 import type { FastifyInstance } from "fastify";
 import crypto from "node:crypto";
+import { z } from "zod";
 
 import { db, sql } from "../db/client.js";
 import { payments } from "../db/schema.js";
@@ -173,5 +174,178 @@ export async function webhookRoutes(app: FastifyInstance) {
     }
     return reply.send({ ok: true });
   });
+
+  /* ------------------------------------------------------------------ *
+   *  TEST: POST /api/admin/test-webhook
+   *  Operator-only. Fires a mock checkout.completed payload directly into
+   *  the same handler the real Whop webhook uses, so you can verify the
+   *  full chain (wallet credit → enrollment → cert mint) without a Whop
+   *  account. Bypasses the signature check.
+   * ------------------------------------------------------------------ */
+  app.post(
+    "/admin/test-webhook",
+    { preHandler: app.authenticate },
+    async (req, reply) => {
+      const { sub } = req.user as { sub: string };
+      const { userHasRole } = await import("../lib/auth.js");
+      const ok =
+        (await userHasRole(sub, "admin")) ||
+        (await userHasRole(sub, "super_admin"));
+      if (!ok) return reply.code(403).send({ error: "Operator only" });
+
+      const parsed = z
+        .object({
+          userId: z.string().min(1).optional(),
+          whopProductId: z.string().optional().nullable(),
+          amountUsdCents: z.number().int().positive().optional(),
+          eventId: z.string().optional(),
+        })
+        .safeParse(req.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: "Invalid input", details: parsed.error.issues });
+      }
+      const userId = parsed.data.userId ?? sub;
+      const cents = parsed.data.amountUsdCents ?? 1000; // default $10 = 100 DOT
+      const eventId = parsed.data.eventId ?? `test_${Date.now()}`;
+
+      // 1) Credit DOT.
+      const dot = Math.floor(cents / 10);
+      await creditWallet({
+        userId,
+        amount: dot,
+        type: "Whop Deposit",
+        description: `TEST Whop checkout · ${eventId}`,
+        reference: `whop:test:${eventId}`,
+      });
+
+      // 2) Match by whopProductId if provided; otherwise no enrollment.
+      let matchedCourse: any = null;
+      if (parsed.data.whopProductId) {
+        const { courses, courseEnrollments } = await import("../db/schema.js");
+        const rows = await db
+          .select()
+          .from(courses)
+          .where(eq(courses.whopProductId, parsed.data.whopProductId))
+          .limit(1);
+        if (rows.length > 0) {
+          matchedCourse = rows[0];
+          await db
+            .insert(courseEnrollments)
+            .values({
+              courseId: rows[0].id,
+              userId,
+              status: "enrolled",
+            } as any)
+            .onConflictDoNothing();
+          try {
+            const { mintCertificate } = await import("../lib/cert.js");
+            await mintCertificate(app, {
+              userId,
+              source: "course",
+              sourceId: rows[0].id,
+              title: `Enrolled: ${rows[0].title}`,
+              issuer: "DOT Academy",
+              level: "Foundations",
+              dotReward: rows[0].dotReward ?? 0,
+              meta: { courseId: rows[0].id, test: true },
+            });
+          } catch {
+            // best effort
+          }
+        }
+      }
+
+      return reply.send({
+        ok: true,
+        credited: { userId, dot, cents },
+        enrollment: matchedCourse
+          ? { courseId: matchedCourse.id, courseTitle: matchedCourse.title }
+          : null,
+        eventId,
+      });
+    }
+  );
+
+  /* ------------------------------------------------------------------ *
+   *  ADMIN: GET/PUT /api/admin/integrations
+   *  Save/retrieve the Whop API key + webhook secret. Stored in the
+   *  `integration_secrets` table. Webhook secret is HMAC-encrypted.
+   * ------------------------------------------------------------------ */
+  app.get(
+    "/admin/integrations",
+    { preHandler: app.authenticate },
+    async (req, reply) => {
+      const { sub } = req.user as { sub: string };
+      const { userHasRole } = await import("../lib/auth.js");
+      const ok =
+        (await userHasRole(sub, "admin")) ||
+        (await userHasRole(sub, "super_admin"));
+      if (!ok) return reply.code(403).send({ error: "Operator only" });
+
+      // Make sure the table exists.
+      await (db.execute as any)(sql`
+        CREATE TABLE IF NOT EXISTS integration_secrets (
+          key text PRIMARY KEY,
+          value text NOT NULL,
+          updated_at timestamptz NOT NULL DEFAULT now()
+        );
+      `);
+      const rows = await (db.execute as any)(sql`
+        SELECT key, value, updated_at AS "updatedAt"
+        FROM integration_secrets
+        WHERE key IN ('whop_api_key', 'whop_webhook_secret')
+      `);
+      const arr = (rows as any).rows ?? [];
+      const safe: Record<string, { set: boolean; preview: string; updatedAt: string | null }> = {};
+      for (const r of arr) {
+        const v = String(r.value ?? "");
+        safe[r.key] = {
+          set: true,
+          preview: v.length > 6 ? `${v.slice(0, 4)}…${v.slice(-2)}` : "•••",
+          updatedAt: r.updatedAt,
+        };
+      }
+      return reply.send({
+        integrations: {
+          whop_api_key: safe.whop_api_key ?? { set: false, preview: "", updatedAt: null },
+          whop_webhook_secret: safe.whop_webhook_secret ?? { set: false, preview: "", updatedAt: null },
+        },
+      });
+    }
+  );
+
+  app.put<{ Params: { key: string } }>(
+    "/admin/integrations/:key",
+    { preHandler: app.authenticate },
+    async (req, reply) => {
+      const { sub } = req.user as { sub: string };
+      const { userHasRole } = await import("../lib/auth.js");
+      const ok =
+        (await userHasRole(sub, "admin")) ||
+        (await userHasRole(sub, "super_admin"));
+      if (!ok) return reply.code(403).send({ error: "Operator only" });
+
+      const ALLOWED = new Set(["whop_api_key", "whop_webhook_secret"]);
+      if (!ALLOWED.has(req.params.key)) {
+        return reply.code(400).send({ error: "Unknown integration key" });
+      }
+      const parsed = z.object({ value: z.string().min(1).max(2000) }).safeParse(req.body);
+      if (!parsed.success) return reply.code(400).send({ error: "Invalid input" });
+
+      await (db.execute as any)(sql`
+        CREATE TABLE IF NOT EXISTS integration_secrets (
+          key text PRIMARY KEY,
+          value text NOT NULL,
+          updated_at timestamptz NOT NULL DEFAULT now()
+        );
+      `);
+      await (db.execute as any)(sql`
+        INSERT INTO integration_secrets (key, value, updated_at)
+        VALUES (${req.params.key}, ${parsed.data.value}, now())
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now();
+      `);
+      return reply.send({ ok: true, key: req.params.key });
+    }
+  );
 }
 // @ts-nocheck

@@ -70,9 +70,12 @@ import { Route as AuthenticatedCIdRouteImport } from './routes/_authenticated/c.
 import { Route as AuthenticatedBuilderIdRouteImport } from './routes/_authenticated/builder/$id'
 import { Route as AuthenticatedAdminWalletsRouteImport } from './routes/_authenticated/admin/wallets'
 import { Route as AuthenticatedAdminTokensRouteImport } from './routes/_authenticated/admin/tokens'
+import { Route as AuthenticatedAdminTestWebhookRouteImport } from './routes/_authenticated/admin/test-webhook'
 import { Route as AuthenticatedAdminRolesRouteImport } from './routes/_authenticated/admin/roles'
 import { Route as AuthenticatedAdminPermissionsRouteImport } from './routes/_authenticated/admin/permissions'
 import { Route as AuthenticatedAdminMembersRouteImport } from './routes/_authenticated/admin/members'
+import { Route as AuthenticatedAdminIntegrationsRouteImport } from './routes/_authenticated/admin/integrations'
+import { Route as AuthenticatedAdminCoursesRouteImport } from './routes/_authenticated/admin/courses'
 import { Route as ApiPublicWebhooksPaystackRouteImport } from './routes/api/public/webhooks/paystack'
 
 const TermsRoute = TermsRouteImport.update({
@@ -393,6 +396,12 @@ const AuthenticatedAdminTokensRoute =
     path: '/tokens',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAdminTestWebhookRoute =
+  AuthenticatedAdminTestWebhookRouteImport.update({
+    id: '/test-webhook',
+    path: '/test-webhook',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminRolesRoute = AuthenticatedAdminRolesRouteImport.update({
   id: '/roles',
   path: '/roles',
@@ -408,6 +417,18 @@ const AuthenticatedAdminMembersRoute =
   AuthenticatedAdminMembersRouteImport.update({
     id: '/members',
     path: '/members',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
+const AuthenticatedAdminIntegrationsRoute =
+  AuthenticatedAdminIntegrationsRouteImport.update({
+    id: '/integrations',
+    path: '/integrations',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
+const AuthenticatedAdminCoursesRoute =
+  AuthenticatedAdminCoursesRouteImport.update({
+    id: '/courses',
+    path: '/courses',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
 const ApiPublicWebhooksPaystackRoute =
@@ -461,9 +482,12 @@ export interface FileRoutesByFullPath {
   '/events/$slug': typeof EventsSlugRoute
   '/founder/$id': typeof FounderIdRoute
   '/events/': typeof EventsIndexRoute
+  '/admin/courses': typeof AuthenticatedAdminCoursesRoute
+  '/admin/integrations': typeof AuthenticatedAdminIntegrationsRoute
   '/admin/members': typeof AuthenticatedAdminMembersRoute
   '/admin/permissions': typeof AuthenticatedAdminPermissionsRoute
   '/admin/roles': typeof AuthenticatedAdminRolesRoute
+  '/admin/test-webhook': typeof AuthenticatedAdminTestWebhookRoute
   '/admin/tokens': typeof AuthenticatedAdminTokensRoute
   '/admin/wallets': typeof AuthenticatedAdminWalletsRoute
   '/builder/$id': typeof AuthenticatedBuilderIdRoute
@@ -526,9 +550,12 @@ export interface FileRoutesByTo {
   '/events/$slug': typeof EventsSlugRoute
   '/founder/$id': typeof FounderIdRoute
   '/events': typeof EventsIndexRoute
+  '/admin/courses': typeof AuthenticatedAdminCoursesRoute
+  '/admin/integrations': typeof AuthenticatedAdminIntegrationsRoute
   '/admin/members': typeof AuthenticatedAdminMembersRoute
   '/admin/permissions': typeof AuthenticatedAdminPermissionsRoute
   '/admin/roles': typeof AuthenticatedAdminRolesRoute
+  '/admin/test-webhook': typeof AuthenticatedAdminTestWebhookRoute
   '/admin/tokens': typeof AuthenticatedAdminTokensRoute
   '/admin/wallets': typeof AuthenticatedAdminWalletsRoute
   '/builder/$id': typeof AuthenticatedBuilderIdRoute
@@ -594,9 +621,12 @@ export interface FileRoutesById {
   '/events/$slug': typeof EventsSlugRoute
   '/founder/$id': typeof FounderIdRoute
   '/events/': typeof EventsIndexRoute
+  '/_authenticated/admin/courses': typeof AuthenticatedAdminCoursesRoute
+  '/_authenticated/admin/integrations': typeof AuthenticatedAdminIntegrationsRoute
   '/_authenticated/admin/members': typeof AuthenticatedAdminMembersRoute
   '/_authenticated/admin/permissions': typeof AuthenticatedAdminPermissionsRoute
   '/_authenticated/admin/roles': typeof AuthenticatedAdminRolesRoute
+  '/_authenticated/admin/test-webhook': typeof AuthenticatedAdminTestWebhookRoute
   '/_authenticated/admin/tokens': typeof AuthenticatedAdminTokensRoute
   '/_authenticated/admin/wallets': typeof AuthenticatedAdminWalletsRoute
   '/_authenticated/builder/$id': typeof AuthenticatedBuilderIdRoute
@@ -662,9 +692,12 @@ export interface FileRouteTypes {
     | '/events/$slug'
     | '/founder/$id'
     | '/events/'
+    | '/admin/courses'
+    | '/admin/integrations'
     | '/admin/members'
     | '/admin/permissions'
     | '/admin/roles'
+    | '/admin/test-webhook'
     | '/admin/tokens'
     | '/admin/wallets'
     | '/builder/$id'
@@ -727,9 +760,12 @@ export interface FileRouteTypes {
     | '/events/$slug'
     | '/founder/$id'
     | '/events'
+    | '/admin/courses'
+    | '/admin/integrations'
     | '/admin/members'
     | '/admin/permissions'
     | '/admin/roles'
+    | '/admin/test-webhook'
     | '/admin/tokens'
     | '/admin/wallets'
     | '/builder/$id'
@@ -794,9 +830,12 @@ export interface FileRouteTypes {
     | '/events/$slug'
     | '/founder/$id'
     | '/events/'
+    | '/_authenticated/admin/courses'
+    | '/_authenticated/admin/integrations'
     | '/_authenticated/admin/members'
     | '/_authenticated/admin/permissions'
     | '/_authenticated/admin/roles'
+    | '/_authenticated/admin/test-webhook'
     | '/_authenticated/admin/tokens'
     | '/_authenticated/admin/wallets'
     | '/_authenticated/builder/$id'
@@ -1267,6 +1306,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminTokensRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/test-webhook': {
+      id: '/_authenticated/admin/test-webhook'
+      path: '/test-webhook'
+      fullPath: '/admin/test-webhook'
+      preLoaderRoute: typeof AuthenticatedAdminTestWebhookRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/admin/roles': {
       id: '/_authenticated/admin/roles'
       path: '/roles'
@@ -1288,6 +1334,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminMembersRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/integrations': {
+      id: '/_authenticated/admin/integrations'
+      path: '/integrations'
+      fullPath: '/admin/integrations'
+      preLoaderRoute: typeof AuthenticatedAdminIntegrationsRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/admin/courses': {
+      id: '/_authenticated/admin/courses'
+      path: '/courses'
+      fullPath: '/admin/courses'
+      preLoaderRoute: typeof AuthenticatedAdminCoursesRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/api/public/webhooks/paystack': {
       id: '/api/public/webhooks/paystack'
       path: '/api/public/webhooks/paystack'
@@ -1299,9 +1359,12 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedAdminRouteRouteChildren {
+  AuthenticatedAdminCoursesRoute: typeof AuthenticatedAdminCoursesRoute
+  AuthenticatedAdminIntegrationsRoute: typeof AuthenticatedAdminIntegrationsRoute
   AuthenticatedAdminMembersRoute: typeof AuthenticatedAdminMembersRoute
   AuthenticatedAdminPermissionsRoute: typeof AuthenticatedAdminPermissionsRoute
   AuthenticatedAdminRolesRoute: typeof AuthenticatedAdminRolesRoute
+  AuthenticatedAdminTestWebhookRoute: typeof AuthenticatedAdminTestWebhookRoute
   AuthenticatedAdminTokensRoute: typeof AuthenticatedAdminTokensRoute
   AuthenticatedAdminWalletsRoute: typeof AuthenticatedAdminWalletsRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
@@ -1309,9 +1372,12 @@ interface AuthenticatedAdminRouteRouteChildren {
 
 const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren =
   {
+    AuthenticatedAdminCoursesRoute: AuthenticatedAdminCoursesRoute,
+    AuthenticatedAdminIntegrationsRoute: AuthenticatedAdminIntegrationsRoute,
     AuthenticatedAdminMembersRoute: AuthenticatedAdminMembersRoute,
     AuthenticatedAdminPermissionsRoute: AuthenticatedAdminPermissionsRoute,
     AuthenticatedAdminRolesRoute: AuthenticatedAdminRolesRoute,
+    AuthenticatedAdminTestWebhookRoute: AuthenticatedAdminTestWebhookRoute,
     AuthenticatedAdminTokensRoute: AuthenticatedAdminTokensRoute,
     AuthenticatedAdminWalletsRoute: AuthenticatedAdminWalletsRoute,
     AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,

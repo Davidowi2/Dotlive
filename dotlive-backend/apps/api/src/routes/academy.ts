@@ -122,5 +122,136 @@ export async function academyRoutes(app: FastifyInstance) {
     }));
     return reply.send({ enrollments });
   });
+
+  /* ------------------------------------------------------------------ *
+   *  ADMIN: Course management (list all, create, update, delete)
+   * ------------------------------------------------------------------ */
+  /** GET /api/admin/courses — list all courses including unpublished. */
+  app.get(
+    "/admin/courses",
+    { preHandler: app.authenticate },
+    async (req, reply) => {
+      const { sub } = req.user as { sub: string };
+      const { userHasRole } = await import("../lib/auth.js");
+      const ok =
+        (await userHasRole(sub, "admin")) ||
+        (await userHasRole(sub, "super_admin"));
+      if (!ok) return reply.code(403).send({ error: "Operator only" });
+      const rows = await db.select().from(courses).orderBy(desc(courses.createdAt));
+      return reply.send({ courses: rows });
+    }
+  );
+
+  /** POST /api/admin/courses — create a new course. */
+  app.post(
+    "/admin/courses",
+    { preHandler: app.authenticate },
+    async (req, reply) => {
+      const { sub } = req.user as { sub: string };
+      const { userHasRole } = await import("../lib/auth.js");
+      const ok =
+        (await userHasRole(sub, "admin")) ||
+        (await userHasRole(sub, "super_admin"));
+      if (!ok) return reply.code(403).send({ error: "Operator only" });
+
+      const parsed = z
+        .object({
+          title: z.string().min(1).max(200),
+          description: z.string().max(2000).optional().nullable(),
+          category: z.string().max(100).optional().nullable(),
+          whopUrl: z.string().url().optional().nullable().or(z.literal("")),
+          whopProductId: z.string().max(200).optional().nullable().or(z.literal("")),
+          dotReward: z.number().int().nonnegative().max(1_000_000).optional(),
+          vantageBoost: z.number().int().min(0).max(500).optional(),
+          isPublished: z.boolean().optional(),
+        })
+        .safeParse(req.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: "Invalid input", details: parsed.error.issues });
+      }
+
+      const inserted = await db
+        .insert(courses)
+        .values({
+          title: parsed.data.title,
+          description: parsed.data.description ?? null,
+          category: parsed.data.category ?? null,
+          whopUrl: parsed.data.whopUrl || null,
+          whopProductId: parsed.data.whopProductId || null,
+          dotReward: parsed.data.dotReward ?? 0,
+          vantageBoost: parsed.data.vantageBoost ?? 0,
+          isPublished: parsed.data.isPublished ?? false,
+        } as any)
+        .returning();
+      return reply.send({ course: inserted[0] });
+    }
+  );
+
+  /** PATCH /api/admin/courses/:id — partial update. */
+  app.patch<{ Params: { id: string } }>(
+    "/admin/courses/:id",
+    { preHandler: app.authenticate },
+    async (req, reply) => {
+      const { sub } = req.user as { sub: string };
+      const { userHasRole } = await import("../lib/auth.js");
+      const ok =
+        (await userHasRole(sub, "admin")) ||
+        (await userHasRole(sub, "super_admin"));
+      if (!ok) return reply.code(403).send({ error: "Operator only" });
+
+      const parsed = z
+        .object({
+          title: z.string().min(1).max(200).optional(),
+          description: z.string().max(2000).nullable().optional(),
+          category: z.string().max(100).nullable().optional(),
+          whopUrl: z.string().url().nullable().or(z.literal("")).optional(),
+          whopProductId: z.string().max(200).nullable().or(z.literal("")).optional(),
+          dotReward: z.number().int().nonnegative().max(1_000_000).optional(),
+          vantageBoost: z.number().int().min(0).max(500).optional(),
+          isPublished: z.boolean().optional(),
+        })
+        .safeParse(req.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: "Invalid input", details: parsed.error.issues });
+      }
+
+      const updates: Record<string, unknown> = { updatedAt: new Date() };
+      const PATCHABLE = [
+        "title", "description", "category", "whopUrl", "whopProductId",
+        "dotReward", "vantageBoost", "isPublished",
+      ] as const;
+      for (const k of PATCHABLE) {
+        if ((parsed.data as any)[k] !== undefined) (updates as any)[k] = (parsed.data as any)[k];
+      }
+      const updated = await db
+        .update(courses)
+        .set(updates as any)
+        .where(eq(courses.id, req.params.id))
+        .returning();
+      if (updated.length === 0) return reply.code(404).send({ error: "Course not found" });
+      return reply.send({ course: updated[0] });
+    }
+  );
+
+  /** DELETE /api/admin/courses/:id — permanent delete (cascades to enrollments). */
+  app.delete<{ Params: { id: string } }>(
+    "/admin/courses/:id",
+    { preHandler: app.authenticate },
+    async (req, reply) => {
+      const { sub } = req.user as { sub: string };
+      const { userHasRole } = await import("../lib/auth.js");
+      const ok =
+        (await userHasRole(sub, "admin")) ||
+        (await userHasRole(sub, "super_admin"));
+      if (!ok) return reply.code(403).send({ error: "Operator only" });
+
+      const deleted = await db
+        .delete(courses)
+        .where(eq(courses.id, req.params.id))
+        .returning();
+      if (deleted.length === 0) return reply.code(404).send({ error: "Course not found" });
+      return reply.send({ ok: true, deleted: deleted[0] });
+    }
+  );
 }
 // @ts-nocheck
