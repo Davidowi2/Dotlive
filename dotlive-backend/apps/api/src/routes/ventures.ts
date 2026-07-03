@@ -344,6 +344,66 @@ export async function ventureRoutes(app: FastifyInstance) {
       return reply.send({ advisor: inserted[0] });
     },
   );
+
+  /* DELETE — team member */
+  app.delete<{ Params: { id: string; memberId: string } }>(
+    "/ventures/:id/team/:memberId",
+    { preHandler: app.authenticate },
+    async (req, reply) => {
+      const { sub } = (req as any).user as { sub: string };
+      const owner = await requireOwner(req.params.id, sub);
+      if (!owner.ok) return reply.code(owner.status).send({ error: owner.error });
+      await db
+        .delete(ventureTeamMembers)
+        .where(
+          and(
+            eq(ventureTeamMembers.ventureId, req.params.id),
+            eq(ventureTeamMembers.id, req.params.memberId),
+          ),
+        );
+      return reply.send({ ok: true });
+    },
+  );
+
+  /* DELETE — milestone */
+  app.delete<{ Params: { id: string; milestoneId: string } }>(
+    "/ventures/:id/milestones/:milestoneId",
+    { preHandler: app.authenticate },
+    async (req, reply) => {
+      const { sub } = (req as any).user as { sub: string };
+      const owner = await requireOwner(req.params.id, sub);
+      if (!owner.ok) return reply.code(owner.status).send({ error: owner.error });
+      await db
+        .delete(ventureMilestones)
+        .where(
+          and(
+            eq(ventureMilestones.ventureId, req.params.id),
+            eq(ventureMilestones.id, req.params.milestoneId),
+          ),
+        );
+      return reply.send({ ok: true });
+    },
+  );
+
+  /* DELETE — advisor */
+  app.delete<{ Params: { id: string; advisorId: string } }>(
+    "/ventures/:id/advisors/:advisorId",
+    { preHandler: app.authenticate },
+    async (req, reply) => {
+      const { sub } = (req as any).user as { sub: string };
+      const owner = await requireOwner(req.params.id, sub);
+      if (!owner.ok) return reply.code(owner.status).send({ error: owner.error });
+      await db
+        .delete(ventureAdvisors)
+        .where(
+          and(
+            eq(ventureAdvisors.ventureId, req.params.id),
+            eq(ventureAdvisors.id, req.params.advisorId),
+          ),
+        );
+      return reply.send({ ok: true });
+    },
+  );
 }
 
 function serialize(v: any) {

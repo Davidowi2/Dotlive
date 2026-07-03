@@ -21,6 +21,39 @@ export async function builderArenaRoutes(app: FastifyInstance) {
   const getUserId = (req: any): string =>
     (req.user as { sub?: string } | undefined)?.sub ?? "";
 
+  /** GET /api/builders?search=… — list builders (public). */
+  app.get<{ Querystring: { search?: string; limit?: string } }>(
+    "/builders",
+    async (req, reply) => {
+      const { search } = req.query;
+      const limit = Math.min(Number(req.query.limit) || 50, 200);
+      const q = (search ?? "").trim();
+      const rows = q
+        ? await db.execute(sql`
+            SELECT u.id, u.name, u.dot_id AS "dotId", u.headline, u.location, u.avatar_url AS "avatarUrl",
+                   bp.skills AS skills, bp.bio AS bio, bp.available AS available
+            FROM users u
+            LEFT JOIN builder_profiles bp ON bp.user_id = u.id
+            WHERE u.roles @> ARRAY['builder']::text[]
+              AND (LOWER(u.name) LIKE ${"%" + q.toLowerCase() + "%"}
+                   OR LOWER(COALESCE(u.dot_id, '')) LIKE ${"%" + q.toLowerCase() + "%"})
+            ORDER BY u.name
+            LIMIT ${limit}
+          `)
+        : await db.execute(sql`
+            SELECT u.id, u.name, u.dot_id AS "dotId", u.headline, u.location, u.avatar_url AS "avatarUrl",
+                   bp.skills AS skills, bp.bio AS bio, bp.available AS available
+            FROM users u
+            LEFT JOIN builder_profiles bp ON bp.user_id = u.id
+            WHERE u.roles @> ARRAY['builder']::text[]
+            ORDER BY u.created_at DESC
+            LIMIT ${limit}
+          `);
+      const list = (rows as any).rows ?? (Array.isArray(rows) ? rows : []);
+      return reply.send({ builders: list });
+    },
+  );
+
   /** GET /api/builders/:id/arena */
   app.get<{ Params: { id: string } }>("/builders/:id/arena", async (req, reply) => {
     const id = req.params.id;

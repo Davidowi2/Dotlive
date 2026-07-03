@@ -402,6 +402,36 @@ export async function userRoutes(app: FastifyInstance) {
     return reply.send({ ventures: out });
   });
 
+  /** GET /api/founders?search=… — list founders (public). */
+  app.get<{ Querystring: { search?: string; limit?: string } }>(
+    "/founders",
+    async (req, reply) => {
+      const { search } = req.query;
+      const limit = Math.min(Number(req.query.limit) || 50, 200);
+      // Search by name or DOT id (case-insensitive substring).
+      const q = (search ?? "").trim();
+      const rows = q
+        ? await db.execute(sql`
+            SELECT u.id, u.name, u.dot_id AS "dotId", u.headline, u.location, u.avatar_url AS "avatarUrl"
+            FROM users u
+            WHERE u.roles @> ARRAY['founder']::text[]
+              AND (LOWER(u.name) LIKE ${"%" + q.toLowerCase() + "%"}
+                   OR LOWER(COALESCE(u.dot_id, '')) LIKE ${"%" + q.toLowerCase() + "%"})
+            ORDER BY u.name
+            LIMIT ${limit}
+          `)
+        : await db.execute(sql`
+            SELECT u.id, u.name, u.dot_id AS "dotId", u.headline, u.location, u.avatar_url AS "avatarUrl"
+            FROM users u
+            WHERE u.roles @> ARRAY['founder']::text[]
+            ORDER BY u.created_at DESC
+            LIMIT ${limit}
+          `);
+      const list = (rows as any).rows ?? (Array.isArray(rows) ? rows : []);
+      return reply.send({ founders: list });
+    },
+  );
+
   /** GET /api/founders/:idOrDotId — public founder profile (shareable URL).
    * Resolves by user ID OR DOT ID. Returns the full founder profile
    * + aggregate stats (votes, commitments, vantage, fundability).

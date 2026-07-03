@@ -306,6 +306,35 @@ export async function adminToolsRoutes(app: FastifyInstance) {
     },
   );
 
+  /* ============================== ADMIN DEMOTE ============================== */
+  // Note: promote is implemented in admin.ts (more complete, supports role choice).
+  // Only demote is added here.
+
+  /** POST /api/admin/users/:id/demote   super_admin only — remove admin role */
+  app.post<{ Params: { id: string } }>(
+    "/admin/users/:id/demote",
+    { preHandler: [app.authenticate, requireSuperAdmin] },
+    async (req, reply) => {
+      const { id } = req.params;
+      const isSuper = await userHasRole(id, "super_admin");
+      if (isSuper) {
+        const allSupers = await db
+          .select({ id: users.id })
+          .from(users)
+          .where(sql`${(users as any).roles} @> ARRAY['super_admin']::text[]`);
+        if (allSupers.length <= 1) {
+          return reply.code(400).send({ error: "Cannot demote the last super_admin" });
+        }
+      }
+      const current = await getUserRoles(id);
+      const newRoles = current.filter((r) => r !== "admin" && r !== "super_admin");
+      await db.execute(
+        sql`UPDATE users SET roles = ${newRoles}::text[], updated_at = NOW() WHERE id = ${id}`,
+      );
+      return reply.send({ ok: true, roles: newRoles });
+    },
+  );
+
   /* ============================== ADMIN MINT (for testing / rewards) ============================== */
 
   app.post(

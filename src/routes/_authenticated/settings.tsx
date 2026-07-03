@@ -226,7 +226,7 @@ function SettingsPage() {
   async function saveBuilderProfile() {
     setSavingBuilder(true);
     try {
-      await dotApi.patch("/api/users/me/builder-profile", {
+      await dotApi.put("/api/users/me/builder-profile", {
         headline: builderHeadline.trim() || undefined,
         bio: builderBio.trim() || undefined,
         skills: builderSkills,
