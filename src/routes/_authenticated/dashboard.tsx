@@ -30,7 +30,9 @@ import { PageSkeleton } from "@/components/app/PageSkeleton";
 import { Button } from "@/components/ui/button";
 import { useDotAuth } from "@/contexts/DotAuthContext";
 import { useQuery } from "@tanstack/react-query";
-import { getBalance } from "@/api/wallet";
+import { getBalance, getTransactions as listTransactions } from "@/api/wallet";
+import { fetchNotifications as listNotifications } from "@/api/notifications";
+import { listVentures } from "@/api/ventures";
 import {
   useFounderProfile,
   useAssessments,
@@ -636,68 +638,302 @@ function Dashboard() {
           </div>
         </section>
       ) : (
-        <section className="grid gap-6 lg:grid-cols-3">
-          <div className="rounded-2xl border border-border bg-card p-6 lg:col-span-2">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <span className="tracking-editorial text-primary">Recommended next actions</span>
-                <h2 className="mt-1 font-display text-xl font-light tracking-tight">
-                  {latest ? "From your latest Vantage report" : "Take your Vantage assessment to unlock guidance"}
-                </h2>
+        <DashboardPulse
+          latest={latest}
+          isFounder={isFounder}
+        />
+      )}
+    </AppShell>
+  );
+}
+
+/* ═══════════════════ DASHBOARD PULSE — real activity + next actions + explore ═ */
+
+function DashboardPulse({
+  latest,
+  isFounder,
+}: {
+  latest: any;
+  isFounder: boolean;
+}) {
+  // Live notifications + transactions
+  const { data: notifData } = useQuery({
+    queryKey: ["notifications", "feed", "recent"],
+    queryFn: () => listNotifications({ limit: 4 }),
+    refetchInterval: 30_000,
+  });
+  const { data: txData } = useQuery({
+    queryKey: ["wallet", "transactions", "recent"],
+    queryFn: () => listTransactions(),
+    refetchInterval: 60_000,
+  });
+  const { data: feedData } = useQuery({
+    queryKey: ["ventures", "feed", "trending"],
+    queryFn: () => listVentures({ limit: 4 }),
+    staleTime: 5 * 60_000,
+  });
+
+  const notifications: any[] = (notifData as any)?.items ?? [];
+  const transactions: any[] = (Array.isArray(txData) ? txData : ((txData as any)?.transactions ?? [])).slice(0, 4);
+  const trending: any[] = (feedData as any) ?? [];
+
+  const nextActions: string[] =
+    (latest?.report as { nextActions?: string[] } | null)?.nextActions ?? [];
+  const unread = notifications.filter((n: any) => !n.read).length;
+
+  return (
+    <section className="grid gap-6 lg:grid-cols-3">
+      {/* ── Next actions from Vantage (or onboarding if no assessment) ─── */}
+      <div className="rounded-2xl border border-border bg-card p-6 lg:col-span-2">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <span className="tracking-editorial text-primary">Your next moves</span>
+            <h2 className="mt-1 font-display text-xl font-light tracking-tight">
+              {nextActions.length > 0
+                ? "From your latest Vantage report"
+                : isFounder
+                ? "Take Vantage to unlock a tailored playbook"
+                : "Recommended for you"}
+            </h2>
+          </div>
+          {latest && (
+            <Link
+              to="/vantage"
+              className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+            >
+              View report →
+            </Link>
+          )}
+        </div>
+        <div className="mt-5 space-y-2">
+          {nextActions.length > 0 ? (
+            nextActions.slice(0, 4).map((a, i) => (
+              <div
+                key={i}
+                className="group flex items-center gap-4 rounded-xl border border-border p-4 transition-all hover:border-primary/40 hover:bg-accent/50"
+              >
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm font-semibold text-primary tabular">
+                  {i + 1}
+                </span>
+                <span className="flex-1 text-sm">{a}</span>
+                <ArrowUpRight className="size-3.5 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
               </div>
+            ))
+          ) : isFounder ? (
+            <div className="rounded-xl border border-dashed border-primary/40 bg-primary/5 p-6 text-center">
+              <Gauge className="mx-auto size-8 text-primary" />
+              <p className="mt-3 text-sm font-medium">No Vantage yet</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Take a 10-minute assessment to get a personal playbook of next moves.
+              </p>
+              <Button variant="hero" size="sm" className="mt-4" asChild>
+                <Link to="/vantage">
+                  Start assessment <ArrowRight className="size-3.5" />
+                </Link>
+              </Button>
             </div>
-            <div className="mt-5 space-y-3">
-              {latest && (latest.report as { nextActions?: string[] } | null)?.nextActions?.map((a: string, i: number) => (
-                  <div
-                    key={i}
-                    className="group flex items-center gap-4 rounded-xl border border-border p-4 transition-colors hover:border-primary/40 hover:bg-accent/50"
+          ) : (
+            <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+              Complete onboarding to get recommendations.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Trending ventures to back ─────────────────────────────── */}
+      <div className="rounded-2xl border border-border bg-card p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <span className="tracking-editorial text-gold">Trending</span>
+            <h2 className="mt-1 font-display text-xl font-light tracking-tight">Watchlist</h2>
+          </div>
+          <Link
+            to="/demo"
+            className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+          >
+            All →
+          </Link>
+        </div>
+        <div className="mt-4 space-y-2">
+          {trending.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
+              No ventures trending yet
+            </div>
+          ) : (
+            trending.slice(0, 4).map((v: any) => (
+              <Link
+                key={v.id}
+                to="/demo"
+                search={{ venture: v.id }}
+                className="flex items-center gap-3 rounded-lg border border-border p-3 transition-all hover:border-foreground/20 hover:bg-accent/30"
+              >
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-gold/10 text-xs font-bold text-gold">
+                  {(v.name ?? "?").charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{v.name ?? "—"}</p>
+                  <p className="truncate text-[11px] text-muted-foreground">
+                    {v.industry ?? v.stage ?? "DOT Venture"}
+                  </p>
+                </div>
+                <span className="shrink-0 text-xs font-semibold tabular text-primary">
+                  {v.vantagePoint ?? v.vantage ?? "—"}
+                </span>
+              </Link>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* ── Activity pulse — notifications + transactions ───────── */}
+      <div className="rounded-2xl border border-border bg-card p-6 lg:col-span-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <span className="tracking-editorial text-primary">
+              Activity {unread > 0 && (
+                <span className="ml-1 inline-flex items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold text-primary-foreground tabular">
+                  {unread} new
+                </span>
+              )}
+            </span>
+            <h2 className="mt-1 font-display text-xl font-light tracking-tight">Your pulse</h2>
+          </div>
+          <Link
+            to="/notifications"
+            className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+          >
+            All activity →
+          </Link>
+        </div>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          {/* Notifications list */}
+          <div>
+            <h3 className="mb-2 text-[10px] tracking-widest uppercase text-muted-foreground">
+              Notifications
+            </h3>
+            <div className="space-y-1.5">
+              {notifications.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
+                  You're all caught up
+                </div>
+              ) : (
+                notifications.slice(0, 4).map((n: any) => (
+                  <Link
+                    key={n.id}
+                    to={n.link ?? "/notifications"}
+                    className={cn(
+                      "group flex items-start gap-3 rounded-lg border p-3 transition-all hover:border-foreground/20",
+                      !n.read ? "border-primary/30 bg-primary/5" : "border-border"
+                    )}
                   >
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm font-semibold text-primary tabular">
-                      {i + 1}
-                    </span>
-                    <span className="flex-1 text-sm">{a}</span>
-                    <ArrowUpRight className="size-3.5 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-                  </div>
-                ))}
-              {!latest && isFounder && (
-                <Button variant="outline" asChild>
-                  <Link to="/vantage">
-                    Start your assessment <ArrowRight className="size-4" />
+                    <span
+                      className={cn(
+                        "mt-0.5 size-2 shrink-0 rounded-full",
+                        n.read ? "bg-border" : "bg-primary"
+                      )}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-medium">{n.title}</p>
+                      <p className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground">
+                        {n.body}
+                      </p>
+                    </div>
                   </Link>
-                </Button>
+                ))
               )}
             </div>
           </div>
 
-          <div className="rounded-2xl border border-border bg-card p-6">
-            <span className="tracking-editorial text-primary">Explore</span>
-            <h2 className="mt-1 font-display text-xl font-light tracking-tight">Jump back in</h2>
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              {[
-                { label: "Vantage",  to: "/vantage",  icon: Gauge,        accent: "text-primary border-primary/30" },
-                { label: "Academy",  to: "/academy",  icon: BookOpen,     accent: "text-gold border-gold/30" },
-                { label: "Sessions", to: "/sessions", icon: ArrowUpRight, accent: "text-primary border-primary/30" },
-                { label: "Wallet",   to: "/wallet",   icon: Wallet,       accent: "text-gold border-gold/30" },
-              ].map((q) => {
-                const Icon = q.icon;
-                return (
-                  <Link
-                    key={q.label}
-                    to={q.to}
-                    className="group flex flex-col items-start gap-3 rounded-xl border border-border p-4 transition-all hover:border-foreground/20 hover:shadow-soft"
-                  >
-                    <span className={cn("flex size-9 items-center justify-center rounded-lg border bg-card", q.accent)}>
-                      <Icon className="size-4" />
-                    </span>
-                    <span className="text-sm font-medium">{q.label}</span>
-                    <ArrowUpRight className="ml-auto size-3.5 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-                  </Link>
-                );
-              })}
+          {/* Transactions list */}
+          <div>
+            <h3 className="mb-2 text-[10px] tracking-widest uppercase text-muted-foreground">
+              Recent transactions
+            </h3>
+            <div className="space-y-1.5">
+              {transactions.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
+                  No transactions yet
+                </div>
+              ) : (
+                transactions.map((t: any) => {
+                  const isPositive = Number(t.amount) > 0;
+                  return (
+                    <div
+                      key={t.id}
+                      className="flex items-center gap-3 rounded-lg border border-border p-3"
+                    >
+                      <span
+                        className={cn(
+                          "flex size-7 shrink-0 items-center justify-center rounded-md text-[10px] font-bold",
+                          isPositive
+                            ? "bg-primary/10 text-primary"
+                            : "bg-muted text-muted-foreground"
+                        )}
+                      >
+                        {isPositive ? "+" : "−"}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-medium">
+                          {t.description ?? t.type ?? "Transaction"}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground tabular">
+                          {t.createdAt ? new Date(t.createdAt).toLocaleDateString() : ""}
+                        </p>
+                      </div>
+                      <span
+                        className={cn(
+                          "shrink-0 text-xs font-semibold tabular",
+                          isPositive ? "text-primary" : "text-foreground"
+                        )}
+                      >
+                        {isPositive ? "+" : ""}
+                        {formatDot(Number(t.amount))}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
-        </section>
-      )}
-    </AppShell>
+        </div>
+      </div>
+
+      {/* ── Quick explore grid ──────────────────────────────────── */}
+      <div className="rounded-2xl border border-border bg-card p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <span className="tracking-editorial text-primary">Explore</span>
+            <h2 className="mt-1 font-display text-xl font-light tracking-tight">Jump back in</h2>
+          </div>
+        </div>
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          {[
+            { label: "Vantage", sub: "Your score", to: "/vantage", icon: Gauge, accent: "text-primary border-primary/30" },
+            { label: "Academy", sub: "Learn + earn", to: "/academy", icon: BookOpen, accent: "text-gold border-gold/30" },
+            { label: "Sessions", sub: "Meet founders", to: "/sessions", icon: ArrowUpRight, accent: "text-primary border-primary/30" },
+            { label: "Wallet", sub: "Send + receive", to: "/wallet", icon: Wallet, accent: "text-gold border-gold/30" },
+            { label: "DOT Demo", sub: "Live ventures", to: "/demo", icon: TrendingUp, accent: "text-primary border-primary/30" },
+            { label: "Settings", sub: "Account", to: "/settings", icon: UserCircle, accent: "text-gold border-gold/30" },
+          ].map((q) => {
+            const Icon = q.icon;
+            return (
+              <Link
+                key={q.label}
+                to={q.to}
+                className="group flex flex-col items-start gap-2 rounded-xl border border-border p-3 transition-all hover:border-foreground/20 hover:shadow-soft"
+              >
+                <span className={cn("flex size-8 items-center justify-center rounded-lg border bg-card", q.accent)}>
+                  <Icon className="size-3.5" />
+                </span>
+                <div>
+                  <p className="text-sm font-medium">{q.label}</p>
+                  <p className="text-[10px] text-muted-foreground">{q.sub}</p>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+    </section>
   );
 }

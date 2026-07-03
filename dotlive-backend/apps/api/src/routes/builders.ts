@@ -33,7 +33,7 @@ export async function builderArenaRoutes(app: FastifyInstance) {
             SELECT u.id, u.name, u.dot_id AS "dotId", u.headline, u.location, u.avatar_url AS "avatarUrl",
                    bp.skills AS skills, bp.bio AS bio, bp.available AS available
             FROM users u
-            LEFT JOIN builder_profiles bp ON bp.user_id = u.id
+            LEFT JOIN builder_profiles bp ON bp.id = u.id
             WHERE u.roles @> ARRAY['builder']::text[]
               AND (LOWER(u.name) LIKE ${"%" + q.toLowerCase() + "%"}
                    OR LOWER(COALESCE(u.dot_id, '')) LIKE ${"%" + q.toLowerCase() + "%"})
@@ -44,7 +44,7 @@ export async function builderArenaRoutes(app: FastifyInstance) {
             SELECT u.id, u.name, u.dot_id AS "dotId", u.headline, u.location, u.avatar_url AS "avatarUrl",
                    bp.skills AS skills, bp.bio AS bio, bp.available AS available
             FROM users u
-            LEFT JOIN builder_profiles bp ON bp.user_id = u.id
+            LEFT JOIN builder_profiles bp ON bp.id = u.id
             WHERE u.roles @> ARRAY['builder']::text[]
             ORDER BY u.created_at DESC
             LIMIT ${limit}

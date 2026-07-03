@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { eq, sql, desc, and, isNotNull } from "drizzle-orm";
 import { db } from "../db/client.js";
 import { users } from "../db/schema.js";
+import { generateReferralCode } from "../lib/auth.js";
 
 /**
  * Referral system routes.
@@ -15,7 +16,7 @@ export async function referralRoutes(app: FastifyInstance) {
   app.get("/referrals/me", { preHandler: app.authenticate }, async (req, reply) => {
     const { sub } = req.user as { sub: string };
 
-    const [me] = await db
+    let [me] = await db
       .select({
         id: users.id,
         referralCode: users.referralCode,
@@ -30,6 +31,26 @@ export async function referralRoutes(app: FastifyInstance) {
       .limit(1);
 
     if (!me) return reply.code(404).send({ error: "User not found" });
+
+    // Lazily generate a referral code for legacy users who signed up
+    // before the code-generation logic landed.
+    if (!me.referralCode) {
+      let code = generateReferralCode();
+      for (let i = 0; i < 5; i++) {
+        const [exists] = await db
+          .select({ id: users.id })
+          .from(users)
+          .where(eq(users.referralCode, code))
+          .limit(1);
+        if (!exists) break;
+        code = generateReferralCode();
+      }
+      await db
+        .update(users)
+        .set({ referralCode: code } as any)
+        .where(eq(users.id, sub));
+      me = { ...me, referralCode: code };
+    }
 
     return reply.send({
       code: me.referralCode,

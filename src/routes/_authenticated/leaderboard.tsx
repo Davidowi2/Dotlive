@@ -17,7 +17,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { getLeaderboard, type Leader } from "@/api/leaderboard";
 
-export const Route = createFileRoute("/_authenticated/work/leaderboard")({
+export const Route = createFileRoute("/_authenticated/leaderboard")({
   head: () => ({ meta: [{ title: "Leaderboard · DOT Work" }] }),
   component: LeaderboardPage,
 });

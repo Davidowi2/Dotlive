@@ -41,6 +41,7 @@ import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authentic
 import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
 import { Route as AuthenticatedMeetingsRouteImport } from './routes/_authenticated/meetings'
 import { Route as AuthenticatedMarketplaceRouteImport } from './routes/_authenticated/marketplace'
+import { Route as AuthenticatedLeaderboardRouteImport } from './routes/_authenticated/leaderboard'
 import { Route as AuthenticatedKycRouteImport } from './routes/_authenticated/kyc'
 import { Route as AuthenticatedJudgeRouteImport } from './routes/_authenticated/judge'
 import { Route as AuthenticatedInvestorRouteImport } from './routes/_authenticated/investor'
@@ -56,7 +57,6 @@ import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authentic
 import { Route as AuthenticatedMessagesIndexRouteImport } from './routes/_authenticated/messages/index'
 import { Route as AuthenticatedCapitalIndexRouteImport } from './routes/_authenticated/capital/index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
-import { Route as AuthenticatedWorkLeaderboardRouteImport } from './routes/_authenticated/work/leaderboard'
 import { Route as AuthenticatedOnboardingBuilderRouteImport } from './routes/_authenticated/onboarding/builder'
 import { Route as AuthenticatedMessagesIdRouteImport } from './routes/_authenticated/messages/$id'
 import { Route as AuthenticatedJoinCodeRouteImport } from './routes/_authenticated/join.$code'
@@ -71,6 +71,7 @@ import { Route as AuthenticatedBuilderIdRouteImport } from './routes/_authentica
 import { Route as AuthenticatedAdminWalletsRouteImport } from './routes/_authenticated/admin/wallets'
 import { Route as AuthenticatedAdminTokensRouteImport } from './routes/_authenticated/admin/tokens'
 import { Route as AuthenticatedAdminTestWebhookRouteImport } from './routes/_authenticated/admin/test-webhook'
+import { Route as AuthenticatedAdminSessionsRouteImport } from './routes/_authenticated/admin/sessions'
 import { Route as AuthenticatedAdminRolesRouteImport } from './routes/_authenticated/admin/roles'
 import { Route as AuthenticatedAdminPermissionsRouteImport } from './routes/_authenticated/admin/permissions'
 import { Route as AuthenticatedAdminMembersRouteImport } from './routes/_authenticated/admin/members'
@@ -240,6 +241,12 @@ const AuthenticatedMarketplaceRoute =
     path: '/marketplace',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedLeaderboardRoute =
+  AuthenticatedLeaderboardRouteImport.update({
+    id: '/leaderboard',
+    path: '/leaderboard',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedKycRoute = AuthenticatedKycRouteImport.update({
   id: '/kyc',
   path: '/kyc',
@@ -318,12 +325,6 @@ const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedAdminRouteRoute,
 } as any)
-const AuthenticatedWorkLeaderboardRoute =
-  AuthenticatedWorkLeaderboardRouteImport.update({
-    id: '/leaderboard',
-    path: '/leaderboard',
-    getParentRoute: () => AuthenticatedWorkRoute,
-  } as any)
 const AuthenticatedOnboardingBuilderRoute =
   AuthenticatedOnboardingBuilderRouteImport.update({
     id: '/builder',
@@ -402,6 +403,12 @@ const AuthenticatedAdminTestWebhookRoute =
     path: '/test-webhook',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAdminSessionsRoute =
+  AuthenticatedAdminSessionsRouteImport.update({
+    id: '/sessions',
+    path: '/sessions',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminRolesRoute = AuthenticatedAdminRolesRouteImport.update({
   id: '/roles',
   path: '/roles',
@@ -464,6 +471,7 @@ export interface FileRoutesByFullPath {
   '/investor': typeof AuthenticatedInvestorRoute
   '/judge': typeof AuthenticatedJudgeRoute
   '/kyc': typeof AuthenticatedKycRoute
+  '/leaderboard': typeof AuthenticatedLeaderboardRoute
   '/marketplace': typeof AuthenticatedMarketplaceRoute
   '/meetings': typeof AuthenticatedMeetingsRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
@@ -478,7 +486,7 @@ export interface FileRoutesByFullPath {
   '/vantage': typeof AuthenticatedVantageRoute
   '/ventures': typeof AuthenticatedVenturesRoute
   '/wallet': typeof AuthenticatedWalletRoute
-  '/work': typeof AuthenticatedWorkRouteWithChildren
+  '/work': typeof AuthenticatedWorkRoute
   '/events/$slug': typeof EventsSlugRoute
   '/founder/$id': typeof FounderIdRoute
   '/events/': typeof EventsIndexRoute
@@ -487,6 +495,7 @@ export interface FileRoutesByFullPath {
   '/admin/members': typeof AuthenticatedAdminMembersRoute
   '/admin/permissions': typeof AuthenticatedAdminPermissionsRoute
   '/admin/roles': typeof AuthenticatedAdminRolesRoute
+  '/admin/sessions': typeof AuthenticatedAdminSessionsRoute
   '/admin/test-webhook': typeof AuthenticatedAdminTestWebhookRoute
   '/admin/tokens': typeof AuthenticatedAdminTokensRoute
   '/admin/wallets': typeof AuthenticatedAdminWalletsRoute
@@ -501,7 +510,6 @@ export interface FileRoutesByFullPath {
   '/join/$code': typeof AuthenticatedJoinCodeRoute
   '/messages/$id': typeof AuthenticatedMessagesIdRoute
   '/onboarding/builder': typeof AuthenticatedOnboardingBuilderRoute
-  '/work/leaderboard': typeof AuthenticatedWorkLeaderboardRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/capital/': typeof AuthenticatedCapitalIndexRoute
   '/messages/': typeof AuthenticatedMessagesIndexRoute
@@ -532,6 +540,7 @@ export interface FileRoutesByTo {
   '/investor': typeof AuthenticatedInvestorRoute
   '/judge': typeof AuthenticatedJudgeRoute
   '/kyc': typeof AuthenticatedKycRoute
+  '/leaderboard': typeof AuthenticatedLeaderboardRoute
   '/marketplace': typeof AuthenticatedMarketplaceRoute
   '/meetings': typeof AuthenticatedMeetingsRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
@@ -546,7 +555,7 @@ export interface FileRoutesByTo {
   '/vantage': typeof AuthenticatedVantageRoute
   '/ventures': typeof AuthenticatedVenturesRoute
   '/wallet': typeof AuthenticatedWalletRoute
-  '/work': typeof AuthenticatedWorkRouteWithChildren
+  '/work': typeof AuthenticatedWorkRoute
   '/events/$slug': typeof EventsSlugRoute
   '/founder/$id': typeof FounderIdRoute
   '/events': typeof EventsIndexRoute
@@ -555,6 +564,7 @@ export interface FileRoutesByTo {
   '/admin/members': typeof AuthenticatedAdminMembersRoute
   '/admin/permissions': typeof AuthenticatedAdminPermissionsRoute
   '/admin/roles': typeof AuthenticatedAdminRolesRoute
+  '/admin/sessions': typeof AuthenticatedAdminSessionsRoute
   '/admin/test-webhook': typeof AuthenticatedAdminTestWebhookRoute
   '/admin/tokens': typeof AuthenticatedAdminTokensRoute
   '/admin/wallets': typeof AuthenticatedAdminWalletsRoute
@@ -569,7 +579,6 @@ export interface FileRoutesByTo {
   '/join/$code': typeof AuthenticatedJoinCodeRoute
   '/messages/$id': typeof AuthenticatedMessagesIdRoute
   '/onboarding/builder': typeof AuthenticatedOnboardingBuilderRoute
-  '/work/leaderboard': typeof AuthenticatedWorkLeaderboardRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/capital': typeof AuthenticatedCapitalIndexRoute
   '/messages': typeof AuthenticatedMessagesIndexRoute
@@ -603,6 +612,7 @@ export interface FileRoutesById {
   '/_authenticated/investor': typeof AuthenticatedInvestorRoute
   '/_authenticated/judge': typeof AuthenticatedJudgeRoute
   '/_authenticated/kyc': typeof AuthenticatedKycRoute
+  '/_authenticated/leaderboard': typeof AuthenticatedLeaderboardRoute
   '/_authenticated/marketplace': typeof AuthenticatedMarketplaceRoute
   '/_authenticated/meetings': typeof AuthenticatedMeetingsRoute
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
@@ -617,7 +627,7 @@ export interface FileRoutesById {
   '/_authenticated/vantage': typeof AuthenticatedVantageRoute
   '/_authenticated/ventures': typeof AuthenticatedVenturesRoute
   '/_authenticated/wallet': typeof AuthenticatedWalletRoute
-  '/_authenticated/work': typeof AuthenticatedWorkRouteWithChildren
+  '/_authenticated/work': typeof AuthenticatedWorkRoute
   '/events/$slug': typeof EventsSlugRoute
   '/founder/$id': typeof FounderIdRoute
   '/events/': typeof EventsIndexRoute
@@ -626,6 +636,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/members': typeof AuthenticatedAdminMembersRoute
   '/_authenticated/admin/permissions': typeof AuthenticatedAdminPermissionsRoute
   '/_authenticated/admin/roles': typeof AuthenticatedAdminRolesRoute
+  '/_authenticated/admin/sessions': typeof AuthenticatedAdminSessionsRoute
   '/_authenticated/admin/test-webhook': typeof AuthenticatedAdminTestWebhookRoute
   '/_authenticated/admin/tokens': typeof AuthenticatedAdminTokensRoute
   '/_authenticated/admin/wallets': typeof AuthenticatedAdminWalletsRoute
@@ -640,7 +651,6 @@ export interface FileRoutesById {
   '/_authenticated/join/$code': typeof AuthenticatedJoinCodeRoute
   '/_authenticated/messages/$id': typeof AuthenticatedMessagesIdRoute
   '/_authenticated/onboarding/builder': typeof AuthenticatedOnboardingBuilderRoute
-  '/_authenticated/work/leaderboard': typeof AuthenticatedWorkLeaderboardRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/capital/': typeof AuthenticatedCapitalIndexRoute
   '/_authenticated/messages/': typeof AuthenticatedMessagesIndexRoute
@@ -674,6 +684,7 @@ export interface FileRouteTypes {
     | '/investor'
     | '/judge'
     | '/kyc'
+    | '/leaderboard'
     | '/marketplace'
     | '/meetings'
     | '/notifications'
@@ -697,6 +708,7 @@ export interface FileRouteTypes {
     | '/admin/members'
     | '/admin/permissions'
     | '/admin/roles'
+    | '/admin/sessions'
     | '/admin/test-webhook'
     | '/admin/tokens'
     | '/admin/wallets'
@@ -711,7 +723,6 @@ export interface FileRouteTypes {
     | '/join/$code'
     | '/messages/$id'
     | '/onboarding/builder'
-    | '/work/leaderboard'
     | '/admin/'
     | '/capital/'
     | '/messages/'
@@ -742,6 +753,7 @@ export interface FileRouteTypes {
     | '/investor'
     | '/judge'
     | '/kyc'
+    | '/leaderboard'
     | '/marketplace'
     | '/meetings'
     | '/notifications'
@@ -765,6 +777,7 @@ export interface FileRouteTypes {
     | '/admin/members'
     | '/admin/permissions'
     | '/admin/roles'
+    | '/admin/sessions'
     | '/admin/test-webhook'
     | '/admin/tokens'
     | '/admin/wallets'
@@ -779,7 +792,6 @@ export interface FileRouteTypes {
     | '/join/$code'
     | '/messages/$id'
     | '/onboarding/builder'
-    | '/work/leaderboard'
     | '/admin'
     | '/capital'
     | '/messages'
@@ -812,6 +824,7 @@ export interface FileRouteTypes {
     | '/_authenticated/investor'
     | '/_authenticated/judge'
     | '/_authenticated/kyc'
+    | '/_authenticated/leaderboard'
     | '/_authenticated/marketplace'
     | '/_authenticated/meetings'
     | '/_authenticated/notifications'
@@ -835,6 +848,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/members'
     | '/_authenticated/admin/permissions'
     | '/_authenticated/admin/roles'
+    | '/_authenticated/admin/sessions'
     | '/_authenticated/admin/test-webhook'
     | '/_authenticated/admin/tokens'
     | '/_authenticated/admin/wallets'
@@ -849,7 +863,6 @@ export interface FileRouteTypes {
     | '/_authenticated/join/$code'
     | '/_authenticated/messages/$id'
     | '/_authenticated/onboarding/builder'
-    | '/_authenticated/work/leaderboard'
     | '/_authenticated/admin/'
     | '/_authenticated/capital/'
     | '/_authenticated/messages/'
@@ -1103,6 +1116,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMarketplaceRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/leaderboard': {
+      id: '/_authenticated/leaderboard'
+      path: '/leaderboard'
+      fullPath: '/leaderboard'
+      preLoaderRoute: typeof AuthenticatedLeaderboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/kyc': {
       id: '/_authenticated/kyc'
       path: '/kyc'
@@ -1208,13 +1228,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
-    '/_authenticated/work/leaderboard': {
-      id: '/_authenticated/work/leaderboard'
-      path: '/leaderboard'
-      fullPath: '/work/leaderboard'
-      preLoaderRoute: typeof AuthenticatedWorkLeaderboardRouteImport
-      parentRoute: typeof AuthenticatedWorkRoute
-    }
     '/_authenticated/onboarding/builder': {
       id: '/_authenticated/onboarding/builder'
       path: '/builder'
@@ -1313,6 +1326,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminTestWebhookRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/sessions': {
+      id: '/_authenticated/admin/sessions'
+      path: '/sessions'
+      fullPath: '/admin/sessions'
+      preLoaderRoute: typeof AuthenticatedAdminSessionsRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/admin/roles': {
       id: '/_authenticated/admin/roles'
       path: '/roles'
@@ -1364,6 +1384,7 @@ interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminMembersRoute: typeof AuthenticatedAdminMembersRoute
   AuthenticatedAdminPermissionsRoute: typeof AuthenticatedAdminPermissionsRoute
   AuthenticatedAdminRolesRoute: typeof AuthenticatedAdminRolesRoute
+  AuthenticatedAdminSessionsRoute: typeof AuthenticatedAdminSessionsRoute
   AuthenticatedAdminTestWebhookRoute: typeof AuthenticatedAdminTestWebhookRoute
   AuthenticatedAdminTokensRoute: typeof AuthenticatedAdminTokensRoute
   AuthenticatedAdminWalletsRoute: typeof AuthenticatedAdminWalletsRoute
@@ -1377,6 +1398,7 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
     AuthenticatedAdminMembersRoute: AuthenticatedAdminMembersRoute,
     AuthenticatedAdminPermissionsRoute: AuthenticatedAdminPermissionsRoute,
     AuthenticatedAdminRolesRoute: AuthenticatedAdminRolesRoute,
+    AuthenticatedAdminSessionsRoute: AuthenticatedAdminSessionsRoute,
     AuthenticatedAdminTestWebhookRoute: AuthenticatedAdminTestWebhookRoute,
     AuthenticatedAdminTokensRoute: AuthenticatedAdminTokensRoute,
     AuthenticatedAdminWalletsRoute: AuthenticatedAdminWalletsRoute,
@@ -1454,17 +1476,6 @@ const AuthenticatedOnboardingRouteWithChildren =
     AuthenticatedOnboardingRouteChildren,
   )
 
-interface AuthenticatedWorkRouteChildren {
-  AuthenticatedWorkLeaderboardRoute: typeof AuthenticatedWorkLeaderboardRoute
-}
-
-const AuthenticatedWorkRouteChildren: AuthenticatedWorkRouteChildren = {
-  AuthenticatedWorkLeaderboardRoute: AuthenticatedWorkLeaderboardRoute,
-}
-
-const AuthenticatedWorkRouteWithChildren =
-  AuthenticatedWorkRoute._addFileChildren(AuthenticatedWorkRouteChildren)
-
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRouteRoute: typeof AuthenticatedAdminRouteRouteWithChildren
   AuthenticatedAcademyRoute: typeof AuthenticatedAcademyRoute
@@ -1478,6 +1489,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedInvestorRoute: typeof AuthenticatedInvestorRoute
   AuthenticatedJudgeRoute: typeof AuthenticatedJudgeRoute
   AuthenticatedKycRoute: typeof AuthenticatedKycRoute
+  AuthenticatedLeaderboardRoute: typeof AuthenticatedLeaderboardRoute
   AuthenticatedMarketplaceRoute: typeof AuthenticatedMarketplaceRoute
   AuthenticatedMeetingsRoute: typeof AuthenticatedMeetingsRoute
   AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
@@ -1492,7 +1504,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedVantageRoute: typeof AuthenticatedVantageRoute
   AuthenticatedVenturesRoute: typeof AuthenticatedVenturesRoute
   AuthenticatedWalletRoute: typeof AuthenticatedWalletRoute
-  AuthenticatedWorkRoute: typeof AuthenticatedWorkRouteWithChildren
+  AuthenticatedWorkRoute: typeof AuthenticatedWorkRoute
   AuthenticatedCIdRoute: typeof AuthenticatedCIdRoute
   AuthenticatedCapitalPortfolioRoute: typeof AuthenticatedCapitalPortfolioRoute
   AuthenticatedDealsIdRoute: typeof AuthenticatedDealsIdRoute
@@ -1515,6 +1527,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedInvestorRoute: AuthenticatedInvestorRoute,
   AuthenticatedJudgeRoute: AuthenticatedJudgeRoute,
   AuthenticatedKycRoute: AuthenticatedKycRoute,
+  AuthenticatedLeaderboardRoute: AuthenticatedLeaderboardRoute,
   AuthenticatedMarketplaceRoute: AuthenticatedMarketplaceRoute,
   AuthenticatedMeetingsRoute: AuthenticatedMeetingsRoute,
   AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
@@ -1529,7 +1542,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedVantageRoute: AuthenticatedVantageRoute,
   AuthenticatedVenturesRoute: AuthenticatedVenturesRoute,
   AuthenticatedWalletRoute: AuthenticatedWalletRoute,
-  AuthenticatedWorkRoute: AuthenticatedWorkRouteWithChildren,
+  AuthenticatedWorkRoute: AuthenticatedWorkRoute,
   AuthenticatedCIdRoute: AuthenticatedCIdRoute,
   AuthenticatedCapitalPortfolioRoute: AuthenticatedCapitalPortfolioRoute,
   AuthenticatedDealsIdRoute: AuthenticatedDealsIdRoute,

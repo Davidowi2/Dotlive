@@ -15,6 +15,7 @@ import {
   Check,
   Sparkles,
   Lock,
+  Shield,
 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
@@ -190,57 +191,54 @@ function PublicProfilePage() {
               Identity
             </h3>
           </div>
-          <dl className="space-y-3 text-sm">
+          <dl className="space-y-4 text-sm">
             <div className="flex items-start gap-2">
               <UserIcon className="mt-0.5 size-3.5 text-muted-foreground" />
               <div>
-                <dt className="text-xs text-muted-foreground">Display name</dt>
-                <dd className="font-medium">{user.name ?? "—"}</dd>
+                <div className="text-xs text-muted-foreground">Display name</div>
+                <div className="font-medium">{user.name ?? "—"}</div>
               </div>
             </div>
             <div className="flex items-start gap-2">
               <Globe className="mt-0.5 size-3.5 text-muted-foreground" />
               <div>
-                <dt className="text-xs text-muted-foreground">DOT ID</dt>
-                <dd className="font-mono text-xs">{dotId}</dd>
+                <div className="text-xs text-muted-foreground">DOT ID</div>
+                <div className="font-mono text-xs">{dotId}</div>
               </div>
             </div>
             <div className="flex items-start gap-2">
               <MapPin className="mt-0.5 size-3.5 text-muted-foreground" />
               <div>
-                <dt className="text-xs text-muted-foreground">Region</dt>
-                <dd className="font-medium">
-                  {(user as any).location ?? <span className="text-muted-foreground">Not set</span>}
-                </dd>
+                <div className="text-xs text-muted-foreground">Region</div>
+                <div className="font-medium">
+                  {(user as any).location || <span className="text-muted-foreground">Not set</span>}
+                </div>
               </div>
             </div>
             <div className="flex items-start gap-2">
               <Briefcase className="mt-0.5 size-3.5 text-muted-foreground" />
               <div>
-                <dt className="text-xs text-muted-foreground">Headline</dt>
-                <dd className="font-medium">
-                  {(user as any).headline ?? <span className="text-muted-foreground">Not set</span>}
-                </dd>
+                <div className="text-xs text-muted-foreground">Headline</div>
+                <div className="font-medium">
+                  {(user as any).headline || <span className="text-muted-foreground">Not set</span>}
+                </div>
               </div>
             </div>
             <div className="flex items-start gap-2">
-              <Briefcase className="mt-0.5 size-3.5 text-muted-foreground" />
+              <Shield className="mt-0.5 size-3.5 text-muted-foreground" />
               <div>
-                <dt className="text-xs text-muted-foreground">Roles</dt>
-                <dd className="flex flex-wrap gap-1">
+                <div className="text-xs text-muted-foreground">Roles</div>
+                <div className="flex flex-wrap gap-1.5 pt-1">
                   {roles.length === 0 ? (
-                    <span className="text-muted-foreground">None</span>
+                    <span className="text-muted-foreground">No roles yet</span>
                   ) : (
                     roles.map((r) => (
-                      <span
-                        key={r}
-                        className="rounded-md border border-border bg-muted/30 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground"
-                      >
+                      <Badge key={r} variant="secondary" className="text-[10px]">
                         {ROLE_LABELS[r as AppRole] ?? r}
-                      </span>
+                      </Badge>
                     ))
                   )}
-                </dd>
+                </div>
               </div>
             </div>
           </dl>

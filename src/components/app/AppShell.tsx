@@ -56,7 +56,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Vantage",       to: "/vantage",       icon: Gauge,       roles: ["founder"],                 section: "growth" },
   { label: "Wallet",        to: "/wallet",           icon: Wallet,                                     section: "growth" },
   { label: "Refer & Earn",  to: "/referrals",        icon: Users,                                      section: "growth" },
-  { label: "Leaderboard",   to: "/work/leaderboard", icon: Trophy,                                     section: "growth" },
+  { label: "Leaderboard",   to: "/leaderboard",    icon: Trophy,                                     section: "growth" },
   { label: "Builder Arena", to: "/builder",       icon: Trophy,      roles: ["builder"],                 section: "growth" },
   { label: "DOT Work",      to: "/work",          icon: Hammer,                                     section: "growth" },
   { label: "Academy",       to: "/academy",       icon: BookOpen,                                      section: "growth" },
