@@ -982,6 +982,38 @@ export async function adminRoutes(app: FastifyInstance) {
             return reply.send({ id });
           });
 
+          /** PATCH /api/admin/events/:id */
+          app.patch<{ Params: { id: string } }>("/events/:id", { preHandler: app.authenticate }, async (req, reply) => {
+            const { sub: adminId } = req.user as { sub: string };
+            const roles = await getUserRoles(adminId);
+            if (!roles.includes("admin") && !roles.includes("super_admin")) {
+              return reply.code(403).send({ error: "Admin only" });
+            }
+            const body = (req.body ?? {}) as Record<string, unknown>;
+            const sets: string[] = [];
+            if (body.title !== undefined) sets.push(`title = '${String(body.title).replace(/'/g, "''")}'`);
+            if (body.description !== undefined) sets.push(body.description ? `description = '${String(body.description).replace(/'/g, "''")}'` : "description = NULL");
+            if (body.speaker !== undefined) sets.push(body.speaker ? `speaker = '${String(body.speaker).replace(/'/g, "''")}'` : "speaker = NULL");
+            if (body.eventDate !== undefined) sets.push(body.eventDate ? `event_date = '${new Date(body.eventDate as string).toISOString()}'` : "event_date = NULL");
+            if (body.dotCost !== undefined) sets.push(`dot_cost = ${Number(body.dotCost)}`);
+            if (body.capacity !== undefined) sets.push(`capacity = ${Number(body.capacity)}`);
+            if (body.whopUrl !== undefined) sets.push(body.whopUrl ? `whop_url = '${String(body.whopUrl).replace(/'/g, "''")}'` : "whop_url = NULL");
+            if (sets.length === 0) return reply.send({ ok: true });
+            await db.execute(sql`UPDATE events SET ${sql.raw(sets.join(", "))} WHERE id = ${req.params.id}`);
+            return reply.send({ ok: true });
+          });
+
+          /** DELETE /api/admin/events/:id */
+          app.delete<{ Params: { id: string } }>("/events/:id", { preHandler: app.authenticate }, async (req, reply) => {
+            const { sub: adminId } = req.user as { sub: string };
+            const roles = await getUserRoles(adminId);
+            if (!roles.includes("admin") && !roles.includes("super_admin")) {
+              return reply.code(403).send({ error: "Admin only" });
+            }
+            await db.execute(sql`DELETE FROM events WHERE id = ${req.params.id}`);
+            return reply.send({ ok: true });
+          });
+
           /** POST /api/admin/pitchathons */
           app.post("/pitchathons", { preHandler: app.authenticate }, async (req, reply) => {
             const { sub: adminId } = req.user as { sub: string };

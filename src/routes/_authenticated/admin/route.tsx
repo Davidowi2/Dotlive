@@ -26,6 +26,7 @@ import {
   GraduationCap,
   Webhook,
   KeyRound,
+  CalendarCheck,
 } from "lucide-react";
 
 import { useDotAuth } from "@/contexts/DotAuthContext";
@@ -69,6 +70,7 @@ function AdminLayout() {
     { label: "Tokens", to: "/admin/tokens", icon: Coins },
     { label: "Permissions", to: "/admin/permissions", icon: ShieldCheck },
     { label: "Courses", to: "/admin/courses", icon: GraduationCap },
+    { label: "Sessions", to: "/admin/sessions", icon: CalendarCheck },
     { label: "Integrations", to: "/admin/integrations", icon: KeyRound },
     { label: "Test webhook", to: "/admin/test-webhook", icon: Webhook },
     ...(isSuperAdmin

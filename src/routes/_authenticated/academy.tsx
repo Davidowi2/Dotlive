@@ -14,7 +14,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   GraduationCap, Sparkles, ExternalLink, ArrowRight,
-  Check, Trophy, Play, BookOpen, Award, Clock,
+  Check, Trophy, Play, BookOpen, Award, Clock, Loader2,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -281,25 +281,48 @@ function CourseCard({ course, enrollment, userId }: {
         {/* CTA */}
         <div className="pt-3 border-t border-border">
           {completed ? (
-            <Button size="sm" variant="outline" asChild className="w-full">
-              <Link to="/certificates">
-                <Award className="size-3.5 mr-1.5 text-gold" /> View certificate
-              </Link>
+            <Button size="sm" variant="outline" className="w-full" onClick={() => window.location.href = "/certificates"}>
+              <Award className="size-3.5 mr-1.5 text-gold" /> View certificate
             </Button>
           ) : enrolled || justEnrolled ? (
-            <Button size="sm" variant="default" asChild className="w-full">
-              <a href={checkoutUrl ?? "#"} target="_blank" rel="noopener noreferrer">
-                <Play className="size-3.5 mr-1.5" /> Continue on Whop <ExternalLink className="ml-1 size-3" />
-              </a>
+            // Already enrolled — open Whop content directly
+            <Button
+              size="sm"
+              variant="default"
+              className="w-full"
+              onClick={() => {
+                if (checkoutUrl) {
+                  window.open(checkoutUrl, "_blank", "noopener,noreferrer");
+                } else {
+                  window.open("https://whop.com/hub", "_blank", "noopener,noreferrer");
+                }
+              }}
+            >
+              <Play className="size-3.5 mr-1.5" /> Open course on Whop
+              <ExternalLink className="ml-1.5 size-3" />
             </Button>
           ) : checkoutUrl ? (
-            <Button size="sm" variant="hero" asChild className="w-full">
-              <a href={checkoutUrl} target="_blank" rel="noopener noreferrer">
-                Enroll on Whop <ExternalLink className="ml-1 size-3.5" />
-              </a>
+            // Not enrolled — open Whop checkout
+            <Button
+              size="sm"
+              variant="hero"
+              className="w-full"
+              onClick={() => {
+                window.open(checkoutUrl, "_blank", "noopener,noreferrer");
+                // Also auto-enroll in DOT so progress tracking starts
+                enrollInCourse(course.id)
+                  .then(() => {
+                    setJustEnrolled(true);
+                    qc.invalidateQueries({ queryKey: ["academy-enrollments"] });
+                  })
+                  .catch(() => {}); // best-effort
+              }}
+            >
+              {course.dotReward === 0 ? "Access free course on Whop" : "Enroll on Whop"}
+              <ExternalLink className="ml-1.5 size-3.5" />
             </Button>
           ) : (
-            // Free course — no Whop URL
+            // No Whop URL — free course, enroll directly in DOT
             <Button
               size="sm"
               variant="default"
@@ -311,13 +334,23 @@ function CourseCard({ course, enrollment, userId }: {
                 qc.invalidateQueries({ queryKey: ["academy-enrollments"] });
               }}
             >
-              {justEnrolled ? <><Check className="size-3.5 mr-1.5" /> Enrolled</> : "Enroll free"}
+              {mut.isPending
+                ? <><Loader2 className="size-3.5 mr-1.5 animate-spin" /> Enrolling…</>
+                : justEnrolled
+                  ? <><Check className="size-3.5 mr-1.5" /> Enrolled</>
+                  : "Enroll free"
+              }
             </Button>
           )}
         </div>
 
-        <p className="text-[10px] text-center text-muted-foreground/60">
-          {checkoutUrl ? "Content hosted on Whop · Progress tracked on DOT" : "Free course · Tracked on DOT"}
+        <p className="text-[10px] text-center text-muted-foreground/50 pt-1">
+          {checkoutUrl
+            ? (course.dotReward > 0
+                ? `Earn ${course.dotReward} DOT on completion`
+                : "Content on Whop · Progress tracked on DOT")
+            : "Free · Progress tracked on DOT"
+          }
         </p>
       </div>
     </div>
