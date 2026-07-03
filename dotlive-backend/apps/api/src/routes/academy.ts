@@ -27,6 +27,7 @@ export async function academyRoutes(app: FastifyInstance) {
         whopUrl: c.whopUrl,
         dotReward: c.dotReward,
         vantageBoost: c.vantageBoost,
+        coverImageUrl: (c as any).coverImageUrl ?? null,
       })),
     });
   });

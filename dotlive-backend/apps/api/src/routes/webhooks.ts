@@ -441,9 +441,10 @@ export async function webhookRoutes(app: FastifyInstance) {
       for (const product of whopProducts) {
         const productId = product.id as string;
         const name = (product.name ?? product.title ?? "Untitled course") as string;
-        const description = (product.description ?? null) as string | null;
-        // Whop checkout URL — use the product's checkout URL or build from slug
-        const checkoutUrl = (product.checkout_url ?? product.url ?? null) as string | null;
+        const description = (product.description ?? product.headline ?? null) as string | null;
+        const coverImageUrl = (product.image_url ?? product.cover_image ?? product.thumbnail ?? null) as string | null;
+        // Whop checkout URL
+        const checkoutUrl = (product.checkout_url ?? product.route_url ?? null) as string | null;
 
         // Check if already imported
         const existing = await db.select({ id: courses.id }).from(courses)
@@ -462,9 +463,10 @@ export async function webhookRoutes(app: FastifyInstance) {
           category: "Whop",
           whopUrl: checkoutUrl,
           whopProductId: productId,
-          dotReward: 100, // default — operator can edit
+          dotReward: 100,
           vantageBoost: 0,
           isPublished: true,
+          ...(coverImageUrl ? { coverImageUrl } : {}),
         } as any);
         created++;
         products.push({ id: productId, name, isNew: true });

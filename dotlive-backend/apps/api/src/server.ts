@@ -677,9 +677,10 @@ async function runBootstrapMigrations() {
     // events: whop_url column
     await neonSql`ALTER TABLE events ADD COLUMN IF NOT EXISTS whop_url text`;
 
-    // courses: ensure whop_product_id column exists
+    // courses: ensure whop columns + cover image exist
     await neonSql`ALTER TABLE courses ADD COLUMN IF NOT EXISTS whop_product_id text`;
     await neonSql`ALTER TABLE courses ADD COLUMN IF NOT EXISTS whop_url text`;
+    await neonSql`ALTER TABLE courses ADD COLUMN IF NOT EXISTS cover_image_url text`;
 
     // builder_reviews table (for arena stats)
     await neonSql`
