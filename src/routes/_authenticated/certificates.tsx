@@ -138,9 +138,11 @@ function CertificatesPage() {
             title="No certificates yet"
             description="Complete Academy courses to earn DOT credentials. Each certificate is verifiable by credential ID."
             action={
-              <Button variant="hero" size="sm">
-                <GraduationCap className="size-4" />
-                Browse Academy
+              <Button variant="hero" size="sm" asChild>
+                <a href="/academy">
+                  <GraduationCap className="size-4" />
+                  Browse Academy
+                </a>
               </Button>
             }
           />
@@ -252,11 +254,13 @@ function CertificatesPage() {
               </div>
 
               <div className="flex shrink-0 flex-col gap-2 lg:w-40">
-                <Button variant="hero" size="sm">
-                  <ExternalLink className="size-4" />
-                  View
+                <Button variant="hero" size="sm" asChild>
+                  <a href={`/api/certificates/${latest.id}/download`} target="_blank" rel="noreferrer">
+                    <ExternalLink className="size-4" />
+                    View
+                  </a>
                 </Button>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" onClick={() => downloadCert(latest.id, latest.credentialId)}>
                   <Download className="size-4" />
                   Download
                 </Button>
@@ -335,9 +339,11 @@ function CertificatesPage() {
                   </div>
 
                   <div className="mt-4 flex gap-2">
-                    <Button variant="outline" size="sm" className="flex-1">
-                      <ExternalLink className="size-3.5" />
-                      View
+                    <Button variant="outline" size="sm" className="flex-1" asChild>
+                      <a href={`/api/certificates/${c.id}/download`} target="_blank" rel="noreferrer">
+                        <ExternalLink className="size-3.5" />
+                        View
+                      </a>
                     </Button>
                     <Button
                       variant="outline"

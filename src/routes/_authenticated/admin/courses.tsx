@@ -270,6 +270,18 @@ function CourseForm({
         </div>
         <div className="sm:col-span-2">
           <label className="mb-1 block text-[10px] uppercase tracking-widest text-muted-foreground">
+            Cover image URL <span className="text-muted-foreground/70">— optional, shown on academy page</span>
+          </label>
+          <Input
+            value={(initial as any)?.coverImageUrl ?? ""}
+            placeholder="https://cdn.whop.com/..."
+            readOnly
+            className="bg-muted/30 text-xs"
+          />
+          <p className="mt-1 text-[10px] text-muted-foreground">Auto-populated from Whop sync. Edit by re-syncing after updating your Whop product image.</p>
+        </div>
+        <div className="sm:col-span-2">
+          <label className="mb-1 block text-[10px] uppercase tracking-widest text-muted-foreground">
             Whop product ID{" "}
             <span className="text-muted-foreground/70">
               — paste from Whop → Developer → Products
