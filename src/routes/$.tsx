@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Compass, Search, ArrowRight, Home, ArrowUpRight, ArrowLeft } from "lucide-react";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { SiteFooter } from "@/components/site/SiteFooter";
@@ -33,6 +33,7 @@ const SUGGESTIONS = [
 ];
 
 function NotFoundPage() {
+  const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const { user, isLoading } = useDotAuth();
   const isAuthed = !!user && !isLoading;
@@ -43,7 +44,8 @@ function NotFoundPage() {
    */
   function handleSearch(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    // TODO: wire up search route when /search exists
+    const q = query.trim();
+    if (q) navigate({ to: "/search", search: { q } });
   }
 
   /**

@@ -13,6 +13,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import {
   MapPin, Globe, Linkedin, Twitter, Github, Briefcase,
   Trophy, Star, Edit3, Check, X, MessageSquare,
@@ -290,8 +291,7 @@ function OwnerEditor({
       onSaved();
     },
     onError: (e: any) => {
-      // best-effort: surface error to console
-      console.error("builder profile save failed", e);
+      toast.error(e?.message ?? "Could not save profile");
     },
   });
 

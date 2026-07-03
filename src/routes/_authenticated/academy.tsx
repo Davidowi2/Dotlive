@@ -106,7 +106,8 @@ function AcademyPage() {
               const rawUrl = course?.whopUrl ?? (e.course as any)?.whopUrl ?? null;
               const continueUrl = rawUrl
                 ? whopUrl(rawUrl, user?.id, course?.dotReward ?? 100)
-                : null; // null = no Whop URL available              return (
+                : null;
+              return (
                 <div key={e.id} className="rounded-2xl border border-border bg-card p-5 space-y-3">
                   <div className="flex items-center justify-between">
                     <Badge variant={e.status === "completed" ? "default" : "secondary"} className="text-[10px]">
@@ -120,14 +121,12 @@ function AcademyPage() {
                       <Link to="/certificates"><Award className="size-3.5 mr-1.5" /> View certificate</Link>
                     </Button>
                   ) : continueUrl ? (
-                    // Has Whop URL — open in new tab
                     <Button size="sm" variant="default" asChild className="w-full">
                       <a href={continueUrl} target="_blank" rel="noopener noreferrer">
                         <Play className="size-3.5 mr-1.5" /> Continue on Whop <ExternalLink className="ml-1 size-3" />
                       </a>
                     </Button>
                   ) : (
-                    // No Whop URL yet — disable button, don't redirect
                     <Button size="sm" variant="outline" disabled className="w-full text-muted-foreground">
                       Check your Whop account for access
                     </Button>
@@ -280,8 +279,10 @@ function CourseCard({ course, enrollment, userId }: {
         {/* CTA */}
         <div className="pt-3 border-t border-border">
           {completed ? (
-            <Button size="sm" variant="outline" className="w-full" onClick={() => window.location.href = "/certificates"}>
-              <Award className="size-3.5 mr-1.5 text-gold" /> View certificate
+            <Button asChild size="sm" variant="outline" className="w-full">
+              <Link to="/certificates" search={{}}>
+                <Award className="size-3.5 mr-1.5 text-gold" /> View certificate
+              </Link>
             </Button>
           ) : enrolled || justEnrolled ? (
             // Already enrolled — open Whop content directly
