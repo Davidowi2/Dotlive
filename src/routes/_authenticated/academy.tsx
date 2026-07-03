@@ -102,9 +102,11 @@ function AcademyPage() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {enrolled.slice(0, 3).map(e => {
               const course = courses.find(c => c.id === e.courseId);
-              const continueUrl = course?.whopUrl
-                ? whopUrl(course.whopUrl, user?.id, course.dotReward ?? 100)
-                : "#";
+              // Build Whop URL — check course catalog first, then enrollment data
+              const rawUrl = course?.whopUrl ?? (e.course as any)?.whopUrl ?? null;
+              const continueUrl = rawUrl
+                ? whopUrl(rawUrl, user?.id, course?.dotReward ?? 100)
+                : null; // null = no Whop URL available
               return (
                 <div key={e.id} className="rounded-2xl border border-border bg-card p-5 space-y-3">
                   <div className="flex items-center justify-between">
@@ -118,11 +120,17 @@ function AcademyPage() {
                     <Button size="sm" variant="outline" asChild className="w-full">
                       <Link to="/certificates"><Award className="size-3.5 mr-1.5" /> View certificate</Link>
                     </Button>
-                  ) : (
+                  ) : continueUrl ? (
+                    // Has Whop URL — open in new tab
                     <Button size="sm" variant="default" asChild className="w-full">
                       <a href={continueUrl} target="_blank" rel="noopener noreferrer">
                         <Play className="size-3.5 mr-1.5" /> Continue on Whop <ExternalLink className="ml-1 size-3" />
                       </a>
+                    </Button>
+                  ) : (
+                    // No Whop URL yet — disable button, don't redirect
+                    <Button size="sm" variant="outline" disabled className="w-full text-muted-foreground">
+                      Check your Whop account for access
                     </Button>
                   )}
                 </div>

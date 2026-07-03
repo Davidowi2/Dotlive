@@ -65,7 +65,6 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Certificates",  to: "/certificates",  icon: Award,       roles: ["founder"],                 section: "growth" },
   /* community */
     { label: "My Community",  to: "/community",           icon: Users,   roles: ["community_leader", "admin", "super_admin"], section: "community" },
-    { label: "Communities",   to: "/discover/communities", icon: Compass, section: "community" },
   /* capital */
   { label: "DOT Demo",      to: "/demo",          icon: Building2,                                  section: "capital" },
   { label: "My Venture",    to: "/ventures",      icon: LineChart,    roles: ["founder"],                 section: "capital" },
