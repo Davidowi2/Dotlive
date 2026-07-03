@@ -16,6 +16,8 @@ import {
   Sparkles,
   Lock,
   Shield,
+  TrendingUp,
+  Clock,
 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
@@ -24,9 +26,12 @@ import { Badge } from "@/components/ui/badge";
 import { useDotAuth } from "@/contexts/DotAuthContext";
 import { ROLE_LABELS, type AppRole } from "@/lib/constants";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { BuilderProfileSection } from "@/components/profile/BuilderProfileSection";
+import { fetchNotifications } from "@/api/notifications";
+import { getTransactions as listTransactions } from "@/api/wallet";
 
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({ meta: [{ title: "Public Profile — DOT" }] }),
@@ -259,27 +264,7 @@ function PublicProfilePage() {
               <BuilderProfileSection />
             )}
 
-            <section className="mt-4 rounded-2xl border border-dashed border-border bg-card p-8 text-center">
-        <Lock className="mx-auto size-7 text-muted-foreground/50" />
-        <h3 className="mt-3 font-display text-base font-semibold">
-          Activity will appear here
-        </h3>
-        <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-          Pitchathon entries, course completions, sessions attended and community
-          milestones are summarised here as you earn them.
-        </p>
-        <div className="mt-5 flex flex-wrap justify-center gap-2 text-xs text-muted-foreground">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/30 px-3 py-1">
-            <Trophy className="size-3 text-gold" /> Pitchathons
-          </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/30 px-3 py-1">
-            <BookOpen className="size-3 text-purple" /> Academy
-          </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/30 px-3 py-1">
-            <CalendarCheck className="size-3 text-primary" /> Sessions
-          </span>
-        </div>
-      </section>
+            <ProfileActivityFeed />
 
       {/* ─── Footer link bar ──────────────────────────────────────── */}
       <div className="mt-6 flex items-center justify-between gap-3 border-t border-border pt-4 text-xs text-muted-foreground">
@@ -325,5 +310,141 @@ function Stat({
       </div>
       <p className="mt-3 text-sm font-light text-foreground/80">{value}</p>
     </div>
+  );
+}
+
+/* ─── Profile Activity Feed — real notifications + transactions timeline ─── */
+
+function ProfileActivityFeed() {
+  const { data: notifData } = useQuery({
+    queryKey: ["profile", "notifications"],
+    queryFn: () => fetchNotifications({ limit: 10 }),
+    staleTime: 60_000,
+  });
+  const { data: txData } = useQuery({
+    queryKey: ["profile", "transactions"],
+    queryFn: () => listTransactions(),
+    staleTime: 60_000,
+  });
+
+  type FeedItem = {
+    id: string;
+    icon: typeof Trophy;
+    tone: "primary" | "gold" | "purple";
+    title: string;
+    body: string;
+    time: string;
+    href?: string;
+  };
+
+  const items: FeedItem[] = [];
+
+  const notifs: any[] = (notifData as any)?.items ?? [];
+  for (const n of notifs) {
+    const type = String(n.type ?? "");
+    const tone: "primary" | "gold" | "purple" =
+      type.startsWith("wallet") || type.includes("transfer") || type.includes("deposit")
+        ? "gold"
+        : type.includes("meeting") || type.includes("role")
+        ? "primary"
+        : "purple";
+    items.push({
+      id: `n-${n.id}`,
+      icon: type.includes("meeting")
+        ? CalendarCheck
+        : tone === "gold"
+        ? Wallet
+        : tone === "primary"
+        ? Trophy
+        : Sparkles,
+      tone,
+      title: n.title ?? "Notification",
+      body: n.body ?? "",
+      time: n.createdAt ?? "",
+      href: n.link ?? "/notifications",
+    });
+  }
+
+  const txs: any[] = Array.isArray(txData) ? txData : (txData as any)?.transactions ?? [];
+  for (const t of txs.slice(0, 5)) {
+    const positive = Number(t.amount) > 0;
+    items.push({
+      id: `t-${t.id}`,
+      icon: positive ? TrendingUp : Clock,
+      tone: positive ? "gold" : "primary",
+      title: positive
+        ? `Received ${Math.abs(Number(t.amount))} DOT`
+        : `Spent ${Math.abs(Number(t.amount))} DOT`,
+      body: t.description ?? t.type ?? "Wallet activity",
+      time: t.createdAt ?? "",
+      href: "/wallet",
+    });
+  }
+
+  items.sort((a, b) => (b.time || "").localeCompare(a.time || ""));
+  const visible = items.slice(0, 8);
+
+  return (
+    <section className="mt-4 rounded-2xl border border-border bg-card p-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <span className="tracking-editorial text-primary">Activity</span>
+          <h3 className="mt-1 font-display text-lg font-light tracking-tight">Recent activity</h3>
+        </div>
+        <Link
+          to="/notifications"
+          className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+        >
+          All activity →
+        </Link>
+      </div>
+
+      {visible.length === 0 ? (
+        <div className="mt-6 rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+          No activity yet — start by completing a task, taking a Vantage assessment, or earning your first DOT.
+        </div>
+      ) : (
+        <ol className="mt-5 space-y-2">
+          {visible.map((item) => {
+            const Icon = item.icon;
+            const Wrap = ({ children }: { children: React.ReactNode }) =>
+              item.href ? (
+                <Link to={item.href} className="block">
+                  {children}
+                </Link>
+              ) : (
+                <>{children}</>
+              );
+            return (
+              <li key={item.id}>
+                <Wrap>
+                  <div className="group flex items-start gap-3 rounded-xl border border-border p-3 transition-all hover:border-foreground/20 hover:bg-accent/30">
+                    <span
+                      className={cn(
+                        "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md",
+                        item.tone === "primary" && "bg-primary/10 text-primary",
+                        item.tone === "gold" && "bg-gold/10 text-gold",
+                        item.tone === "purple" && "bg-purple/10 text-purple",
+                      )}
+                    >
+                      <Icon className="size-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{item.title}</p>
+                      <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
+                        {item.body}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-[10px] tabular text-muted-foreground">
+                      {item.time ? new Date(item.time).toLocaleDateString() : ""}
+                    </span>
+                  </div>
+                </Wrap>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </section>
   );
 }
