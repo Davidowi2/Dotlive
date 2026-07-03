@@ -98,7 +98,8 @@ export async function academyRoutes(app: FastifyInstance) {
       SELECT
         e.id, e.user_id AS "userId", e.course_id AS "courseId",
         e.status, e.created_at AS "createdAt",
-        c.title AS "courseTitle", c.description AS "courseDescription"
+        c.title AS "courseTitle", c.description AS "courseDescription",
+        c.whop_url AS "courseWhopUrl"
       FROM course_enrollments e
       LEFT JOIN courses c ON c.id = e.course_id
       WHERE e.user_id = ${sub}
@@ -117,6 +118,7 @@ export async function academyRoutes(app: FastifyInstance) {
             id: r.courseId,
             title: r.courseTitle,
             description: r.courseDescription ?? undefined,
+            whopUrl: r.courseWhopUrl ?? undefined,
             moduleCount: 0,
           }
         : undefined,

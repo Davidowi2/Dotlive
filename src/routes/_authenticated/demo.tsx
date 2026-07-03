@@ -517,8 +517,15 @@ function MeetingsView({ isFounder, isInvestor }: { isFounder: boolean; isInvesto
   async function updateStatus(id: string, status: "accepted" | "declined") {
     try {
       await dotApi.patch(`/api/investor/meetings/${id}`, { status });
+      // When accepted: open a connection thread so both parties can chat
+      if (status === "accepted") {
+        try {
+          await dotApi.post(`/api/connections/from-meeting/${id}`, {});
+        } catch { /* best effort */ }
+      }
       qc.invalidateQueries({ queryKey: ["meetings-received", user?.id] });
-      toast.success(status === "accepted" ? "Meeting accepted!" : "Request declined.");
+      qc.invalidateQueries({ queryKey: ["connections"] });
+      toast.success(status === "accepted" ? "Meeting accepted! Chat thread opened in Meetings." : "Request declined.");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not update");
     }

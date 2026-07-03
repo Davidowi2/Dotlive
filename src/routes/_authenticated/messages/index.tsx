@@ -1,35 +1,40 @@
 /**
- * DOT Messages — chat threads between investors and founders.
- * Each "connection" is opened when a meeting is accepted (server-side hook).
+ * Meetings — Direct conversations between investors and founders.
  *
- * This page lists all active connections and lets you start a new one
- * via /discover (search for a user to message). For v1, no WebSocket —
- * we poll every 5s.
+ * Flow:
+ *   1. Investor requests a meeting on DOT Demo
+ *   2. Founder accepts → chat thread opens automatically
+ *   3. Both parties can now DM each other here (like Instagram DMs)
+ *
+ * Polled every 5s for new messages.
  */
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { MessageSquare, Users, ChevronRight } from "lucide-react";
-
+import { useQuery } from "@tanstack/react-query";
+import { MessageSquare, Users, ChevronRight, Clock, CheckCheck } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { listMyConnections, type Connection } from "@/api/connections";
+import { getUserPublic } from "@/api/users";
+import { useDotAuth } from "@/contexts/DotAuthContext";
+import { useQuery as useQ } from "@tanstack/react-query";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/messages/")({
-  head: () => ({ meta: [{ title: "Messages · DOT" }] }),
-  component: MessagesIndex,
+  head: () => ({ meta: [{ title: "Meetings · DOT" }] }),
+  component: MeetingsIndex,
 });
 
-function MessagesIndex() {
-  const qc = useQueryClient();
+function MeetingsIndex() {
+  const { user } = useDotAuth();
+
   const { data: connections = [], isLoading } = useQuery({
     queryKey: ["connections"],
     queryFn: listMyConnections,
     refetchInterval: 5_000,
+    staleTime: 4_000,
   });
-  // Re-validate thread list when other data changes.
-  void qc;
 
   const active = connections.filter((c) => c.status === "active");
   const closed = connections.filter((c) => c.status === "closed");
@@ -38,88 +43,120 @@ function MessagesIndex() {
     <AppShell>
       <PageHeader
         eyebrow="Direct"
-        title="Messages"
-        subtitle="Threads open when a meeting is accepted. Polled every 5s."
+        title="Meetings"
+        subtitle="Conversations opened when an investor's meeting request is accepted."
         action={
-          <Badge variant="outline" className="font-medium">
-            <Users className="mr-1.5 size-3" />
-            {active.length} active
-          </Badge>
+          active.length > 0 ? (
+            <Badge variant="outline" className="font-medium">
+              <Users className="mr-1.5 size-3" />
+              {active.length} active
+            </Badge>
+          ) : undefined
         }
       />
 
-      <section className="mt-10">
-        <h2 className="font-display text-2xl font-light tracking-tight">Active</h2>
+      <section className="mt-6">
         {isLoading ? (
-          <div className="mt-4 grid gap-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-20 animate-pulse rounded-2xl border border-border bg-card/40" />
-            ))}
+          <div className="space-y-2">
+            {[1,2,3].map(i => <div key={i} className="h-16 animate-pulse rounded-2xl bg-muted/40" />)}
           </div>
-        ) : active.length === 0 ? (
-          <div className="mt-4 rounded-2xl border border-dashed border-border bg-card/40 p-8 text-center">
-            <MessageSquare className="mx-auto size-8 text-muted-foreground" />
-            <p className="mt-3 font-medium">No active threads yet</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Threads open automatically when you accept a meeting request.
+        ) : connections.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border bg-card/40 p-10 text-center">
+            <MessageSquare className="mx-auto size-8 text-muted-foreground/50 mb-3" />
+            <p className="font-display text-lg font-light">No meetings yet</p>
+            <p className="mt-1 text-sm text-muted-foreground max-w-sm mx-auto">
+              When an investor requests a meeting and you accept it,
+              a private chat opens here — like Instagram DMs.
             </p>
-            <Link
-              to="/discover/people"
-              className="mt-4 inline-block rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary hover:bg-primary/20"
-            >
-              Discover founders →
-            </Link>
+            <Button asChild variant="hero" size="sm" className="mt-4">
+              <Link to="/demo">Browse investors on DOT Demo</Link>
+            </Button>
           </div>
         ) : (
-          <ul className="mt-4 grid gap-2">
-            {active.map((c) => (
-              <li key={c.id}>
-                <ThreadRow c={c} />
-              </li>
+          <div className="space-y-2">
+            {/* Active first */}
+            {active.length > 0 && (
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Active</p>
+            )}
+            {active.map(c => (
+              <ThreadRow key={c.id} c={c} currentUserId={user?.id} />
             ))}
-          </ul>
+
+            {/* Closed */}
+            {closed.length > 0 && (
+              <>
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mt-6 mb-2">Closed</p>
+                {closed.map(c => (
+                  <ThreadRow key={c.id} c={c} currentUserId={user?.id} closed />
+                ))}
+              </>
+            )}
+          </div>
         )}
       </section>
-
-      {closed.length > 0 && (
-        <section className="mt-12">
-          <h2 className="font-display text-2xl font-light tracking-tight text-muted-foreground">
-            Closed
-          </h2>
-          <ul className="mt-4 grid gap-2 opacity-70">
-            {closed.map((c) => (
-              <li key={c.id}>
-                <ThreadRow c={c} />
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
     </AppShell>
   );
 }
 
-function ThreadRow({ c }: { c: Connection }) {
-  const otherId = c.initiatedBy;
+function ThreadRow({ c, currentUserId, closed = false }: {
+  c: Connection;
+  currentUserId?: string;
+  closed?: boolean;
+}) {
+  // Show the OTHER person's name, not just a UUID
+  const otherId = c.userAId === currentUserId ? c.userBId : c.userAId;
+
+  const { data: otherUser } = useQ({
+    queryKey: ["user-public", otherId],
+    queryFn: () => getUserPublic(otherId).catch(() => null),
+    enabled: !!otherId,
+    staleTime: 120_000,
+  });
+
+  const name = otherUser?.name ?? `User ${otherId?.slice(0, 8) ?? ""}`;
+  const initials = (name).charAt(0).toUpperCase();
+
   return (
     <Link
       to="/messages/$id"
       params={{ id: c.id }}
-      className="group flex items-center gap-3 rounded-2xl border border-border bg-card p-4 transition-all hover:border-primary/40"
+      className={cn(
+        "group flex items-center gap-3 rounded-2xl border bg-card p-4 transition-all hover:border-primary/40 hover:shadow-sm",
+        closed ? "border-border/50 opacity-60" : "border-border"
+      )}
     >
-      <div className="flex size-10 items-center justify-center rounded-full bg-primary/15 text-primary">
-        <MessageSquare className="size-4" />
+      {/* Avatar */}
+      <div className={cn(
+        "flex size-10 shrink-0 items-center justify-center rounded-full font-semibold text-sm",
+        closed ? "bg-muted text-muted-foreground" : "bg-primary/15 text-primary"
+      )}>
+        {initials}
       </div>
+
+      {/* Info */}
       <div className="min-w-0 flex-1">
-        <p className="font-medium text-sm">
-          Thread {c.id.slice(0, 8)}…
-        </p>
-        <p className="text-xs text-muted-foreground">
-          {c.status === "active" ? "Active" : "Closed"} ·{" "}
-          opened {new Date(c.createdAt).toLocaleDateString()}
+        <div className="flex items-center gap-2">
+          <p className="font-semibold text-sm truncate">{name}</p>
+          {!closed && (
+            <span className="size-2 rounded-full bg-primary shrink-0" />
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+          <Clock className="size-3" />
+          {closed ? "Closed · " : "Opened · "}
+          {new Date(c.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}
         </p>
       </div>
-      <ChevronRight className="size-4 text-muted-foreground group-hover:text-foreground" />
+
+      {/* Status + arrow */}
+      <div className="flex items-center gap-2 shrink-0">
+        {closed ? (
+          <Badge variant="secondary" className="text-[10px]">Closed</Badge>
+        ) : (
+          <Badge variant="default" className="text-[10px] bg-primary/10 text-primary border-0">Active</Badge>
+        )}
+        <ChevronRight className="size-4 text-muted-foreground group-hover:text-foreground" />
+      </div>
     </Link>
   );
 }

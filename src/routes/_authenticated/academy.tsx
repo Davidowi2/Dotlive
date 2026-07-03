@@ -106,8 +106,7 @@ function AcademyPage() {
               const rawUrl = course?.whopUrl ?? (e.course as any)?.whopUrl ?? null;
               const continueUrl = rawUrl
                 ? whopUrl(rawUrl, user?.id, course?.dotReward ?? 100)
-                : null; // null = no Whop URL available
-              return (
+                : null; // null = no Whop URL available              return (
                 <div key={e.id} className="rounded-2xl border border-border bg-card p-5 space-y-3">
                   <div className="flex items-center justify-between">
                     <Badge variant={e.status === "completed" ? "default" : "secondary"} className="text-[10px]">

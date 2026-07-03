@@ -22,7 +22,7 @@ import {
 import { getUserPublic, type PublicUser } from "@/api/users";
 
 export const Route = createFileRoute("/_authenticated/messages/$id")({
-  head: () => ({ meta: [{ title: "Conversation · DOT" }] }),
+  head: () => ({ meta: [{ title: "Meeting Chat · DOT" }] }),
   component: MessageThread,
 });
 
@@ -95,7 +95,7 @@ function MessageThread() {
           <Link
             to="/messages"
             className="rounded-full p-2 text-muted-foreground hover:bg-muted"
-            aria-label="Back to messages"
+            aria-label="Back to meetings"
           >
             <ArrowLeft className="size-4" />
           </Link>
@@ -104,7 +104,7 @@ function MessageThread() {
               {otherName}
             </h1>
             <p className="text-xs text-muted-foreground">
-              {otherDotId ?? otherId?.slice(0, 8)}
+              Meeting chat {otherDotId ? `· ${otherDotId}` : ""}
             </p>
           </div>
           {isActive && (
@@ -173,8 +173,11 @@ function MessageThread() {
             </Button>
           </div>
         ) : (
-          <div className="rounded-xl border border-border bg-card/40 p-3 text-center text-xs text-muted-foreground">
-            This thread is closed. Open a new one by accepting a meeting request.
+          <div className="rounded-xl border border-border bg-card/40 p-4 text-center">
+            <p className="text-sm font-medium text-muted-foreground">This conversation is closed.</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              The meeting has ended. Start a new meeting request from DOT Demo.
+            </p>
           </div>
         )}
       </div>
