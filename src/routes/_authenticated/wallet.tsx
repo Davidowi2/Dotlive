@@ -435,6 +435,22 @@ function WalletPage() {
         </div>
       </section>
 
+      {/* ── Section 1.5: Balance trend chart ─────────────────────── */}
+      <section className="mt-10">
+        <div className="mb-4 flex items-end justify-between gap-4">
+          <div>
+            <span className="tracking-editorial text-gold">Trend</span>
+            <h2 className="mt-1 font-display text-xl font-light tracking-tight">
+              Balance over time
+            </h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              How your DOT balance moved across your last {transactions.length || 0} transactions.
+            </p>
+          </div>
+        </div>
+        <BalanceTrend transactions={transactions} currentBalance={balance} />
+      </section>
+
       {/* ── Section divider ───────────────────────────────────────── */}
       <div className="mt-10 border-t border-border" />
 
@@ -1175,5 +1191,120 @@ function InlineWithdrawForm({
         </DialogFooter>
       </form>
     </>
+  );
+}
+
+/* ── Balance trend — pure SVG sparkline, no chart lib needed ─────── */
+
+function BalanceTrend({
+  transactions,
+  currentBalance,
+}: {
+  transactions: Transaction[];
+  currentBalance: number;
+}) {
+  // Walk transactions from oldest to newest, compute running balance.
+  // Assume the most recent tx ended at currentBalance, then step backwards
+  // by reversing the sign: prior = current - delta.
+  const sorted = [...transactions].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+  );
+
+  // Build running balance from oldest → newest by re-applying each delta
+  // to a seed. We don't know the seed (balance BEFORE all these txs) but we
+  // can recover it: balance_after_last = seed + sum(deltas) = currentBalance,
+  // so seed = currentBalance - sum(deltas).
+  const deltaSum = sorted.reduce(
+    (acc, t) => acc + (Number(t.amount) || 0),
+    0,
+  );
+  const seed = currentBalance - deltaSum;
+
+  const points = sorted.map((t, i) => {
+    const running = seed + sorted.slice(0, i + 1).reduce((a, x) => a + Number(x.amount), 0);
+    return { date: t.createdAt, value: running };
+  });
+  // Append "now" point so the line ends at currentBalance
+  points.push({ date: new Date().toISOString(), value: currentBalance });
+
+  if (points.length < 2) {
+    return (
+      <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
+        No transaction history yet — your balance trend will appear here after your first transfer.
+      </div>
+    );
+  }
+
+  // SVG sparkline
+  const W = 800;
+  const H = 180;
+  const pad = 8;
+  const xs = points.map((_, i) => pad + (i * (W - pad * 2)) / (points.length - 1));
+  const minV = Math.min(...points.map((p) => p.value));
+  const maxV = Math.max(...points.map((p) => p.value));
+  const range = Math.max(maxV - minV, 1);
+  const ys = points.map((p) => H - pad - ((p.value - minV) / range) * (H - pad * 2));
+  const path = xs.map((x, i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${ys[i].toFixed(1)}`).join(" ");
+  const area = `${path} L${xs[xs.length - 1]},${H} L${xs[0]},${H} Z`;
+
+  const isUp = points[points.length - 1].value >= points[0].value;
+  const change = points[points.length - 1].value - points[0].value;
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-6">
+      <div className="flex items-baseline justify-between gap-3">
+        <div>
+          <p className="text-[10px] tracking-widest uppercase text-muted-foreground">
+            Net change over {points.length - 1} tx
+          </p>
+          <p
+            className={cn(
+              "mt-1 font-display text-2xl font-light tabular",
+              isUp ? "text-primary" : "text-destructive",
+            )}
+          >
+            {isUp ? "+" : ""}
+            {formatDot(change)} DOT
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-[10px] tracking-widest uppercase text-muted-foreground">Now</p>
+          <p className="mt-1 font-display text-2xl font-light tabular text-foreground">
+            {formatDot(currentBalance)}
+          </p>
+        </div>
+      </div>
+      <div className="mt-4">
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          preserveAspectRatio="none"
+          className="h-40 w-full"
+        >
+          <defs>
+            <linearGradient id="bal-grad" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor="currentColor" stopOpacity="0.25" />
+              <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <g className={cn(isUp ? "text-primary" : "text-destructive")}>
+            <path d={area} fill="url(#bal-grad)" />
+            <path
+              d={path}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <circle
+              cx={xs[xs.length - 1]}
+              cy={ys[ys.length - 1]}
+              r="4"
+              fill="currentColor"
+            />
+          </g>
+        </svg>
+      </div>
+    </div>
   );
 }
