@@ -20,6 +20,7 @@ import {
   Layers,
   ShieldCheck,
   Wrench,
+  Share2,
 } from "lucide-react";
 import {
   LineChart,
@@ -606,13 +607,37 @@ function VantagePage() {
     </Button>
   );
 
+  const ShareButton = latest ? (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={() => {
+        const url = `${window.location.origin}/founder/${user?.dotId ?? ""}?vantage=${latest.id ?? ""}`;
+        const text = `My Vantage Point: ${vantagePoint}/1000 — ${current?.text ?? ""} on DOT`;
+        if (navigator.share) {
+          navigator.share({ title: "My Vantage Score", text, url }).catch(() => {});
+        } else {
+          navigator.clipboard.writeText(`${text}\n${url}`);
+          toast.success("Link copied — share your Vantage");
+        }
+      }}
+    >
+      <Share2 className="size-4" /> Share
+    </Button>
+  ) : null;
+
   return (
     <AppShell>
       <PageHeader
         eyebrow="Vantage"
         title="Venture intelligence"
         subtitle="Score your venture across founder, traction, market, and capital readiness — 12 questions, 4 dimensions."
-        action={RetakeButton}
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            {ShareButton}
+            {RetakeButton}
+          </div>
+        }
       />
 
       {!latest ? (

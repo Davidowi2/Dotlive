@@ -107,7 +107,7 @@ function ProfileStep({ completed, label, desc, link }: { completed: boolean; lab
 function Dashboard() {
   const { user, primaryRole, roles } = useDotAuth();
   const { data: walletData, isLoading: walletLoading } = useQuery({
-    queryKey: ["wallet"],
+    queryKey: ["wallet", "balance"],
     queryFn: getBalance,
     staleTime: 60_000,   // cache 1 min — wallet doesn't change that fast
   });
