@@ -50,7 +50,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard",     to: "/dashboard",     icon: LayoutDashboard, section: "main" },
     { label: "Discover",      to: "/discover",      icon: Search,          section: "main" },
     { label: "Search",        to: "/search",        icon: Filter,          section: "main" },
-  { label: "Meetings",      to: "/messages",      icon: MessageSquare,   section: "main" },
+  { label: "Meetings",      to: "/meetings",      icon: MessageSquare,   section: "main" },
   { label: "Notifications", to: "/notifications", icon: Bell,            section: "main" },
   /* growth — founder progression */
   { label: "Vantage",       to: "/vantage",       icon: Gauge,       roles: ["founder"],                 section: "growth" },

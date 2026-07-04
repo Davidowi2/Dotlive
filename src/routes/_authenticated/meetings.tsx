@@ -1,4 +1,19 @@
-import { createFileRoute } from "@tanstack/react-router";
+/**
+ * Meetings — single surface for meeting requests + chat threads.
+ *
+ * Tabs:
+ *   1. Received — meeting requests sent to you (accept/decline)
+ *   2. Sent     — meeting requests you've sent
+ *   3. Conversations — active chat threads (one per accepted meeting)
+ *
+ * On accept of a meeting, the founder/investor can immediately chat with
+ * the other party. The chat is rendered inline below the request card.
+ *
+ * The legacy /messages route now redirects here with ?thread=<id> so
+ * any deep link / saved tab still works.
+ */
+import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
 import {
   Send,
   Building2,
@@ -14,58 +29,93 @@ import {
   Mail,
   Sparkles,
 } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
 import { EmptyState } from "@/components/app/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent } from "@/components/ui/card";
 import { useDotAuth } from "@/contexts/DotAuthContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { dotApi } from "@/api/client";
+import {
+  listMyConnections,
+  getThread,
+  sendMessage,
+  type Connection,
+  type ConnectionMessage,
+} from "@/api/connections";
+
+type MeetingsSearch = { thread?: string };
 
 export const Route = createFileRoute("/_authenticated/meetings")({
-  head: () => ({ meta: [{ title: "Meeting Requests — DOT" }] }),
+  head: () => ({ meta: [{ title: "Meetings · DOT" }] }),
   component: MeetingsPage,
+  validateSearch: (search: Record<string, unknown>): MeetingsSearch => ({
+    thread: typeof search.thread === "string" ? search.thread : undefined,
+  }),
 });
 
 function MeetingsPage() {
   const { user, roles } = useDotAuth();
   const qc = useQueryClient();
+  const navigate = useNavigate();
+  const search = useSearch({ from: "/_authenticated/meetings" }) as MeetingsSearch;
   const isInvestor = roles.includes("investor");
   const isFounder = roles.includes("founder");
 
-  // Requests received by this founder from investors
+  // ── Meeting requests received by this founder from investors
   const { data: received = [], isLoading: rxLoading } = useQuery({
     queryKey: ["meetings-received", user?.id],
     enabled: !!user && isFounder,
     queryFn: async () => {
-      // /api/investor/meetings returns meetings where the user is the INVESTOR.
-      // For a founder, there's no equivalent endpoint yet, so return empty.
       const res = await dotApi.get<{ meetings: any[] }>("/api/investor/meetings?role=founder");
-      const data = res?.meetings ?? [];
-      return data.map((r) => ({ ...r, investor: null }));
+      return (res?.meetings ?? []).map((r) => ({ ...r, investor: null }));
     },
   });
 
-  // Requests sent by this investor to founders
+  // ── Meeting requests sent by this investor to founders
   const { data: sent = [], isLoading: sentLoading } = useQuery({
     queryKey: ["meetings-sent", user?.id],
     enabled: !!user && isInvestor,
     queryFn: async () => {
       const res = await dotApi.get<{ meetings: any[] }>("/api/investor/meetings");
-      const data = res?.meetings ?? [];
-      return data.map((r) => ({ ...r, founder: null }));
+      return (res?.meetings ?? []).map((r) => ({ ...r, founder: null }));
     },
   });
+
+  // ── Active chat threads (one per accepted meeting)
+  const { data: connections = [], isLoading: connLoading } = useQuery({
+    queryKey: ["connections", user?.id],
+    enabled: !!user,
+    queryFn: listMyConnections,
+    refetchInterval: 5_000,
+    staleTime: 4_000,
+  });
+
+  // When /meetings?thread=<id> opens, switch to the conversations tab
+  useEffect(() => {
+    if (search.thread) {
+      // Tabs is uncontrolled; user can navigate. We just scroll to the thread.
+      const el = document.getElementById(`thread-${search.thread}`);
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [search.thread]);
 
   async function updateStatus(id: string, status: "accepted" | "declined") {
     try {
       await dotApi.patch(`/api/investor/meetings/${id}`, { status });
       qc.invalidateQueries({ queryKey: ["meetings-received", user?.id] });
-      toast.success(status === "accepted" ? "Meeting accepted!" : "Request declined.");
+      qc.invalidateQueries({ queryKey: ["connections", user?.id] });
+      if (status === "accepted") {
+        toast.success("Meeting accepted. Open the Conversations tab to chat.");
+      } else {
+        toast.success("Request declined.");
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not update");
     }
@@ -73,16 +123,17 @@ function MeetingsPage() {
 
   const pendingCount = received.filter((r) => r.status === "pending").length;
   const acceptedCount = received.filter((r) => r.status === "accepted").length;
+  const activeChats = connections.filter((c) => c.status === "active").length;
 
   return (
     <AppShell>
       <PageHeader
         eyebrow="Capital"
-        title="Meeting Requests"
+        title="Meetings"
         subtitle={
           isFounder
-            ? "Conversations requested by investors. Accept to share your Vantage and venture profile."
-            : "Meeting requests you've sent to founders. Track status as they respond."
+            ? "Investor meeting requests. Accept to open a private chat and share your Vantage."
+            : "Meeting requests and conversations with founders. After acceptance, chat in-line."
         }
         action={
           <Badge variant="outline" className="font-medium">
@@ -92,7 +143,7 @@ function MeetingsPage() {
         }
       />
 
-      {/* ─── Quick stats strip ─────────────────────────────────────── */}
+      {/* Quick stats strip */}
       <section className="mt-8">
         <div className="grid gap-4 sm:grid-cols-3">
           <SummaryTile
@@ -106,31 +157,41 @@ function MeetingsPage() {
             icon={CheckCircle2}
             label="Accepted"
             value={String(acceptedCount)}
-            sub={isFounder ? "ready to share Vantage" : "scheduled"}
+            sub={isFounder ? "ready to chat" : "scheduled"}
             accent="gold"
           />
           <SummaryTile
-            icon={Send}
-            label="Sent"
-            value={String(sent.length)}
-            sub={isInvestor ? "founder outreach" : "investor view"}
+            icon={MessageSquare}
+            label="Conversations"
+            value={String(activeChats)}
+            sub={activeChats === 0 ? "accept a request to start" : "open chat threads"}
             accent="muted"
           />
         </div>
       </section>
 
-      {/* ─── Section divider ───────────────────────────────────────── */}
       <hr className="my-10 border-border" />
 
-      {/* ─── Tabs: received / sent ─────────────────────────────────── */}
-      <Tabs defaultValue="received">
+      {/* Tabs: received / sent / conversations */}
+      <Tabs defaultValue={search.thread ? "conversations" : "received"}>
         <TabsList>
           <TabsTrigger value="received">
-            Received {pendingCount > 0 && (
-              <Badge variant="secondary" className="ml-2 text-[10px]">{pendingCount}</Badge>
+            Received{" "}
+            {pendingCount > 0 && (
+              <Badge variant="secondary" className="ml-2 text-[10px]">
+                {pendingCount}
+              </Badge>
             )}
           </TabsTrigger>
           <TabsTrigger value="sent">Sent</TabsTrigger>
+          <TabsTrigger value="conversations">
+            Conversations{" "}
+            {activeChats > 0 && (
+              <Badge variant="secondary" className="ml-2 text-[10px]">
+                {activeChats}
+              </Badge>
+            )}
+          </TabsTrigger>
         </TabsList>
 
         {/* ── Received ── */}
@@ -143,10 +204,14 @@ function MeetingsPage() {
             <EmptyState
               icon={MessageSquare}
               title="No meeting requests yet"
-              description="When investors request meetings with you, they'll appear here."
+              description="When investors request meetings with you, they'll appear here. Accept to open a private chat."
               action={
                 isFounder ? (
-                  <Button variant="outline" size="sm">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate({ to: "/vantage" })}
+                  >
                     <Sparkles className="size-4" />
                     Improve your Vantage to be discovered
                     <ArrowRight className="size-4" />
@@ -200,7 +265,7 @@ function MeetingsPage() {
                         onClick={() => updateStatus(r.id, "accepted")}
                       >
                         <CheckCircle2 className="size-4" />
-                        Accept meeting
+                        Accept & open chat
                       </Button>
                       <Button
                         variant="outline"
@@ -210,6 +275,15 @@ function MeetingsPage() {
                         <XCircle className="size-4" />
                         Decline
                       </Button>
+                    </footer>
+                  )}
+
+                  {r.status === "accepted" && (
+                    <footer className="mt-4 flex items-center justify-between gap-2 border-t border-border pt-4 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <CheckCircle2 className="size-3 text-primary" />
+                        Accepted. Continue the conversation in the Conversations tab.
+                      </span>
                     </footer>
                   )}
                 </article>
@@ -230,7 +304,7 @@ function MeetingsPage() {
               title="No requests sent"
               description={
                 isInvestor
-                  ? "Browse ventures in DOT Demo to request meetings."
+                  ? "Browse ventures in DOT Demo to request meetings with founders."
                   : "As a founder, you receive meeting requests — send is investor-only."
               }
             />
@@ -276,8 +350,183 @@ function MeetingsPage() {
             </div>
           )}
         </TabsContent>
+
+        {/* ── Conversations (active chat threads) ── */}
+        <TabsContent value="conversations" className="mt-6">
+          {connLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="size-6 animate-spin text-primary" />
+            </div>
+          ) : connections.length === 0 ? (
+            <EmptyState
+              icon={MessageSquare}
+              title="No conversations yet"
+              description="When you accept a meeting request, a private chat thread will appear here."
+            />
+          ) : (
+            <div className="space-y-4">
+              {connections.map((c) => (
+                <ChatThreadCard
+                  key={c.id}
+                  connection={c}
+                  currentUserId={user?.id}
+                  highlight={search.thread === c.id}
+                />
+              ))}
+            </div>
+          )}
+        </TabsContent>
       </Tabs>
     </AppShell>
+  );
+}
+
+/* ─── Chat thread (inline) ─────────────────────────────────────── */
+
+function ChatThreadCard({
+  connection,
+  currentUserId,
+  highlight,
+}: {
+  connection: Connection;
+  currentUserId?: string;
+  highlight: boolean;
+}) {
+  const qc = useQueryClient();
+  const [body, setBody] = useState("");
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["thread", connection.id],
+    queryFn: () => getThread(connection.id),
+    refetchInterval: 5_000,
+    staleTime: 4_000,
+  });
+
+  const messages: ConnectionMessage[] = data?.messages ?? [];
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages.length]);
+
+  async function handleSend() {
+    const trimmed = body.trim();
+    if (!trimmed) return;
+    try {
+      await sendMessage(connection.id, trimmed);
+      setBody("");
+      qc.invalidateQueries({ queryKey: ["thread", connection.id] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to send");
+    }
+  }
+
+  const counterpartyId =
+    currentUserId === connection.userAId ? connection.userBId : connection.userAId;
+  const isClosed = connection.status === "closed";
+
+  return (
+    <Card
+      id={`thread-${connection.id}`}
+      className={cn(
+        "transition-all",
+        highlight && "ring-2 ring-primary/40",
+      )}
+    >
+      <CardContent className="p-5">
+        <header className="flex items-center justify-between gap-3 border-b border-border pb-3">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="size-4 text-primary" />
+            <span className="font-medium">Conversation</span>
+            <span className="text-xs text-muted-foreground">
+              · with {counterpartyId.slice(0, 8)}…
+            </span>
+          </div>
+          {isClosed && <Badge variant="secondary">closed</Badge>}
+        </header>
+
+        <div className="mt-3 max-h-80 min-h-32 space-y-2 overflow-y-auto rounded-sm border border-border/50 bg-muted/20 p-3">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-6">
+              <Loader2 className="size-4 animate-spin text-muted-foreground" />
+            </div>
+          ) : messages.length === 0 ? (
+            <p className="py-6 text-center text-xs text-muted-foreground">
+              No messages yet. Say hello.
+            </p>
+          ) : (
+            messages.map((m) => {
+              const mine = m.senderId === currentUserId;
+              return (
+                <div
+                  key={m.id}
+                  className={cn(
+                    "flex",
+                    mine ? "justify-end" : "justify-start",
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "max-w-[80%] rounded-sm px-3 py-2 text-sm",
+                      mine
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-card border border-border",
+                    )}
+                  >
+                    <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                    <p
+                      className={cn(
+                        "mt-1 text-[10px]",
+                        mine
+                          ? "text-primary-foreground/70"
+                          : "text-muted-foreground",
+                      )}
+                    >
+                      {new Date(m.createdAt).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              );
+            })
+          )}
+          <div ref={bottomRef} />
+        </div>
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSend();
+          }}
+          className="mt-3 flex items-end gap-2"
+        >
+          <Textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder={
+              isClosed ? "This conversation is closed." : "Type a message…"
+            }
+            disabled={isClosed}
+            rows={2}
+            className="min-h-10 flex-1 resize-none"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
+          />
+          <Button
+            type="submit"
+            variant="hero"
+            size="sm"
+            disabled={isClosed || !body.trim()}
+          >
+            <Send className="size-4" />
+            Send
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 }
 
