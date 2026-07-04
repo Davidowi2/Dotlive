@@ -272,7 +272,7 @@ function WalletPage() {
     return groups.filter((g) => g.items.length > 0);
   }, [transactions]);
 
-  if (walletLoading || txLoading) {
+  if (walletLoading) {
     return (
       <AppShell>
         <PageSkeleton.Header />
