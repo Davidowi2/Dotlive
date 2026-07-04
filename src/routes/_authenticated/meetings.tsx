@@ -108,11 +108,20 @@ function MeetingsPage() {
 
   async function updateStatus(id: string, status: "accepted" | "declined") {
     try {
-      await dotApi.patch(`/api/investor/meetings/${id}`, { status });
+      const res = await dotApi.patch<{ ok: boolean; connectionId?: string | null }>(
+        `/api/investor/meetings/${id}`,
+        { status },
+      );
       qc.invalidateQueries({ queryKey: ["meetings-received", user?.id] });
       qc.invalidateQueries({ queryKey: ["connections", user?.id] });
       if (status === "accepted") {
-        toast.success("Meeting accepted. Open the Conversations tab to chat.");
+        if (res?.connectionId) {
+          // Open the new conversation immediately — no hunting required.
+          navigate({ to: "/meetings", search: { thread: res.connectionId } });
+          toast.success("Meeting accepted. Chat is open.");
+        } else {
+          toast.success("Meeting accepted. Open the Conversations tab to chat.");
+        }
       } else {
         toast.success("Request declined.");
       }

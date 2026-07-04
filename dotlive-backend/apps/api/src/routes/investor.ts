@@ -128,11 +128,12 @@ export async function investorRoutes(app: FastifyInstance) {
         .set({ status: parsed.data.status, updatedAt: new Date() } as any)
         .where(eq(meetingRequests.id, req.params.id));
 
+      const m = existing[0];
+      let newConnectionId: string | null = null;
       // Notify the *other* side of the meeting outcome + open chat thread.
       try {
         const { notify } = await import("../lib/notify.js");
         const { connections, connectionMessages } = await import("../db/schema.js");
-        const m = existing[0];
         const status = parsed.data.status;
         if (status === "accepted") {
           // Open or reactivate a connection between the two parties.
@@ -146,18 +147,24 @@ export async function investorRoutes(app: FastifyInstance) {
             ))
             .limit(1);
           if (existing_conn.length === 0) {
-            await db.insert(connections).values({
+            const [inserted] = await db.insert(connections).values({
               userAId: userA,
               userBId: userB,
               status: "active",
               meetingId: m.id,
               initiatedBy: m.investorId,
-            } as any);
+            } as any).returning({ id: connections.id });
+            if (inserted) {
+              newConnectionId = inserted.id;
+            }
           } else if (existing_conn[0].status !== "active") {
             await db
               .update(connections)
               .set({ status: "active" } as any)
               .where(eq(connections.id, existing_conn[0].id));
+            newConnectionId = existing_conn[0].id;
+          } else {
+            newConnectionId = existing_conn[0].id;
           }
           await notify({
             userId: m.investorId,
@@ -192,7 +199,7 @@ export async function investorRoutes(app: FastifyInstance) {
         app.log?.warn?.({ err }, "meeting notify failed");
       }
 
-      return reply.send({ ok: true });
+      return reply.send({ ok: true, connectionId: newConnectionId });
     },
   );
 }

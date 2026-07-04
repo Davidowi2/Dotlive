@@ -15,6 +15,7 @@ import { eq, desc } from "drizzle-orm";
 
 import { db } from "../db/client.js";
 import { assessments } from "../db/schema.js";
+import { sql } from "drizzle-orm";
 
 const submitSchema = z.object({
   answers: z.record(z.string(), z.unknown()),
@@ -47,6 +48,29 @@ export async function vantageRoutes(app: FastifyInstance) {
         report: parsed.data.report ?? null,
       } as any)
       .returning();
+
+    // Also keep the founder_profiles snapshot in sync so the dashboard,
+    // /profile, and /vantage all read the same vantagePoint / fundability
+    // value. Without this sync, the dashboard's "founder.vantagePoint"
+    // can drift behind the latest assessment and contradict the Vantage
+    // page's headline score.
+    try {
+      await db.execute(sql`
+        INSERT INTO founder_profiles
+          (user_id, vantage_point, fundability, investment_readiness, stage, updated_at)
+        VALUES
+          (${sub}, ${parsed.data.vantagePoint}, ${parsed.data.fundability}, ${parsed.data.investmentReadiness}, ${parsed.data.stage}, NOW())
+        ON CONFLICT (user_id) DO UPDATE SET
+          vantage_point = EXCLUDED.vantage_point,
+          fundability = EXCLUDED.fundability,
+          investment_readiness = EXCLUDED.investment_readiness,
+          stage = EXCLUDED.stage,
+          updated_at = NOW()
+      `);
+    } catch (err) {
+      // Non-fatal — the assessment was saved, the profile sync is best-effort.
+      app.log?.warn?.({ err }, "founder profile sync after vantage submit failed");
+    }
 
     return reply.send({ assessment: inserted[0] });
   });
