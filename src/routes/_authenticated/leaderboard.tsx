@@ -28,12 +28,15 @@ type Window = "all" | "monthly" | "weekly" | "daily";
 function LeaderboardPage() {
   const [sort, setSort] = useState<Sort>("earnings");
   const [window, setWindow] = useState<Window>("all");
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ["leaderboard", sort, window],
     queryFn: () => getLeaderboard(sort, window),
     refetchInterval: 60_000,
+    staleTime: 30_000,
+    retry: 1,
   });
-  const leaders: Leader[] = data?.leaders ?? [];
+  // Default to empty leaders so the page renders even if the API hangs
+  const leaders: Leader[] = (data as any)?.leaders ?? [];
 
   const WINDOW_LABEL: Record<Window, string> = {
     all: "All-time",

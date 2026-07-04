@@ -19,6 +19,7 @@ import type { LucideIcon } from "lucide-react";
 import { ArrowRight, Lock, Users, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { ROLE_LABELS } from "@/lib/constants";
 import { useDotAuth } from "@/contexts/DotAuthContext";
 import type { EmptyStateAccent } from "@/components/app/EmptyState";
 
@@ -153,7 +154,7 @@ export function EcosystemEmptyState({
           <Button variant="hero" asChild>
             <Link to={upgradeHref}>
               <Lock className="size-3.5" />
-              Become a {requiredRoles[0]}
+              Become a {ROLE_LABELS[requiredRoles[0] as keyof typeof ROLE_LABELS] ?? requiredRoles[0]}
             </Link>
           </Button>
         )}
