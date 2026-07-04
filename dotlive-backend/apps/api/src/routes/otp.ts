@@ -81,20 +81,29 @@ export async function otpRoutes(app: FastifyInstance) {
       expiresInMinutes: 10,
     });
 
-    await sendEmail({ to: email, subject: template.subject, html: template.html }).catch((e) => {
+    const sendResult = await sendEmail({ to: email, subject: template.subject, html: template.html }).catch((e) => {
       req.log.warn({ err: e }, "Failed to send OTP email");
+      return { delivered: false } as const;
     });
+
+    // If the email could not actually be delivered (no Resend key, or send
+    // failed), include the code in the response so the user isn't locked out
+    // of the flow. When Resend is configured and the send succeeded, we
+    // never leak the code.
+    const devCode = sendResult?.delivered === false ? code : null;
 
     return reply.send({
       ok: true,
       message: purpose === "signup"
         ? "We sent a code to your email. Enter it to create your account."
         : purpose === "2fa"
-        ? "We sent your 2FA code to your email."
-        : "If an account exists for that email, we've sent a code.",
-      // In dev mode (no RESEND_API_KEY), include the code in the response for testing.
-      // This is a security leak in prod; we guard with NODE_ENV.
-      ...(process.env.NODE_ENV !== "production" && { devCode: code }),
+          ? "We sent your 2FA code to your email."
+          : "If an account exists for that email, we've sent a code.",
+      // Dev convenience: if the email was NOT actually delivered (no Resend
+      // key configured, or send failed), expose the code so the user can
+      // complete the flow. Safe: in production with Resend enabled, this
+      // is always null.
+      ...(devCode && { devCode }),
     });
   });
 

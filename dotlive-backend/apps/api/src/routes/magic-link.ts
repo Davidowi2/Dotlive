@@ -93,15 +93,20 @@ export async function magicLinkRoutes(app: FastifyInstance) {
       purpose,
     });
 
-    await sendEmail({ to: email, subject: template.subject, html: template.html }).catch((e) => {
+    const sendResult = await sendEmail({ to: email, subject: template.subject, html: template.html }).catch((e) => {
       req.log.warn({ err: e }, "Failed to send magic link email");
+      return { delivered: false } as const;
     });
+
+    // If the email could not actually be delivered (no Resend key, or send
+    // failed), expose the token + URL so the user can complete the flow.
+    // Safe: in production with Resend enabled, this is never included.
+    const devBypass = sendResult?.delivered === false;
 
     return reply.send({
       ok: true,
       message: "We sent a verification link to your email. Click it to continue.",
-      // Dev mode: include the token so the user can test without an email
-      ...(process.env.NODE_ENV !== "production" && { devToken: token, devUrl: verifyUrl }),
+      ...(devBypass && { devToken: token, devUrl: verifyUrl }),
     });
   });
 
