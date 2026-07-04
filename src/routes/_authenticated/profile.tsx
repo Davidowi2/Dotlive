@@ -32,6 +32,9 @@ import { toast } from "sonner";
 import { BuilderProfileSection } from "@/components/profile/BuilderProfileSection";
 import { fetchNotifications } from "@/api/notifications";
 import { getTransactions as listTransactions } from "@/api/wallet";
+import { useWallet } from "@/hooks/use-dot-data";
+import { formatDot } from "@/lib/constants";
+import { dotApi } from "@/api/client";
 
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({ meta: [{ title: "Public Profile — DOT" }] }),
@@ -48,6 +51,35 @@ export const Route = createFileRoute("/_authenticated/profile")({
 function PublicProfilePage() {
   const { user, roles, primaryRole } = useDotAuth();
   const [copied, setCopied] = useState(false);
+  const { data: walletBalance = 0 } = useWallet();
+  const { data: vantageData } = useQuery({
+    queryKey: ["vantage", "latest", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      try {
+        const res = await dotApi.get<{ latest?: { vantagePoint?: number } }>(
+          "/api/vantage/latest",
+        );
+        return res?.latest?.vantagePoint ?? null;
+      } catch {
+        return null;
+      }
+    },
+  });
+  const { data: pitchathonCount = 0 } = useQuery({
+    queryKey: ["pitchathons", "mine", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      try {
+        const res = await dotApi.get<{ applications?: unknown[] }>(
+          "/api/pitchathons/me",
+        );
+        return (res?.applications ?? []).length;
+      } catch {
+        return 0;
+      }
+    },
+  });
 
   if (!user) {
     return (
@@ -149,25 +181,25 @@ function PublicProfilePage() {
         <span className="h-px flex-1 bg-border" />
       </div>
 
-      {/* ─── Quick stats (honest — bound to known user fields only) ── */}
+      {/* ─── Quick stats (bound to live data) ──────────────────────── */}
       <section className="mt-4 grid gap-4 sm:grid-cols-3">
         <Stat
           icon={Wallet}
           tone="gold"
           label="Wallet"
-          value="Visible to you only"
+          value={`${formatDot(walletBalance)} DOT`}
         />
         <Stat
           icon={Gauge}
           tone="primary"
           label="Vantage Point"
-          value="Set in Vantage"
+          value={vantageData != null ? String(vantageData) : "Take Vantage"}
         />
         <Stat
           icon={Trophy}
           tone="gold"
           label="Pitchathons entered"
-          value="Tracked from your submissions"
+          value={pitchathonCount > 0 ? String(pitchathonCount) : "None yet"}
         />
       </section>
 
