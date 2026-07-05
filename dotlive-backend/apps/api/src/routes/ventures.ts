@@ -404,6 +404,59 @@ export async function ventureRoutes(app: FastifyInstance) {
       return reply.send({ ok: true });
     },
   );
+
+  /* ---------------- Escrow + Milestone Payout ------------------- */
+  const { fundMilestone, releaseMilestone, getVentureEscrowSummary } = await import("./venture-escrow.js");
+
+  /** POST /api/ventures/:id/escrow/fund — milestoneId, amount */
+  app.post<{ Params: { id: string } }>(
+    "/ventures/:id/escrow/fund",
+    { preHandler: app.authenticate },
+    async (req, reply) => {
+      const { sub } = (req as any).user as { sub: string };
+      const existing = await db.select({ userId: ventures.userId }).from(ventures).where(eq(ventures.id, req.params.id)).limit(1);
+      if (existing.length === 0) return reply.code(404).send({ error: "Not found" });
+      if (existing[0].userId !== sub) return reply.code(403).send({ error: "Forbidden" });
+      const parsed = z.object({ milestoneId: z.string().uuid(), amount: z.number().positive() }).safeParse(req.body);
+      if (!parsed.success) return reply.code(400).send({ error: "Invalid input" });
+      try {
+        const out = await fundMilestone({ ventureId: req.params.id, milestoneId: parsed.data.milestoneId, amount: parsed.data.amount, userId: sub });
+        return reply.send(out);
+      } catch (e: any) {
+        return reply.code(400).send({ error: e.message || "Failed" });
+      }
+    },
+  );
+
+  /** POST /api/ventures/:id/escrow/release — milestoneId */
+  app.post<{ Params: { id: string } }>(
+    "/ventures/:id/escrow/release",
+    { preHandler: app.authenticate },
+    async (req, reply) => {
+      const { sub } = (req as any).user as { sub: string };
+      const existing = await db.select({ userId: ventures.userId }).from(ventures).where(eq(ventures.id, req.params.id)).limit(1);
+      if (existing.length === 0) return reply.code(404).send({ error: "Not found" });
+      if (existing[0].userId !== sub) return reply.code(403).send({ error: "Forbidden" });
+      const parsed = z.object({ milestoneId: z.string().uuid() }).safeParse(req.body);
+      if (!parsed.success) return reply.code(400).send({ error: "Invalid input" });
+      try {
+        const out = await releaseMilestone({ ventureId: req.params.id, milestoneId: parsed.data.milestoneId, userId: sub });
+        return reply.send(out);
+      } catch (e: any) {
+        return reply.code(400).send({ error: e.message || "Failed" });
+      }
+    },
+  );
+
+  /** GET /api/ventures/:id/escrow */
+  app.get<{ Params: { id: string } }>("/ventures/:id/escrow", async (req, reply) => {
+    try {
+      const out = await getVentureEscrowSummary(req.params.id);
+      return reply.send(out);
+    } catch (e: any) {
+      return reply.code(404).send({ error: e.message || "Not found" });
+    }
+  });
 }
 
 function serialize(v: any) {

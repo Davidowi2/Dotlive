@@ -34,6 +34,7 @@ import { marketplaceRoutes} from "./routes/marketplace.js";
 import { communityRoutes }  from "./routes/community.js";
 import { challengeRoutes }  from "./routes/challenges.js";
 import { connectionRoutes } from "./routes/connections.js";
+import { stakesRoutes }     from "./routes/stakes.js";
 import { leaderboardRoutes } from "./routes/leaderboard.js";
 import { builderArenaRoutes } from "./routes/builders.js";
 import { uploadRoutes }     from "./routes/upload.js";
@@ -576,7 +577,8 @@ await app.register(withdrawalRoutes,    { prefix: "/api" });
   await app.register(paymentsRoutes,                { prefix: "/api" });
   await app.register(magicLinkRoutes,                { prefix: "/api" });
   await app.register(notificationsRoutes,            { prefix: "/api" });
-    await app.register(certificatesRoutes,             { prefix: "/api" });
+    await app.register(stakesRoutes,                       { prefix: "/api" });
+      await app.register(certificatesRoutes,             { prefix: "/api" });
     await app.register(wizardRoutes,                    { prefix: "/api" });
     await app.register(feedRoutes,                       { prefix: "/api" });
 

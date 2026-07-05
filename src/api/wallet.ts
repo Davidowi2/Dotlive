@@ -7,6 +7,13 @@ import type { Transaction } from "@/types/api";
 
 export interface WalletBalance {
   balance: number;
+  stakedBalance?: number;
+  lockedBalance?: number;
+  earnedLifetime?: number;
+  burnedLifetime?: number;
+  stakedLifetime?: number;
+  redeemedLifetime?: number;
+  pendingIncoming?: number;
 }
 
 export interface TransferResult {

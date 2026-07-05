@@ -85,7 +85,15 @@ export const userRoles = pgTable("user_roles", {
 /* --------------------------- Wallets --------------------------- */
 export const wallets = pgTable("wallets", {
   userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
-  balance: numeric("balance", { precision: 20, scale: 2 }).notNull().default("0"),
+  // Multi-ledger balances
+  balance: numeric("balance", { precision: 20, scale: 2 }).notNull().default("0"),        // Available for spending
+  stakedBalance: numeric("staked_balance", { precision: 20, scale: 2 }).notNull().default("0"),  // Staked on ventures/gigs
+  lockedBalance: numeric("locked_balance", { precision: 20, scale: 2 }).notNull().default("0"),   // Escrowed, pending
+  // Lifetime counters (never decrease)
+  earnedLifetime: numeric("earned_lifetime", { precision: 20, scale: 2 }).notNull().default("0"),
+  burnedLifetime: numeric("burned_lifetime", { precision: 20, scale: 2 }).notNull().default("0"),
+  stakedLifetime: numeric("staked_lifetime", { precision: 20, scale: 2 }).notNull().default("0"),
+  redeemedLifetime: numeric("redeemed_lifetime", { precision: 20, scale: 2 }).notNull().default("0"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -98,12 +106,29 @@ export const transactions = pgTable("transactions", {
   type: text("type").notNull(),
   description: text("description"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-},
-  (t) => ({
+  },
+    (t) => ({
       transactions_user_idx: index("transactions_user_idx").on(t.userId, t.createdAt),
-  }));
+    }));
 
-/* --------------------------- Ventures -------------------------- */
+    /* --------------------------- Stakes --------------------------- */
+  /* Tracks individual stakes per user per target (venture/gig) */
+  export const stakes = pgTable("stakes", {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    targetType: text("target_type").notNull(), // "venture" | "gig"
+    targetId: uuid("target_id").notNull(),
+    amount: numeric("amount", { precision: 20, scale: 2 }).notNull(),
+    status: text("status").notNull().default("active"), // "active" | "unstaked" | "slashed" | "rewarded"
+    metadata: jsonb("metadata").notNull().default("{}"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  }, (t) => ({
+      stakes_user_idx: index("stakes_user_idx").on(t.userId, t.createdAt),
+      stakes_target_idx: index("stakes_target_idx").on(t.targetType, t.targetId),
+    }));
+
+  /* --------------------------- Ventures -------------------------- */
 export const ventures = pgTable("ventures", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -1198,9 +1223,13 @@ export const ventureMilestones = pgTable("venture_milestones", {
   isUpcoming: boolean("is_upcoming").notNull().default(false),
   targetDate: date("target_date"),
   orderIndex: integer("order_index").notNull().default(0),
+  fundedAmount: numeric("funded_amount", { precision: 20, scale: 2 }).notNull().default("0"),
+  payoutAmount: numeric("payout_amount", { precision: 20, scale: 2 }),
+  status: text("status").notNull().default("pending"), // pending | funded | released | skipped
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   vmVentureIdx: index("venture_milestones_venture_idx").on(t.ventureId),
+  vmVentureStatusIdx: index("venture_milestones_venture_status_idx").on(t.ventureId, t.status),
 }));
 
 export const ventureAdvisors = pgTable("venture_advisors", {

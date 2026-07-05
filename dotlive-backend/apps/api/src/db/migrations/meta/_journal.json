@@ -57,6 +57,20 @@
       "when": 1782580793612,
       "tag": "0007_bumpy_echo",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1783267470444,
+      "tag": "0008_jittery_the_renegades",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1783270447181,
+      "tag": "0009_fast_killer_shrike",
+      "breakpoints": true
     }
   ]
 }

@@ -45,6 +45,11 @@ export type NotificationType =
   | "pitchathon_judge_assigned"
   | "pitchathon_submission_received"
   | "mention"
+  | "stake_created"
+  | "unstaked"
+  | "reward_claimed"
+  | "escrow_funded"
+  | "escrow_released"
   | "system";
 
 export interface NotifyArgs {

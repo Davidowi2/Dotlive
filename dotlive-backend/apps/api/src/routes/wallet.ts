@@ -22,10 +22,18 @@ export async function walletRoutes(app: FastifyInstance) {
     const { sub } = req.user as { sub: string };
     let w = await db.select().from(wallets).where(eq(wallets.userId, sub)).limit(1);
     if (w.length === 0) {
-      await db.insert(wallets).values({ userId: sub, balance: "0" } as any);
+      await db.insert(wallets).values({ userId: sub, balance: "0", stakedBalance: "0", lockedBalance: "0", earnedLifetime: "0", burnedLifetime: "0", stakedLifetime: "0", redeemedLifetime: "0" } as any);
       w = await db.select().from(wallets).where(eq(wallets.userId, sub)).limit(1);
     }
-    return reply.send({ balance: Number(w[0].balance) });
+    return reply.send({
+      balance: Number(w[0].balance),
+      stakedBalance: Number(w[0].stakedBalance),
+      lockedBalance: Number(w[0].lockedBalance),
+      earnedLifetime: Number(w[0].earnedLifetime),
+      burnedLifetime: Number(w[0].burnedLifetime),
+      stakedLifetime: Number(w[0].stakedLifetime),
+      redeemedLifetime: Number(w[0].redeemedLifetime),
+    });
   });
 
   /** GET /api/wallet/transactions — history */

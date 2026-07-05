@@ -74,6 +74,7 @@ import {
   requestWithdrawal, verifyBankAccount, type WithdrawalRequest,
 } from "@/api/wallet";
 import { getByDotId } from "@/api/users";
+import { getStakes, createStake, unstake, claimRewards, type StakePosition } from "@/api/stakes";
 import { ApiError } from "@/types/api";
 // Paystack server functions removed — wired via Render API when configured.
 import {
@@ -111,6 +112,11 @@ const TYPE_META: Record<
   Refund: { icon: ArrowDownLeft, tone: "text-primary", inbound: true },
   "Admin Adjustment": { icon: Settings2, tone: "text-muted-foreground", inbound: true },
   "Admin Credit": { icon: Settings2, tone: "text-primary", inbound: true },
+  "Stake Created": { icon: Lock, tone: "text-gold", inbound: true },
+  "Unstaked": { icon: ArrowUpRight, tone: "text-primary", inbound: true },
+  "Reward Claimed": { icon: Gift, tone: "text-gold", inbound: true },
+  "Escrow Funded": { icon: Lock, tone: "text-primary", inbound: false },
+  "Escrow Released": { icon: ArrowDownLeft, tone: "text-primary", inbound: true },
 };
 
 /* ── Date-grouping helpers ─────────────────────────────────────────── */
@@ -147,6 +153,11 @@ function WalletPage() {
     staleTime: 15_000,
   });
   const balance = walletData?.balance ?? 0;
+  const staked = walletData?.stakedBalance ?? 0;
+  const locked = walletData?.lockedBalance ?? 0;
+  const earnedLifetime = walletData?.earnedLifetime ?? 0;
+  const burnedLifetime = walletData?.burnedLifetime ?? 0;
+  const stakedLifetime = walletData?.stakedLifetime ?? 0;
 
   const { data: transactions = [], isLoading: txLoading } = useQuery({
     queryKey: ["transactions"],
@@ -167,7 +178,7 @@ function WalletPage() {
         setWithdrawals(wRes?.withdrawals ?? []);
       } catch {}
     })();
-  }, [balance]);
+  }, [user?.dotId]);
 
   const dotId = user?.dotId ?? null;
   const [amount, setAmount] = useState(MIN_DEPOSIT_DOT);
@@ -178,11 +189,79 @@ function WalletPage() {
   const [receipt, setReceipt] = useState<{ dot: number; naira: number; reference: string } | null>(null);
   const [transferOpen, setTransferOpen] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const [stakeOpen, setStakeOpen] = useState(false);
   const [kyc, setKyc] = useState<any>(null);
   const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [bankInfo, setBankInfo] = useState({ accountName: "", accountNumber: "", bankCode: "", bankName: "" });
   const [withdrawSubmitting, setWithdrawSubmitting] = useState(false);
+  const [stakes, setStakes] = useState<StakePosition[]>([]);
+  const [stakesLoading, setStakesLoading] = useState(false);
+  const [stakeAmount, setStakeAmount] = useState(2000);
+  const [stakeBusy, setStakeBusy] = useState(false);
+  const [stakeError, setStakeError] = useState<string | null>(null);
+
+  async function refreshStakes() {
+    setStakesLoading(true);
+    try {
+      const data = await getStakes();
+      setStakes(data);
+    } catch {}
+    setStakesLoading(false);
+  }
+
+  async function handleCreateStake() {
+    if (stakeAmount <= 0) return;
+    if (stakeAmount > balance) {
+      toast.error("Insufficient balance.");
+      return;
+    }
+    setStakeBusy(true);
+    setStakeError(null);
+    try {
+      await createStake({ amount: Math.floor(stakeAmount) });
+      toast.success(`Staked ${formatDot(stakeAmount)} DOT`);
+      setStakeOpen(false);
+      setStakeAmount(2000);
+      refreshStakes();
+      qc.invalidateQueries({ queryKey: ["wallet"] });
+      qc.invalidateQueries({ queryKey: ["vantage"] });
+    } catch (e: any) {
+      const msg = e instanceof Error ? e.message : "Stake failed";
+      setStakeError(msg);
+      toast.error(msg);
+    } finally {
+      setStakeBusy(false);
+    }
+  }
+
+  async function handleUnstake(stakeId: string) {
+    setStakeBusy(true);
+    try {
+      await unstake(stakeId);
+      toast.success("Unstake initiated. Cooldown started.");
+      refreshStakes();
+      qc.invalidateQueries({ queryKey: ["wallet"] });
+    } catch (e: any) {
+      toast.error(e instanceof Error ? e.message : "Unstake failed");
+    } finally {
+      setStakeBusy(false);
+    }
+  }
+
+  async function handleClaim(stakeId: string) {
+    setStakeBusy(true);
+    try {
+      const res = await claimRewards(stakeId);
+      toast.success(`Claimed ${formatDot(Number(res.claimed))} DOT rewards`);
+      refreshStakes();
+      qc.invalidateQueries({ queryKey: ["wallet"] });
+    } catch (e: any) {
+      toast.error(e instanceof Error ? e.message : "Claim failed");
+    } finally {
+      setStakeBusy(false);
+    }
+  }
 
   /* Last-30-day delta — derived from already-fetched transactions. */
   const last30Delta = useMemo(() => {
@@ -393,6 +472,19 @@ function WalletPage() {
               <p className="mt-1 text-sm text-muted-foreground tabular">
                 ≈ {formatNaira(dotToNaira(balance))}
               </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="inline-flex items-center gap-2 rounded-full border border-border bg-background/60 px-3 py-1 text-xs font-medium">
+                  <span className="size-1.5 rounded-full bg-primary" />
+                  Staked: {formatDot(staked)} DOT
+                </span>
+                <span className="inline-flex items-center gap-2 rounded-full border border-border bg-background/60 px-3 py-1 text-xs font-medium">
+                  <span className="size-1.5 rounded-full bg-gold" />
+                  Locked: {formatDot(locked)} DOT
+                </span>
+              </div>
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Earned lifetime: {formatDot(earnedLifetime)} DOT · Staked lifetime: {formatDot(stakedLifetime)} DOT · Burned: {formatDot(burnedLifetime)} DOT
+              </p>
             </div>
 
             {/* 30-day delta */}
@@ -575,6 +667,28 @@ function WalletPage() {
             </div>
             <span className="text-xs font-medium text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all">
               Open →
+            </span>
+          </button>
+
+          {/* Stake — entry into staking */}
+          <button
+            type="button"
+            onClick={() => setStakeOpen(true)}
+            className="group flex items-center justify-between gap-4 rounded-xl border border-gold/40 bg-gold/5 p-5 text-left transition hover:border-gold/60 hover:bg-gold/10 hover:shadow-soft"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex size-10 items-center justify-center rounded-lg bg-gold/15 text-gold">
+                <Lock className="size-5" />
+              </span>
+              <div>
+                <p className="font-display text-lg font-light">Stake DOT</p>
+                <p className="text-xs text-muted-foreground">
+                  Earn rewards on locked DOT · 14-day cooldown
+                </p>
+              </div>
+            </div>
+            <span className="text-xs font-medium text-gold group-hover:translate-x-0.5 transition-all">
+              Start →
             </span>
           </button>
         </div>
