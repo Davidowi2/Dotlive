@@ -324,9 +324,9 @@ function Dashboard() {
             </div>
             <div className="ml-auto min-w-[220px] flex-1">
               <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>0</span>
-                <span className="tabular">{Math.round((vantagePoint / 1000) * 100)}%</span>
-                <span>1000</span>
+                <span>0%</span>
+                <span className="tabular font-medium text-foreground">{Math.round((vantagePoint / 1000) * 100)}%</span>
+                <span>100%</span>
               </div>
               <div className="mt-1 h-2 overflow-hidden rounded-full bg-muted">
                 <div
