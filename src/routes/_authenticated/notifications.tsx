@@ -9,6 +9,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
 import { PageIntent } from "@/components/app/PageIntent";
+import { EmptyState } from "@/components/app/EmptyState";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -184,14 +185,25 @@ function NotificationsPage() {
                   ))}
                 </div>
               ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 py-16 text-center">
-            <Bell className="size-8 text-muted-foreground/40" />
-            <p className="text-sm text-muted-foreground">
-              {filter === "Unread"
-                ? "No unread notifications — you're all caught up."
-                : "No notifications yet. Activity from your ventures, transfers and communities will show up here."}
-            </p>
-          </div>
+            <div className="p-2">
+              <EmptyState
+                variant="inline"
+                icon={filter === "Unread" ? CheckCircle2 : Bell}
+                accent={filter === "Unread" ? "primary" : "purple"}
+                title={
+                  filter === "Unread"
+                    ? "You're all caught up"
+                    : filter === "All"
+                      ? "No notifications yet"
+                      : `No ${filter.toLowerCase()} activity yet`
+                }
+                description={
+                  filter === "Unread"
+                    ? "Nothing waiting on you. New alerts will appear here as they come in."
+                    : "Stakes, escrow, share trades, follow requests, and community posts will show up here when they happen."
+                }
+              />
+            </div>
         ) : (
           filtered.map((n, i) => (
             <NotificationRow
