@@ -15,9 +15,10 @@
 | `c7ecec9` | feat(wallet): 4-tab shell (Activity/Stakes/Escrow/Settings) | pre-handoff |
 | `2bddb6b` | docs(plan): execution plan for next 3 commits | pre-handoff |
 | `fe8daf7` | feat(ui): PageIntent on 11 pages + /ventures 5-tab shell | pre-handoff |
+| `a890935` | feat(vantage): single source of truth — `useVantage()` hook | pre-handoff |
+| `72d9791` | feat(dashboard): 3-card StakesWidget — conviction signal above the fold | **5** |
 | `08752d8` | fix(auth): Logo `asLink` prop, avoid nested `<a>` in sign-in / sign-up | **1** |
 | `5d2e8d2` | fix(work): drop `export` from WorkPage so createFileRoute can code-split | **2** |
-| _(top)_ | feat(dashboard): 3-card StakesWidget — conviction signal above the fold | **5** |
 | `d686e71` | feat(dashboard): online net worth band, single source of truth (`computeNetWorth`) | **6.a** |
 | `ccedb96` | feat(ventures): 4th hero card — online net worth (single source) | **6.b** |
 | `e2aa35a` | fix(dashboard): vantage progress bar end-labels `0%`/`100%` (was `0`/`1000`) | **3** |
