@@ -45,6 +45,8 @@ import {
   useStakes,
 } from "@/hooks/use-dot-data";
 import { JOURNEY_STAGES, dotToNaira, formatDot, formatNaira } from "@/lib/constants";
+import { computeNetWorth } from "@/lib/netWorth";
+import type { WalletBalance } from "@/api/wallet";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -455,6 +457,16 @@ function Dashboard() {
       {/* ── STAKES WIDGET — 3-card summary of conviction signal ── */}
       <StakesWidget stakes={stakes} />
 
+      {/* ── NET WORTH BAND — single source: wallet + stakes + escrow ── */}
+      <NetWorthBand
+        wallet={{
+          balance,
+          stakedBalance: walletData?.stakedBalance ?? 0,
+          lockedBalance: walletData?.lockedBalance ?? 0,
+        }}
+        stakes={stakes}
+      />
+
       <div className="my-10 flex items-center gap-3 text-[10px] tracking-widest uppercase text-muted-foreground/60">
         <span className="h-px flex-1 bg-border" />
         <span>Snapshot</span>
@@ -792,6 +804,88 @@ function StakesWidget({ stakes }: { stakes: StakePosition[] }) {
           12% APY · manual claim
         </p>
       </Link>
+    </section>
+  );
+}
+
+/* ═══════════════════ NET WORTH BAND — single function, one number ═ */
+
+/**
+ * Renders the user's total online net worth and its breakdown.
+ *
+ *   Total = available + staked + locked + escrow + activeStakes
+ *
+ * Uses `computeNetWorth()` from `src/lib/netWorth.ts` as the single source
+ * of truth. Don't recompute inline. Don't approximate.
+ */
+function NetWorthBand({
+  wallet,
+  stakes,
+}: {
+  wallet: Pick<WalletBalance, "balance" | "stakedBalance" | "lockedBalance">;
+  stakes: StakePosition[];
+}) {
+  const nw = computeNetWorth({ wallet, stakes });
+  const hasAnything = nw.total > 0;
+
+  return (
+    <section className="mt-6 rounded-2xl border border-border bg-card p-6">
+      <div className="flex items-end justify-between">
+        <div>
+          <p className="text-[10px] tracking-widest uppercase text-muted-foreground">
+            Online net worth
+          </p>
+          <p className="mt-2 font-display text-3xl font-light tabular-nums">
+            {hasAnything ? formatDot(nw.total) : "0"} DOT
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground font-light tabular-nums">
+            {hasAnything
+              ? `≈ ${formatNaira(dotToNaira(nw.total))}`
+              : "—"}
+          </p>
+        </div>
+        <Link
+          to="/wallet"
+          className="text-xs text-muted-foreground hover:text-foreground"
+        >
+          View wallet →
+        </Link>
+      </div>
+      {/* Breakdown strip */}
+      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div>
+          <p className="text-[10px] tracking-widest uppercase text-muted-foreground/70">
+            Available
+          </p>
+          <p className="mt-1 text-sm font-light tabular-nums">
+            {formatDot(nw.available)} DOT
+          </p>
+        </div>
+        <div>
+          <p className="text-[10px] tracking-widest uppercase text-muted-foreground/70">
+            Staked
+          </p>
+          <p className="mt-1 text-sm font-light tabular-nums">
+            {formatDot(nw.staked + nw.activeStakes)} DOT
+          </p>
+        </div>
+        <div>
+          <p className="text-[10px] tracking-widest uppercase text-muted-foreground/70">
+            Locked
+          </p>
+          <p className="mt-1 text-sm font-light tabular-nums">
+            {formatDot(nw.locked)} DOT
+          </p>
+        </div>
+        <div>
+          <p className="text-[10px] tracking-widest uppercase text-muted-foreground/70">
+            In escrow
+          </p>
+          <p className="mt-1 text-sm font-light tabular-nums">
+            {formatDot(nw.escrow)} DOT
+          </p>
+        </div>
+      </div>
     </section>
   );
 }
