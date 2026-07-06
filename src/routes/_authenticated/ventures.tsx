@@ -38,10 +38,12 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDotAuth } from "@/contexts/DotAuthContext";
 import { dotApi } from "@/api/client";
-import {
-  getMyFounderProfile, saveFounderProfile,
+import { getMyFounderProfile, saveFounderProfile,
   type FounderProfile,
 } from "@/api/founder";
+import { getBalance } from "@/api/wallet";
+import { useStakes } from "@/hooks/use-dot-data";
+import { computeNetWorth } from "@/lib/netWorth";
 import { formatDot, formatNaira, dotToNaira } from "@/lib/constants";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -68,6 +70,14 @@ function VenturesPage() {
     queryFn: getMyFounderProfile,
     enabled: !!user,
   });
+  // Net worth inputs (single source of truth: computeNetWorth)
+  const { data: walletData } = useQuery({
+    queryKey: ["wallet", "balance"],
+    queryFn: getBalance,
+    enabled: !!user,
+    staleTime: 60_000,
+  });
+  const { data: stakes = [] } = useStakes();
 
   const [form, setForm] = useState<FounderProfile | null>(null);
   const [editing, setEditing] = useState(false);
@@ -136,6 +146,17 @@ function VenturesPage() {
   const totalFields = 10;
   const completeness = Math.round((filled / totalFields) * 100);
 
+  // Online net worth — single source: computeNetWorth() reads from wallet ledger
+  // + stakes list, with the same V1 anti-double-count rule as the dashboard.
+  const netWorth = computeNetWorth({
+    wallet: {
+      balance: walletData?.balance ?? 0,
+      stakedBalance: walletData?.stakedBalance ?? 0,
+      lockedBalance: walletData?.lockedBalance ?? 0,
+    },
+    stakes,
+  });
+
   return (
     <AppShell>
       <div className="mb-3"><BackButton label="Back to dashboard" fallback="/dashboard" /></div>
@@ -168,7 +189,7 @@ function VenturesPage() {
         context="Profile completeness, Vantage score, stage, and the team, milestones, and escrow that back it up."
       />
       {/* ── Completeness + scores row ───────────────────────── */}
-      <section className="mt-6 grid gap-4 lg:grid-cols-3">
+      <section className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* Completeness */}
         <div className="rounded-2xl border border-border bg-card p-5">
           <div className="flex items-center justify-between">
@@ -238,6 +259,26 @@ function VenturesPage() {
               </span>
             ))}
           </div>
+        </div>
+
+        {/* Online net worth — single source: computeNetWorth */}
+        <div className="rounded-2xl border border-border bg-card p-5">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-medium tracking-widest uppercase text-muted-foreground">
+              Online net worth
+            </h3>
+            <Wallet className="size-4 text-gold" />
+          </div>
+          <p className="mt-2 font-display text-3xl font-semibold tabular-nums">
+            {formatDot(netWorth.total)}
+            <span className="text-base text-muted-foreground"> DOT</span>
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground tabular-nums">
+            ≈ {formatNaira(dotToNaira(netWorth.total))}
+          </p>
+          <Button asChild variant="link" size="sm" className="mt-2 h-auto p-0">
+            <Link to="/wallet">Open wallet →</Link>
+          </Button>
         </div>
       </section>
 
