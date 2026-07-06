@@ -2,12 +2,52 @@
 
 > **Started:** 2026-07-05
 > **Plan:** `.hermes/plans/2026-07-05-platform-redesign-rank.md`
+> **Last updated:** 2026-07-06
 
 ---
 
-## Commits shipped
+## Commits shipped (this branch `audit-fixes-2026-07-05`)
 
-_(none yet — all changes are staged or uncommitted, awaiting user review before commit/push)_
+| SHA | Subject | Item |
+| --- | --- | --- |
+| `5be72c6` | fix(nav,dashboard): Stakes → /stakes, dedupe Meetings, empty-state copy | pre-handoff |
+| `894efa5` | feat(stakes): /stakes page wired to /api/stakes | pre-handoff |
+| `c7ecec9` | feat(wallet): 4-tab shell (Activity/Stakes/Escrow/Settings) | pre-handoff |
+| `2bddb6b` | docs(plan): execution plan for next 3 commits | pre-handoff |
+| `fe8daf7` | feat(ui): PageIntent on 11 pages + /ventures 5-tab shell | pre-handoff |
+| `08752d8` | fix(auth): Logo `asLink` prop, avoid nested `<a>` in sign-in / sign-up | **1** |
+| `5d2e8d2` | fix(work): drop `export` from WorkPage so createFileRoute can code-split | **2** |
+| _(top)_ | feat(dashboard): 3-card StakesWidget — conviction signal above the fold | **5** |
+| `d686e71` | feat(dashboard): online net worth band, single source of truth (`computeNetWorth`) | **6.a** |
+| `ccedb96` | feat(ventures): 4th hero card — online net worth (single source) | **6.b** |
+| `e2aa35a` | fix(dashboard): vantage progress bar end-labels `0%`/`100%` (was `0`/`1000`) | **3** |
+| `40a376f` | fix(notifications): use `<EmptyState>`, filter-aware copy | **4 (partial)** |
+
+## Remaining build order
+
+| # | Item | Status |
+| - | --- | --- |
+| 4 | Empty-state rulebook (full audit, all pages) | **Partial** — /notifications done. Other pages (meetings, leaderboard, sessions, pitchathons, discover, search, portfolio, etc.) still need sweep. |
+| 7 | Vouch primitive (DB + endpoints + UI + Vantage signal) | Not started — needs backend table + 4 new API routes + UI on profile |
+| 8 | Notifications as OS (3 tabs: Received/Sent/Activity + bell + per-category mute + 90d archive) | Not started — current /notifications is single list with filter strip |
+| 9 | Buy Shares flow (modal + /investor/portfolio + dividends + price chart) | Not started — backend tables exist; UI needs modal + portfolio page + dividend distribution trigger |
+| 10 | Loan panel (plurality voting + 60% quorum + 7-day escalation + milestone-gated release + auto-debit) | Not started — backend tables + 4 API surfaces + founder/capital/partner UIs |
+| 11 | Discord-style communities (3-col layout, channels/posts/members, pinned admin posts) | Not started — backend partial; UI needs 3-col layout |
+| 12 | Vantage rebuild (20 real business questions, weighted, gap analysis, peer comparison, 1/week cap) | Not started — current Vantage is a working assessment; this is a structural rewrite |
+| 13 | Demo Day Meet → follow request → private chat | Not started — backend tables exist; UI needs Meet button, follow-requests inbox, messaging integration |
+| 14 | /work Post-a-job + Post-a-service (5-step wizard + escrow + mobile FAB) | Not started — wizard is a multi-step form with escrow funding |
+
+## Open decisions for user sign-off
+
+- **Items 7–14 are each multi-day features.** Shipping a "real feature" for each in one session is not realistic; the alternative is to ship focused, well-walked commits one item at a time.
+- **Push policy** — all commits above are local. The handoff indicates previous commits were pushed, but per working rules ("Never push to remote without explicit user sign-off") nothing has been pushed this session.
+
+## Notes
+
+- The `browserverify@test.com` user has roles including `admin`/`super_admin` and `capital_partner`, which is why the audit showed "OPERATOR" in the top bar and "Capital Partner" in the sidebar. For a real founder the role-gated items would be hidden correctly. The role-filter logic in AppShell is working as designed.
+- Dev server can be started on port 5173; sign in as `browserverify@test.com` / `Verify123!` to walk the changes.
+- Vite dev server can serve but reset session on restart.
+
 
 ## Staged changes (verified in browser, ready for user commit review)
 
