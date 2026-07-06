@@ -39,11 +39,17 @@ interface LogoProps {
   tagline?: boolean;
   /** Mark size in px */
   markSize?: number;
+  /**
+   * If true (default), wraps the lockup in a Link to "/".
+   * If false, renders as a plain div — useful when the parent
+   * is already a Link (to avoid nested <a> elements).
+   */
+  asLink?: boolean;
 }
 
-export function Logo({ className, tagline, markSize = 32 }: LogoProps) {
-  return (
-    <Link to="/" className={cn("flex items-center gap-2.5 group", className)}>
+export function Logo({ className, tagline, markSize = 32, asLink = true }: LogoProps) {
+  const inner = (
+    <>
       <LogoImage size={markSize} />
       <div className="flex flex-col leading-none">
         <span className="font-display text-xl font-bold tracking-tight text-foreground group-hover:text-primary transition-colors">
@@ -55,6 +61,16 @@ export function Logo({ className, tagline, markSize = 32 }: LogoProps) {
           </span>
         )}
       </div>
+    </>
+  );
+
+  if (!asLink) {
+    return <div className={cn("flex items-center gap-2.5 group", className)}>{inner}</div>;
+  }
+
+  return (
+    <Link to="/" className={cn("flex items-center gap-2.5 group", className)}>
+      {inner}
     </Link>
   );
 }
