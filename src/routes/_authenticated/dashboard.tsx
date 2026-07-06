@@ -866,7 +866,7 @@ function NetWorthBand({
             Staked
           </p>
           <p className="mt-1 text-sm font-light tabular-nums">
-            {formatDot(nw.staked + nw.activeStakes)} DOT
+            {formatDot(nw.staked)} DOT
           </p>
         </div>
         <div>
