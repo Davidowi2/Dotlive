@@ -492,7 +492,7 @@ function Dashboard() {
           <StatCard
             label="Academy"
             value={`${completed}`}
-            sub="courses done"
+            sub={completed === 0 ? "Browse courses →" : "courses done"}
             icon={BookOpen}
             accent="primary"
             href="/academy"
@@ -500,7 +500,7 @@ function Dashboard() {
           <StatCard
             label="Community"
             value={membership ? "1" : "0"}
-            sub={membership ? `${membership.role} in ${membership.community?.name ?? "community"}` : "no memberships yet"}
+            sub={membership ? `${membership.role} in ${membership.community?.name ?? "community"}` : "Find yours →"}
             icon={Users}
             accent="primary"
             href="/community"

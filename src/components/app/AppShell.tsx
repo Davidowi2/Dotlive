@@ -20,6 +20,7 @@ import {
   Bell,
   Award,
   Settings,
+  Lock,
   Menu as MenuIcon,
   X,
   BarChart3,
@@ -55,7 +56,7 @@ const NAV_ITEMS: NavItem[] = [
   /* growth — founder progression */
   { label: "Vantage",       to: "/vantage",       icon: Gauge,       roles: ["founder"],                 section: "growth" },
   { label: "Wallet",        to: "/wallet",           icon: Wallet,                                     section: "growth" },
-  { label: "Stakes",        to: "/wallet",           icon: Lock,                                       section: "growth" },
+  { label: "Stakes",        to: "/stakes",        icon: Lock,                                       section: "growth" },
   { label: "Refer & Earn",  to: "/referrals",        icon: Users,                                      section: "growth" },
   { label: "Leaderboard",   to: "/leaderboard",    icon: Trophy,                                     section: "growth" },
   { label: "Builder Arena", to: "/builder",       icon: Trophy,      roles: ["builder"],                 section: "growth" },
@@ -73,7 +74,6 @@ const NAV_ITEMS: NavItem[] = [
   { label: "My Portfolio",   to: "/portfolio",    icon: LineChart,    roles: ["investor"],                section: "capital" },
   { label: "Capital Partner", to: "/capital",     icon: Wallet,      roles: ["capital_partner"],         section: "capital" },
   { label: "Judge Portal",  to: "/judge",         icon: Trophy,      roles: ["judge"],                    section: "capital" },
-  { label: "Meetings",      to: "/demo",          icon: Bell,        roles: ["investor", "founder", "capital_partner"], section: "capital" },
   /* operator (formerly "admin" — internal staff, not a self-assignable role) */
   { label: "Operator",      to: "/admin",         icon: Shield,      roles: ["admin", "super_admin"],    section: "admin" },
   /* always */
