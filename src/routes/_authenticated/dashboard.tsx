@@ -42,6 +42,7 @@ import {
   useMyBuilderProfile,
   useBuilderStats,
   useVantage,
+  useStakes,
 } from "@/hooks/use-dot-data";
 import { JOURNEY_STAGES, dotToNaira, formatDot, formatNaira } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -130,6 +131,7 @@ function Dashboard() {
   const { data: membership } = useMyMembership();
   const { data: builderProfile } = useMyBuilderProfile();
   const { data: builderStats } = useBuilderStats(user?.id ?? undefined);
+  const { data: stakes = [] } = useStakes();
 
   const isLoading = walletLoading || founderLoading || assessLoading;
   const profile = user ? { name: user.name, id: user.id } : null;
@@ -449,6 +451,10 @@ function Dashboard() {
       )}
 
       {/* Section divider */}
+      {/* Section divider */}
+      {/* ── STAKES WIDGET — 3-card summary of conviction signal ── */}
+      <StakesWidget stakes={stakes} />
+
       <div className="my-10 flex items-center gap-3 text-[10px] tracking-widest uppercase text-muted-foreground/60">
         <span className="h-px flex-1 bg-border" />
         <span>Snapshot</span>
@@ -661,6 +667,132 @@ function Dashboard() {
         />
       )}
     </AppShell>
+  );
+}
+
+/* ═══════════════════ STAKES WIDGET — conviction signal (3 cards) ═ */
+
+/**
+ * 3-card stakes summary shown on /dashboard.
+ *
+ *   ┌─ Staked DOT ─┐  ┌─ Active stakes ─┐  ┌─ 12% APY rewards ─┐
+ *   │   12,500 DOT │  │        3 active │  │     345 DOT earned│
+ *   │ ≈ ₦187,500   │  │ longest: 240d   │  │ next claim: 14d   │
+ *   └──────────────┘  └─────────────────┘  └───────────────────┘
+ *
+ * If user has 0 stakes, renders a first-time empty card with a CTA to
+ * /stakes — NOT a 3-card ghost grid of zeros (that lies).
+ */
+function StakesWidget({ stakes }: { stakes: StakePosition[] }) {
+  const active = stakes.filter((s) => s.status === "active");
+  const totalStaked = active.reduce(
+    (acc, s) => acc + Number(s.amount ?? 0),
+    0,
+  );
+  const totalRewarded = stakes.reduce(
+    (acc, s) => acc + Number(s.rewardAccrued ?? 0),
+    0,
+  );
+  const longestLock = active.reduce((max, s) => {
+    if (!s.lockEndsAt) return max;
+    const days = Math.max(
+      0,
+      Math.round(
+        (new Date(s.lockEndsAt).getTime() - Date.now()) / 86_400_000,
+      ),
+    );
+    return Math.max(max, days);
+  }, 0);
+  // First-time: no active stakes — single empty card, no zombie zeros.
+  if (stakes.length === 0) {
+    return (
+      <Link
+        to="/stakes"
+        className="mt-8 flex items-center justify-between rounded-2xl border border-dashed border-border bg-card px-6 py-5 transition hover:border-gold/40 hover:bg-gold/5"
+      >
+        <div className="flex items-center gap-4">
+          <div className="flex size-11 items-center justify-center rounded-full bg-gold/10">
+            <TrendingUp className="size-5 text-gold" />
+          </div>
+          <div>
+            <p className="text-sm font-light">Earn 12% APY on idle DOT</p>
+            <p className="mt-0.5 text-xs text-muted-foreground font-light">
+              Stake DOT, accrue daily rewards, claim anytime after the 14-day cooldown.
+            </p>
+          </div>
+        </div>
+        <ArrowRight className="size-4 text-muted-foreground" />
+      </Link>
+    );
+  }
+
+  return (
+    <section className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <Link
+        to="/stakes"
+        className="group rounded-2xl border border-border bg-card p-5 transition hover:border-gold/40"
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] tracking-widest uppercase text-muted-foreground">
+            Staked DOT
+          </span>
+          <Lock className="size-4 text-gold" />
+        </div>
+        <p className="mt-3 font-display text-2xl font-light tabular-nums">
+          {formatDot(totalStaked)}
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground font-light tabular-nums">
+          ≈ {formatNaira(dotToNaira(totalStaked))}
+        </p>
+        <p className="mt-2 text-[10px] tracking-widest text-muted-foreground/70 uppercase">
+          {active.length} active position{active.length === 1 ? "" : "s"}
+        </p>
+      </Link>
+
+      <Link
+        to="/stakes"
+        className="group rounded-2xl border border-border bg-card p-5 transition hover:border-primary/40"
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] tracking-widest uppercase text-muted-foreground">
+            Longest lock
+          </span>
+          <WalletMinimal className="size-4 text-primary" />
+        </div>
+        <p className="mt-3 font-display text-2xl font-light tabular-nums">
+          {longestLock > 0 ? `${longestLock}d` : "—"}
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground font-light">
+          {longestLock > 0
+            ? "until cooldown ends"
+            : "no active locks"}
+        </p>
+        <p className="mt-2 text-[10px] tracking-widest text-muted-foreground/70 uppercase">
+          14d cooldown
+        </p>
+      </Link>
+
+      <Link
+        to="/stakes"
+        className="group rounded-2xl border border-border bg-card p-5 transition hover:border-teal/40"
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] tracking-widest uppercase text-muted-foreground">
+            Rewards accrued
+          </span>
+          <TrendingUp className="size-4 text-teal" />
+        </div>
+        <p className="mt-3 font-display text-2xl font-light tabular-nums">
+          {formatDot(totalRewarded)}
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground font-light tabular-nums">
+          ≈ {formatNaira(dotToNaira(totalRewarded))}
+        </p>
+        <p className="mt-2 text-[10px] tracking-widest text-muted-foreground/70 uppercase">
+          12% APY · manual claim
+        </p>
+      </Link>
+    </section>
   );
 }
 

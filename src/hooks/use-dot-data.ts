@@ -12,6 +12,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { dotApi } from "@/api/client";
 import { useDotAuth } from "@/contexts/DotAuthContext";
+import type { StakePosition } from "@/api/stakes";
 
 /* ──────────────────────────────────────────────────────────────────
  * Common shapes returned by Render API.
@@ -233,6 +234,25 @@ export function useVantage() {
     enabled: !!user && !!token,
     isLoading,
   };
+}
+
+export function useStakes() {
+  const { user, token } = useDotAuth();
+  return useQuery({
+    queryKey: ["stakes", user?.id],
+    enabled: !!user && !!token,
+    staleTime: 60_000,
+    queryFn: async () => {
+      try {
+        const { stakes } = await dotApi.get<{ stakes: StakePosition[] }>(
+          "/api/stakes",
+        );
+        return stakes ?? [];
+      } catch {
+        return [];
+      }
+    },
+  });
 }
 
 export function useMyEnrollments() {
