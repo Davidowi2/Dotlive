@@ -194,6 +194,47 @@ export function useAssessments() {
   });
 }
 
+/**
+ * Canonical Vantage signal.
+ *
+ * Single source of truth for the user's Vantage Point (0–1000).
+ * Order of precedence:
+ *   1. Latest assessment's vantagePoint (the most recently computed score)
+ *   2. Founder profile's vantagePoint (the denormalised snapshot)
+ *   3. 0 (never lie — see "Every number from a real query, never placeholder" rule)
+ *
+ * Use this hook EVERYWHERE you need to display Vantage. Don't read
+ * `founder.vantagePoint` or `latest.vantagePoint` directly — they drift.
+ */
+export function useVantage() {
+  const { user, token } = useDotAuth();
+  const { data: founder } = useFounderProfile();
+  const { data: assessments = [], isLoading } = useAssessments();
+
+  // Backed by React Query's shared cache for ["assessments", user?.id] and
+  // ["founder_profile", user?.id] — no extra network calls.
+  const latest = assessments[0] ?? null;
+  const vantagePoint: number =
+    latest?.vantagePoint ?? founder?.vantagePoint ?? 0;
+  const fundability: number =
+    latest?.fundability ?? founder?.fundability ?? 0;
+  const investmentReadiness: number =
+    latest?.investmentReadiness ?? founder?.investmentReadiness ?? 0;
+  const stage: string =
+    latest?.stage ?? founder?.stage ?? "Assess";
+
+  return {
+    vantagePoint,
+    fundability,
+    investmentReadiness,
+    stage,
+    latest,
+    founder,
+    enabled: !!user && !!token,
+    isLoading,
+  };
+}
+
 export function useMyEnrollments() {
   const { user, token } = useDotAuth();
   return useQuery({

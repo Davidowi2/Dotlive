@@ -36,6 +36,7 @@ import { PageHeader } from "@/components/app/PageHeader";
 import { PageIntent } from "@/components/app/PageIntent";
 import { EmptyState } from "@/components/app/EmptyState";
 import { PageSkeleton } from "@/components/app/PageSkeleton";
+import { useVantage } from "@/hooks/use-dot-data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -202,6 +203,10 @@ function VantagePage() {
     enabled: !!user,
     queryFn: getVantageHistory,
   });
+  // Canonical Vantage signal — same source as /dashboard.
+  const { vantagePoint: canonicalVantagePoint } = useVantage();
+  // Displayed value: canonical signal (single source of truth).
+  const vantagePoint = canonicalVantagePoint;
   const [taking, setTaking] = useState(false);
     const [idx, setIdx] = useState(0);
     const [answers, setAnswers] = useState<VantageAnswers>({});

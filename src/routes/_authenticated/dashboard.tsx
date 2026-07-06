@@ -41,6 +41,7 @@ import {
   useMyMembership,
   useMyBuilderProfile,
   useBuilderStats,
+  useVantage,
 } from "@/hooks/use-dot-data";
 import { JOURNEY_STAGES, dotToNaira, formatDot, formatNaira } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -114,6 +115,15 @@ function Dashboard() {
   });
   const balance = walletData?.balance ?? 0;
   const { data: founder, isLoading: founderLoading } = useFounderProfile();
+  // Canonical Vantage signal — same source as /vantage page.
+  // (useVantage() internally uses useAssessments().)
+  const {
+    vantagePoint,
+    fundability,
+    stage: rawStage,
+    latest,
+  } = useVantage();
+  // Keep raw assessments list for trend / history.
   const { data: assessments = [], isLoading: assessLoading } = useAssessments();
   // Non-blocking — load after initial render
   const { data: enrollments = [] } = useMyEnrollments();
@@ -140,11 +150,11 @@ function Dashboard() {
     ["investor", "community_leader", "vendor", "capital_partner", "admin", "super_admin"].includes(r)
   );
 
-  const latest = assessments[assessments.length - 1];
-  const prev = assessments.length >= 2 ? assessments[assessments.length - 2] : null;
-  const vantagePoint = founder?.vantagePoint ?? latest?.vantagePoint ?? 0;
-  const fundability = founder?.fundability ?? latest?.fundability ?? 0;
-  const stage = (founder?.stage as string) ?? "Assess";
+  // Canonical Vantage signal already destructured above.
+  // Backend returns newest-first (desc createdAt), so the LATEST assessment
+  // is index 0. The previous one is index 1.
+  const prev = assessments.length >= 2 ? assessments[1] : null;
+  const stage = (rawStage as string) ?? "Assess";
   const completed = enrollments.filter((e) => e.status === "completed").length;
   const currentStageIndex = JOURNEY_STAGES.indexOf(stage as (typeof JOURNEY_STAGES)[number]);
 
