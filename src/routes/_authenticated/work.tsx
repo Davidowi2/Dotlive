@@ -55,7 +55,7 @@ export const Route = createFileRoute("/_authenticated/work")({
   component: WorkPage,
 });
 
-export function WorkPage() {
+function WorkPage() {
   const [showPostJob, setShowPostJob] = useState(false);
   const { user } = useDotAuth();
   const { data: walletBalance = 0 } = useWallet();
