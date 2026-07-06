@@ -8,7 +8,7 @@ interface Transaction {
   id: string;
   type: string;
   amount: number;
-  description?: string;
+  description?: string | null;
   createdAt: string;
 }
 
@@ -58,6 +58,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -68,6 +69,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { EmptyState } from "@/components/app/EmptyState";
 import { useDotAuth } from "@/contexts/DotAuthContext";
 import {
   getBalance, getTransactions, transfer,
@@ -75,6 +78,7 @@ import {
 } from "@/api/wallet";
 import { getByDotId } from "@/api/users";
 import { getStakes, createStake, unstake, claimRewards, type StakePosition } from "@/api/stakes";
+import { getMyVenture } from "@/api/ventures";
 import { ApiError } from "@/types/api";
 // Paystack server functions removed — wired via Render API when configured.
 import {
@@ -351,6 +355,14 @@ function WalletPage() {
     return groups.filter((g) => g.items.length > 0);
   }, [transactions]);
 
+  // Refresh stakes whenever the Stakes tab is rendered.
+  // Cheap: only fires when the component mounts (page open) and when the user
+  // explicitly retries after an error.
+  useEffect(() => {
+    refreshStakes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   if (walletLoading) {
     return (
       <AppShell>
@@ -450,7 +462,15 @@ function WalletPage() {
         </div>
       )}
 
-      {/* ── Section 1: Balance ─────────────────────────────────────── */}
+      <Tabs defaultValue="activity" className="mt-6">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
+          <TabsTrigger value="activity">Activity</TabsTrigger>
+          <TabsTrigger value="stakes">Stakes</TabsTrigger>
+          <TabsTrigger value="escrow">Escrow</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
+        </TabsList>
+
+      <TabsContent value="activity" className="mt-4">
       <section className="mt-10">
         <div className="relative overflow-hidden rounded-2xl border border-gold/40 bg-gold/5 p-6 shadow-soft sm:p-8">
           {/* Decorative gold rail */}
@@ -803,8 +823,69 @@ function WalletPage() {
           )}
         </div>
       </section>
+      </TabsContent>
 
-      {/* ── Transfer dialog ── */}
+      {/* ── Stakes tab ─────────────────────────────────────── */}
+      <TabsContent value="stakes" className="mt-4">
+        <WalletStakesTab
+          stakes={stakes}
+          loading={stakesLoading}
+          busy={stakeBusy}
+          error={stakeError}
+          onCreate={() => setStakeOpen(true)}
+          onUnstake={handleUnstake}
+          onClaim={handleClaim}
+        />
+      </TabsContent>
+
+      {/* ── Escrow tab ─────────────────────────────────────── */}
+      <TabsContent value="escrow" className="mt-4">
+        <WalletEscrowTab ventureId={null} />
+      </TabsContent>
+
+      {/* ── Settings tab ───────────────────────────────────── */}
+      <TabsContent value="settings" className="mt-4">
+        <WalletSettingsTab
+          kyc={kyc}
+          onWithdraw={() => setWithdrawOpen(true)}
+        />
+      </TabsContent>
+      </Tabs>
+
+      <Dialog open={stakeOpen} onOpenChange={setStakeOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Stake DOT</DialogTitle>
+            <DialogDescription>
+              Lock DOT to earn 12% APY. 14-day cooldown before you can unstake.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Label htmlFor="stake-amount">Amount (DOT)</Label>
+            <Input
+              id="stake-amount"
+              type="number"
+              min={100}
+              step={100}
+              value={stakeAmount}
+              onChange={(e) => setStakeAmount(Number(e.target.value))}
+            />
+            <p className="text-xs text-muted-foreground">
+              Balance: {formatDot(balance)} DOT
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setStakeOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateStake} disabled={stakeBusy}>
+              {stakeBusy ? <Loader2 className="size-4 animate-spin" /> : <Lock className="size-4" />}
+              Stake
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
         <DialogContent>
           <InlineTransferForm
@@ -1420,5 +1501,432 @@ function BalanceTrend({
         </svg>
       </div>
     </div>
+  );
+}
+
+/* ── Tab: Stakes ────────────────────────────────────────────── */
+
+function WalletStakesTab({
+  stakes,
+  loading,
+  busy,
+  error,
+  onCreate,
+  onUnstake,
+  onClaim,
+}: {
+  stakes: StakePosition[];
+  loading: boolean;
+  busy: boolean;
+  error: string | null;
+  onCreate: () => void;
+  onUnstake: (id: string) => void;
+  onClaim: (id: string) => void;
+}) {
+  const totalStaked = stakes
+    .filter((s) => s.status === "active" || s.status === "unstaking")
+    .reduce((acc, s) => acc + Number(s.amount), 0);
+  const activeCount = stakes.filter((s) => s.status === "active").length;
+  const totalReward = stakes.reduce(
+    (acc, s) => acc + Number(s.rewardClaimed) + Number(s.rewardAccrued),
+    0,
+  );
+
+  return (
+    <section className="space-y-6">
+      {/* Summary cards */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <SummaryCard
+          label="Total staked"
+          value={`${formatDot(totalStaked)} DOT`}
+          accent="primary"
+        />
+        <SummaryCard
+          label="Active positions"
+          value={String(activeCount)}
+          accent="teal"
+        />
+        <SummaryCard
+          label="Lifetime rewards"
+          value={`${formatDot(totalReward)} DOT`}
+          accent="gold"
+        />
+      </div>
+
+      {/* New-stake CTA + error */}
+      <div className="flex flex-col gap-2 rounded-2xl border border-gold/40 bg-gold/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="font-display text-base font-light">Stake more DOT</p>
+          <p className="text-xs text-muted-foreground">
+            Earn 12% APY · 14-day cooldown · manual claim
+          </p>
+        </div>
+        <Button variant="default" onClick={onCreate} disabled={busy}>
+          <Lock className="size-4" /> New stake
+        </Button>
+      </div>
+
+      {error ? (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+          {error}
+        </div>
+      ) : null}
+
+      {/* Position list */}
+      {loading ? (
+        <div className="space-y-2">
+          <Skeleton className="h-20 w-full" />
+          <Skeleton className="h-20 w-full" />
+        </div>
+      ) : stakes.length === 0 ? (
+        <EmptyState
+          icon={Lock}
+          title="No active stakes"
+          description="Start a stake above to earn 12% APY with a 14-day cooldown."
+        />
+      ) : (
+        <ul className="space-y-3">
+          {stakes.map((s) => (
+            <WalletStakeRow
+              key={s.id}
+              stake={s}
+              busy={busy}
+              onUnstake={() => onUnstake(s.id)}
+              onClaim={() => onClaim(s.id)}
+            />
+          ))}
+        </ul>
+      )}
+
+      <div className="text-center">
+        <Link to="/stakes" className="text-xs text-muted-foreground hover:text-foreground">
+          Open full stake manager →
+        </Link>
+      </div>
+    </section>
+  );
+}
+
+function WalletStakeRow({
+  stake,
+  busy,
+  onUnstake,
+  onClaim,
+}: {
+  stake: StakePosition;
+  busy: boolean;
+  onUnstake: () => void;
+  onClaim: () => void;
+}) {
+  const lockEnds = stake.lockEndsAt
+    ? new Date(stake.lockEndsAt)
+    : new Date(new Date(stake.createdAt).getTime() + 14 * 24 * 60 * 60 * 1000);
+  const days = Math.max(
+    0,
+    Math.ceil((lockEnds.getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
+  );
+  const canUnstake = stake.status === "active" && days === 0;
+  const claimable = Number(stake.rewardAccrued) > 0;
+  const canClaim = canUnstake && claimable;
+
+  return (
+    <li className="rounded-2xl border border-border bg-card p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-1">
+          <p className="font-display text-lg font-light">
+            {formatDot(Number(stake.amount))} DOT · {stake.apyPct}% APY
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Status: {stake.status} · started{" "}
+            {new Date(stake.createdAt).toLocaleDateString()}
+            {stake.status === "active" && days > 0 ? (
+              <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                <Lock className="size-3" /> {days}d until unlock
+              </span>
+            ) : null}
+          </p>
+          {Number(stake.rewardAccrued) > 0 ? (
+            <p className="text-xs text-gold">
+              Accrued: {formatDot(Number(stake.rewardAccrued))} DOT
+            </p>
+          ) : null}
+        </div>
+        {stake.status === "active" ? (
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!canUnstake || busy}
+              onClick={onUnstake}
+            >
+              Unstake
+            </Button>
+            <Button size="sm" disabled={!canClaim || busy} onClick={onClaim}>
+              Claim
+            </Button>
+          </div>
+        ) : null}
+      </div>
+    </li>
+  );
+}
+
+function SummaryCard({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: string;
+  accent: "primary" | "teal" | "gold";
+}) {
+  const ring = {
+    primary: "ring-primary/20 bg-primary/5",
+    teal: "ring-teal/20 bg-teal/5",
+    gold: "ring-gold/20 bg-gold/5",
+  }[accent];
+  const text = {
+    primary: "text-primary",
+    teal: "text-teal",
+    gold: "text-gold",
+  }[accent];
+  return (
+    <div
+      className={`flex items-center gap-3 rounded-2xl border border-border p-4 ring-1 ring-inset ${ring}`}
+    >
+      <span
+        className={`flex size-10 items-center justify-center rounded-lg bg-card ${text}`}
+      >
+        <Lock className="size-5" />
+      </span>
+      <div>
+        <p className="text-[10px] font-medium tracking-widest uppercase text-muted-foreground">
+          {label}
+        </p>
+        <p className="font-display text-lg font-light tabular-nums">{value}</p>
+      </div>
+    </div>
+  );
+}
+
+/* ── Tab: Escrow ───────────────────────────────────────────── */
+
+type EscrowSummary = {
+  ventureId: string;
+  totalFunded: number;
+  totalPayout: number;
+  milestones: Array<{
+    id: string;
+    title: string;
+    status: string;
+    fundedAmount: string;
+    payoutAmount: string | null;
+    achievedAt: string | null;
+    targetDate: string | null;
+  }>;
+  byStatus: Record<string, number>;
+};
+
+function WalletEscrowTab({ ventureId }: { ventureId: string | null }) {
+  const { data: venture, isLoading: ventureLoading } = useQuery({
+    queryKey: ["my-venture"],
+    queryFn: getMyVenture,
+  });
+  const id = ventureId ?? venture?.id ?? null;
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["venture-escrow", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const res = await dotApi.get<EscrowSummary>(
+        `/api/ventures/${id}/escrow`,
+      );
+      return res;
+    },
+  });
+
+  if (ventureLoading) {
+    return (
+      <div className="space-y-2">
+        <Skeleton className="h-32 w-full" />
+        <Skeleton className="h-32 w-full" />
+      </div>
+    );
+  }
+
+  if (!id) {
+    return (
+      <EmptyState
+        icon={Lock}
+        title="No venture yet"
+        description="Create a venture to set up milestone escrow. Funds are released to you as you hit each milestone."
+        action={
+          <Button asChild>
+            <Link to="/ventures">Create a venture →</Link>
+          </Button>
+        }
+      />
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-2">
+        <Skeleton className="h-32 w-full" />
+        <Skeleton className="h-32 w-full" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <EmptyState
+        icon={AlertCircle}
+        title="Couldn't load escrow"
+        description="The escrow service is unreachable. Try again in a moment."
+        action={
+          <Button variant="outline" onClick={() => window.location.reload()}>
+            Retry
+          </Button>
+        }
+      />
+    );
+  }
+
+  if (!data || data.milestones.length === 0) {
+    return (
+      <EmptyState
+        icon={Lock}
+        title="No escrow milestones"
+        description="Milestones will appear here once you define them on your venture."
+        action={
+          <Button asChild>
+            <Link to="/ventures">Manage milestones →</Link>
+          </Button>
+        }
+      />
+    );
+  }
+
+  const pendingPayout = data.milestones
+    .filter((m) => m.status !== "paid" && m.status !== "released")
+    .reduce((acc, m) => acc + Number(m.payoutAmount ?? m.fundedAmount ?? 0), 0);
+  const releasedPayout = data.totalPayout;
+
+  return (
+    <section className="space-y-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <SummaryCard
+          label="Total funded"
+          value={`${formatDot(data.totalFunded)} DOT`}
+          accent="primary"
+        />
+        <SummaryCard
+          label="Pending release"
+          value={`${formatDot(pendingPayout)} DOT`}
+          accent="teal"
+        />
+        <SummaryCard
+          label="Released"
+          value={`${formatDot(releasedPayout)} DOT`}
+          accent="gold"
+        />
+        <SummaryCard
+          label="Milestones"
+          value={String(data.milestones.length)}
+          accent="primary"
+        />
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card p-5">
+        <h3 className="text-sm font-display font-semibold">Milestone escrow</h3>
+        <ul className="mt-3 divide-y divide-border">
+          {data.milestones.map((m) => (
+            <li
+              key={m.id}
+              className="flex items-center justify-between gap-3 py-3 text-sm"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium">{m.title}</p>
+                <p className="text-xs text-muted-foreground">
+                  Status: {m.status}
+                  {m.targetDate
+                    ? ` · target ${new Date(m.targetDate).toLocaleDateString()}`
+                    : ""}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="tabular-nums">
+                  {formatDot(Number(m.payoutAmount ?? m.fundedAmount ?? 0))} DOT
+                </p>
+                <p className="text-xs text-muted-foreground">payout</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
+/* ── Tab: Settings (KYC + Withdraw) ─────────────────────────── */
+
+function WalletSettingsTab({
+  kyc,
+  onWithdraw,
+}: {
+  kyc: any;
+  onWithdraw: () => void;
+}) {
+  return (
+    <section className="space-y-6">
+      {/* KYC status */}
+      <div className="rounded-2xl border border-border bg-card p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-medium tracking-widest uppercase text-muted-foreground">
+              KYC status
+            </p>
+            <p className="mt-1 font-display text-xl font-light">
+              {kyc?.status === "approved"
+                ? `Verified · tier ${kyc?.tier?.replace("tier", "") ?? "1"}`
+                : kyc?.status === "pending"
+                  ? "Under review"
+                  : "Not submitted"}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {kyc?.status === "approved"
+                ? `You can withdraw up to ${formatDot(kyc?.withdrawalLimit ?? 0)} DOT per request.`
+                : kyc?.status === "pending"
+                  ? "Your submission is being reviewed. We'll notify you when it's done."
+                  : "Verify your identity to withdraw DOT to a Nigerian bank."}
+            </p>
+          </div>
+          <Button asChild variant="outline" size="sm">
+            <Link to="/kyc">
+              {kyc?.status === "approved" ? "View" : kyc?.status === "pending" ? "View status" : "Start KYC"}
+            </Link>
+          </Button>
+        </div>
+      </div>
+
+      {/* Withdraw */}
+      <div className="rounded-2xl border border-border bg-card p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-medium tracking-widest uppercase text-muted-foreground">
+              Withdraw to bank
+            </p>
+            <p className="mt-1 font-display text-xl font-light">Cash out DOT</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Send DOT to a Nigerian bank account. KYC required.
+            </p>
+          </div>
+          <Button onClick={onWithdraw} variant="default" size="sm">
+            <ArrowDownToLine className="size-4" /> Withdraw
+          </Button>
+        </div>
+      </div>
+    </section>
   );
 }
