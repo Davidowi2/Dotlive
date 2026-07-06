@@ -53,6 +53,7 @@ import {
   } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
+import { PageIntent } from "@/components/app/PageIntent";
 import { PageSkeleton } from "@/components/app/PageSkeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -461,6 +462,12 @@ function WalletPage() {
           <Loader2 className="size-4 animate-spin text-primary" /> Verifying your payment…
         </div>
       )}
+
+      <PageIntent
+        icon={<WalletIcon className="size-5" />}
+        intent="Where is your DOT, and what can you do with it?"
+        context="Activity, active stakes, milestone escrow, and settings — all in one place."
+      />
 
       <Tabs defaultValue="activity" className="mt-6">
         <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">

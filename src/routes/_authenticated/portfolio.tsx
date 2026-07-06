@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
+import { PageIntent } from "@/components/app/PageIntent";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -89,6 +90,12 @@ function PortfolioPage() {
             </Button>
           </div>
         }
+      />
+
+      <PageIntent
+        icon={<BriefcaseIcon className="size-5" />}
+        intent="Where have you put your capital, and how is it doing?"
+        context="Every venture you've backed, your average price, your last dividend, and what to back next."
       />
 
       {portfolio.length === 0 ? (

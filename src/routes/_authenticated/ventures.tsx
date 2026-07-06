@@ -23,11 +23,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Building2, MapPin, Globe, Users, Wallet, TrendingUp, Calendar, Briefcase,
   Sparkles, Save, CheckCircle2, AlertTriangle, ExternalLink, Edit3, ArrowRight,
-  Target, LineChart,
+  Target, LineChart, Award, Lock,
 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { BackButton } from "@/components/app/BackButton";
 import { PageHeader } from "@/components/app/PageHeader";
+import { PageIntent } from "@/components/app/PageIntent";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -160,6 +162,11 @@ function VenturesPage() {
         }
       />
 
+      <PageIntent
+        icon={<Building2 className="size-5" />}
+        intent="What does your venture look like to investors today?"
+        context="Profile completeness, Vantage score, stage, and the team, milestones, and escrow that back it up."
+      />
       {/* ── Completeness + scores row ───────────────────────── */}
       <section className="mt-6 grid gap-4 lg:grid-cols-3">
         {/* Completeness */}
@@ -326,8 +333,38 @@ function VenturesPage() {
         </div>
       </section>
 
+      <Tabs defaultValue="overview" className="mt-8">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="team">Team</TabsTrigger>
+          <TabsTrigger value="milestones">Milestones</TabsTrigger>
+          <TabsTrigger value="advisors">Advisors</TabsTrigger>
+          <TabsTrigger value="escrow">Escrow</TabsTrigger>
+        </TabsList>
+
+      <TabsContent value="overview" className="mt-4">
+
       {/* ── Missing-data checklist ───────────────────────────── */}
       <MissingChecklist profile={form} />
+
+      </TabsContent>
+
+      <TabsContent value="team" className="mt-4">
+        <VentureTeamTab ventureId={form.id} />
+      </TabsContent>
+
+      <TabsContent value="milestones" className="mt-4">
+        <VentureMilestonesTab ventureId={form.id} />
+      </TabsContent>
+
+      <TabsContent value="advisors" className="mt-4">
+        <VentureAdvisorsTab ventureId={form.id} />
+      </TabsContent>
+
+      <TabsContent value="escrow" className="mt-4">
+        <VentureEscrowTab ventureId={form.id} />
+      </TabsContent>
+      </Tabs>
 
       {/* ── Edit form ────────────────────────────────────────── */}
       {editing ? (
@@ -577,5 +614,178 @@ function Loader2(props: { className?: string }) {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={props.className}>
       <path d="M21 12a9 9 0 1 1-6.219-8.56" />
     </svg>
+  );
+}
+
+function VentureTeamTab({ ventureId }: { ventureId?: string }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["venture", ventureId, "team"],
+    enabled: !!ventureId,
+    queryFn: async () => {
+      const res = await dotApi.get<{ team: any[] }>(`/api/ventures/${ventureId}/team`);
+      return res.team;
+    },
+  });
+  if (!ventureId) {
+    return <EmptyTab icon={Users} title="No venture yet" description="Save your venture profile first, then add team members." />;
+  }
+  if (isLoading) {
+    return <TabSkeleton lines={3} />;
+  }
+  if (!data || data.length === 0) {
+    return <EmptyTab icon={Users} title="No team members yet" description="Add the people building with you. Investors look at this first." />;
+  }
+  return (
+    <ul className="space-y-2">
+      {data.map((m: any) => (
+        <li key={m.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3">
+          <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary font-medium">
+            {(m.name ?? "?").slice(0, 1).toUpperCase()}
+          </div>
+          <div className="flex-1">
+            <p className="font-medium">{m.name}</p>
+            <p className="text-xs text-muted-foreground">{m.role}</p>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function VentureMilestonesTab({ ventureId }: { ventureId?: string }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["venture", ventureId, "milestones"],
+    enabled: !!ventureId,
+    queryFn: async () => {
+      const res = await dotApi.get<{ milestones: any[] }>(`/api/ventures/${ventureId}/milestones`);
+      return res.milestones;
+    },
+  });
+  if (!ventureId) {
+    return <EmptyTab icon={Target} title="No venture yet" description="Save your venture profile first, then add milestones." />;
+  }
+  if (isLoading) {
+    return <TabSkeleton lines={3} />;
+  }
+  if (!data || data.length === 0) {
+    return <EmptyTab icon={Target} title="No milestones yet" description="Add milestones to break your roadmap into fundable chunks." />;
+  }
+  return (
+    <ul className="space-y-2">
+      {data.map((m: any) => (
+        <li key={m.id} className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-3">
+          <div className="flex-1">
+            <p className="font-medium">{m.title}</p>
+            <p className="text-xs text-muted-foreground">
+              {m.status} · {m.targetDate ? new Date(m.targetDate).toLocaleDateString() : "no target date"}
+            </p>
+          </div>
+          {m.fundedAmount && (
+            <p className="tabular-nums text-sm">
+              {formatDot(Number(m.fundedAmount))} DOT
+            </p>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function VentureAdvisorsTab({ ventureId }: { ventureId?: string }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["venture", ventureId, "advisors"],
+    enabled: !!ventureId,
+    queryFn: async () => {
+      const res = await dotApi.get<{ advisors: any[] }>(`/api/ventures/${ventureId}/advisors`);
+      return res.advisors;
+    },
+  });
+  if (!ventureId) {
+    return <EmptyTab icon={Award} title="No venture yet" description="Save your venture profile first, then add advisors." />;
+  }
+  if (isLoading) {
+    return <TabSkeleton lines={3} />;
+  }
+  if (!data || data.length === 0) {
+    return <EmptyTab icon={Award} title="No advisors yet" description="Add advisors to boost your Vantage and signal external validation." />;
+  }
+  return (
+    <ul className="space-y-2">
+      {data.map((a: any) => (
+        <li key={a.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3">
+          <div className="flex size-10 items-center justify-center rounded-full bg-gold/15 text-gold font-medium">
+            {(a.name ?? "?").slice(0, 1).toUpperCase()}
+          </div>
+          <div className="flex-1">
+            <p className="font-medium">{a.name}</p>
+            <p className="text-xs text-muted-foreground">{a.role}</p>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function VentureEscrowTab({ ventureId }: { ventureId?: string }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["venture", ventureId, "escrow"],
+    enabled: !!ventureId,
+    queryFn: async () => {
+      const res = await dotApi.get<{ totalFunded: number; totalPayout: number; milestones: any[]; byStatus: Record<string, number> }>(`/api/ventures/${ventureId}/escrow`);
+      return res;
+    },
+  });
+  if (!ventureId) {
+    return <EmptyTab icon={Lock} title="No venture yet" description="Save your venture profile first, then set up milestone escrow." />;
+  }
+  if (isLoading) {
+    return <TabSkeleton lines={3} />;
+  }
+  if (!data) {
+    return <EmptyTab icon={Lock} title="No escrow yet" description="Add milestones with funded amounts to start using escrow." />;
+  }
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-3 gap-3">
+        <EscrowCard label="Total funded" value={data.totalFunded} accent="primary" />
+        <EscrowCard label="Released" value={data.totalPayout} accent="gold" />
+        <EscrowCard label="Milestones" value={data.milestones.length} accent="teal" count />
+      </div>
+    </div>
+  );
+}
+
+function EscrowCard({ label, value, accent, count }: { label: string; value: number; accent: "primary" | "gold" | "teal"; count?: boolean }) {
+  const ring = { primary: "ring-primary/20 bg-primary/5", teal: "ring-teal/20 bg-teal/5", gold: "ring-gold/20 bg-gold/5" }[accent];
+  const text = { primary: "text-primary", teal: "text-teal", gold: "text-gold" }[accent];
+  return (
+    <div className={`rounded-2xl border border-border p-4 ring-1 ring-inset ${ring}`}>
+      <p className="text-[10px] font-medium tracking-widest uppercase text-muted-foreground">{label}</p>
+      <p className={`mt-1 font-display text-2xl font-light tabular-nums ${text}`}>
+        {count ? value : `${formatDot(value)} DOT`}
+      </p>
+    </div>
+  );
+}
+
+function EmptyTab({ icon: Icon, title, description }: { icon: any; title: string; description: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-card/40 p-10 text-center">
+      <span className="flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
+        <Icon className="size-5" />
+      </span>
+      <p className="text-sm font-medium">{title}</p>
+      <p className="text-xs text-muted-foreground">{description}</p>
+    </div>
+  );
+}
+
+function TabSkeleton({ lines = 3 }: { lines?: number }) {
+  return (
+    <div className="space-y-2">
+      {Array.from({ length: lines }).map((_, i) => (
+        <Skeleton key={i} className="h-16 w-full" />
+      ))}
+    </div>
   );
 }

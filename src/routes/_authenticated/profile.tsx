@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
+import { PageIntent } from "@/components/app/PageIntent";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useDotAuth } from "@/contexts/DotAuthContext";
@@ -124,6 +125,12 @@ function PublicProfilePage() {
             </Button>
           </div>
         }
+      />
+
+      <PageIntent
+        icon={<UserCircle className="size-5" />}
+        intent="What does the rest of the network see when they land on your profile?"
+        context="Your name, Vantage, vouch count, ventures, builder work — your public reputation, end to end."
       />
 
       {/* ─── Hero card ────────────────────────────────────────────── */}

@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
+import { PageIntent } from "@/components/app/PageIntent";
 import { StatCard } from "@/components/app/StatCard";
 import { PageSkeleton } from "@/components/app/PageSkeleton";
 import { Button } from "@/components/ui/button";
@@ -204,6 +205,12 @@ function Dashboard() {
             </Button>
           )
         }
+      />
+
+      <PageIntent
+        icon={<Compass className="size-5" />}
+        intent={isBuilderOnly ? "What skills are you offering and what work can you pick up?" : "What is your venture doing, and what should you do next?"}
+        context={isBuilderOnly ? "Your earnings, active gigs, and skill badges." : "Your money, your credibility score, and the next step on your journey."}
       />
 
       {/* ── HERO: Wallet + Vantage ──────────────────────────────── */}

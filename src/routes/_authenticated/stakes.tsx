@@ -12,6 +12,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Lock, Plus, Unlock, Sparkles, Clock, AlertCircle, Loader2 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
+import { PageIntent } from "@/components/app/PageIntent";
 import { EmptyState } from "@/components/app/EmptyState";
 import { PageSkeleton } from "@/components/app/PageSkeleton";
 import { Button } from "@/components/ui/button";
@@ -146,6 +147,12 @@ function StakesPage() {
         eyebrow="Stakes"
         title="Stake DOT"
         subtitle={`Earn ${APY_PCT}% APY with a ${COOLDOWN_DAYS}-day cooldown. Skin in the game is the only credibility that can't be faked.`}
+      />
+
+      <PageIntent
+        icon={<Lock className="size-5" />}
+        intent="How much DOT have you put on the line for your venture?"
+        context="Active stakes, accrued rewards, and the cooldown timer on every position."
       />
 
       {/* Summary cards */}

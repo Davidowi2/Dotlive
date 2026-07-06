@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
+import { PageIntent } from "@/components/app/PageIntent";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -129,6 +130,12 @@ function DiscoverPage() {
         eyebrow="Network"
         title="Discover"
         subtitle="What's happening in the DOT ecosystem."
+      />
+
+      <PageIntent
+        icon={<Compass className="size-5" />}
+        intent="Who and what is worth your attention in the network today?"
+        context="Feed, ventures, and communities — vetted by Vantage and curated for your role."
       />
 
       {/* Top nav tabs */}

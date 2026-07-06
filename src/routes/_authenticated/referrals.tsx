@@ -19,6 +19,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
+import { PageIntent } from "@/components/app/PageIntent";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -48,6 +49,12 @@ function ReferralsPage() {
           title="Refer & Earn"
           subtitle="Bring builders, founders, and investors onto DOT. You both get 50 DOT."
           icon={<Users className="h-6 w-6" />}
+        />
+
+        <PageIntent
+          icon={<Users className="size-5" />}
+          intent="Who in your network belongs on DOT?"
+          context="Your unique link, the people you've brought, and the DOT you've earned. Both sides get 50 DOT."
         />
 
         {/* My referral code */}

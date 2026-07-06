@@ -32,6 +32,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
+import { PageIntent } from "@/components/app/PageIntent";
 import { EmptyState } from "@/components/app/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -150,6 +151,12 @@ function MeetingsPage() {
             {pendingCount} pending
           </Badge>
         }
+      />
+
+      <PageIntent
+        icon={<CalendarDays className="size-5" />}
+        intent="Who is asking to meet, and what should you do about it?"
+        context="Accept to open a private chat. Decline to silence. The conversation lives here, not in a separate inbox."
       />
 
       {/* Quick stats strip */}

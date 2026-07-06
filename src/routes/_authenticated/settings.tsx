@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
+import { PageIntent } from "@/components/app/PageIntent";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -274,6 +275,12 @@ function SettingsPage() {
         eyebrow="Account"
         title="Settings"
         subtitle="Manage your profile, notifications, appearance, and security."
+      />
+
+      <PageIntent
+        icon={<UserIcon className="size-5" />}
+        intent="How do you want your account to behave?"
+        context="Profile, builder visibility, notification preferences, theme, and security — every switch in one place."
       />
 
       <Tabs value={tab} onValueChange={setTab} className="mt-6">

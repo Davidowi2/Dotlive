@@ -33,6 +33,7 @@ import {
 } from "recharts";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
+import { PageIntent } from "@/components/app/PageIntent";
 import { EmptyState } from "@/components/app/EmptyState";
 import { PageSkeleton } from "@/components/app/PageSkeleton";
 import { Button } from "@/components/ui/button";
@@ -638,6 +639,12 @@ function VantagePage() {
             {RetakeButton}
           </div>
         }
+      />
+
+      <PageIntent
+        icon={<Gauge className="size-5" />}
+        intent="How credible does your venture look to investors, today?"
+        context="Your Vantage Point (0–1000) is built from real activity signals — assessment, academy, work, stakes, escrow, and capital."
       />
 
       {!latest ? (

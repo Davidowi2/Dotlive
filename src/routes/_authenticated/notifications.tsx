@@ -8,6 +8,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
+import { PageIntent } from "@/components/app/PageIntent";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -146,6 +147,12 @@ function NotificationsPage() {
               <CheckCircle2 className="size-4" /> Mark all read
             </Button>
           }
+        />
+
+        <PageIntent
+          icon={<Bell className="size-5" />}
+          intent="What changed in your account that you should act on?"
+          context="Stakes, escrow, share trades, dividend payments, follow requests, and community posts. Filter by category."
         />
 
       {/* Filter strip */}
