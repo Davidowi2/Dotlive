@@ -58,6 +58,7 @@ import { wizardRoutes } from "./routes/wizard.js";
 import { feedRoutes } from "./routes/feed.js";
 import { referralRoutes } from "./routes/referrals.js";
 import { loansRoutes } from "./routes/loans.js";
+import { pitchRoutes } from "./routes/pitch.js";
 import { dividendsRoutes } from "./routes/dividends.js";
 import { meetingsRoutes } from "./routes/meetings.js";
 
@@ -593,6 +594,24 @@ app.get("/api/health", async () => {
               );
             `);
             app.log.info("bootstrap migration: integration_secrets table ensured");
+
+            // === pitch_decks table (Session 12) ===
+            await db.execute(sql`
+              CREATE TABLE IF NOT EXISTS pitch_decks (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                venture_id uuid NOT NULL REFERENCES ventures(id) ON DELETE CASCADE,
+                title text NOT NULL,
+                description text,
+                url text NOT NULL,
+                version integer NOT NULL DEFAULT 1,
+                is_public boolean NOT NULL DEFAULT false,
+                created_at timestamptz NOT NULL DEFAULT now(),
+                updated_at timestamptz NOT NULL DEFAULT now()
+              );
+              CREATE INDEX IF NOT EXISTS pitch_decks_venture_idx ON pitch_decks(venture_id);
+              CREATE INDEX IF NOT EXISTS pitch_decks_public_idx ON pitch_decks(is_public);
+            `);
+            app.log.info("bootstrap migration: pitch_decks table ensured");
           } catch (err) {
       dbError = err instanceof Error ? err.message : String(err);
     }
@@ -667,6 +686,7 @@ await app.register(withdrawalRoutes,    { prefix: "/api" });
       await app.register(certificatesRoutes,             { prefix: "/api" });
     await app.register(wizardRoutes,                    { prefix: "/api" });
     await app.register(feedRoutes,                       { prefix: "/api" });
+    await app.register(pitchRoutes,                    { prefix: "/api" });
     await app.register(loansRoutes,                       { prefix: "/api" });
     await app.register(dividendsRoutes,                   { prefix: "/api" });
     await app.register(meetingsRoutes,                    { prefix: "/api" });

@@ -1623,3 +1623,22 @@ export const referrals = pgTable("referrals", {
 
 export type Referral = typeof referrals.$inferSelect;
 export type NewReferral = typeof referrals.$inferInsert;
+
+/* ──────────────────── Pitch Decks (Session 12) ────────────────────────── */
+export const pitchDecks = pgTable("pitch_decks", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  ventureId: uuid("venture_id").notNull().references(() => ventures.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  url: text("url").notNull(),
+  version: integer("version").notNull().default(1),
+  isPublic: boolean("is_public").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  pitchDecksVentureIdx: index("pitch_decks_venture_idx").on(t.ventureId),
+  pitchDecksPublicIdx: index("pitch_decks_public_idx").on(t.isPublic),
+}));
+
+export type PitchDeck = typeof pitchDecks.$inferSelect;
+export type NewPitchDeck = typeof pitchDecks.$inferInsert;

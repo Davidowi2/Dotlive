@@ -38,6 +38,7 @@ import { Route as AuthenticatedReferralsRouteImport } from './routes/_authentica
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedPortfolioRouteImport } from './routes/_authenticated/portfolio'
 import { Route as AuthenticatedPitchathonsRouteImport } from './routes/_authenticated/pitchathons'
+import { Route as AuthenticatedPitchDeckRouteImport } from './routes/_authenticated/pitch-deck'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
 import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
 import { Route as AuthenticatedMeetingsRouteImport } from './routes/_authenticated/meetings'
@@ -226,6 +227,11 @@ const AuthenticatedPitchathonsRoute =
     path: '/pitchathons',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedPitchDeckRoute = AuthenticatedPitchDeckRouteImport.update({
+  id: '/pitch-deck',
+  path: '/pitch-deck',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
@@ -489,6 +495,7 @@ export interface FileRoutesByFullPath {
   '/meetings': typeof AuthenticatedMeetingsRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/onboarding': typeof AuthenticatedOnboardingRouteWithChildren
+  '/pitch-deck': typeof AuthenticatedPitchDeckRoute
   '/pitchathons': typeof AuthenticatedPitchathonsRoute
   '/portfolio': typeof AuthenticatedPortfolioRoute
   '/profile': typeof AuthenticatedProfileRoute
@@ -560,6 +567,7 @@ export interface FileRoutesByTo {
   '/meetings': typeof AuthenticatedMeetingsRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/onboarding': typeof AuthenticatedOnboardingRouteWithChildren
+  '/pitch-deck': typeof AuthenticatedPitchDeckRoute
   '/pitchathons': typeof AuthenticatedPitchathonsRoute
   '/portfolio': typeof AuthenticatedPortfolioRoute
   '/profile': typeof AuthenticatedProfileRoute
@@ -634,6 +642,7 @@ export interface FileRoutesById {
   '/_authenticated/meetings': typeof AuthenticatedMeetingsRoute
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRouteWithChildren
+  '/_authenticated/pitch-deck': typeof AuthenticatedPitchDeckRoute
   '/_authenticated/pitchathons': typeof AuthenticatedPitchathonsRoute
   '/_authenticated/portfolio': typeof AuthenticatedPortfolioRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
@@ -708,6 +717,7 @@ export interface FileRouteTypes {
     | '/meetings'
     | '/notifications'
     | '/onboarding'
+    | '/pitch-deck'
     | '/pitchathons'
     | '/portfolio'
     | '/profile'
@@ -779,6 +789,7 @@ export interface FileRouteTypes {
     | '/meetings'
     | '/notifications'
     | '/onboarding'
+    | '/pitch-deck'
     | '/pitchathons'
     | '/portfolio'
     | '/profile'
@@ -852,6 +863,7 @@ export interface FileRouteTypes {
     | '/_authenticated/meetings'
     | '/_authenticated/notifications'
     | '/_authenticated/onboarding'
+    | '/_authenticated/pitch-deck'
     | '/_authenticated/pitchathons'
     | '/_authenticated/portfolio'
     | '/_authenticated/profile'
@@ -1117,6 +1129,13 @@ declare module '@tanstack/react-router' {
       path: '/pitchathons'
       fullPath: '/pitchathons'
       preLoaderRoute: typeof AuthenticatedPitchathonsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/pitch-deck': {
+      id: '/_authenticated/pitch-deck'
+      path: '/pitch-deck'
+      fullPath: '/pitch-deck'
+      preLoaderRoute: typeof AuthenticatedPitchDeckRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/onboarding': {
@@ -1533,6 +1552,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMeetingsRoute: typeof AuthenticatedMeetingsRoute
   AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRouteWithChildren
+  AuthenticatedPitchDeckRoute: typeof AuthenticatedPitchDeckRoute
   AuthenticatedPitchathonsRoute: typeof AuthenticatedPitchathonsRoute
   AuthenticatedPortfolioRoute: typeof AuthenticatedPortfolioRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
@@ -1573,6 +1593,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMeetingsRoute: AuthenticatedMeetingsRoute,
   AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRouteWithChildren,
+  AuthenticatedPitchDeckRoute: AuthenticatedPitchDeckRoute,
   AuthenticatedPitchathonsRoute: AuthenticatedPitchathonsRoute,
   AuthenticatedPortfolioRoute: AuthenticatedPortfolioRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
