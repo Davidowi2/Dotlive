@@ -30,7 +30,8 @@
 | - | --- | --- |
 | 4 | Empty-state rulebook (full audit, all pages) | ✅ Done — /notifications, /meetings, /sessions, /portfolio, /leaderboard all have proper empty states. Using simplified Card-based empty state on leaderboard (EmptyState has SSR issues when API is down). Other pages (meetings, leaderboard, sessions, pitchathons, discover, search, portfolio, etc.) still need sweep. |
 | 7 | Vouch primitive (DB + endpoints + UI + Vantage signal) | ✅ Done - schema, API, hooks, UI components, Vantage integration, button fix for unauthenticated users |
-| 8 | Notifications as OS (3 tabs: Received/Sent/Activity + bell + per-category mute + 90d archive) | 🏗️ Prompt ready: session-5-notifications-os.md |
+| 8 | Notifications as OS (3 tabs: Received/Sent/Activity + bell + per-category mute + 90d archive) | ✅ Done — frontend complete |
+| 15 | Implementation handoff (P4-P9) | 📋 Prompt written: session-15-implementation-handoff.md |
 | 9 | Buy Shares flow (modal + /investor/portfolio + dividends + price chart) | 🏗️ Prompt ready: session-6-buy-shares.md |
 | 10 | Loan panel (plurality voting + 60% quorum + 7-day escalation + milestone-gated release + auto-debit) | 🏗️ Prompt ready: session-7-loan-panel.md |
 | 11 | Discord-style communities (3-col layout, channels/posts/members, pinned admin posts) | 🏗️ Prompt ready: session-11-referral.md (partial - community needs separate) |
