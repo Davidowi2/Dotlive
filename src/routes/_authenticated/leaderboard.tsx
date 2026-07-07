@@ -7,7 +7,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Trophy, Briefcase, Award, Crown } from "lucide-react";
+import { Trophy, Briefcase, Award, Crown, TrendingUp } from "lucide-react";
 
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
@@ -86,9 +86,13 @@ function LeaderboardPage() {
           ))}
         </div>
       ) : leaders.length === 0 ? (
-        <Card className="mt-8">
-          <CardContent className="p-8 text-center text-sm text-muted-foreground">
-            No leaderboard data yet. Complete a gig to appear here.
+        <Card className="mt-8 border-dashed">
+          <CardContent className="flex flex-col items-center justify-center gap-3 p-10 text-center">
+            <TrendingUp className="size-8 text-gold/60" />
+            <p className="text-sm font-medium text-foreground">No leaderboard data yet</p>
+            <p className="text-xs text-muted-foreground max-w-[240px]">
+              Complete a gig to appear here. The more quality work you deliver, the higher you climb.
+            </p>
           </CardContent>
         </Card>
       ) : (
