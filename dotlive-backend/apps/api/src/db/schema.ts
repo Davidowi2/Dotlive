@@ -1597,3 +1597,29 @@ export const meetings = pgTable("meetings", {
 
 export type Meeting = typeof meetings.$inferSelect;
 export type NewMeeting = typeof meetings.$inferInsert;
+
+/* ──────────────────────── Referral System ─────────────────────── */
+/**
+ * Tracks individual referral relationships between users.
+ * When a user signs up with a referral code, a referral record is created.
+ */
+
+export const referrals = pgTable("referrals", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  referrerId: text("referrer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  refereeId: text("referee_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  referralCode: text("referral_code").notNull(),
+  status: text("status").notNull().default("pending"), // pending, completed, rewarded
+  rewardClaimed: boolean("reward_claimed").notNull().default(false),
+  claimedAt: timestamp("claimed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  completedAt: timestamp("completed_at", { withTimezone: true }), // When referee reached milestone
+}, (t) => ({
+  referralsReferrerIdx: index("referrals_referrer_idx").on(t.referrerId),
+  referralsRefereeIdx: index("referrals_referee_idx").on(t.refereeId),
+  referralsCodeIdx: index("referrals_code_idx").on(t.referralCode),
+  referralsStatusIdx: index("referrals_status_idx").on(t.status),
+}));
+
+export type Referral = typeof referrals.$inferSelect;
+export type NewReferral = typeof referrals.$inferInsert;

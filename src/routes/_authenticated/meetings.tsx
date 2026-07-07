@@ -99,7 +99,7 @@ function MeetingsPage() {
       <PageHeader
         eyebrow="Calendar"
         title="Meetings"
-        subtitle="Schedule and manage meetings with founders and investors"
+        subtitle="Schedule and manage meetings with founders and investors — Developed by Setons"
         action={
           <div className="flex gap-2">
             {pendingCount > 0 && (
