@@ -29,14 +29,14 @@
 | # | Item | Status |
 | - | --- | --- |
 | 4 | Empty-state rulebook (full audit, all pages) | ✅ Done — /notifications, /meetings, /sessions, /portfolio, /leaderboard all have proper empty states. Using simplified Card-based empty state on leaderboard (EmptyState has SSR issues when API is down). Other pages (meetings, leaderboard, sessions, pitchathons, discover, search, portfolio, etc.) still need sweep. |
-| 7 | Vouch primitive (DB + endpoints + UI + Vantage signal) | Not started — needs backend table + 4 new API routes + UI on profile |
-| 8 | Notifications as OS (3 tabs: Received/Sent/Activity + bell + per-category mute + 90d archive) | Not started — current /notifications is single list with filter strip |
-| 9 | Buy Shares flow (modal + /investor/portfolio + dividends + price chart) | Not started — backend tables exist; UI needs modal + portfolio page + dividend distribution trigger |
-| 10 | Loan panel (plurality voting + 60% quorum + 7-day escalation + milestone-gated release + auto-debit) | Not started — backend tables + 4 API surfaces + founder/capital/partner UIs |
-| 11 | Discord-style communities (3-col layout, channels/posts/members, pinned admin posts) | Not started — backend partial; UI needs 3-col layout |
-| 12 | Vantage rebuild (20 real business questions, weighted, gap analysis, peer comparison, 1/week cap) | Not started — current Vantage is a working assessment; this is a structural rewrite |
-| 13 | Demo Day Meet → follow request → private chat | Not started — backend tables exist; UI needs Meet button, follow-requests inbox, messaging integration |
-| 14 | /work Post-a-job + Post-a-service (5-step wizard + escrow + mobile FAB) | Not started — wizard is a multi-step form with escrow funding |
+| 7 | Vouch primitive (DB + endpoints + UI + Vantage signal) | ✅ Done - schema, API, hooks, UI components, Vantage integration, button fix for unauthenticated users |
+| 8 | Notifications as OS (3 tabs: Received/Sent/Activity + bell + per-category mute + 90d archive) | 🏗️ Prompt ready: session-5-notifications-os.md |
+| 9 | Buy Shares flow (modal + /investor/portfolio + dividends + price chart) | 🏗️ Prompt ready: session-6-buy-shares.md |
+| 10 | Loan panel (plurality voting + 60% quorum + 7-day escalation + milestone-gated release + auto-debit) | 🏗️ Prompt ready: session-7-loan-panel.md |
+| 11 | Discord-style communities (3-col layout, channels/posts/members, pinned admin posts) | 🏗️ Prompt ready: session-11-referral.md (partial - community needs separate) |
+| 12 | Vantage rebuild (20 real business questions, weighted, gap analysis, peer comparison, 1/week cap) | 🏗️ Prompt ready: session-13-analytics.md (partial - Vantage rebuild separate) |
+| 13 | Demo Day Meet → follow request → private chat | 🏗️ Prompt ready: session-10-meetings.md |
+| 14 | /work Post-a-job + Post-a-service (5-step wizard + escrow + mobile FAB) | 🏗️ Prompt ready: session-14-admin.md (partial - /work needs separate) |
 
 ## Open decisions for user sign-off
 

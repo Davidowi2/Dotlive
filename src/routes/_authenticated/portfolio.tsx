@@ -17,7 +17,7 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
   Briefcase, TrendingUp, Coins, Users, ArrowRight, Plus,
-  Sparkles, Wallet, LineChart as LineIcon, ExternalLink,
+  Sparkles, Wallet, LineChart as LineIcon, ExternalLink, Gift,
 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
@@ -28,6 +28,7 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/app/EmptyState";
 import { useDotAuth } from "@/contexts/DotAuthContext";
 import { getMyInvestments } from "@/api/investments";
+import { useMyDividends } from "@/hooks/use-dividends";
 import { formatDot, formatNaira } from "@/lib/constants";
 import { EcosystemEmptyState } from "@/components/app/EcosystemEmptyState";
 import { Briefcase as BriefcaseIcon } from "lucide-react";
@@ -44,6 +45,7 @@ function PortfolioPage() {
     queryFn: getMyInvestments,
     enabled: !!user,
   });
+  const dividendsQ = useMyDividends();
 
   if (!user) {
     return (
@@ -235,6 +237,68 @@ function PortfolioPage() {
               ))}
             </div>
           </section>
+
+          {/* ── Dividends ──────────────────────────── */}
+          {dividendsQ.data && dividendsQ.data.payments.length > 0 && (
+            <section className="mt-8">
+              <div className="mb-3 flex items-center gap-3">
+                <span className="h-px flex-1 bg-border" />
+                <span className="inline-flex items-center gap-1.5 text-[10px] tracking-widest uppercase font-semibold text-muted-foreground">
+                  <Gift className="size-3 text-emerald-500" />
+                  Dividend income
+                </span>
+                <span className="h-px flex-1 bg-border" />
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 mb-4">
+                <div className="rounded-2xl border border-border bg-card p-4">
+                  <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground">
+                    Total earned
+                  </p>
+                  <p className="mt-2 font-display text-2xl font-semibold tabular-nums">
+                    ₦{Math.round(dividendsQ.data.totalEarnedNaira / 100).toLocaleString()}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-border bg-card p-4">
+                  <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground">
+                    Pending
+                  </p>
+                  <p className="mt-2 font-display text-2xl font-semibold tabular-nums text-amber-600">
+                    ₦{Math.round(dividendsQ.data.totalPendingNaira / 100).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+
+              <div className="overflow-hidden rounded-2xl border border-border bg-card">
+                {dividendsQ.data.payments.slice(0, 20).map((payment, i) => (
+                  <div
+                    key={payment.id}
+                    className={
+                      "flex items-center justify-between gap-3 px-4 py-3 " +
+                      (i !== dividendsQ.data!.payments.length - 1 && i !== 19 ? "border-b border-border/60 " : "")
+                    }
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">
+                        {payment.ventureName || "Dividend payment"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {payment.period} · {payment.sharesOwned} shares ·{" "}
+                        <Badge variant={payment.status === "paid" ? "default" : "secondary"} className="text-[10px]">
+                          {payment.status}
+                        </Badge>
+                      </p>
+                    </div>
+                    <span className={`font-display text-sm font-semibold tabular-nums ${
+                      payment.status === "paid" ? "text-emerald-600" : "text-amber-600"
+                    }`}>
+                      ₦{Math.round(payment.amountNaira / 100).toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
         </>
       )}
     </AppShell>

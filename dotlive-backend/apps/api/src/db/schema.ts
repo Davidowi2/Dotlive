@@ -1053,12 +1053,14 @@ export const notifications = pgTable("notifications", {
   link: text("link"),                       // optional in-app destination
   icon: text("icon"),                       // lucide icon name hint for UI
   readAt: timestamp("read_at", { withTimezone: true }),
+  isArchived: boolean("is_archived").notNull().default(false),
   // Email delivery
   emailedAt: timestamp("emailed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   notifUserIdx: index("notifications_user_idx").on(t.userId, t.createdAt),
   notifUnreadIdx: index("notifications_unread_idx").on(t.userId, t.readAt),
+  notifArchivedIdx: index("notifications_archived_idx").on(t.userId, t.isArchived),
 }));
 
 /* --------------------------- Discover upvotes ------------------- */
@@ -1392,3 +1394,206 @@ export const userVouches = pgTable("user_vouches", {
 
 export type UserVouch = typeof userVouches.$inferSelect;
 export type NewUserVouch = typeof userVouches.$inferInsert;
+
+/* --------------------------- Loan Requests ------------------- */
+export const loanRequests = pgTable("loan_requests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  ventureId: uuid("venture_id").notNull().references(() => ventures.id),
+  requestedBy: text("requested_by").notNull().references(() => users.id),
+  amountNaira: integer("amount_naira").notNull(),
+  termMonths: integer("term_months").notNull(), // 3, 6, or 12
+  purpose: text("purpose"),
+  status: text("status").notNull().default("pending"), // pending, voting, approved, rejected, funded
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  votingEndsAt: timestamp("voting_ends_at", { withTimezone: true }).notNull(),
+}, (t) => ({
+  lrVentureIdx: index("loan_requests_venture_idx").on(t.ventureId),
+  lrRequestedByIdx: index("loan_requests_requested_by_idx").on(t.requestedBy),
+  lrStatusIdx: index("loan_requests_status_idx").on(t.status),
+}));
+
+export type LoanRequest = typeof loanRequests.$inferSelect;
+export type NewLoanRequest = typeof loanRequests.$inferInsert;
+
+/* --------------------------- Loan Votes ---------------------- */
+export const loanVotes = pgTable("loan_votes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  loanRequestId: uuid("loan_request_id").notNull().references(() => loanRequests.id, { onDelete: "cascade" }),
+  voterId: text("voter_id").notNull().references(() => users.id),
+  vote: boolean("vote").notNull(), // true = approve, false = reject
+  amountNaira: integer("amount_naira"), // How much they're willing to fund
+  votedAt: timestamp("voted_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  lvLoanIdIdx: index("loan_votes_loan_request_idx").on(t.loanRequestId),
+  lvVoterIdIdx: index("loan_votes_voter_idx").on(t.voterId),
+  lvPairUnique: unique("loan_votes_pair_unique").on(t.loanRequestId, t.voterId),
+}));
+
+export type LoanVote = typeof loanVotes.$inferSelect;
+export type NewLoanVote = typeof loanVotes.$inferInsert;
+
+/* --------------------------- Loans (Disbursed) ---------------- */
+export const loans = pgTable("loans", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  loanRequestId: uuid("loan_request_id").references(() => loanRequests.id),
+  ventureId: uuid("venture_id").notNull().references(() => ventures.id),
+  amountNaira: integer("amount_naira").notNull(),
+  termMonths: integer("term_months").notNull(),
+  interestRate: numeric("interest_rate", { precision: 10, scale: 4 }).notNull().default("0.02"), // 2% per month
+  status: text("status").notNull().default("active"), // active, paid_off, default
+  fundedBy: text("funded_by").notNull().references(() => users.id), // Capital partner
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  lVentureIdx: index("loans_venture_idx").on(t.ventureId),
+  lFundedByIdx: index("loans_funded_by_idx").on(t.fundedBy),
+  lStatusIdx: index("loans_status_idx").on(t.status),
+}));
+
+export type Loan = typeof loans.$inferSelect;
+export type NewLoan = typeof loans.$inferInsert;
+
+/* --------------------------- Dividends ------------------------ */
+/**
+ * Dividends declared by ventures for their shareholders.
+ * Periodic profit sharing - quarterly distributions.
+ */
+export const dividends = pgTable("dividends", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  ventureId: uuid("venture_id").notNull().references(() => ventures.id, { onDelete: "cascade" }),
+  declaredBy: text("declared_by").notNull().references(() => users.id, { onDelete: "cascade" }),
+  amountNaira: integer("amount_naira").notNull(), // Total dividend pool in kobo
+  perShareAmount: integer("per_share_amount").notNull(), // ₦ per share in kobo
+  period: text("period").notNull(), // e.g., "Q1 2026", "Q2 2026"
+  status: text("status").notNull().default("declared"), // declared, paid, cancelled
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  paidAt: timestamp("paid_at", { withTimezone: true }),
+}, (t) => ({
+  divVentureIdx: index("dividends_venture_idx").on(t.ventureId, t.createdAt),
+  divDeclaredByIdx: index("dividends_declared_by_idx").on(t.declaredBy),
+  divStatusIdx: index("dividends_status_idx").on(t.status),
+}));
+
+export type Dividend = typeof dividends.$inferSelect;
+export type NewDividend = typeof dividends.$inferInsert;
+
+/* --------------------------- Dividend Payments ---------------- */
+/**
+ * Individual dividend payments to investors.
+ * Tracks who got what for each dividend declaration.
+ */
+export const dividendPayments = pgTable("dividend_payments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  dividendId: uuid("dividend_id").notNull().references(() => dividends.id, { onDelete: "cascade" }),
+  investorId: text("investor_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  investmentId: uuid("investment_id").notNull().references(() => investments.id, { onDelete: "cascade" }),
+  sharesOwned: integer("shares_owned").notNull(),
+  amountNaira: integer("amount_naira").notNull(), // Amount in kobo
+  status: text("status").notNull().default("pending"), // pending, paid, failed
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  paidAt: timestamp("paid_at", { withTimezone: true }),
+}, (t) => ({
+  dpDividendIdx: index("dividend_payments_dividend_idx").on(t.dividendId),
+  dpInvestorIdx: index("dividend_payments_investor_idx").on(t.investorId, t.createdAt),
+  dpStatusIdx: index("dividend_payments_status_idx").on(t.status),
+}));
+
+export type DividendPayment = typeof dividendPayments.$inferSelect;
+export type NewDividendPayment = typeof dividendPayments.$inferInsert;
+
+/* ──────────────────────── Dot Stake Positions ─────────────────────── */
+/**
+ * DOT staking positions for earning 12% APY
+ * - Separate from the "stakes" table (which is for venture/gig stakes)
+ * - 14-day cooldown on unstaking
+ * - Rewards calculated server-side and stored
+ */
+export const dotStakePositions = pgTable("dot_stake_positions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  amount: integer("amount").notNull(), // DOT staked (in cents/kobo)
+  rewardClaimed: integer("reward_claimed").notNull().default(0), // Total rewards claimed
+  rewardAccrued: integer("reward_accrued").notNull().default(0), // Accumulated but not claimed
+  status: text("status").notNull().default("active"), // active, unstaking, withdrawn
+  stakedAt: timestamp("staked_at", { withTimezone: true }).notNull().defaultNow(),
+  unbondedAt: timestamp("unbonded_at", { withTimezone: true }), // When cooldown started
+  claimedAt: timestamp("claimed_at", { withTimezone: true }), // Last claim time
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  dotStakePosUserIdx: index("dot_stake_positions_user_idx").on(t.userId),
+  dotStakePosStatusIdx: index("dot_stake_positions_status_idx").on(t.status),
+}));
+
+export type DotStakePosition = typeof dotStakePositions.$inferSelect;
+export type NewDotStakePosition = typeof dotStakePositions.$inferInsert;
+
+/* ────────────────────── Dot Stake History (audit log) ─────────────── */
+export const dotStakeHistory = pgTable("dot_stake_history", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  stakeId: uuid("stake_id").notNull().references(() => dotStakePositions.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  action: text("action").notNull(), // stake, reward_claimed, unbond, complete_unbond
+  amount: integer("amount"), // Principal or reward amount
+  rewardAmount: integer("reward_amount"), // Reward claimed
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  dotStakeHistoryStakeIdx: index("dot_stake_history_stake_idx").on(t.stakeId),
+  dotStakeHistoryUserIdx: index("dot_stake_history_user_idx").on(t.userId),
+}));
+
+export type DotStakeHistoryEntry = typeof dotStakeHistory.$inferSelect;
+export type NewDotStakeHistoryEntry = typeof dotStakeHistory.$inferInsert;
+
+/* ──────────────────────── Meeting Scheduler ─────────────────────── */
+/**
+ * Meeting scheduler for founders and investors.
+ * Hosts create available time slots, guests request meetings.
+ */
+
+// Meeting slots - available times created by hosts
+export const meetingSlots = pgTable("meeting_slots", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  hostId: text("host_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  date: date("date").notNull(),
+  startTime: text("start_time").notNull(), // "09:00", "10:00"
+  endTime: text("end_time").notNull(),
+  durationMinutes: integer("duration_minutes").default(30),
+  status: text("status").notNull().default("available"), // available, booked, confirmed
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  meetingSlotsHostIdx: index("meeting_slots_host_idx").on(t.hostId, t.date),
+  meetingSlotsDateIdx: index("meeting_slots_date_idx").on(t.date),
+  meetingSlotsStatusIdx: index("meeting_slots_status_idx").on(t.status),
+}));
+
+export type MeetingSlot = typeof meetingSlots.$inferSelect;
+export type NewMeetingSlot = typeof meetingSlots.$inferInsert;
+
+// Meetings - scheduled meetings between host and guest
+export const meetings = pgTable("meetings", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  slotId: uuid("slot_id").notNull().references(() => meetingSlots.id, { onDelete: "cascade" }),
+  hostId: text("host_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  guestId: text("guest_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  meetingReason: text("meeting_reason"),
+  status: text("status").notNull().default("pending"), // pending, confirmed, cancelled, completed, declined
+  scheduledAt: timestamp("scheduled_at", { withTimezone: true }).notNull(),
+  confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+  declinedAt: timestamp("declined_at", { withTimezone: true }),
+  declinedReason: text("declined_reason"),
+  cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+  cancelledReason: text("cancelled_reason"),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  meetingsSlotIdx: index("meetings_slot_idx").on(t.slotId),
+  meetingsHostIdx: index("meetings_host_idx").on(t.hostId, t.scheduledAt),
+  meetingsGuestIdx: index("meetings_guest_idx").on(t.guestId, t.scheduledAt),
+  meetingsStatusIdx: index("meetings_status_idx").on(t.status),
+}));
+
+export type Meeting = typeof meetings.$inferSelect;
+export type NewMeeting = typeof meetings.$inferInsert;

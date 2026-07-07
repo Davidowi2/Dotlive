@@ -57,6 +57,9 @@ import { certificatesRoutes } from "./routes/certificates.js";
 import { wizardRoutes } from "./routes/wizard.js";
 import { feedRoutes } from "./routes/feed.js";
 import { referralRoutes } from "./routes/referrals.js";
+import { loansRoutes } from "./routes/loans.js";
+import { dividendsRoutes } from "./routes/dividends.js";
+import { meetingsRoutes } from "./routes/meetings.js";
 
 /* ── Env validation ─────────────────────────────────────────── */
 
@@ -398,6 +401,89 @@ app.get("/api/health", async () => {
             `);
             app.log.info("bootstrap migration: certificates source columns ensured");
 
+            // === loans tables ===
+            await db.execute(sql`
+              CREATE TABLE IF NOT EXISTS loan_requests (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                venture_id uuid NOT NULL REFERENCES ventures(id) ON DELETE CASCADE,
+                requested_by text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                amount_naira integer NOT NULL,
+                term_months integer NOT NULL,
+                purpose text,
+                status text NOT NULL DEFAULT 'pending',
+                created_at timestamptz NOT NULL DEFAULT now(),
+                voting_ends_at timestamptz
+              );
+              CREATE INDEX IF NOT EXISTS loan_requests_venture_idx ON loan_requests(venture_id);
+              CREATE INDEX IF NOT EXISTS loan_requests_requested_by_idx ON loan_requests(requested_by);
+              CREATE INDEX IF NOT EXISTS loan_requests_status_idx ON loan_requests(status);
+            `);
+            await db.execute(sql`
+              CREATE TABLE IF NOT EXISTS loan_votes (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                loan_request_id uuid NOT NULL REFERENCES loan_requests(id) ON DELETE CASCADE,
+                voter_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                vote boolean NOT NULL,
+                amount_naira integer,
+                voted_at timestamptz NOT NULL DEFAULT now(),
+                UNIQUE(loan_request_id, voter_id)
+              );
+              CREATE INDEX IF NOT EXISTS loan_votes_loan_request_idx ON loan_votes(loan_request_id);
+              CREATE INDEX IF NOT EXISTS loan_votes_voter_idx ON loan_votes(voter_id);
+            `);
+            await db.execute(sql`
+              CREATE TABLE IF NOT EXISTS loans (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                loan_request_id uuid REFERENCES loan_requests(id),
+                venture_id uuid NOT NULL REFERENCES ventures(id) ON DELETE CASCADE,
+                amount_naira integer NOT NULL,
+                term_months integer NOT NULL,
+                interest_rate numeric(10,4) NOT NULL DEFAULT 0.02,
+                status text NOT NULL DEFAULT 'active',
+                funded_by text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                created_at timestamptz NOT NULL DEFAULT now()
+              );
+              CREATE INDEX IF NOT EXISTS loans_venture_idx ON loans(venture_id);
+              CREATE INDEX IF NOT EXISTS loans_funded_by_idx ON loans(funded_by);
+              CREATE INDEX IF NOT EXISTS loans_status_idx ON loans(status);
+            `);
+            app.log.info("bootstrap migration: loans tables ensured");
+
+            // === dividends tables ===
+            await db.execute(sql`
+              CREATE TABLE IF NOT EXISTS dividends (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                venture_id uuid NOT NULL REFERENCES ventures(id) ON DELETE CASCADE,
+                declared_by text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                amount_naira integer NOT NULL,
+                per_share_amount integer NOT NULL,
+                period text NOT NULL,
+                status text NOT NULL DEFAULT 'declared',
+                created_at timestamptz NOT NULL DEFAULT now(),
+                paid_at timestamptz
+              );
+              CREATE INDEX IF NOT EXISTS dividends_venture_idx ON dividends(venture_id, created_at);
+              CREATE INDEX IF NOT EXISTS dividends_declared_by_idx ON dividends(declared_by);
+              CREATE INDEX IF NOT EXISTS dividends_status_idx ON dividends(status);
+            `);
+            await db.execute(sql`
+              CREATE TABLE IF NOT EXISTS dividend_payments (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                dividend_id uuid NOT NULL REFERENCES dividends(id) ON DELETE CASCADE,
+                investor_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                investment_id uuid NOT NULL REFERENCES investments(id) ON DELETE CASCADE,
+                shares_owned integer NOT NULL,
+                amount_naira integer NOT NULL,
+                status text NOT NULL DEFAULT 'pending',
+                created_at timestamptz NOT NULL DEFAULT now(),
+                paid_at timestamptz
+              );
+              CREATE INDEX IF NOT EXISTS dividend_payments_dividend_idx ON dividend_payments(dividend_id);
+              CREATE INDEX IF NOT EXISTS dividend_payments_investor_idx ON dividend_payments(investor_id, created_at);
+              CREATE INDEX IF NOT EXISTS dividend_payments_status_idx ON dividend_payments(status);
+            `);
+            app.log.info("bootstrap migration: dividends tables ensured");
+
             // === builder arena: new public-profile fields + reviews table ===
             await db.execute(sql`
               ALTER TABLE builder_profiles
@@ -581,7 +667,9 @@ await app.register(withdrawalRoutes,    { prefix: "/api" });
       await app.register(certificatesRoutes,             { prefix: "/api" });
     await app.register(wizardRoutes,                    { prefix: "/api" });
     await app.register(feedRoutes,                       { prefix: "/api" });
-    await app.register(vouchesRoutes,                    { prefix: "/api" });
+    await app.register(loansRoutes,                       { prefix: "/api" });
+    await app.register(dividendsRoutes,                   { prefix: "/api" });
+    await app.register(meetingsRoutes,                    { prefix: "/api" });
 
 /* ── Error handler ───────────────────────────────────────────── */
 

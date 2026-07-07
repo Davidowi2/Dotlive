@@ -11,7 +11,7 @@
  *  (transfers, community posts, etc) and it persists + optionally emails.
  */
 import type { FastifyInstance, FastifyRequest } from "fastify";
-import { and, eq, isNull, sql, desc, lt } from "drizzle-orm";
+import { and, eq, isNull, isNotNull, sql, desc, lt } from "drizzle-orm";
 import { db } from "../db/client.js";
 import { notifications } from "../db/schema.js";
 import { sendNotificationEmail } from "../lib/notify.js";
@@ -25,7 +25,7 @@ export async function notificationsRoutes(app: FastifyInstance) {
 
   /* ============================== LIST ============================== */
   /**
-   * GET /api/notifications?limit=20&cursor=ISO_DATE&unreadOnly=false
+   * GET /api/notifications?limit=20&cursor=ISO_DATE&tab=all|unread|archived
    * Returns { items, unreadCount, nextCursor }
    */
   app.get(
@@ -38,14 +38,24 @@ export async function notificationsRoutes(app: FastifyInstance) {
       const q = (req.query ?? {}) as {
         limit?: string;
         cursor?: string;
+        tab?: string;
         unreadOnly?: string;
       };
       const limit = Math.min(50, Math.max(1, parseInt(q.limit ?? "20", 10) || 20));
-      const unreadOnly = q.unreadOnly === "true";
+      const tab = q.tab || "all";
 
       // Build where clause
       const whereParts = [eq(notifications.userId, userId)];
-      if (unreadOnly) whereParts.push(isNull(notifications.readAt));
+      
+      if (tab === "unread") {
+        whereParts.push(isNull(notifications.readAt));
+        whereParts.push(eq(notifications.isArchived, false));
+      } else if (tab === "archived") {
+        whereParts.push(eq(notifications.isArchived, true));
+      } else { // all
+        whereParts.push(eq(notifications.isArchived, false));
+      }
+      
       if (q.cursor) whereParts.push(lt(notifications.createdAt, new Date(q.cursor)));
 
       const rows = await db
@@ -64,6 +74,7 @@ export async function notificationsRoutes(app: FastifyInstance) {
         link: r.link,
         icon: r.icon,
         read: r.readAt !== null,
+        isArchived: r.isArchived ?? false,
         createdAt: r.createdAt,
       }));
       const nextCursor = hasMore ? items[items.length - 1]?.createdAt?.toISOString() : null;
@@ -72,7 +83,7 @@ export async function notificationsRoutes(app: FastifyInstance) {
       const [unread] = await db
         .select({ n: sql<number>`count(*)::int` })
         .from(notifications)
-        .where(and(eq(notifications.userId, userId), isNull(notifications.readAt)));
+        .where(and(eq(notifications.userId, userId), isNull(notifications.readAt), eq(notifications.isArchived, false)));
 
       return reply.send({
         items,
@@ -93,7 +104,7 @@ export async function notificationsRoutes(app: FastifyInstance) {
       const [row] = await db
         .select({ n: sql<number>`count(*)::int` })
         .from(notifications)
-        .where(and(eq(notifications.userId, userId), isNull(notifications.readAt)));
+        .where(and(eq(notifications.userId, userId), isNull(notifications.readAt), eq(notifications.isArchived, false)));
 
       return reply.send({ unreadCount: Number(row?.n ?? 0) });
     },
@@ -117,6 +128,60 @@ export async function notificationsRoutes(app: FastifyInstance) {
     },
   );
 
+  /* ============================== MARK UNREAD ============================== */
+  app.post<{ Params: { id: string } }>(
+    "/notifications/:id/unread",
+    { preHandler: [app.authenticate] },
+    async (req, reply) => {
+      const userId = getUserId(req);
+      if (!userId) return reply.code(401).send({ error: "Unauthenticated" });
+
+      const { id } = req.params;
+      await db
+        .update(notifications)
+        .set({ readAt: null } as any)
+        .where(and(eq(notifications.id, id), eq(notifications.userId, userId)));
+
+      return reply.send({ ok: true });
+    },
+  );
+
+  /* ============================== ARCHIVE ============================== */
+  app.post<{ Params: { id: string } }>(
+    "/notifications/:id/archive",
+    { preHandler: [app.authenticate] },
+    async (req, reply) => {
+      const userId = getUserId(req);
+      if (!userId) return reply.code(401).send({ error: "Unauthenticated" });
+
+      const { id } = req.params;
+      await db
+        .update(notifications)
+        .set({ isArchived: true } as any)
+        .where(and(eq(notifications.id, id), eq(notifications.userId, userId)));
+
+      return reply.send({ ok: true });
+    },
+  );
+
+  /* ============================== UNARCHIVE ============================== */
+  app.post<{ Params: { id: string } }>(
+    "/notifications/:id/unarchive",
+    { preHandler: [app.authenticate] },
+    async (req, reply) => {
+      const userId = getUserId(req);
+      if (!userId) return reply.code(401).send({ error: "Unauthenticated" });
+
+      const { id } = req.params;
+      await db
+        .update(notifications)
+        .set({ isArchived: false } as any)
+        .where(and(eq(notifications.id, id), eq(notifications.userId, userId)));
+
+      return reply.send({ ok: true });
+    },
+  );
+
   /* ============================== READ ALL ============================== */
   app.post(
     "/notifications/read-all",
@@ -128,7 +193,7 @@ export async function notificationsRoutes(app: FastifyInstance) {
       await db
         .update(notifications)
         .set({ readAt: new Date() } as any)
-        .where(and(eq(notifications.userId, userId), isNull(notifications.readAt)));
+        .where(and(eq(notifications.userId, userId), isNull(notifications.readAt), eq(notifications.isArchived, false)));
 
       return reply.send({ ok: true });
     },

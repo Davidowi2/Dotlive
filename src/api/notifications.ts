@@ -37,6 +37,7 @@ export interface NotificationItem {
   link: string | null;
   icon: string | null;
   read: boolean;
+  isArchived: boolean;
   createdAt: string;
 }
 
@@ -48,11 +49,13 @@ export interface NotificationFeed {
 
 export async function fetchNotifications(params?: {
   limit?: number;
+  tab?: "all" | "unread" | "archived";
   unreadOnly?: boolean;
   cursor?: string;
 }): Promise<NotificationFeed> {
   const search = new URLSearchParams();
   if (params?.limit) search.set("limit", String(params.limit));
+  if (params?.tab) search.set("tab", params.tab);
   if (params?.unreadOnly) search.set("unreadOnly", "true");
   if (params?.cursor) search.set("cursor", params.cursor);
   const qs = search.toString();
@@ -66,6 +69,18 @@ export async function fetchUnreadCount(): Promise<number> {
 
 export async function markRead(id: string): Promise<void> {
   await dotApi.post(`/api/notifications/${id}/read`, {});
+}
+
+export async function markUnread(id: string): Promise<void> {
+  await dotApi.post(`/api/notifications/${id}/unread`, {});
+}
+
+export async function archive(id: string): Promise<void> {
+  await dotApi.post(`/api/notifications/${id}/archive`, {});
+}
+
+export async function unarchive(id: string): Promise<void> {
+  await dotApi.post(`/api/notifications/${id}/unarchive`, {});
 }
 
 export async function markAllRead(): Promise<void> {

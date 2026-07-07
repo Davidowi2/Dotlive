@@ -23,8 +23,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Building2, MapPin, Globe, Users, Wallet, TrendingUp, Calendar, Briefcase,
   Sparkles, Save, CheckCircle2, AlertTriangle, ExternalLink, Edit3, ArrowRight,
-  Target, LineChart, Award, Lock,
+  Target, LineChart, Award, Lock, DollarSign,
 } from "lucide-react";
+import { getMyLoans, createLoanRequest } from "@/api/loans";
 import { AppShell } from "@/components/app/AppShell";
 import { BackButton } from "@/components/app/BackButton";
 import { PageHeader } from "@/components/app/PageHeader";
@@ -375,12 +376,13 @@ function VenturesPage() {
       </section>
 
       <Tabs defaultValue="overview" className="mt-8">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-6">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="team">Team</TabsTrigger>
           <TabsTrigger value="milestones">Milestones</TabsTrigger>
           <TabsTrigger value="advisors">Advisors</TabsTrigger>
           <TabsTrigger value="escrow">Escrow</TabsTrigger>
+          <TabsTrigger value="loans">Loans</TabsTrigger>
         </TabsList>
 
       <TabsContent value="overview" className="mt-4">
@@ -404,6 +406,10 @@ function VenturesPage() {
 
       <TabsContent value="escrow" className="mt-4">
         <VentureEscrowTab ventureId={form.ventureId ?? undefined} />
+      </TabsContent>
+
+      <TabsContent value="loans" className="mt-4">
+        <VentureLoansTab ventureId={form.ventureId ?? undefined} />
       </TabsContent>
       </Tabs>
 
@@ -817,6 +823,115 @@ function EmptyTab({ icon: Icon, title, description }: { icon: any; title: string
       </span>
       <p className="text-sm font-medium">{title}</p>
       <p className="text-xs text-muted-foreground">{description}</p>
+    </div>
+  );
+}
+
+function VentureLoansTab({ ventureId }: { ventureId?: string }) {
+  const qc = useQueryClient();
+  const { data, isLoading } = useQuery({
+    queryKey: ["my-loans"],
+    queryFn: getMyLoans,
+  });
+  const [showForm, setShowForm] = useState(false);
+  const [amount, setAmount] = useState("500000");
+  const [term, setTerm] = useState("6");
+  const [purpose, setPurpose] = useState("");
+
+  const createMut = useMutation({
+    mutationFn: async () => {
+      if (!ventureId) throw new Error("No venture ID");
+      await createLoanRequest({
+        ventureId,
+        amountNaira: Number(amount),
+        termMonths: Number(term),
+        purpose,
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["my-loans"] });
+      toast.success("Loan request submitted!");
+      setShowForm(false);
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Could not create loan request"),
+  });
+
+  if (!ventureId) {
+    return <EmptyTab icon={DollarSign} title="No venture yet" description="Save your venture profile first, then request a loan." />;
+  }
+  if (isLoading) {
+    return <TabSkeleton lines={3} />;
+  }
+
+  return (
+    <div className="space-y-6">
+      {!showForm ? (
+        <div className="flex justify-end">
+          <Button onClick={() => setShowForm(true)}>
+            <DollarSign className="size-4" />
+            Request a loan
+          </Button>
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="font-medium">New loan request</h3>
+            <Button variant="ghost" size="sm" onClick={() => setShowForm(false)}>Cancel</Button>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Field label="Amount (₦)">
+              <Input type="number" min="10000" value={amount} onChange={(e) => setAmount(e.target.value)} />
+            </Field>
+            <Field label="Term (months)">
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={term}
+                onChange={(e) => setTerm(e.target.value)}
+              >
+                <option value="3">3 months</option>
+                <option value="6">6 months</option>
+                <option value="12">12 months</option>
+              </select>
+            </Field>
+          </div>
+          <Field label="Purpose">
+            <Textarea value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="What will you use this loan for?" rows={3} />
+          </Field>
+          <div className="flex justify-end">
+            <Button onClick={() => createMut.mutate()} disabled={createMut.isPending}>
+              {createMut.isPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+              Submit request
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* My loan requests */}
+      <div>
+        <h3 className="text-xs font-medium tracking-widest uppercase text-muted-foreground mb-3">My loan requests</h3>
+        {data?.requests?.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No loan requests yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {data?.requests?.map((req) => (
+              <div key={req.id} className="rounded-2xl border border-border bg-card p-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="font-medium">₦{req.amountNaira.toLocaleString()} · {req.termMonths} months</p>
+                    <p className="text-xs text-muted-foreground">{req.purpose ?? "No purpose"}</p>
+                  </div>
+                  <Badge variant={req.status === "voting" ? "secondary" : req.status === "approved" ? "default" : "outline"}>
+                    {req.status}
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Requested {new Date(req.createdAt).toLocaleDateString()}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

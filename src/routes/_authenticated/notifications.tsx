@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
 import {
-  Bell, Check, CheckCircle2, Wallet, Send, Briefcase, Users, MessageSquare, Award,
+  Bell, Check, CheckCircle2, Wallet, Send, Briefcase, Users, MessageSquare, Award, Archive,
   type LucideIcon,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -16,6 +16,9 @@ import {
   fetchNotifications,
   markAllRead as markAllReadApi,
   markRead as markReadApi,
+  markUnread as markUnreadApi,
+  archive as archiveApi,
+  unarchive as unarchiveApi,
   type NotificationItem,
   type NotificationType,
 } from "@/api/notifications";
@@ -82,17 +85,17 @@ function toneFor(type: NotificationType): "primary" | "gold" | "purple" {
 
 /* ============================== Page ============================== */
 
-type Filter = "All" | "Unread" | "Wallet" | "Marketplace" | "Community" | "Academy";
+type Tab = "All" | "Unread" | "Archived";
 
-const FILTERS: Filter[] = ["All", "Unread", "Wallet", "Marketplace", "Community", "Academy"];
+const TABS: Tab[] = ["All", "Unread", "Archived"];
 
 function NotificationsPage() {
-  const [filter, setFilter] = useState<Filter>("All");
+  const [tab, setTab] = useState<Tab>("All");
   const qc = useQueryClient();
 
   const feedQ = useQuery({
-    queryKey: ["notifications", "page", filter],
-    queryFn: () => fetchNotifications({ limit: 50, unreadOnly: filter === "Unread" }),
+    queryKey: ["notifications", "page", tab],
+    queryFn: () => fetchNotifications({ limit: 50, tab: tab.toLowerCase() as "all" | "unread" | "archived" }),
   });
 
   const markAllM = useMutation({
@@ -105,112 +108,130 @@ function NotificationsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
   });
 
+  const markUnreadM = useMutation({
+    mutationFn: markUnreadApi,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
+  });
+
+  const archiveM = useMutation({
+    mutationFn: archiveApi,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
+  });
+
+  const unarchiveM = useMutation({
+    mutationFn: unarchiveApi,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
+  });
+
   const items = feedQ.data?.items ?? [];
-  const filtered = filter === "All" || filter === "Unread"
-    ? items
-    : items.filter((n) => filterCategory(n.type) === filter);
   const unread = feedQ.data?.unreadCount ?? 0;
 
   if (feedQ.isLoading) {
-      return (
-        <AppShell>
-          <PageHeader
-            eyebrow="Inbox"
-            title="Notifications"
-            subtitle="Loading…"
-          />
-          <div className="mt-6 space-y-3">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-16 rounded-xl border border-border bg-card animate-pulse" />
-            ))}
-          </div>
-        </AppShell>
-      );
-    }
-
     return (
       <AppShell>
         <PageHeader
           eyebrow="Inbox"
           title="Notifications"
-          subtitle={
-            unread === 0
-              ? "You're all caught up — no unread alerts."
-              : `${unread} unread — latest activity across your workspace.`
-          }
-          action={
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => markAllM.mutate()}
-              disabled={unread === 0 || markAllM.isPending}
-            >
-              <CheckCircle2 className="size-4" /> Mark all read
-            </Button>
-          }
+          subtitle="Loading…"
         />
+        <div className="mt-6 space-y-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="h-16 rounded-xl border border-border bg-card animate-pulse" />
+          ))}
+        </div>
+      </AppShell>
+    );
+  }
 
-        <PageIntent
-          icon={<Bell className="size-5" />}
-          intent="What changed in your account that you should act on?"
-          context="Stakes, escrow, share trades, dividend payments, follow requests, and community posts. Filter by category."
-        />
+  return (
+    <AppShell>
+      <PageHeader
+        eyebrow="Inbox"
+        title="Notifications"
+        subtitle={
+          unread === 0
+            ? "You're all caught up — no unread alerts."
+            : `${unread} unread — latest activity across your workspace.`
+        }
+        action={
+          <Button
+          variant="outline"
+          size="sm"
+          onClick={() => markAllM.mutate()}
+          disabled={unread === 0 || markAllM.isPending}
+        >
+          <CheckCircle2 className="size-4" /> Mark all read
+        </Button>
+        }
+      />
 
-      {/* Filter strip */}
+      <PageIntent
+        icon={<Bell className="size-5" />}
+        intent="What changed in your account that you should act on?"
+        context="Stakes, escrow, share trades, dividend payments, follow requests, and community posts. Filter by tab."
+      />
+
+      {/* Tab strip */}
       <div className="mt-6 flex flex-wrap items-center gap-2 text-xs">
         <span className="text-muted-foreground">Filter:</span>
-        {FILTERS.map((f) => (
+        {TABS.map((t) => (
           <button
-            key={f}
+            key={t}
             type="button"
-            onClick={() => setFilter(f)}
+            onClick={() => setTab(t)}
             className={cn(
               "rounded-full border px-3 py-1 transition-colors",
-              filter === f
+              tab === t
                 ? "border-primary bg-primary/10 text-primary"
                 : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground",
             )}
           >
-            {f}
+            {t}
           </button>
         ))}
       </div>
 
       {/* Feed */}
-            <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-card">
-              {feedQ.isLoading ? (
-                <div className="space-y-2 p-4">
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="h-16 rounded-xl bg-muted/40 animate-pulse" />
-                  ))}
-                </div>
-              ) : filtered.length === 0 ? (
-            <div className="p-2">
-              <EmptyState
-                variant="inline"
-                icon={filter === "Unread" ? CheckCircle2 : Bell}
-                accent={filter === "Unread" ? "primary" : "purple"}
-                title={
-                  filter === "Unread"
-                    ? "You're all caught up"
-                    : filter === "All"
-                      ? "No notifications yet"
-                      : `No ${filter.toLowerCase()} activity yet`
-                }
-                description={
-                  filter === "Unread"
-                    ? "Nothing waiting on you. New alerts will appear here as they come in."
-                    : "Stakes, escrow, share trades, follow requests, and community posts will show up here when they happen."
-                }
-              />
-            </div>
+      <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-card">
+        {feedQ.isLoading ? (
+          <div className="space-y-2 p-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-16 rounded-xl bg-muted/40 animate-pulse" />
+            ))}
+          </div>
+        ) : items.length === 0 ? (
+          <div className="p-2">
+            <EmptyState
+              variant="inline"
+              icon={tab === "Unread" ? CheckCircle2 : Bell}
+              accent={tab === "Unread" ? "primary" : "purple"}
+              title={
+                tab === "Unread"
+                  ? "You're all caught up"
+                  : tab === "All"
+                    ? "No notifications yet"
+                    : "No archived notifications yet"
+              }
+              description={
+                tab === "Unread"
+                  ? "Nothing waiting on you. New alerts will appear here as they come in."
+                  : tab === "All"
+                    ? "Stakes, escrow, share trades, follow requests, and community posts will show up here when they happen."
+                    : "Archived notifications will appear here."
+              }
+            />
+          </div>
         ) : (
-          filtered.map((n, i) => (
+          items.map((n, i) => (
             <NotificationRow
               key={n.id}
               n={n}
-              isLast={i === filtered.length - 1}
+              isLast={i === items.length - 1}
+              tab={tab}
               onMarkRead={() => markOneM.mutate(n.id)}
+              onMarkUnread={() => markUnreadM.mutate(n.id)}
+              onArchive={() => archiveM.mutate(n.id)}
+              onUnarchive={() => unarchiveM.mutate(n.id)}
             />
           ))
         )}
@@ -231,11 +252,19 @@ function NotificationsPage() {
 function NotificationRow({
   n,
   isLast,
+  tab,
   onMarkRead,
+  onMarkUnread,
+  onArchive,
+  onUnarchive,
 }: {
   n: NotificationItem;
   isLast: boolean;
+  tab: Tab;
   onMarkRead: () => void;
+  onMarkUnread: () => void;
+  onArchive: () => void;
+  onUnarchive: () => void;
 }) {
   const Icon = iconFor(n.type);
   const tone = toneFor(n.type);
@@ -282,7 +311,7 @@ function NotificationRow({
               {filterCategory(n.type)}
             </span>
           </div>
-          {!n.read && (
+          {!n.read && !n.isArchived && (
             <span
               aria-label="Unread"
               className="size-2 shrink-0 rounded-full bg-primary"
@@ -292,19 +321,60 @@ function NotificationRow({
         <p className="mt-1 text-sm text-muted-foreground">{n.body}</p>
         <div className="mt-2 flex items-center justify-between gap-2">
           <p className="text-xs text-muted-foreground/80">{timeAgo(n.createdAt)}</p>
-          {!n.read && (
+          <div className="flex gap-3">
+            {!n.isArchived ? (
+            <>
+              {!n.read ? (
+                <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onMarkRead();
+                }}
+                className="inline-flex items-center gap-1 text-xs text-primary transition-opacity hover:opacity-80"
+              >
+                <Check className="size-3" /> Mark read
+              </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onMarkUnread();
+                  }}
+                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-opacity hover:opacity-80"
+                >
+                  <Bell className="size-3" /> Mark unread
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onArchive();
+                }}
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-opacity hover:opacity-80"
+              >
+                <Archive className="size-3" /> Archive
+              </button>
+            </>
+          ) : (
             <button
               type="button"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                onMarkRead();
+                onUnarchive();
               }}
               className="inline-flex items-center gap-1 text-xs text-primary transition-opacity hover:opacity-80"
             >
-              <Check className="size-3" /> Mark read
+              <Archive className="size-3" /> Unarchive
             </button>
           )}
+          </div>
         </div>
       </div>
     </div>
@@ -319,3 +389,4 @@ function NotificationRow({
   }
   return inner;
 }
+

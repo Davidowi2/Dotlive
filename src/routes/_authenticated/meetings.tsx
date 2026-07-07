@@ -1,33 +1,27 @@
 /**
- * Meetings — single surface for meeting requests + chat threads.
+ * Meetings — calendar/scheduler for founders and investors.
  *
- * Tabs:
- *   1. Received — meeting requests sent to you (accept/decline)
- *   2. Sent     — meeting requests you've sent
- *   3. Conversations — active chat threads (one per accepted meeting)
- *
- * On accept of a meeting, the founder/investor can immediately chat with
- * the other party. The chat is rendered inline below the request card.
- *
- * The legacy /messages route now redirects here with ?thread=<id> so
- * any deep link / saved tab still works.
+ * Features:
+ * - View available time slots from hosts
+ * - Create available slots (as host)
+ * - Request meetings (as guest)
+ * - Confirm/decline meetings (as host)
+ * - Cancel meetings (as host or guest)
  */
-import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+
+import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import {
-  Send,
-  Building2,
-  MapPin,
+  CalendarDays,
   Clock,
   CheckCircle2,
   XCircle,
-  MessageSquare,
+  Plus,
   Loader2,
-  CalendarDays,
-  Inbox,
-  ArrowRight,
-  Mail,
-  Sparkles,
+  Users,
+  Calendar,
+  Video,
+  AlertCircle,
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/components/app/AppShell";
@@ -37,150 +31,119 @@ import { EmptyState } from "@/components/app/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { useDotAuth } from "@/contexts/DotAuthContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { dotApi } from "@/api/client";
 import {
-  listMyConnections,
-  getThread,
-  sendMessage,
-  type Connection,
-  type ConnectionMessage,
-} from "@/api/connections";
-
-type MeetingsSearch = { thread?: string };
+  getAvailableSlots,
+  getMyMeetings,
+  createSlot,
+  requestMeeting,
+  confirmMeeting,
+  declineMeeting,
+  cancelMeeting,
+  type MeetingSlot,
+  type Meeting,
+} from "@/api/meetings";
 
 export const Route = createFileRoute("/_authenticated/meetings")({
   head: () => ({ meta: [{ title: "Meetings · DOT" }] }),
   component: MeetingsPage,
-  validateSearch: (search: Record<string, unknown>): MeetingsSearch => ({
-    thread: typeof search.thread === "string" ? search.thread : undefined,
-  }),
 });
 
 function MeetingsPage() {
   const { user, roles } = useDotAuth();
   const qc = useQueryClient();
-  const navigate = useNavigate();
-  const search = useSearch({ from: "/_authenticated/meetings" }) as MeetingsSearch;
-  const isInvestor = roles.includes("investor");
-  const isFounder = roles.includes("founder");
+  const [activeTab, setActiveTab] = useState("upcoming");
+  const [createSlotOpen, setCreateSlotOpen] = useState(false);
 
-  // ── Meeting requests received by this founder from investors
-  const { data: received = [], isLoading: rxLoading } = useQuery({
-    queryKey: ["meetings-received", user?.id],
-    enabled: !!user && isFounder,
-    queryFn: async () => {
-      const res = await dotApi.get<{ meetings: any[] }>("/api/investor/meetings?role=founder");
-      return (res?.meetings ?? []).map((r) => ({ ...r, investor: null }));
-    },
-  });
-
-  // ── Meeting requests sent by this investor to founders
-  const { data: sent = [], isLoading: sentLoading } = useQuery({
-    queryKey: ["meetings-sent", user?.id],
-    enabled: !!user && isInvestor,
-    queryFn: async () => {
-      const res = await dotApi.get<{ meetings: any[] }>("/api/investor/meetings");
-      return (res?.meetings ?? []).map((r) => ({ ...r, founder: null }));
-    },
-  });
-
-  // ── Active chat threads (one per accepted meeting)
-  const { data: connections = [], isLoading: connLoading } = useQuery({
-    queryKey: ["connections", user?.id],
+  // Fetch my meetings
+  const { data: meetings = [], isLoading: meetingsLoading } = useQuery({
+    queryKey: ["meetings", user?.id],
     enabled: !!user,
-    queryFn: listMyConnections,
-    refetchInterval: 5_000,
-    staleTime: 4_000,
+    queryFn: () => getMyMeetings(),
   });
 
-  // When /meetings?thread=<id> opens, switch to the conversations tab
-  useEffect(() => {
-    if (search.thread) {
-      // Tabs is uncontrolled; user can navigate. We just scroll to the thread.
-      const el = document.getElementById(`thread-${search.thread}`);
-      el?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-  }, [search.thread]);
+  // Fetch available slots
+  const { data: slots = [], isLoading: slotsLoading } = useQuery({
+    queryKey: ["available-slots"],
+    enabled: !!user,
+    queryFn: () => getAvailableSlots(),
+  });
 
-  async function updateStatus(id: string, status: "accepted" | "declined") {
-    try {
-      const res = await dotApi.patch<{ ok: boolean; connectionId?: string | null }>(
-        `/api/investor/meetings/${id}`,
-        { status },
-      );
-      qc.invalidateQueries({ queryKey: ["meetings-received", user?.id] });
-      qc.invalidateQueries({ queryKey: ["connections", user?.id] });
-      if (status === "accepted") {
-        if (res?.connectionId) {
-          // Open the new conversation immediately — no hunting required.
-          navigate({ to: "/meetings", search: { thread: res.connectionId } });
-          toast.success("Meeting accepted. Chat is open.");
-        } else {
-          toast.success("Meeting accepted. Open the Conversations tab to chat.");
-        }
-      } else {
-        toast.success("Request declined.");
-      }
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not update");
-    }
-  }
+  // Categorize meetings
+  const upcoming = meetings.filter(
+    (m) => (m.status === "pending" || m.status === "confirmed")
+  );
+  const past = meetings.filter(
+    (m) => m.status === "completed" || m.status === "cancelled" || m.status === "declined"
+  );
 
-  const pendingCount = received.filter((r) => r.status === "pending").length;
-  const acceptedCount = received.filter((r) => r.status === "accepted").length;
-  const activeChats = connections.filter((c) => c.status === "active").length;
+  const pendingCount = upcoming.filter((m) => m.status === "pending").length;
 
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Capital"
+        eyebrow="Calendar"
         title="Meetings"
-        subtitle={
-          isFounder
-            ? "Investor meeting requests. Accept to open a private chat and share your Vantage."
-            : "Meeting requests and conversations with founders. After acceptance, chat in-line."
-        }
+        subtitle="Schedule and manage meetings with founders and investors"
         action={
-          <Badge variant="outline" className="font-medium">
-            <CalendarDays className="mr-1.5 size-3" />
-            {pendingCount} pending
-          </Badge>
+          <div className="flex gap-2">
+            {pendingCount > 0 && (
+              <Badge variant="outline" className="font-medium">
+                <AlertCircle className="mr-1.5 size-3" />
+                {pendingCount} pending
+              </Badge>
+            )}
+            <Button onClick={() => setCreateSlotOpen(true)} size="sm">
+              <Plus className="size-4" />
+              Create Slot
+            </Button>
+          </div>
         }
       />
 
       <PageIntent
         icon={<CalendarDays className="size-5" />}
-        intent="Who is asking to meet, and what should you do about it?"
-        context="Accept to open a private chat. Decline to silence. The conversation lives here, not in a separate inbox."
+        intent="When are you available to meet?"
+        context="Create time slots for others to book, or browse available slots and request meetings."
       />
 
-      {/* Quick stats strip */}
+      {/* Quick stats */}
       <section className="mt-8">
         <div className="grid gap-4 sm:grid-cols-3">
           <SummaryTile
-            icon={Inbox}
-            label="Received"
-            value={String(received.length)}
-            sub={pendingCount > 0 ? `${pendingCount} need a reply` : "all caught up"}
+            icon={Calendar}
+            label="Upcoming"
+            value={String(upcoming.length)}
+            sub="scheduled meetings"
             accent="primary"
           />
           <SummaryTile
-            icon={CheckCircle2}
-            label="Accepted"
-            value={String(acceptedCount)}
-            sub={isFounder ? "ready to chat" : "scheduled"}
+            icon={Clock}
+            label="Available Slots"
+            value={String(slots.filter((s) => s.status === "available").length)}
+            sub="open for booking"
             accent="gold"
           />
           <SummaryTile
-            icon={MessageSquare}
-            label="Conversations"
-            value={String(activeChats)}
-            sub={activeChats === 0 ? "accept a request to start" : "open chat threads"}
+            icon={Video}
+            label="Past Meetings"
+            value={String(past.length)}
+            sub="completed or cancelled"
             accent="muted"
           />
         </div>
@@ -188,378 +151,524 @@ function MeetingsPage() {
 
       <hr className="my-10 border-border" />
 
-      {/* Tabs: received / sent / conversations */}
-      <Tabs defaultValue={search.thread ? "conversations" : "received"}>
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="received">
-            Received{" "}
-            {pendingCount > 0 && (
+          <TabsTrigger value="upcoming">
+            Upcoming
+            {upcoming.length > 0 && (
               <Badge variant="secondary" className="ml-2 text-[10px]">
-                {pendingCount}
+                {upcoming.length}
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="sent">Sent</TabsTrigger>
-          <TabsTrigger value="conversations">
-            Conversations{" "}
-            {activeChats > 0 && (
-              <Badge variant="secondary" className="ml-2 text-[10px]">
-                {activeChats}
-              </Badge>
-            )}
-          </TabsTrigger>
+          <TabsTrigger value="available">Available Slots</TabsTrigger>
+          <TabsTrigger value="past">Past</TabsTrigger>
         </TabsList>
 
-        {/* ── Received ── */}
-        <TabsContent value="received" className="mt-6">
-          {rxLoading ? (
+        {/* Upcoming meetings */}
+        <TabsContent value="upcoming" className="mt-6">
+          {meetingsLoading ? (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="size-6 animate-spin text-primary" />
             </div>
-          ) : received.length === 0 ? (
+          ) : upcoming.length === 0 ? (
             <EmptyState
-              icon={MessageSquare}
-              title="No meeting requests yet"
-              description="When investors request meetings with you, they'll appear here. Accept to open a private chat."
-              action={
-                isFounder ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => navigate({ to: "/vantage" })}
-                  >
-                    <Sparkles className="size-4" />
-                    Improve your Vantage to be discovered
-                    <ArrowRight className="size-4" />
-                  </Button>
-                ) : undefined
-              }
+              icon={CalendarDays}
+              title="No upcoming meetings"
+              description="Create a time slot or browse available slots to request meetings."
             />
           ) : (
             <div className="space-y-4">
-              {received.map((r) => (
-                <article
-                  key={r.id}
-                  className="rounded-sm border border-border bg-card p-5 transition-all hover:border-foreground/20"
-                >
-                  <header className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <span className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
-                        {(r.investor?.name ?? "I").charAt(0).toUpperCase()}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="font-medium">{r.investor?.name ?? "Investor"}</p>
-                        {r.investor?.email && (
-                          <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
-                            <Mail className="size-3 shrink-0" />
-                            <span className="truncate">{r.investor.email}</span>
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <StatusBadge status={r.status} />
-                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Clock className="size-3" />
-                        {new Date(r.createdAt ?? r.created_at).toLocaleDateString()}
-                      </span>
-                    </div>
-                  </header>
-
-                  {r.message && (
-                    <blockquote className="mt-4 rounded-sm border-l-2 border-primary/40 bg-muted/40 px-4 py-3 text-sm text-foreground/90">
-                      "{r.message}"
-                    </blockquote>
-                  )}
-
-                  {r.status === "pending" && (
-                    <footer className="mt-4 flex gap-2 border-t border-border pt-4">
-                      <Button
-                        variant="hero"
-                        size="sm"
-                        onClick={() => updateStatus(r.id, "accepted")}
-                      >
-                        <CheckCircle2 className="size-4" />
-                        Accept & open chat
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateStatus(r.id, "declined")}
-                      >
-                        <XCircle className="size-4" />
-                        Decline
-                      </Button>
-                    </footer>
-                  )}
-
-                  {r.status === "accepted" && (
-                    <footer className="mt-4 flex items-center justify-between gap-2 border-t border-border pt-4 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <CheckCircle2 className="size-3 text-primary" />
-                        Accepted. Continue the conversation in the Conversations tab.
-                      </span>
-                    </footer>
-                  )}
-                </article>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-
-        {/* ── Sent ── */}
-        <TabsContent value="sent" className="mt-6">
-          {sentLoading ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 className="size-6 animate-spin text-primary" />
-            </div>
-          ) : sent.length === 0 ? (
-            <EmptyState
-              icon={Send}
-              title="No requests sent"
-              description={
-                isInvestor
-                  ? "Browse ventures in DOT Demo to request meetings with founders."
-                  : "As a founder, you receive meeting requests — send is investor-only."
-              }
-            />
-          ) : (
-            <div className="space-y-3">
-              {sent.map((r) => (
-                <div
-                  key={r.id}
-                  className="flex items-center gap-4 rounded-sm border border-border bg-card p-5 transition-all hover:border-foreground/20"
-                >
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-sm bg-primary/10 text-primary">
-                    <Building2 className="size-5" />
-                  </span>
-
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium">
-                      {r.founder?.venture_name ?? "Venture"}
-                    </p>
-                    <p className="flex items-center gap-3 text-xs text-muted-foreground">
-                      {r.founder?.country && (
-                        <span className="flex items-center gap-1">
-                          <MapPin className="size-3" />
-                          {r.founder.country}
-                        </span>
-                      )}
-                      {r.founder?.vantage_point != null && (
-                        <span className="flex items-center gap-1">
-                          <Sparkles className="size-3" />
-                          Vantage {r.founder.vantage_point}
-                        </span>
-                      )}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <StatusBadge status={r.status} />
-                    <span className="hidden tabular text-xs text-muted-foreground sm:inline">
-                      {new Date(r.createdAt ?? r.created_at).toLocaleDateString()}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-
-        {/* ── Conversations (active chat threads) ── */}
-        <TabsContent value="conversations" className="mt-6">
-          {connLoading ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 className="size-6 animate-spin text-primary" />
-            </div>
-          ) : connections.length === 0 ? (
-            <EmptyState
-              icon={MessageSquare}
-              title="No conversations yet"
-              description="When you accept a meeting request, a private chat thread will appear here."
-            />
-          ) : (
-            <div className="space-y-4">
-              {connections.map((c) => (
-                <ChatThreadCard
-                  key={c.id}
-                  connection={c}
+              {upcoming.map((meeting) => (
+                <MeetingCard
+                  key={meeting.id}
+                  meeting={meeting}
                   currentUserId={user?.id}
-                  highlight={search.thread === c.id}
+                  onAction={() => qc.invalidateQueries({ queryKey: ["meetings", user?.id] })}
+                />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Available slots */}
+        <TabsContent value="available" className="mt-6">
+          {slotsLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="size-6 animate-spin text-primary" />
+            </div>
+          ) : slots.filter((s) => s.status === "available").length === 0 ? (
+            <EmptyState
+              icon={Clock}
+              title="No available slots"
+              description="Create a slot to let others book time with you."
+              action={
+                <Button onClick={() => setCreateSlotOpen(true)} size="sm">
+                  <Plus className="size-4" />
+                  Create Slot
+                </Button>
+              }
+            />
+          ) : (
+            <div className="space-y-4">
+              {slots
+                .filter((s) => s.status === "available")
+                .map((slot) => (
+                  <SlotCard
+                    key={slot.id}
+                    slot={slot}
+                    currentUserId={user?.id}
+                    onAction={() => {
+                      qc.invalidateQueries({ queryKey: ["available-slots"] });
+                      qc.invalidateQueries({ queryKey: ["meetings", user?.id] });
+                    }}
+                  />
+                ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Past meetings */}
+        <TabsContent value="past" className="mt-6">
+          {meetingsLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="size-6 animate-spin text-primary" />
+            </div>
+          ) : past.length === 0 ? (
+            <EmptyState
+              icon={Clock}
+              title="No past meetings"
+              description="Your meeting history will appear here."
+            />
+          ) : (
+            <div className="space-y-4">
+              {past.map((meeting) => (
+                <MeetingCard
+                  key={meeting.id}
+                  meeting={meeting}
+                  currentUserId={user?.id}
+                  onAction={() => qc.invalidateQueries({ queryKey: ["meetings", user?.id] })}
                 />
               ))}
             </div>
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Create Slot Dialog */}
+      <CreateSlotDialog
+        open={createSlotOpen}
+        onClose={() => setCreateSlotOpen(false)}
+        onSuccess={() => {
+          qc.invalidateQueries({ queryKey: ["available-slots"] });
+          setCreateSlotOpen(false);
+        }}
+      />
     </AppShell>
   );
 }
 
-/* ─── Chat thread (inline) ─────────────────────────────────────── */
+/* ─── Meeting Card ─────────────────────────────────────── */
 
-function ChatThreadCard({
-  connection,
+function MeetingCard({
+  meeting,
   currentUserId,
-  highlight,
+  onAction,
 }: {
-  connection: Connection;
+  meeting: Meeting;
   currentUserId?: string;
-  highlight: boolean;
+  onAction: () => void;
 }) {
-  const qc = useQueryClient();
-  const [body, setBody] = useState("");
-  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const isHost = meeting.hostId === currentUserId;
+  const isGuest = meeting.guestId === currentUserId;
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["thread", connection.id],
-    queryFn: () => getThread(connection.id),
-    refetchInterval: 5_000,
-    staleTime: 4_000,
-  });
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    });
+  };
 
-  const messages: ConnectionMessage[] = data?.messages ?? [];
+  const formatTime = (dateStr: string) => {
+    return new Date(dateStr).toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length]);
-
-  async function handleSend() {
-    const trimmed = body.trim();
-    if (!trimmed) return;
+  const handleConfirm = async () => {
     try {
-      await sendMessage(connection.id, trimmed);
-      setBody("");
-      qc.invalidateQueries({ queryKey: ["thread", connection.id] });
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to send");
+      await confirmMeeting(meeting.id);
+      toast.success("Meeting confirmed");
+      onAction();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to confirm meeting");
     }
-  }
+  };
 
-  const counterpartyId =
-    currentUserId === connection.userAId ? connection.userBId : connection.userAId;
-  const isClosed = connection.status === "closed";
+  const handleDecline = async () => {
+    try {
+      await declineMeeting(meeting.id);
+      toast.success("Meeting declined");
+      onAction();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to decline meeting");
+    }
+  };
+
+  const handleCancel = async () => {
+    try {
+      const result = await cancelMeeting(meeting.id);
+      toast.success("Meeting cancelled");
+      if (result.warning) {
+        toast.warning(result.warning);
+      }
+      onAction();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to cancel meeting");
+    }
+  };
 
   return (
-    <Card
-      id={`thread-${connection.id}`}
-      className={cn(
-        "transition-all",
-        highlight && "ring-2 ring-primary/40",
-      )}
-    >
+    <Card>
       <CardContent className="p-5">
-        <header className="flex items-center justify-between gap-3 border-b border-border pb-3">
-          <div className="flex items-center gap-2">
-            <MessageSquare className="size-4 text-primary" />
-            <span className="font-medium">Conversation</span>
-            <span className="text-xs text-muted-foreground">
-              · with {counterpartyId.slice(0, 8)}…
-            </span>
-          </div>
-          {isClosed && <Badge variant="secondary">closed</Badge>}
-        </header>
-
-        <div className="mt-3 max-h-80 min-h-32 space-y-2 overflow-y-auto rounded-sm border border-border/50 bg-muted/20 p-3">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-6">
-              <Loader2 className="size-4 animate-spin text-muted-foreground" />
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-2">
+              <h3 className="font-semibold">{meeting.title}</h3>
+              <StatusBadge status={meeting.status} />
             </div>
-          ) : messages.length === 0 ? (
-            <p className="py-6 text-center text-xs text-muted-foreground">
-              No messages yet. Say hello.
-            </p>
-          ) : (
-            messages.map((m) => {
-              const mine = m.senderId === currentUserId;
-              return (
-                <div
-                  key={m.id}
-                  className={cn(
-                    "flex",
-                    mine ? "justify-end" : "justify-start",
-                  )}
-                >
-                  <div
-                    className={cn(
-                      "max-w-[80%] rounded-sm px-3 py-2 text-sm",
-                      mine
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-card border border-border",
-                    )}
-                  >
-                    <p className="whitespace-pre-wrap break-words">{m.body}</p>
-                    <p
-                      className={cn(
-                        "mt-1 text-[10px]",
-                        mine
-                          ? "text-primary-foreground/70"
-                          : "text-muted-foreground",
-                      )}
-                    >
-                      {new Date(m.createdAt).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              );
-            })
-          )}
-          <div ref={bottomRef} />
-        </div>
 
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleSend();
-          }}
-          className="mt-3 flex items-end gap-2"
-        >
-          <Textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            placeholder={
-              isClosed ? "This conversation is closed." : "Type a message…"
-            }
-            disabled={isClosed}
-            rows={2}
-            className="min-h-10 flex-1 resize-none"
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-          />
-          <Button
-            type="submit"
-            variant="hero"
-            size="sm"
-            disabled={isClosed || !body.trim()}
-          >
-            <Send className="size-4" />
-            Send
-          </Button>
-        </form>
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <CalendarDays className="size-3" />
+                {formatDate(meeting.scheduledAt)}
+              </span>
+              <span className="flex items-center gap-1">
+                <Clock className="size-3" />
+                {formatTime(meeting.scheduledAt)}
+              </span>
+              <span className="flex items-center gap-1">
+                <Users className="size-3" />
+                {isHost ? "You are hosting" : "You requested"}
+              </span>
+            </div>
+
+            {meeting.description && (
+              <p className="mt-2 text-sm text-muted-foreground">
+                {meeting.description}
+              </p>
+            )}
+
+            {meeting.declinedReason && (
+              <p className="mt-2 text-sm text-destructive">
+                Declined: {meeting.declinedReason}
+              </p>
+            )}
+
+            {meeting.cancelledReason && (
+              <p className="mt-2 text-sm text-muted-foreground">
+                Cancelled: {meeting.cancelledReason}
+              </p>
+            )}
+          </div>
+
+          {/* Actions */}
+          {meeting.status === "pending" && isHost && (
+            <div className="flex gap-2">
+              <Button onClick={handleConfirm} size="sm">
+                <CheckCircle2 className="size-4" />
+                Confirm
+              </Button>
+              <Button onClick={handleDecline} variant="outline" size="sm">
+                <XCircle className="size-4" />
+                Decline
+              </Button>
+            </div>
+          )}
+
+          {meeting.status === "confirmed" && (isHost || isGuest) && (
+            <Button onClick={handleCancel} variant="outline" size="sm">
+              Cancel
+            </Button>
+          )}
+        </div>
       </CardContent>
     </Card>
+  );
+}
+
+/* ─── Slot Card ─────────────────────────────────────── */
+
+function SlotCard({
+  slot,
+  currentUserId,
+  onAction,
+}: {
+  slot: MeetingSlot;
+  currentUserId?: string;
+  onAction: () => void;
+}) {
+  const [requestOpen, setRequestOpen] = useState(false);
+  const isOwnSlot = slot.hostId === currentUserId;
+
+  return (
+    <>
+      <Card>
+        <CardContent className="p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="font-semibold">{slot.hostName || "Host"}</span>
+                {isOwnSlot && (
+                  <Badge variant="outline" className="text-[10px]">
+                    Your slot
+                  </Badge>
+                )}
+              </div>
+
+              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <CalendarDays className="size-3" />
+                  {slot.date}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Clock className="size-3" />
+                  {slot.startTime} - {slot.endTime}
+                </span>
+                {slot.durationMinutes && (
+                  <span className="text-xs">{slot.durationMinutes} min</span>
+                )}
+              </div>
+            </div>
+
+            {!isOwnSlot && (
+              <Button onClick={() => setRequestOpen(true)} size="sm">
+                Request Meeting
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <RequestMeetingDialog
+        open={requestOpen}
+        slotId={slot.id}
+        onClose={() => setRequestOpen(false)}
+        onSuccess={() => {
+          onAction();
+          setRequestOpen(false);
+        }}
+      />
+    </>
+  );
+}
+
+/* ─── Create Slot Dialog ─────────────────────────────────────── */
+
+function CreateSlotDialog({
+  open,
+  onClose,
+  onSuccess,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [date, setDate] = useState("");
+  const [startTime, setStartTime] = useState("");
+  const [endTime, setEndTime] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!date || !startTime || !endTime) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await createSlot({ date, startTime, endTime });
+      toast.success("Time slot created");
+      onSuccess();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to create slot");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Get tomorrow's date as minimum
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const minDate = tomorrow.toISOString().split("T")[0];
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Create Available Time Slot</DialogTitle>
+          <DialogDescription>
+            Set when you're available for meetings. Others can request to book these times.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="date">Date</Label>
+            <Input
+              id="date"
+              type="date"
+              min={minDate}
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="startTime">Start Time</Label>
+              <Input
+                id="startTime"
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="endTime">End Time</Label>
+              <Input
+                id="endTime"
+                type="time"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading && <Loader2 className="size-4 animate-spin" />}
+              Create Slot
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ─── Request Meeting Dialog ─────────────────────────────────────── */
+
+function RequestMeetingDialog({
+  open,
+  slotId,
+  onClose,
+  onSuccess,
+}: {
+  open: boolean;
+  slotId: string;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) {
+      toast.error("Please enter a title");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await requestMeeting({
+        slotId,
+        title,
+        description: description || undefined,
+      });
+      toast.success("Meeting requested");
+      onSuccess();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to request meeting");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Request Meeting</DialogTitle>
+          <DialogDescription>
+            Request to book this time slot. The host will confirm or decline.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="title">Meeting Title</Label>
+            <Input
+              id="title"
+              placeholder="e.g., Discuss investment opportunity"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="description">Description (optional)</Label>
+            <Textarea
+              id="description"
+              placeholder="What would you like to discuss?"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading && <Loader2 className="size-4 animate-spin" />}
+              Request Meeting
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
 /* ─── Internal helpers ────────────────────────────────────────────── */
 
 function StatusBadge({ status }: { status: string }) {
+  const variant =
+    status === "confirmed"
+      ? "default"
+      : status === "pending"
+        ? "secondary"
+        : status === "declined" || status === "cancelled"
+          ? "destructive"
+          : "outline";
+
   return (
-    <Badge
-      variant={
-        status === "accepted"
-          ? "default"
-          : status === "declined"
-            ? "destructive"
-            : "secondary"
-      }
-      className="text-[10px]"
-    >
+    <Badge variant={variant} className="text-[10px]">
       {status}
     </Badge>
   );
@@ -601,4 +710,8 @@ function SummaryTile({
       <p className="mt-2 text-xs text-muted-foreground">{sub}</p>
     </div>
   );
+}
+
+function Inbox(props: any) {
+  return null;
 }
