@@ -186,10 +186,9 @@ function FeedTab() {
   const posts = data?.posts ?? [];
 
   return (
-    <div className="flex gap-6">
-      {/* Main feed column */}
-      <div className="min-w-0 flex-1 space-y-4">
-
+    <div className="flex gap-4 2xl:gap-8">
+      {/* Main feed column - full width on desktop, different layout on mobile */}
+      <div className="min-w-0 flex-1 space-y-4 max-w-3xl">
         {/* Compose button */}
         <button
           onClick={() => setShowCompose(true)}
@@ -246,8 +245,8 @@ function FeedTab() {
         )}
       </div>
 
-      {/* Right sidebar — trending tags */}
-      <aside className="hidden w-64 shrink-0 space-y-4 xl:block">
+      {/* Right sidebar — trending tags - shown on large screens, collapsible on mobile */}
+      <aside className="hidden w-72 shrink-0 space-y-4 lg:block xl:w-80 2xl:w-96">
         <TrendingSidebar />
       </aside>
 
