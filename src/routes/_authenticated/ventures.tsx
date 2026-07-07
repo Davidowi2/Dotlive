@@ -391,19 +391,19 @@ function VenturesPage() {
       </TabsContent>
 
       <TabsContent value="team" className="mt-4">
-        <VentureTeamTab ventureId={form.ventureId} />
+        <VentureTeamTab ventureId={form.ventureId ?? undefined} />
       </TabsContent>
 
       <TabsContent value="milestones" className="mt-4">
-        <VentureMilestonesTab ventureId={form.ventureId} />
+        <VentureMilestonesTab ventureId={form.ventureId ?? undefined} />
       </TabsContent>
 
       <TabsContent value="advisors" className="mt-4">
-        <VentureAdvisorsTab ventureId={form.ventureId} />
+        <VentureAdvisorsTab ventureId={form.ventureId ?? undefined} />
       </TabsContent>
 
       <TabsContent value="escrow" className="mt-4">
-        <VentureEscrowTab ventureId={form.ventureId} />
+        <VentureEscrowTab ventureId={form.ventureId ?? undefined} />
       </TabsContent>
       </Tabs>
 
