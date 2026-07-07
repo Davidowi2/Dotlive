@@ -289,6 +289,23 @@ export const eventRegistrations = pgTable("event_registrations", {
       event_registrations_user_idx: index("event_registrations_user_idx").on(t.userId),
   }));
 
+/* --------------------------- Pitch Decks ----------------------- */
+export const pitchDecks = pgTable("pitch_decks", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  ventureId: uuid("venture_id").notNull().references(() => ventures.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  url: text("url").notNull(),
+  version: integer("version").notNull().default(1),
+  isPublic: boolean("is_public").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+},
+  (t) => ({
+      pitch_decks_venture_idx: index("pitch_decks_venture_idx").on(t.ventureId),
+      pitch_decks_version_idx: index("pitch_decks_version_idx").on(t.ventureId, t.version),
+  }));
+
 /* --------------------------- Pitchathons ----------------------- */
 export const pitchathons = pgTable("pitchathons", {
   id: uuid("id").primaryKey().defaultRandom(),
