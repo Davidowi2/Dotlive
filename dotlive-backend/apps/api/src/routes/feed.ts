@@ -18,7 +18,7 @@ import { z } from "zod";
 import { sql } from "drizzle-orm";
 import crypto from "node:crypto";
 import { db } from "../db/client.js";
-import { users } from "../db/schema.js";
+import { users, userRoles } from "../db/schema.js";
 import { eq } from "drizzle-orm";
 
 const createPostSchema = z.object({
@@ -112,6 +112,17 @@ export async function feedRoutes(app: FastifyInstance) {
     const { sub } = req.user as { sub: string };
     const parsed = createPostSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: "Invalid input", details: parsed.error.flatten() });
+
+    // Check if posting announcement - requires admin role
+    if (parsed.data.type === "announcement") {
+      // Get user roles to check for admin
+      const roleRows = await db.select({ role: userRoles.role })
+        .from(userRoles).where(eq(userRoles.userId, sub));
+      const roles = roleRows.map(r => r.role);
+      if (!roles.includes("admin") && !roles.includes("super_admin")) {
+        return reply.code(403).send({ error: "Only admins can post announcements" });
+      }
+    }
 
     const userRow = await db.select({ name: users.name, dotId: users.dotId })
       .from(users).where(eq(users.id, sub)).limit(1);
