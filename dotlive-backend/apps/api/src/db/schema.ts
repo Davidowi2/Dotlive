@@ -1080,6 +1080,82 @@ export const notifications = pgTable("notifications", {
   notifArchivedIdx: index("notifications_archived_idx").on(t.userId, t.isArchived),
 }));
 
+/* --------------------------- Social Feed Posts -------------------- */
+/* Public feed posts in Discover - gigs, announcements, venture updates, funding, general */
+export const feedPosts = pgTable("feed_posts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  authorId: text("author_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  authorName: text("author_name").notNull(),
+  authorDotId: text("author_dot_id"),           // founder.ceoDotId if founder
+  authorRole: text("author_role"),               // founder | builder | investor | capital_partner | admin
+  type: text("type").notNull().default("general"), // gig | announcement | venture_update | funding | general
+  title: text("title"),
+  body: text("body").notNull(),
+  tags: jsonb("tags").$type<string[]>().default([]),
+  gigType: text("gig_type"),                     // part-time | full-time | contract
+  budgetDot: integer("budget_dot"),             // for gigs
+  fundingGoal: integer("funding_goal"),        // for funding posts
+  fundingRound: text("funding_round"),          // seed | series_a | etc
+  ventureName: text("venture_name"),            // for venture_updates
+  ventureStage: text("venture_stage"),          // idea | validate | build | scale
+  likesCount: integer("likes_count").notNull().default(0),
+  commentsCount: integer("comments_count").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  feedAuthorIdx: index("feed_posts_author_idx").on(t.authorId),
+  feedTypeIdx: index("feed_posts_type_idx").on(t.type),
+  feedCreatedIdx: index("feed_posts_created_idx").on(t.createdAt),
+}));
+
+/* Feed post likes */
+export const feedPostLikes = pgTable("feed_post_likes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  postId: uuid("post_id").notNull().references(() => feedPosts.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  feedLikeUnique: unique("feed_post_likes_user_post_unique").on(t.userId, t.postId),
+  feedLikePostIdx: index("feed_post_likes_post_idx").on(t.postId),
+}));
+
+/* Feed post bookmarks */
+export const feedPostBookmarks = pgTable("feed_post_bookmarks", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  postId: uuid("post_id").notNull().references(() => feedPosts.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  feedBookmarkUnique: unique("feed_post_bookmarks_user_post_unique").on(t.userId, t.postId),
+  feedBookmarkPostIdx: index("feed_post_bookmarks_post_idx").on(t.postId),
+}));
+
+/* Feed comments */
+export const feedComments = pgTable("feed_comments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  postId: uuid("post_id").notNull().references(() => feedPosts.id, { onDelete: "cascade" }),
+  authorId: text("author_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  authorName: text("author_name").notNull(),
+  authorDotId: text("author_dot_id"),
+  authorRole: text("author_role"),
+  body: text("body").notNull(),
+  likesCount: integer("likes_count").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  feedCommentPostIdx: index("feed_comments_post_idx").on(t.postId),
+  feedCommentAuthorIdx: index("feed_comments_author_idx").on(t.authorId),
+}));
+
+/* Feed comment likes */
+export const feedCommentLikes = pgTable("feed_comment_likes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  commentId: uuid("comment_id").notNull().references(() => feedComments.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  feedCommentLikeUnique: unique("feed_comment_likes_user_comment_unique").on(t.userId, t.commentId),
+}));
+
 /* --------------------------- Discover upvotes ------------------- */
 /* Tracks upvotes on ventures + posts so the Discover feed can rank. */
 export const discoverUpvotes = pgTable("discover_upvotes", {
