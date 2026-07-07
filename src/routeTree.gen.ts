@@ -14,6 +14,7 @@ import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PlatformRouteImport } from './routes/platform'
+import { Route as OperatorRouteImport } from './routes/operator'
 import { Route as JourneyRouteImport } from './routes/journey'
 import { Route as InvestorsRouteImport } from './routes/investors'
 import { Route as CommunitiesRouteImport } from './routes/communities'
@@ -55,6 +56,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedCommunityRouteImport } from './routes/_authenticated/community'
 import { Route as AuthenticatedCertificatesRouteImport } from './routes/_authenticated/certificates'
 import { Route as AuthenticatedBuilderRouteImport } from './routes/_authenticated/builder'
+import { Route as AuthenticatedAnalyticsRouteImport } from './routes/_authenticated/analytics'
 import { Route as AuthenticatedAcademyRouteImport } from './routes/_authenticated/academy'
 import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/admin/route'
 import { Route as AuthenticatedMessagesIndexRouteImport } from './routes/_authenticated/messages/index'
@@ -105,6 +107,11 @@ const PrivacyRoute = PrivacyRouteImport.update({
 const PlatformRoute = PlatformRouteImport.update({
   id: '/platform',
   path: '/platform',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OperatorRoute = OperatorRouteImport.update({
+  id: '/operator',
+  path: '/operator',
   getParentRoute: () => rootRouteImport,
 } as any)
 const JourneyRoute = JourneyRouteImport.update({
@@ -316,6 +323,11 @@ const AuthenticatedBuilderRoute = AuthenticatedBuilderRouteImport.update({
   path: '/builder',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAnalyticsRoute = AuthenticatedAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAcademyRoute = AuthenticatedAcademyRouteImport.update({
   id: '/academy',
   path: '/academy',
@@ -472,6 +484,7 @@ export interface FileRoutesByFullPath {
   '/communities': typeof CommunitiesRoute
   '/investors': typeof InvestorsRoute
   '/journey': typeof JourneyRoute
+  '/operator': typeof OperatorRoute
   '/platform': typeof PlatformRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -479,6 +492,7 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/academy': typeof AuthenticatedAcademyRoute
+  '/analytics': typeof AuthenticatedAnalyticsRoute
   '/builder': typeof AuthenticatedBuilderRouteWithChildren
   '/certificates': typeof AuthenticatedCertificatesRoute
   '/community': typeof AuthenticatedCommunityRouteWithChildren
@@ -545,12 +559,14 @@ export interface FileRoutesByTo {
   '/communities': typeof CommunitiesRoute
   '/investors': typeof InvestorsRoute
   '/journey': typeof JourneyRoute
+  '/operator': typeof OperatorRoute
   '/platform': typeof PlatformRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/academy': typeof AuthenticatedAcademyRoute
+  '/analytics': typeof AuthenticatedAnalyticsRoute
   '/builder': typeof AuthenticatedBuilderRouteWithChildren
   '/certificates': typeof AuthenticatedCertificatesRoute
   '/community': typeof AuthenticatedCommunityRouteWithChildren
@@ -619,6 +635,7 @@ export interface FileRoutesById {
   '/communities': typeof CommunitiesRoute
   '/investors': typeof InvestorsRoute
   '/journey': typeof JourneyRoute
+  '/operator': typeof OperatorRoute
   '/platform': typeof PlatformRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -626,6 +643,7 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/_authenticated/academy': typeof AuthenticatedAcademyRoute
+  '/_authenticated/analytics': typeof AuthenticatedAnalyticsRoute
   '/_authenticated/builder': typeof AuthenticatedBuilderRouteWithChildren
   '/_authenticated/certificates': typeof AuthenticatedCertificatesRoute
   '/_authenticated/community': typeof AuthenticatedCommunityRouteWithChildren
@@ -694,6 +712,7 @@ export interface FileRouteTypes {
     | '/communities'
     | '/investors'
     | '/journey'
+    | '/operator'
     | '/platform'
     | '/privacy'
     | '/reset-password'
@@ -701,6 +720,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/admin'
     | '/academy'
+    | '/analytics'
     | '/builder'
     | '/certificates'
     | '/community'
@@ -767,12 +787,14 @@ export interface FileRouteTypes {
     | '/communities'
     | '/investors'
     | '/journey'
+    | '/operator'
     | '/platform'
     | '/privacy'
     | '/reset-password'
     | '/sitemap.xml'
     | '/terms'
     | '/academy'
+    | '/analytics'
     | '/builder'
     | '/certificates'
     | '/community'
@@ -840,6 +862,7 @@ export interface FileRouteTypes {
     | '/communities'
     | '/investors'
     | '/journey'
+    | '/operator'
     | '/platform'
     | '/privacy'
     | '/reset-password'
@@ -847,6 +870,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/_authenticated/admin'
     | '/_authenticated/academy'
+    | '/_authenticated/analytics'
     | '/_authenticated/builder'
     | '/_authenticated/certificates'
     | '/_authenticated/community'
@@ -915,6 +939,7 @@ export interface RootRouteChildren {
   CommunitiesRoute: typeof CommunitiesRoute
   InvestorsRoute: typeof InvestorsRoute
   JourneyRoute: typeof JourneyRoute
+  OperatorRoute: typeof OperatorRoute
   PlatformRoute: typeof PlatformRoute
   PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
@@ -961,6 +986,13 @@ declare module '@tanstack/react-router' {
       path: '/platform'
       fullPath: '/platform'
       preLoaderRoute: typeof PlatformRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/operator': {
+      id: '/operator'
+      path: '/operator'
+      fullPath: '/operator'
+      preLoaderRoute: typeof OperatorRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/journey': {
@@ -1250,6 +1282,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBuilderRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/analytics': {
+      id: '/_authenticated/analytics'
+      path: '/analytics'
+      fullPath: '/analytics'
+      preLoaderRoute: typeof AuthenticatedAnalyticsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/academy': {
       id: '/_authenticated/academy'
       path: '/academy'
@@ -1536,6 +1575,7 @@ const AuthenticatedOnboardingRouteWithChildren =
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRouteRoute: typeof AuthenticatedAdminRouteRouteWithChildren
   AuthenticatedAcademyRoute: typeof AuthenticatedAcademyRoute
+  AuthenticatedAnalyticsRoute: typeof AuthenticatedAnalyticsRoute
   AuthenticatedBuilderRoute: typeof AuthenticatedBuilderRouteWithChildren
   AuthenticatedCertificatesRoute: typeof AuthenticatedCertificatesRoute
   AuthenticatedCommunityRoute: typeof AuthenticatedCommunityRouteWithChildren
@@ -1577,6 +1617,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRouteRoute: AuthenticatedAdminRouteRouteWithChildren,
   AuthenticatedAcademyRoute: AuthenticatedAcademyRoute,
+  AuthenticatedAnalyticsRoute: AuthenticatedAnalyticsRoute,
   AuthenticatedBuilderRoute: AuthenticatedBuilderRouteWithChildren,
   AuthenticatedCertificatesRoute: AuthenticatedCertificatesRoute,
   AuthenticatedCommunityRoute: AuthenticatedCommunityRouteWithChildren,
@@ -1628,6 +1669,7 @@ const rootRouteChildren: RootRouteChildren = {
   CommunitiesRoute: CommunitiesRoute,
   InvestorsRoute: InvestorsRoute,
   JourneyRoute: JourneyRoute,
+  OperatorRoute: OperatorRoute,
   PlatformRoute: PlatformRoute,
   PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
