@@ -366,4 +366,58 @@ export function investmentReadinessFromScores(scores: Record<string, number>): n
   return Math.round((m * 0.4 + f * 0.4 + c * 0.2));
 }
 
+/* ============================================================================
+ * Vouch component
+ *
+ * Vouches are a separate trust signal that flows into the user's Vantage
+ * point. The vouch DB row stores a *snapshot* score (computed at insert as
+ * `min(voucher_vantage, 200) × scope_multiplier`); we apply 1% / 30-day
+ * decay on read.
+ *
+ * The vouch component is capped at 500 points and added on top of the
+ * 0..1000 vantagePoint from the assessment. Final score is capped at 1000
+ * to keep the gauge readable.
+ * ========================================================================== */
+
+export const VOUCH_COMPONENT_CAP = 500;
+export const VOUCH_FINAL_CAP = 1000;
+
+export interface VouchLike {
+  score: number;
+  createdAt: string | Date;
+}
+
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+export function vouchDecayFactor(createdAt: string | Date): number {
+  const t = typeof createdAt === "string" ? new Date(createdAt).getTime() : createdAt.getTime();
+  if (!Number.isFinite(t)) return 1;
+  const days = (Date.now() - t) / MS_PER_DAY;
+  if (days <= 0) return 1;
+  return Math.pow(0.99, days / 30);
+}
+
+/** Sum of decayed vouch scores, capped at VOUCH_COMPONENT_CAP. */
+export function computeVouchComponent(vouches: VouchLike[] | undefined | null): number {
+  if (!vouches || vouches.length === 0) return 0;
+  let total = 0;
+  for (const v of vouches) {
+    const decayed = Math.max(0, v.score * vouchDecayFactor(v.createdAt));
+    total += decayed;
+  }
+  return Math.min(Math.round(total), VOUCH_COMPONENT_CAP);
+}
+
+/**
+ * Combines the assessment-derived vantagePoint with the vouch component.
+ * Result is capped at VOUCH_FINAL_CAP (1000).
+ */
+export function combineVantageWithVouches(
+  assessmentVantage: number,
+  vouches: VouchLike[] | undefined | null,
+): number {
+  const vouchPts = computeVouchComponent(vouches);
+  return Math.min(assessmentVantage + vouchPts, VOUCH_FINAL_CAP);
+}
+
 export { JOURNEY_STAGES };

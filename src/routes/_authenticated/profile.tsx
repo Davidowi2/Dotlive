@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   User as UserIcon,
+  UserCircle,
   Globe,
   MapPin,
   Briefcase,
@@ -16,9 +17,11 @@ import {
   Sparkles,
   Lock,
   Shield,
+  ShieldCheck,
   TrendingUp,
   Clock,
 } from "lucide-react";
+import { VouchButton } from "@/components/vouch/VouchButton";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
 import { PageIntent } from "@/components/app/PageIntent";
@@ -31,6 +34,8 @@ import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { BuilderProfileSection } from "@/components/profile/BuilderProfileSection";
+import { VouchDisplay } from "@/components/vouch/VouchDisplay";
+import { VouchList } from "@/components/vouch/VouchList";
 import { fetchNotifications } from "@/api/notifications";
 import { getTransactions as listTransactions } from "@/api/wallet";
 import { useWallet } from "@/hooks/use-dot-data";
@@ -110,6 +115,11 @@ function PublicProfilePage() {
         subtitle="This is how other founders, investors and community members see you on DOT."
         action={
           <div className="flex items-center gap-2">
+            <VouchButton
+              voucheeId={user.id}
+              currentUserId={user.id}
+              compact
+            />
             <Button variant="outline" size="sm" onClick={handleCopy}>
               {copied ? (
                 <Check className="size-4" />
@@ -189,7 +199,7 @@ function PublicProfilePage() {
       </div>
 
       {/* ─── Quick stats (bound to live data) ──────────────────────── */}
-      <section className="mt-4 grid gap-4 sm:grid-cols-3">
+      <section className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat
           icon={Wallet}
           tone="gold"
@@ -208,6 +218,15 @@ function PublicProfilePage() {
           label="Pitchathons entered"
           value={pitchathonCount > 0 ? String(pitchathonCount) : "None yet"}
         />
+        <div className="rounded-2xl border border-border bg-card p-4">
+          <div className="flex items-center gap-1.5 text-[10px] tracking-widest uppercase text-muted-foreground">
+            <ShieldCheck className="size-3" />
+            Vouches
+          </div>
+          <div className="mt-2">
+            <VouchDisplay userId={user.id} />
+          </div>
+        </div>
       </section>
 
       {/* ─── About / role context ─────────────────────────────────── */}
@@ -290,6 +309,19 @@ function PublicProfilePage() {
       </section>
 
       {/* ─── Section divider ──────────────────────────────────────── */}
+            <div className="mt-8 flex items-center gap-3">
+              <span className="h-px flex-1 bg-border" />
+              <span className="text-[10px] tracking-widest uppercase font-semibold text-muted-foreground">
+                Vouched by
+              </span>
+              <span className="h-px flex-1 bg-border" />
+            </div>
+
+            <section className="mt-4">
+              <VouchList userId={user.id} limit={8} />
+            </section>
+
+            {/* ─── Section divider ──────────────────────────────────────── */}
             <div className="mt-8 flex items-center gap-3">
               <span className="h-px flex-1 bg-border" />
               <span className="text-[10px] tracking-widest uppercase font-semibold text-muted-foreground">

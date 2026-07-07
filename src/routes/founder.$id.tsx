@@ -3,8 +3,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Building2, MapPin, Globe, Gauge, TrendingUp, Target, BookOpen, Trophy,
     Loader2, Shield, ArrowLeft, ArrowUpRight, Wallet, Heart, Users,
-    Briefcase, ExternalLink, Sparkles, Vote, ShoppingCart,
+    Briefcase, ExternalLink, Sparkles, Vote, ShoppingCart, ShieldCheck,
 } from "lucide-react";
+import { VouchButton, VouchDisplay, VouchList } from "@/components/vouch";
 
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { BuySharesDialog } from "@/components/investor/BuySharesDialog";
@@ -221,7 +222,42 @@ function PublicFounderProfile() {
           <Kpi icon={Gauge} label="Vantage Point" value={profile?.vantagePoint?.toLocaleString() ?? "—"} hint="0-1000 reputation" />
           <Kpi icon={TrendingUp} label="Fundability" value={`${profile?.fundability ?? 0}%`} hint="Investment likelihood" />
           <Kpi icon={Heart} label="Community votes" value={stats.totalVotes.toLocaleString()} hint={`${stats.voteCount} votes cast`} />
-          <Kpi icon={Wallet} label="DOT raised" value={stats.totalRaisedDot.toLocaleString()} hint={`${stats.sponsorCount} sponsor${stats.sponsorCount === 1 ? "" : "s"}`} />
+          <div className="rounded-xl border border-border bg-card p-4">
+            <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
+              <ShieldCheck className="size-3.5" /> Vouches
+            </div>
+            <div className="mt-2">
+              <VouchDisplay userId={founder.id} />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Vouched by section */}
+      <section className="border-b border-border py-8">
+        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+          <h2 className="font-display text-xl">Vouched by</h2>
+          <div className="mt-4">
+            <VouchList userId={founder.id} limit={8} />
+          </div>
+        </div>
+      </section>
+
+      {/* Add VouchButton */}
+      <section className="border-b border-border py-8">
+        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="font-display text-xl">Vouch this founder</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                If you've worked with this founder, vouch for them to boost their Vantage score.
+              </p>
+            </div>
+            <VouchButton
+              voucheeId={founder.id}
+              currentUserId={user?.id ?? null}
+            />
+          </div>
         </div>
       </section>
 

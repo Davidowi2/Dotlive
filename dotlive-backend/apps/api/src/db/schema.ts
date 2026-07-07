@@ -1354,3 +1354,41 @@ export const builderReviews = pgTable("builder_reviews", {
   brBuilderIdx: index("builder_reviews_builder_idx").on(t.builderId),
   brOrderIdx: unique("builder_reviews_order_unique").on(t.orderId, t.reviewerId),
 }));
+
+/* --------------------------- User Vouches --------------------- */
+/**
+ * Vouch primitive — users vouch each other's credibility.
+ *
+ * - voucherId = who is giving the vouch
+ * - voucheeId = who is receiving the vouch
+ * - scope     = voucher's role at the time of vouching
+ *               ('founder' | 'builder' | 'capital')
+ * - score     = min(voucher_vantage, 200) × scope_multiplier, computed at insert.
+ *               Capped at 200 in the API. Stored as the snapshot value; the
+ *               frontend applies 1% / 30-day decay on read (no decay row updates).
+ *
+ * Invariants:
+ *   1. One vouch per (voucher, vouchee) pair — enforced by unique index.
+ *   2. No self-vouch — enforced by API validation.
+ *   3. Hard delete on revoke (simple, cheap, vouches are cheap to recreate).
+ */
+export const userVouches = pgTable("user_vouches", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  voucherId: text("voucher_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  voucheeId: text("vouchee_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  scope: text("scope").notNull(), // 'founder' | 'builder' | 'capital'
+  score: integer("score").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  uvVoucherIdx: index("user_vouches_voucher_idx").on(t.voucherId),
+  uvVoucheeIdx: index("user_vouches_vouchee_idx").on(t.voucheeId),
+  uvPairUnique: unique("user_vouches_pair_unique").on(t.voucherId, t.voucheeId),
+  uvScopeCheck: check(
+    "user_vouches_scope_check",
+    sql`${t.scope} IN ('founder', 'builder', 'capital')`,
+  ),
+}));
+
+export type UserVouch = typeof userVouches.$inferSelect;
+export type NewUserVouch = typeof userVouches.$inferInsert;

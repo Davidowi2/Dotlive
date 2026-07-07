@@ -13,6 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { dotApi } from "@/api/client";
 import { useDotAuth } from "@/contexts/DotAuthContext";
 import type { StakePosition } from "@/api/stakes";
+import { combineVantageWithVouches, type VouchLike } from "@/lib/vantage";
 
 /* ──────────────────────────────────────────────────────────────────
  * Common shapes returned by Render API.
@@ -211,12 +212,30 @@ export function useVantage() {
   const { user, token } = useDotAuth();
   const { data: founder } = useFounderProfile();
   const { data: assessments = [], isLoading } = useAssessments();
+  const { data: vouches = [] } = useQuery<VouchLike[]>({
+    queryKey: ["vouches", "received", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      try {
+        const res = await dotApi.get<{ vouches: VouchLike[] }>(
+          `/api/vouches/received/${user.id}`,
+        );
+        return res.vouches ?? [];
+      } catch {
+        return [];
+      }
+    },
+  });
 
   // Backed by React Query's shared cache for ["assessments", user?.id] and
   // ["founder_profile", user?.id] — no extra network calls.
   const latest = assessments[0] ?? null;
-  const vantagePoint: number =
+  const assessmentVantage: number =
     latest?.vantagePoint ?? founder?.vantagePoint ?? 0;
+  const vouchPts = combineVantageWithVouches(assessmentVantage, vouches);
+  const vantagePoint: number = assessmentVantage > 0 || vouches.length > 0
+    ? vouchPts
+    : 0;
   const fundability: number =
     latest?.fundability ?? founder?.fundability ?? 0;
   const investmentReadiness: number =

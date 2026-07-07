@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Fastify entry point.
  *
  * Boot order:
@@ -581,6 +581,7 @@ await app.register(withdrawalRoutes,    { prefix: "/api" });
       await app.register(certificatesRoutes,             { prefix: "/api" });
     await app.register(wizardRoutes,                    { prefix: "/api" });
     await app.register(feedRoutes,                       { prefix: "/api" });
+    await app.register(vouchesRoutes,                    { prefix: "/api" });
 
 /* ── Error handler ───────────────────────────────────────────── */
 
