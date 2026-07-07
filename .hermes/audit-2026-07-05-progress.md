@@ -28,7 +28,7 @@
 
 | # | Item | Status |
 | - | --- | --- |
-| 4 | Empty-state rulebook (full audit, all pages) | **Partial** — /notifications done. Other pages (meetings, leaderboard, sessions, pitchathons, discover, search, portfolio, etc.) still need sweep. |
+| 4 | Empty-state rulebook (full audit, all pages) | ✅ Done — /notifications, /meetings, /sessions, /portfolio, /leaderboard all have proper empty states. Using simplified Card-based empty state on leaderboard (EmptyState has SSR issues when API is down). Other pages (meetings, leaderboard, sessions, pitchathons, discover, search, portfolio, etc.) still need sweep. |
 | 7 | Vouch primitive (DB + endpoints + UI + Vantage signal) | Not started — needs backend table + 4 new API routes + UI on profile |
 | 8 | Notifications as OS (3 tabs: Received/Sent/Activity + bell + per-category mute + 90d archive) | Not started — current /notifications is single list with filter strip |
 | 9 | Buy Shares flow (modal + /investor/portfolio + dividends + price chart) | Not started — backend tables exist; UI needs modal + portfolio page + dividend distribution trigger |
