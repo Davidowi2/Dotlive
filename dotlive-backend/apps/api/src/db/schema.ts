@@ -1659,3 +1659,48 @@ export const pitchDecks = pgTable("pitch_decks", {
 
 export type PitchDeck = typeof pitchDecks.$inferSelect;
 export type NewPitchDeck = typeof pitchDecks.$inferInsert;
+
+/* ============================== ANALYTICS ============================== */
+
+/**
+ * page_views — track profile views for analytics.
+ * Records who viewed whose profile and when.
+ */
+export const pageViews = pgTable(
+  "page_views",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }), // the user whose profile was viewed
+    viewerId: text("viewer_id").references(() => users.id, { onDelete: "cascade" }), // who viewed
+    pageType: text("page_type").notNull(), // "venture" | "founder" | "builder" | "investor"
+    referrer: text("referrer"), // source of the view
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    pvUserIdx: index("page_views_user_idx").on(t.userId, t.createdAt),
+    pvViewerIdx: index("page_views_viewer_idx").on(t.viewerId, t.createdAt),
+    pvPageTypeIdx: index("page_views_page_type_idx").on(t.pageType, t.createdAt),
+  })
+);
+
+/**
+ * activity_log — general activity tracking for analytics.
+ * Records actions like vouch given, investment made, meeting scheduled, etc.
+ */
+export const activityLog = pgTable(
+  "activity_log",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    action: text("action").notNull(), // "vouch_given" | "investment_made" | "meeting_scheduled" | "venture_created" | "pitch_submitted"
+    metadata: jsonb("metadata"), // { ventureId, amount, meetingId, etc. }
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    alUserIdx: index("activity_log_user_idx").on(t.userId, t.createdAt),
+    alActionIdx: index("activity_log_action_idx").on(t.action, t.createdAt),
+  })
+);
+
+export type PageView = typeof pageViews.$inferSelect;
+export type ActivityLogEntry = typeof activityLog.$inferSelect;

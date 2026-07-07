@@ -61,6 +61,7 @@ import { loansRoutes } from "./routes/loans.js";
 import { pitchRoutes } from "./routes/pitch.js";
 import { dividendsRoutes } from "./routes/dividends.js";
 import { meetingsRoutes } from "./routes/meetings.js";
+import { analyticsRoutes } from "./routes/analytics.js";
 
 /* ── Env validation ─────────────────────────────────────────── */
 
@@ -687,6 +688,7 @@ await app.register(withdrawalRoutes,    { prefix: "/api" });
     await app.register(wizardRoutes,                    { prefix: "/api" });
     await app.register(feedRoutes,                       { prefix: "/api" });
     await app.register(pitchRoutes,                    { prefix: "/api" });
+    await app.register(analyticsRoutes,                { prefix: "/api" });
     await app.register(loansRoutes,                       { prefix: "/api" });
     await app.register(dividendsRoutes,                   { prefix: "/api" });
     await app.register(meetingsRoutes,                    { prefix: "/api" });
