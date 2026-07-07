@@ -9,6 +9,7 @@ import { dotApi } from "@/api/client";
 
 export interface FounderProfile {
   userId: string;
+  ventureId: string | null;
   ventureName: string | null;
   industry: string | null;
   stage: string | null;

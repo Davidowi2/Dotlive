@@ -254,6 +254,35 @@ export async function ventureRoutes(app: FastifyInstance) {
     },
   );
 
+  /** GET /api/ventures/:id/team */
+  app.get<{ Params: { id: string } }>("/ventures/:id/team", async (req, reply) => {
+    const team = await db
+      .select()
+      .from(ventureTeamMembers)
+      .where(eq(ventureTeamMembers.ventureId, req.params.id))
+      .orderBy(asc(ventureTeamMembers.orderIndex));
+    return reply.send({ team });
+  });
+
+  /** GET /api/ventures/:id/milestones */
+  app.get<{ Params: { id: string } }>("/ventures/:id/milestones", async (req, reply) => {
+    const milestones = await db
+      .select()
+      .from(ventureMilestones)
+      .where(eq(ventureMilestones.ventureId, req.params.id))
+      .orderBy(asc(ventureMilestones.orderIndex));
+    return reply.send({ milestones });
+  });
+
+  /** GET /api/ventures/:id/advisors */
+  app.get<{ Params: { id: string } }>("/ventures/:id/advisors", async (req, reply) => {
+    const advisors = await db
+      .select()
+      .from(ventureAdvisors)
+      .where(eq(ventureAdvisors.ventureId, req.params.id));
+    return reply.send({ advisors });
+  });
+
   /** PUT /api/ventures/:id/details — owner only */
   app.put<{ Params: { id: string }; Body: z.infer<typeof enrichmentDetailsSchema> }>(
     "/ventures/:id/details",

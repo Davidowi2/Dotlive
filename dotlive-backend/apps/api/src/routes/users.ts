@@ -194,10 +194,22 @@ export async function userRoutes(app: FastifyInstance) {
   /** GET /api/users/me/founder-profile */
   app.get("/users/me/founder-profile", { preHandler: app.authenticate }, async (req, reply) => {
     const { sub } = req.user as { sub: string };
+    // LEFT JOIN ventures so the frontend gets a single source of truth for
+    // the founder's venture id (nullable when no venture row exists yet —
+    // tabs that need a ventureId should show the "no venture" empty state).
     const rows = await db.execute(sql`
-      SELECT * FROM founder_profiles WHERE user_id = ${sub} LIMIT 1
+      SELECT fp.*, v.id AS venture_id
+      FROM founder_profiles fp
+      LEFT JOIN ventures v ON v.user_id = fp.user_id
+      WHERE fp.user_id = ${sub}
+      LIMIT 1
     `);
-    const profile = (rows as any).rows?.[0] ?? null;
+    const raw = (rows as any).rows?.[0] ?? null;
+    if (!raw) {
+      return reply.send({ profile: null });
+    }
+    const profile = { ...raw, ventureId: raw.venture_id ?? null };
+    delete profile.venture_id;
     return reply.send({ profile });
   });
 
