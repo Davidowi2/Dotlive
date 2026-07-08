@@ -177,6 +177,12 @@ function FeedTab() {
   const [feedTab, setFeedTab] = useState<"latest" | "popular" | "trending">("latest");
   const [showCompose, setShowCompose] = useState(false);
 
+  // Handler for opening compose modal
+  const handleOpenCompose = () => {
+    console.log("handleOpenCompose called");
+    setShowCompose(true);
+  };
+
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["feed", feedTab],
     queryFn: () => fetchFeed(feedTab),
@@ -193,7 +199,7 @@ function FeedTab() {
         <button
           id="compose-btn"
           data-testid="compose-btn"
-          onClick={() => { console.log("Opening compose, showCompose:", true); setShowCompose(true); }}
+          onClick={handleOpenCompose}
           className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 text-left text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:bg-muted/30"
         >
           <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">
@@ -236,7 +242,7 @@ function FeedTab() {
             icon={Zap}
             title="Nothing here yet"
             description="Be the first to share a gig, announcement, or venture update."
-            action={<Button onClick={() => setShowCompose(true)}>Post something</Button>}
+            action={<Button onClick={handleOpenCompose}>Post something</Button>}
           />
         ) : (
           <div className="space-y-3">

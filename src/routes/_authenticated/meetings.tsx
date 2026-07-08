@@ -70,6 +70,12 @@ function MeetingsPage() {
   const [activeTab, setActiveTab] = useState("upcoming");
   const [createSlotOpen, setCreateSlotOpen] = useState(false);
 
+  // Handler for opening create slot dialog
+  const handleCreateSlot = () => {
+    console.log("handleCreateSlot called, setCreateSlotOpen(true)");
+    setCreateSlotOpen(true);
+  };
+
   // Fetch my meetings
   const { data: meetings = [], isLoading: meetingsLoading } = useQuery({
     queryKey: ["meetings", user?.id],
@@ -110,7 +116,7 @@ function MeetingsPage() {
             )}
             <Button 
               id="create-slot-btn"
-              onClick={() => { console.log("Button clicked, setting open to true"); setCreateSlotOpen(true); }} 
+              onClick={handleCreateSlot}
               size="sm"
             >
               <Plus className="size-4" />
@@ -208,7 +214,7 @@ function MeetingsPage() {
               title="No available slots"
               description="Create a slot to let others book time with you."
               action={
-                <Button onClick={() => setCreateSlotOpen(true)} size="sm">
+                <Button id="create-slot-btn-empty" onClick={handleCreateSlot} size="sm">
                   <Plus className="size-4" />
                   Create Slot
                 </Button>
