@@ -90,6 +90,15 @@ function MeetingsPage() {
     window.history.replaceState({}, '', window.location.pathname + (params.toString() ? '?' + params : ''));
   };
 
+  // Handler for opening dialog (used in empty state)
+  const handleCreateSlot = () => {
+    setCreateSlotOpen(true);
+    // Update URL without reload
+    const params = new URLSearchParams(window.location.search);
+    params.set('modal', 'create-slot');
+    window.history.replaceState({}, '', window.location.pathname + '?' + params.toString());
+  };
+
   // Fetch my meetings
   const { data: meetings = [], isLoading: meetingsLoading } = useQuery({
     queryKey: ["meetings", user?.id],
