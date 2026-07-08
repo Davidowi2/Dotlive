@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useSearch } from "@tanstack/router";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useDotAuth } from "@/contexts/DotAuthContext";
 import { dotApi } from "@/api/client";
@@ -83,7 +84,8 @@ function SettingsPage() {
   const { user, logout, refresh, roles } = useDotAuth();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [tab, setTab] = useState("account");
+  const search = useSearch({ from: "/_authenticated/settings" });
+  const [tab, setTab] = useState(search.tab ?? "account");
 
   // ─── Account form state
   const [name, setName] = useState(user?.name ?? "");
