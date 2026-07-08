@@ -76,13 +76,23 @@ function MeetingsPage() {
     setCreateSlotOpen(true);
   };
 
-  // Attach click handler imperatively (Lovable strips onClick)
+  // Global click handler for create slot button
   useEffect(() => {
-    const btn = document.getElementById('create-slot-btn');
-    if (btn) {
-      btn.addEventListener('click', handleCreateSlot);
-      return () => btn.removeEventListener('click', handleCreateSlot);
-    }
+    // Check if we need to attach on mount and after any navigation
+    const attachHandler = () => {
+      const btn = document.getElementById('create-slot-btn');
+      if (btn && !btn.hasAttribute('data-handler-attached')) {
+        btn.addEventListener('click', handleCreateSlot);
+        btn.setAttribute('data-handler-attached', 'true');
+        console.log("Handler attached to button");
+      }
+    };
+    
+    // Run immediately and set up a polling interval
+    attachHandler();
+    const interval = setInterval(attachHandler, 1000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   // Fetch my meetings

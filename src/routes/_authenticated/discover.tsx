@@ -183,13 +183,21 @@ function FeedTab() {
     setShowCompose(true);
   };
 
-  // Attach click handler imperatively (Lovable strips onClick)
+  // Global click handler for compose button
   useEffect(() => {
-    const btn = document.getElementById('compose-btn');
-    if (btn) {
-      btn.addEventListener('click', handleOpenCompose);
-      return () => btn.removeEventListener('click', handleOpenCompose);
-    }
+    const attachHandler = () => {
+      const btn = document.getElementById('compose-btn');
+      if (btn && !btn.hasAttribute('data-handler-attached')) {
+        btn.addEventListener('click', handleOpenCompose);
+        btn.setAttribute('data-handler-attached', 'true');
+        console.log("Compose handler attached");
+      }
+    };
+    
+    attachHandler();
+    const interval = setInterval(attachHandler, 1000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const { data, isLoading, refetch } = useQuery({
