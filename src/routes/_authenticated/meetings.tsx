@@ -108,9 +108,13 @@ function MeetingsPage() {
                 {pendingCount} pending
               </Badge>
             )}
-            <Button onClick={() => setCreateSlotOpen(true)} size="sm">
+            <Button 
+              id="create-slot-btn"
+              onClick={() => { console.log("Button clicked, setting open to true"); setCreateSlotOpen(true); }} 
+              size="sm"
+            >
               <Plus className="size-4" />
-              Create Slot
+              Create Slot {createSlotOpen ? '(OPEN)' : '(CLOSED)'}
             </Button>
           </div>
         }
