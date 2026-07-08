@@ -183,6 +183,15 @@ function FeedTab() {
     setShowCompose(true);
   };
 
+  // Attach click handler imperatively (Lovable strips onClick)
+  useEffect(() => {
+    const btn = document.getElementById('compose-btn');
+    if (btn) {
+      btn.addEventListener('click', handleOpenCompose);
+      return () => btn.removeEventListener('click', handleOpenCompose);
+    }
+  }, []);
+
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["feed", feedTab],
     queryFn: () => fetchFeed(feedTab),

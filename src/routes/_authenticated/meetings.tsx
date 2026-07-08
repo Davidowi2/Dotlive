@@ -76,6 +76,15 @@ function MeetingsPage() {
     setCreateSlotOpen(true);
   };
 
+  // Attach click handler imperatively (Lovable strips onClick)
+  useEffect(() => {
+    const btn = document.getElementById('create-slot-btn');
+    if (btn) {
+      btn.addEventListener('click', handleCreateSlot);
+      return () => btn.removeEventListener('click', handleCreateSlot);
+    }
+  }, []);
+
   // Fetch my meetings
   const { data: meetings = [], isLoading: meetingsLoading } = useQuery({
     queryKey: ["meetings", user?.id],
