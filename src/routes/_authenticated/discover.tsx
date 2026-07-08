@@ -191,7 +191,9 @@ function FeedTab() {
       <div className="min-w-0 flex-1 space-y-4 w-full max-w-3xl mx-auto lg:mx-0 lg:w-auto">
         {/* Compose button */}
         <button
-          onClick={() => setShowCompose(true)}
+          id="compose-btn"
+          data-testid="compose-btn"
+          onClick={() => { console.log("Opening compose, showCompose:", true); setShowCompose(true); }}
           className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 text-left text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:bg-muted/30"
         >
           <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">

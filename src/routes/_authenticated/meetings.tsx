@@ -507,7 +507,7 @@ function CreateSlotDialog({
   const minDate = tomorrow.toISOString().split("T")[0];
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Create Available Time Slot</DialogTitle>
@@ -608,7 +608,7 @@ function RequestMeetingDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Request Meeting</DialogTitle>
