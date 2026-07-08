@@ -256,11 +256,15 @@ function MeetingsPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Create Slot Dialog */}
+      {/* Create Slot Dialog - DEBUG */}
+      <div className="debug-create-slot">
+        <pre>createSlotOpen: {String(createSlotOpen)}</pre>
+      </div>
       <CreateSlotDialog
         open={createSlotOpen}
-        onClose={() => setCreateSlotOpen(false)}
+        onClose={() => { console.log("Closing dialog"); setCreateSlotOpen(false); }}
         onSuccess={() => {
+          console.log("Success, invalidating queries");
           qc.invalidateQueries({ queryKey: ["available-slots"] });
           setCreateSlotOpen(false);
         }}
