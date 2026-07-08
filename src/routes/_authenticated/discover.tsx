@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Search, X, Filter, Briefcase, MapPin, ArrowUpRight,
   Gauge, TrendingUp, Heart, MessageCircle, Bookmark,
@@ -175,15 +175,24 @@ function DiscoverPage() {
 function FeedTab() {
   const { user } = useDotAuth();
   const [feedTab, setFeedTab] = useState<"latest" | "popular" | "trending">("latest");
-  const navigate = useNavigate();
-  const search = useSearch({ from: "/_authenticated/discover" });
-  
-  // Get modal state from URL
-  const showCompose = search.compose === "true";
+  const [showCompose, setShowCompose] = useState(false);
+
+  // Check URL for compose param on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('compose') === 'true') {
+      setShowCompose(true);
+      params.delete('compose');
+      window.history.replaceState({}, '', window.location.pathname + (params.toString() ? '?' + params : ''));
+    }
+  }, []);
 
   // Close modal handler
   const closeCompose = () => {
-    navigate({ to: ".", search: (s) => ({ ...s, compose: undefined }) });
+    setShowCompose(false);
+    const params = new URLSearchParams(window.location.search);
+    params.delete('compose');
+    window.history.replaceState({}, '', window.location.pathname + (params.toString() ? '?' + params : ''));
   };
 
   const { data, isLoading, refetch } = useQuery({
@@ -198,11 +207,10 @@ function FeedTab() {
     <div className="flex flex-col lg:flex-row gap-4 2xl:gap-8">
       {/* Main feed column - full width on mobile, constrained on desktop */}
       <div className="min-w-0 flex-1 space-y-4 w-full max-w-3xl mx-auto lg:mx-0 lg:w-auto">
-        {/* Compose button - use Link for navigation (onClick stripped by Lovable) */}
-        <Link
+        {/* Compose button - use anchor for navigation (onClick stripped by Lovable) */}
+        <a
           id="compose-btn"
-          to="."
-          search={(s) => ({ ...s, compose: "true" })}
+          href="?compose=true"
           className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 text-left text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:bg-muted/30 cursor-pointer block"
         >
           <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">
@@ -210,7 +218,7 @@ function FeedTab() {
           </div>
           <span>Share an update, gig, or announcement…</span>
           <Plus className="ml-auto size-4 shrink-0 text-primary" />
-        </Link>
+        </a>
 
         {/* Feed filter tabs */}
         <div className="flex gap-1 rounded-xl border border-border bg-muted/30 p-1">
@@ -245,7 +253,7 @@ function FeedTab() {
             icon={Zap}
             title="Nothing here yet"
             description="Be the first to share a gig, announcement, or venture update."
-            action={<Link to="." search={(s) => ({ ...s, compose: "true" })} className="cursor-pointer"><Button>Post something</Button></Link>}
+            action={<a href="?compose=true" className="cursor-pointer"><Button>Post something</Button></a>}
           />
         ) : (
           <div className="space-y-3">

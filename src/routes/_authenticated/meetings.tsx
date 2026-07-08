@@ -11,7 +11,6 @@
 
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { useNavigate, useSearch } from "@tanstack/react-router";
 import {
   CalendarDays,
   Clock,
@@ -69,15 +68,26 @@ function MeetingsPage() {
   const { user, roles } = useDotAuth();
   const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState("upcoming");
-  const navigate = useNavigate();
-  const search = useSearch({ from: "/_authenticated/meetings" });
-  
-  // Get modal state from URL
-  const createSlotOpen = search.modal === "create-slot";
+  const [createSlotOpen, setCreateSlotOpen] = useState(false);
+
+  // Check URL for modal param on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('modal') === 'create-slot') {
+      setCreateSlotOpen(true);
+      // Clean URL
+      params.delete('modal');
+      window.history.replaceState({}, '', window.location.pathname + (params.toString() ? '?' + params : ''));
+    }
+  }, []);
 
   // Close modal handler
   const closeModal = () => {
-    navigate({ to: ".", search: (s) => ({ ...s, modal: undefined }) });
+    setCreateSlotOpen(false);
+    // Clean URL without reload
+    const params = new URLSearchParams(window.location.search);
+    params.delete('modal');
+    window.history.replaceState({}, '', window.location.pathname + (params.toString() ? '?' + params : ''));
   };
 
   // Fetch my meetings
@@ -118,15 +128,14 @@ function MeetingsPage() {
                 {pendingCount} pending
               </Badge>
             )}
-            <Link 
+            <a 
               id="create-slot-btn"
-              to="."
-              search={(s) => ({ ...s, modal: "create-slot" })}
-              className="inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2 text-sm"
+              href="?modal=create-slot"
+              className="inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2 text-sm cursor-pointer"
             >
               <Plus className="size-4" />
               Create Slot
-            </Link>
+            </a>
           </div>
         }
       />
