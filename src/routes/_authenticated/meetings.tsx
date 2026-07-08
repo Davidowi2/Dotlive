@@ -72,27 +72,22 @@ function MeetingsPage() {
 
   // Handler for opening create slot dialog
   const handleCreateSlot = () => {
-    console.log("handleCreateSlot called, setCreateSlotOpen(true)");
+    console.log("handleCreateSlot called");
     setCreateSlotOpen(true);
   };
 
-  // Global click handler for create slot button
+  // Use window click listener as fallback
   useEffect(() => {
-    // Check if we need to attach on mount and after any navigation
-    const attachHandler = () => {
-      const btn = document.getElementById('create-slot-btn');
-      if (btn && !btn.hasAttribute('data-handler-attached')) {
-        btn.addEventListener('click', handleCreateSlot);
-        btn.setAttribute('data-handler-attached', 'true');
-        console.log("Handler attached to button");
+    const handleGlobalClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.id === 'create-slot-btn' || target.closest('#create-slot-btn')) {
+        console.log("Global click detected on create-slot-btn");
+        handleCreateSlot();
       }
     };
     
-    // Run immediately and set up a polling interval
-    attachHandler();
-    const interval = setInterval(attachHandler, 1000);
-    
-    return () => clearInterval(interval);
+    window.addEventListener('click', handleGlobalClick);
+    return () => window.removeEventListener('click', handleGlobalClick);
   }, []);
 
   // Fetch my meetings

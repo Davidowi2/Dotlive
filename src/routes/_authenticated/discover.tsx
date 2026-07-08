@@ -183,21 +183,18 @@ function FeedTab() {
     setShowCompose(true);
   };
 
-  // Global click handler for compose button
+  // Use window click listener as fallback
   useEffect(() => {
-    const attachHandler = () => {
-      const btn = document.getElementById('compose-btn');
-      if (btn && !btn.hasAttribute('data-handler-attached')) {
-        btn.addEventListener('click', handleOpenCompose);
-        btn.setAttribute('data-handler-attached', 'true');
-        console.log("Compose handler attached");
+    const handleGlobalClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.id === 'compose-btn' || target.closest('#compose-btn')) {
+        console.log("Global click detected on compose-btn");
+        handleOpenCompose();
       }
     };
     
-    attachHandler();
-    const interval = setInterval(attachHandler, 1000);
-    
-    return () => clearInterval(interval);
+    window.addEventListener('click', handleGlobalClick);
+    return () => window.removeEventListener('click', handleGlobalClick);
   }, []);
 
   const { data, isLoading, refetch } = useQuery({
