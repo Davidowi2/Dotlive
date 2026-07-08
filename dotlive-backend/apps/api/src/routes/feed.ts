@@ -262,7 +262,16 @@ export async function feedRoutes(app: FastifyInstance) {
     const post = await db.execute(sql`SELECT author_id FROM feed_posts WHERE id = ${req.params.id}`) as any;
     const row = ((post?.rows ?? post) as any[])[0];
     if (!row) return reply.code(404).send({ error: "Post not found" });
-    if (row.author_id !== sub) return reply.code(403).send({ error: "Not your post" });
+
+    // Check if admin - can delete any post
+    const roleRows = await db.select({ role: userRoles.role })
+      .from(userRoles).where(eq(userRoles.userId, sub));
+    const roles = roleRows.map(r => r.role);
+    const isAdmin = roles.includes("admin") || roles.includes("super_admin");
+
+    if (row.author_id !== sub && !isAdmin) {
+      return reply.code(403).send({ error: "Not your post" });
+    }
 
     await db.execute(sql`DELETE FROM feed_posts WHERE id = ${req.params.id}`);
     return reply.send({ ok: true });

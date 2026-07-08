@@ -2,27 +2,18 @@
 
 > **Started:** 2026-07-05
 > **Plan:** `.hermes/plans/2026-07-05-platform-redesign-rank.md`
-> **Last updated:** 2026-07-06
+> **Last updated:** 2026-07-08
 
 ---
 
 ## Commits shipped (this branch `audit-fixes-2026-07-05`)
 
-| SHA | Subject | Item |
+| SHA | Subject | Status |
 | --- | --- | --- |
-| `5be72c6` | fix(nav,dashboard): Stakes → /stakes, dedupe Meetings, empty-state copy | pre-handoff |
-| `894efa5` | feat(stakes): /stakes page wired to /api/stakes | pre-handoff |
-| `c7ecec9` | feat(wallet): 4-tab shell (Activity/Stakes/Escrow/Settings) | pre-handoff |
-| `2bddb6b` | docs(plan): execution plan for next 3 commits | pre-handoff |
-| `fe8daf7` | feat(ui): PageIntent on 11 pages + /ventures 5-tab shell | pre-handoff |
-| `a890935` | feat(vantage): single source of truth — `useVantage()` hook | pre-handoff |
-| `72d9791` | feat(dashboard): 3-card StakesWidget — conviction signal above the fold | **5** |
-| `08752d8` | fix(auth): Logo `asLink` prop, avoid nested `<a>` in sign-in / sign-up | **1** |
-| `5d2e8d2` | fix(work): drop `export` from WorkPage so createFileRoute can code-split | **2** |
-| `d686e71` | feat(dashboard): online net worth band, single source of truth (`computeNetWorth`) | **6.a** |
-| `ccedb96` | feat(ventures): 4th hero card — online net worth (single source) | **6.b** |
-| `e2aa35a` | fix(dashboard): vantage progress bar end-labels `0%`/`100%` (was `0`/`1000`) | **3** |
-| `40a376f` | fix(notifications): use `<EmptyState>`, filter-aware copy | **4 (partial)** |
+| `a253bf9` | fix(feed): only admins can post announcements | ✅ |
+| `3b515cf` | fix: seed Discover announcements in seed script | ✅ |
+| `c25cd71` | fix: add feed_posts tables to DB schema for Discover functionality | ✅ |
+| `77332cc` | feat(discover): full-page resize for desktop, wider sidebar | ✅ |
 
 ## Remaining build order
 

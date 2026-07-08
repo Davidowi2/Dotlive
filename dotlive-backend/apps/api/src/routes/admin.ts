@@ -1029,6 +1029,55 @@ export async function adminRoutes(app: FastifyInstance) {
             `);
             return reply.send({ id });
           });
+  /* ── FEED MODERATION — GET /api/admin/feed-posts ─────────────── */
+
+  /** List all feed posts with filters. Admins only. */
+  app.get("/feed-posts", { preHandler: app.authenticate }, async (req, reply) => {
+    const adminId = (req.user as { sub: string }).sub;
+    const roles = await getUserRoles(adminId);
+    if (!roles.includes("admin") && !roles.includes("super_admin")) {
+      return reply.code(403).send({ error: "Admin only" });
+    }
+    const q = (req.query ?? {}) as Record<string, unknown>;
+    const limit = Math.min(Number(q.limit ?? 50), 100);
+    const offset = Math.max(Number(q.offset ?? 0), 0);
+    const search = q.search as string | undefined;
+    const type = q.type as string | undefined;
+
+    let conditions = "";
+    if (search) conditions += ` AND (title ILIKE '%${search}%' OR body ILIKE '%${search}%')`;
+    if (type) conditions += ` AND type = '${type}'`;
+
+    const rows = await db.execute(sql`
+      SELECT p.id, p.type, p.title, p.body, p.tags, p.likes_count, p.comments_count, p.created_at,
+             u.id AS author_id, u.name AS author_name, u.dot_id AS author_dot_id
+      FROM feed_posts p
+      JOIN users u ON u.id = p.author_id
+      WHERE 1=1 ${sql`${conditions}`}
+      ORDER BY p.created_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `);
+    return reply.send({ posts: (rows as any).rows ?? rows, limit, offset });
+  });
+
+  /* ── DELETE FEED POST — DELETE /api/admin/feed-posts/:id ───────── */
+
+  /** Delete any feed post. Requires super_admin. */
+  app.delete<{ Params: { id: string } }>("/feed-posts/:id", { preHandler: app.authenticate }, async (req, reply) => {
+    const adminId = (req.user as { sub: string }).sub;
+    const roles = await getUserRoles(adminId);
+    if (!roles.includes("super_admin")) {
+      return reply.code(403).send({ error: "Super admin only" });
+    }
+    const { id } = req.params;
+    const post = await db.execute(sql`SELECT id FROM feed_posts WHERE id = ${id}`);
+    if (!(post as any).rows?.length && !(post as any).rowCount) {
+      return reply.code(404).send({ error: "Post not found" });
+    }
+    await db.execute(sql`DELETE FROM feed_posts WHERE id = ${id}`);
+    return reply.send({ ok: true });
+  });
+
   /* ── BUILDER STATS — GET /api/admin/builders/:id/stats ───────────── */
 
   /** Aggregate stats for a builder profile. Available to any admin. */
