@@ -110,18 +110,23 @@ function SettingsPage() {
   async function saveProfile() {
     setSavingProfile(true);
     try {
+      // Save name to users table
       const res = await dotApi.patch<{ user: any }>("/api/users/me", {
         name: name.trim(),
-        headline: headline.trim() || null,
-        location: location.trim() || null,
-        bio: bio.trim() || null,
-        twitterUrl: twitterUrl.trim() || null,
-        linkedinUrl: linkedinUrl.trim() || null,
-        githubUrl: githubUrl.trim() || null,
+      });
+      // Save headline, location, bio, social links to builder_profiles table
+      await dotApi.put("/api/users/me/builder-profile", {
+        headline: headline.trim() || undefined,
+        location: location.trim() || undefined,
+        bio: bio.trim() || undefined,
+        twitterUrl: twitterUrl.trim() || undefined,
+        linkedinUrl: linkedinUrl.trim() || undefined,
+        githubUrl: githubUrl.trim() || undefined,
       });
       if (refresh) await refresh();
       qc.invalidateQueries({ queryKey: ["builder-arena"] });
       qc.invalidateQueries({ queryKey: ["user-public"] });
+      qc.invalidateQueries({ queryKey: ["builder-profile-settings"] });
       toast.success("Profile updated");
     } catch (e: any) {
       toast.error(e?.message ?? "Could not save");
@@ -192,7 +197,7 @@ function SettingsPage() {
   const [builderAvailable, setBuilderAvailable] = useState(true);
   const [savingBuilder, setSavingBuilder] = useState(false);
 
-  // Load existing builder profile
+  // Load existing builder profile (for all users - profile fields live in builder_profiles)
   useQuery({
     queryKey: ["builder-profile-settings"],
     queryFn: async () => {
@@ -206,10 +211,17 @@ function SettingsPage() {
         setBuilderPortfolio(p.portfolioUrl ?? "");
         setBuilderLocation(p.location ?? "");
         setBuilderAvailable(p.available ?? true);
+        // Also populate Account tab fields from builder profile
+        setHeadline(p.headline ?? "");
+        setLocation(p.location ?? "");
+        setBio(p.bio ?? "");
+        setTwitterUrl(p.twitterUrl ?? "");
+        setLinkedinUrl(p.linkedinUrl ?? "");
+        setGithubUrl(p.githubUrl ?? "");
         return p;
       } catch { return {}; }
     },
-    enabled: !!user && roles.includes("builder"),
+    enabled: !!user,  // Enable for ALL users, not just builders
   });
 
   function addSkill() {
