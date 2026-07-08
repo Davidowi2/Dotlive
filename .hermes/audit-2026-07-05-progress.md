@@ -10,6 +10,7 @@
 
 | SHA | Subject | Status |
 | --- | --- | --- |
+| `6d456d0` | fix(admin): add feed moderation endpoints | ✅ |
 | `a253bf9` | fix(feed): only admins can post announcements | ✅ |
 | `3b515cf` | fix: seed Discover announcements in seed script | ✅ |
 | `c25cd71` | fix: add feed_posts tables to DB schema for Discover functionality | ✅ |

@@ -186,9 +186,9 @@ function FeedTab() {
   const posts = data?.posts ?? [];
 
   return (
-    <div className="flex gap-4 2xl:gap-8">
-      {/* Main feed column - full width on desktop, different layout on mobile */}
-      <div className="min-w-0 flex-1 space-y-4 max-w-3xl">
+    <div className="flex flex-col lg:flex-row gap-4 2xl:gap-8">
+      {/* Main feed column - full width on mobile, constrained on desktop */}
+      <div className="min-w-0 flex-1 space-y-4 w-full max-w-3xl mx-auto lg:mx-0 lg:w-auto">
         {/* Compose button */}
         <button
           onClick={() => setShowCompose(true)}

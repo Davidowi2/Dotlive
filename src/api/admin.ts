@@ -125,3 +125,33 @@ export async function getAuditLog(limit = 50): Promise<unknown[]> {
   const res = await dotApi.get<{ logs: unknown[] }>(`/api/admin/audit?limit=${limit}`);
   return (res as any).logs ?? [];
 }
+
+/* ── Feed moderation ───────────────────────────────── */
+
+export interface AdminFeedPost {
+  id: string;
+  type: string;
+  title: string | null;
+  body: string;
+  tags: string[];
+  likes_count: number;
+  comments_count: number;
+  created_at: string;
+  author_id: string;
+  author_name: string | null;
+  author_dot_id: string | null;
+}
+
+export async function listFeedPosts(params?: { search?: string; type?: string; limit?: number }): Promise<{ posts: AdminFeedPost[] }> {
+  const q = new URLSearchParams();
+  if (params?.search) q.set("search", params.search);
+  if (params?.type) q.set("type", params.type);
+  if (params?.limit) q.set("limit", String(params.limit));
+  const res = await dotApi.get<{ posts: AdminFeedPost[] }>(`/api/admin/feed-posts?${q}`);
+  return res as any;
+}
+
+export async function deleteFeedPost(postId: string): Promise<{ ok: boolean }> {
+  const res = await dotApi.delete<{ ok: boolean }>(`/api/admin/feed-posts/${postId}`);
+  return res as any;
+}

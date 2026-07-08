@@ -176,3 +176,37 @@ export function useAuditLog(limit: number = 50) {
     error: error instanceof Error ? error.message : null,
   };
 }
+
+/**
+ * useAdminFeedPosts — List all feed posts for moderation.
+ */
+export function useAdminFeedPosts(search?: string, type?: string, limit: number = 50) {
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ["admin-feed-posts", search, type, limit],
+    queryFn: () => adminApi.listFeedPosts({ search, type, limit }),
+  });
+
+  return {
+    posts: data?.posts ?? [],
+    isLoading,
+    error: error instanceof Error ? error.message : null,
+    refetch,
+  };
+}
+
+/**
+ * useDeleteFeedPost — Delete any feed post (super_admin only).
+ */
+export function useDeleteFeedPost() {
+  const qc = useQueryClient();
+  const { mutate, isPending } = useMutation({
+    mutationFn: (postId: string) => adminApi.deleteFeedPost(postId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-feed-posts"] });
+      toast.success("Post deleted");
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Failed to delete post"),
+  });
+
+  return { deletePost: mutate, isPending };
+}
