@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
 import {
   Search, X, Filter, Briefcase, MapPin, ArrowUpRight,
   Gauge, TrendingUp, Heart, MessageCircle, Bookmark,
@@ -175,27 +175,16 @@ function DiscoverPage() {
 function FeedTab() {
   const { user } = useDotAuth();
   const [feedTab, setFeedTab] = useState<"latest" | "popular" | "trending">("latest");
-  const [showCompose, setShowCompose] = useState(false);
+  const navigate = useNavigate();
+  const search = useSearch({ from: "/_authenticated/discover" });
+  
+  // Get modal state from URL
+  const showCompose = search.compose === "true";
 
-  // Handler for opening compose modal
-  const handleOpenCompose = () => {
-    console.log("handleOpenCompose called");
-    setShowCompose(true);
+  // Close modal handler
+  const closeCompose = () => {
+    navigate({ to: ".", search: (s) => ({ ...s, compose: undefined }) });
   };
-
-  // Use window click listener as fallback
-  useEffect(() => {
-    const handleGlobalClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.id === 'compose-btn' || target.closest('#compose-btn')) {
-        console.log("Global click detected on compose-btn");
-        handleOpenCompose();
-      }
-    };
-    
-    window.addEventListener('click', handleGlobalClick);
-    return () => window.removeEventListener('click', handleGlobalClick);
-  }, []);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["feed", feedTab],
@@ -209,19 +198,19 @@ function FeedTab() {
     <div className="flex flex-col lg:flex-row gap-4 2xl:gap-8">
       {/* Main feed column - full width on mobile, constrained on desktop */}
       <div className="min-w-0 flex-1 space-y-4 w-full max-w-3xl mx-auto lg:mx-0 lg:w-auto">
-        {/* Compose button */}
-        <button
+        {/* Compose button - use Link for navigation (onClick stripped by Lovable) */}
+        <Link
           id="compose-btn"
-          data-testid="compose-btn"
-          onClick={handleOpenCompose}
-          className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 text-left text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:bg-muted/30"
+          to="."
+          search={(s) => ({ ...s, compose: "true" })}
+          className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 text-left text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:bg-muted/30 cursor-pointer block"
         >
           <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">
             {(user?.name || user?.email || "?").charAt(0).toUpperCase()}
           </div>
           <span>Share an update, gig, or announcement…</span>
           <Plus className="ml-auto size-4 shrink-0 text-primary" />
-        </button>
+        </Link>
 
         {/* Feed filter tabs */}
         <div className="flex gap-1 rounded-xl border border-border bg-muted/30 p-1">
@@ -256,7 +245,7 @@ function FeedTab() {
             icon={Zap}
             title="Nothing here yet"
             description="Be the first to share a gig, announcement, or venture update."
-            action={<Button onClick={handleOpenCompose}>Post something</Button>}
+            action={<Link to="." search={(s) => ({ ...s, compose: "true" })} className="cursor-pointer"><Button>Post something</Button></Link>}
           />
         ) : (
           <div className="space-y-3">
@@ -274,7 +263,7 @@ function FeedTab() {
 
       {/* Compose modal */}
       {showCompose && (
-        <ComposeModal onClose={() => { setShowCompose(false); refetch(); }} />
+        <ComposeModal onClose={() => { closeCompose(); refetch(); }} />
       )}
     </div>
   );

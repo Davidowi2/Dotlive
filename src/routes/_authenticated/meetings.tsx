@@ -11,6 +11,7 @@
 
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import {
   CalendarDays,
   Clock,
@@ -68,27 +69,16 @@ function MeetingsPage() {
   const { user, roles } = useDotAuth();
   const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState("upcoming");
-  const [createSlotOpen, setCreateSlotOpen] = useState(false);
+  const navigate = useNavigate();
+  const search = useSearch({ from: "/_authenticated/meetings" });
+  
+  // Get modal state from URL
+  const createSlotOpen = search.modal === "create-slot";
 
-  // Handler for opening create slot dialog
-  const handleCreateSlot = () => {
-    console.log("handleCreateSlot called");
-    setCreateSlotOpen(true);
+  // Close modal handler
+  const closeModal = () => {
+    navigate({ to: ".", search: (s) => ({ ...s, modal: undefined }) });
   };
-
-  // Use window click listener as fallback
-  useEffect(() => {
-    const handleGlobalClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.id === 'create-slot-btn' || target.closest('#create-slot-btn')) {
-        console.log("Global click detected on create-slot-btn");
-        handleCreateSlot();
-      }
-    };
-    
-    window.addEventListener('click', handleGlobalClick);
-    return () => window.removeEventListener('click', handleGlobalClick);
-  }, []);
 
   // Fetch my meetings
   const { data: meetings = [], isLoading: meetingsLoading } = useQuery({
@@ -128,14 +118,15 @@ function MeetingsPage() {
                 {pendingCount} pending
               </Badge>
             )}
-            <Button 
+            <Link 
               id="create-slot-btn"
-              onClick={handleCreateSlot}
-              size="sm"
+              to="."
+              search={(s) => ({ ...s, modal: "create-slot" })}
+              className="inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2 text-sm"
             >
               <Plus className="size-4" />
-              Create Slot {createSlotOpen ? '(OPEN)' : '(CLOSED)'}
-            </Button>
+              Create Slot
+            </Link>
           </div>
         }
       />
@@ -286,11 +277,11 @@ function MeetingsPage() {
       </div>
       <CreateSlotDialog
         open={createSlotOpen}
-        onClose={() => { console.log("Closing dialog"); setCreateSlotOpen(false); }}
+        onClose={closeModal}
         onSuccess={() => {
           console.log("Success, invalidating queries");
           qc.invalidateQueries({ queryKey: ["available-slots"] });
-          setCreateSlotOpen(false);
+          closeModal();
         }}
       />
     </AppShell>
