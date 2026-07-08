@@ -10,8 +10,9 @@
 
 | SHA | Subject | Status |
 | --- | --- | --- |
+| `0dd33a8` | feat(admin): add Feed Moderation + Announcements tabs to Operator | ✅ |
+| `88733b8` | fix: Discover layout + favicon + feed moderation UI | ✅ |
 | `6d456d0` | fix(admin): add feed moderation endpoints | ✅ |
-| `a253bf9` | fix(feed): only admins can post announcements | ✅ |
 | `3b515cf` | fix: seed Discover announcements in seed script | ✅ |
 | `c25cd71` | fix: add feed_posts tables to DB schema for Discover functionality | ✅ |
 | `77332cc` | feat(discover): full-page resize for desktop, wider sidebar | ✅ |

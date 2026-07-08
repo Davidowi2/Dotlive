@@ -212,12 +212,13 @@ function SettingsPage() {
         setBuilderLocation(p.location ?? "");
         setBuilderAvailable(p.available ?? true);
         // Also populate Account tab fields from builder profile
+        // API returns snake_case (twitter_url, linkedin_url, github_url) - handle both
         setHeadline(p.headline ?? "");
         setLocation(p.location ?? "");
         setBio(p.bio ?? "");
-        setTwitterUrl(p.twitterUrl ?? "");
-        setLinkedinUrl(p.linkedinUrl ?? "");
-        setGithubUrl(p.githubUrl ?? "");
+        setTwitterUrl(p.twitterUrl ?? p.twitter_url ?? "");
+        setLinkedinUrl(p.linkedinUrl ?? p.linkedin_url ?? "");
+        setGithubUrl(p.githubUrl ?? p.github_url ?? "");
         return p;
       } catch { return {}; }
     },
