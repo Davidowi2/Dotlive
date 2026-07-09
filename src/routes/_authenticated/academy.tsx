@@ -103,7 +103,7 @@ function AcademyPage() {
             {enrolled.slice(0, 3).map(e => {
               const course = courses.find(c => c.id === e.courseId);
               // Build Whop URL — check course catalog first, then enrollment data
-              const rawUrl = course?.whopUrl ?? (e.course as any)?.whopUrl ?? null;
+              const rawUrl = course?.whopUrl ?? null;
               const continueUrl = rawUrl
                 ? whopUrl(rawUrl, user?.id, course?.dotReward ?? 100)
                 : null;

@@ -9,6 +9,7 @@ export interface WizardState {
   skippedSteps: number[];
   completedAt?: string | null;
   startedAt?: string;
+  lastSeenAt?: string | null;
 }
 
 export async function fetchWizardState(): Promise<WizardState> {

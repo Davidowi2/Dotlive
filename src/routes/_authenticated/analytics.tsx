@@ -69,35 +69,35 @@ function AnalyticsPage() {
               label="Profile Views"
               value={overview?.totalViews?.toLocaleString() || "0"}
               icon={Eye}
-              change={`+${totalViewsInPeriod} this period`}
+              trend={{ label: `+${totalViewsInPeriod} this period`, value: "neutral" }}
               variant="primary"
             />
             <StatCard
               label="Vouches Received"
               value={overview?.totalVouches?.toLocaleString() || "0"}
               icon={Heart}
-              change={`${overview?.totalVouches || 0 > 0 ? "+" : ""}${overview?.totalVouches || 0}`}
+              trend={{ label: `${overview?.totalVouches || 0 > 0 ? "+" : ""}${overview?.totalVouches || 0}`, value: "positive" }}
               variant="secondary"
             />
             <StatCard
               label="Investment Interest"
               value={overview?.totalInvestments?.toLocaleString() || "0"}
               icon={TrendingUp}
-              change="interest signals"
+              trend={{ label: "interest signals", value: "neutral" }}
               variant="tertiary"
             />
             <StatCard
               label="Wallet Balance"
               value={formatDot(overview?.walletBalance || "0")}
               icon={Wallet}
-              change="available DOT"
+              trend={{ label: "available DOT", value: "neutral" }}
               variant="accent"
             />
             <StatCard
               label="Ventures"
               value={overview?.venturesCount?.toString() || "0"}
               icon={Briefcase}
-              change="active ventures"
+              trend={{ label: "active ventures", value: "neutral" }}
               variant="primary"
             />
           </div>
