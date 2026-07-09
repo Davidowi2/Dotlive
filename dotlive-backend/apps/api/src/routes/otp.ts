@@ -62,15 +62,14 @@ export async function otpRoutes(app: FastifyInstance) {
 
     // Insert or replace (upsert)
     await db.execute(sql`
-      INSERT INTO otp_codes (email, code, purpose, user_id, expires_at, attempts)
-      VALUES (${email}, ${code}, ${purpose}, ${userId}, ${expiresAt.toISOString()}, 0)
+      INSERT INTO otp_codes (email, code, purpose, user_id, expires_at, attempts, created_at)
+      VALUES (${email}, ${code}, ${purpose}, ${userId}, ${expiresAt.toISOString()}, 0, NOW())
       ON CONFLICT (email, purpose)
       DO UPDATE SET
         code = EXCLUDED.code,
         user_id = EXCLUDED.user_id,
         expires_at = EXCLUDED.expires_at,
-        attempts = 0,
-        created_at = NOW()
+        attempts = 0
     `);
 
     // Use the new branded email template for ALL purposes.

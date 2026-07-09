@@ -258,7 +258,7 @@ export async function feedRoutes(app: FastifyInstance) {
       await db.execute(sql`DELETE FROM feed_post_likes WHERE post_id = ${id} AND user_id = ${sub}`);
       await db.execute(sql`UPDATE feed_posts SET likes_count = GREATEST(0, likes_count - 1) WHERE id = ${id}`);
     } else {
-      await db.execute(sql`INSERT INTO feed_post_likes (post_id, user_id) VALUES (${id}, ${sub}) ON CONFLICT DO NOTHING`);
+      await db.execute(sql`INSERT INTO feed_post_likes (post_id, user_id, created_at) VALUES (${id}, ${sub}, NOW()) ON CONFLICT DO NOTHING`);
       await db.execute(sql`UPDATE feed_posts SET likes_count = likes_count + 1 WHERE id = ${id}`);
     }
 
@@ -284,7 +284,7 @@ export async function feedRoutes(app: FastifyInstance) {
     if (alreadyBookmarked) {
       await db.execute(sql`DELETE FROM feed_post_bookmarks WHERE post_id = ${id} AND user_id = ${sub}`);
     } else {
-      await db.execute(sql`INSERT INTO feed_post_bookmarks (post_id, user_id) VALUES (${id}, ${sub}) ON CONFLICT DO NOTHING`);
+      await db.execute(sql`INSERT INTO feed_post_bookmarks (post_id, user_id, created_at) VALUES (${id}, ${sub}, NOW()) ON CONFLICT DO NOTHING`);
     }
 
     // Invalidate feed caches — bookmark state changed for this user.

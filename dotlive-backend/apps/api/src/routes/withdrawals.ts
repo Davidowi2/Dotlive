@@ -221,6 +221,7 @@ export async function withdrawalRoutes(app: FastifyInstance) {
           amount: Number(w.amountDot),
           type: "Refund",
           description: `Withdrawal rejected: ${body.note ?? "no reason"}`,
+          createdAt: new Date(),
         } as any);
       } else if (body.action === "mark_paid") {
         updates.status = "paid";
@@ -238,6 +239,7 @@ export async function withdrawalRoutes(app: FastifyInstance) {
           amount: Number(w.amountDot),
           type: "Refund",
           description: `Withdrawal payout failed: ${body.note ?? "unknown"}`,
+          createdAt: new Date(),
         } as any);
       }
 

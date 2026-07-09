@@ -61,8 +61,7 @@ describe('Schema Validation Tests', () => {
         nairaAmount: '15000',
         status: 'pending',
         reference: 'test_' + Date.now(),
-        createdAt: new Date(),
-      }).returning({ createdAt: payments.createdAt });
+      } as any).returning({ createdAt: payments.createdAt });
       
       expect(inserted[0].createdAt).toBeDefined();
       expect(inserted[0].createdAt).toBeInstanceOf(Date);
@@ -201,8 +200,7 @@ describe('Schema Validation Tests', () => {
         nairaAmount: '15000',
         status: 'pending',
         reference: 'test_' + Date.now(),
-        createdAt: new Date(),
-      }).returning({ id: payments.id });
+      } as any).returning({ id: payments.id });
       
       expect(inserted[0].id).toBeDefined();
       expect(typeof inserted[0].id).toBe('string');
@@ -217,7 +215,6 @@ describe('Complete INSERT Workflows', () => {
   
   it('should successfully create complete payment record', async () => {
     const userId = await ensureTestUser();
-    const now = new Date();
     
     const inserted = await db.insert(payments).values({
       userId,
@@ -225,8 +222,7 @@ describe('Complete INSERT Workflows', () => {
       nairaAmount: '15000',
       status: 'pending',
       reference: 'workflow_test_' + Date.now(),
-      createdAt: now,
-    }).returning();
+    } as any).returning();
     
     expect(inserted).toHaveLength(1);
     expect(inserted[0].userId).toBe(userId);
@@ -239,7 +235,6 @@ describe('Complete INSERT Workflows', () => {
 
   it('should successfully create complete withdrawal request', async () => {
     const userId = await ensureTestUser();
-    const now = new Date();
     
     const inserted = await db.insert(withdrawalRequests).values({
       userId,
@@ -248,8 +243,7 @@ describe('Complete INSERT Workflows', () => {
       bankInfo: JSON.stringify({ accountNumber: '123456' }),
       kycTier: 'tier1',
       status: 'pending',
-      updatedAt: now,
-    }).returning();
+    } as any).returning();
     
     expect(inserted).toHaveLength(1);
     expect(inserted[0].userId).toBe(userId);
