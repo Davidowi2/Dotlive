@@ -122,3 +122,23 @@ export async function cancelOrder(orderId: string): Promise<ServiceOrder> {
   const res = await dotApi.patch<{ order: ServiceOrder }>(`/api/orders/${orderId}/cancel`);
   return res.order;
 }
+
+export interface ServiceReview {
+  id: string;
+  orderId: string;
+  authorId: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+}
+
+/**
+ * Leave a review for a completed order
+ */
+export async function reviewOrder(
+  orderId: string,
+  data: { rating: number; comment: string }
+): Promise<ServiceReview> {
+  const res = await dotApi.post<{ review: ServiceReview }>(`/api/orders/${orderId}/review`, data);
+  return res.review;
+}
