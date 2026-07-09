@@ -141,15 +141,21 @@ export async function feedRoutes(app: FastifyInstance) {
     const u = userRow[0];
 
     const id = crypto.randomUUID();
-    await db.execute(sql`
-      INSERT INTO feed_posts (id, type, title, body, author_id, author_name, author_dot_id, author_role, tags, budget_dot, gig_type, funding_goal, funding_round)
-      VALUES (
-        ${id}, ${parsed.data.type}, ${parsed.data.title ?? null}, ${parsed.data.body},
-        ${sub}, ${u?.name ?? "Unknown"}, ${u?.dotId ?? null}, "builder", ${parsed.data.tags as any},
-        ${parsed.data.budgetDot ?? null}, ${parsed.data.gigType ?? null},
-        ${parsed.data.fundingGoal ?? null}, ${parsed.data.fundingRound ?? null}
-      )
-    `);
+    try {
+      await db.execute(sql`
+        INSERT INTO feed_posts (id, type, title, body, author_id, author_name, author_dot_id, author_role, tags, budget_dot, gig_type, funding_goal, funding_round, created_at, updated_at)
+        VALUES (
+          ${id}, ${parsed.data.type}, ${parsed.data.title ?? null}, ${parsed.data.body},
+          ${sub}, ${u?.name ?? "Unknown"}, ${u?.dotId ?? null}, "builder", ${JSON.stringify(parsed.data.tags)},
+          ${parsed.data.budgetDot ?? null}, ${parsed.data.gigType ?? null},
+          ${parsed.data.fundingGoal ?? null}, ${parsed.data.fundingRound ?? null},
+          NOW(), NOW()
+        )
+      `);
+    } catch (err) {
+      console.error("[feed] POST /feed error:", err);
+      return reply.code(500).send({ error: "Failed to create post", details: err instanceof Error ? err.message : String(err) });
+    }
 
     // Invalidate all feed caches — new post changes pagination & order.
     invalidatePrefix("feed");
