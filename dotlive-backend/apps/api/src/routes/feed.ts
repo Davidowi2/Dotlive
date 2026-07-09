@@ -142,6 +142,17 @@ export async function feedRoutes(app: FastifyInstance) {
 
     const id = crypto.randomUUID();
     try {
+      console.log("[feed] Creating post with:", {
+        id,
+        type: parsed.data.type,
+        title: parsed.data.title,
+        body: parsed.data.body.substring(0, 50),
+        authorId: sub,
+        authorName: u?.name,
+        tags: parsed.data.tags,
+        budgetDot: parsed.data.budgetDot,
+      });
+      
       await db.execute(sql`
         INSERT INTO feed_posts (id, type, title, body, author_id, author_name, author_dot_id, author_role, tags, budget_dot, gig_type, funding_goal, funding_round, likes_count, comments_count, created_at, updated_at)
         VALUES (
@@ -152,9 +163,14 @@ export async function feedRoutes(app: FastifyInstance) {
           0, 0, NOW(), NOW()
         )
       `);
+      console.log("[feed] Post created successfully:", id);
     } catch (err) {
       console.error("[feed] POST /feed error:", err);
-      return reply.code(500).send({ error: "Failed to create post", details: err instanceof Error ? err.message : String(err) });
+      console.error("[feed] Error stack:", err instanceof Error ? err.stack : "no stack");
+      console.error("[feed] Error type:", typeof err);
+      console.error("[feed] Full error object:", JSON.stringify(err, null, 2));
+      const errorMsg = err instanceof Error ? err.message : typeof err === 'string' ? err : JSON.stringify(err);
+      return reply.code(500).send({ error: "Failed to create post", details: errorMsg, fullError: err });
     }
 
     // Invalidate all feed caches — new post changes pagination & order.
