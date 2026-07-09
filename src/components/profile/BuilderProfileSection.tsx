@@ -26,6 +26,9 @@ import { listMyServices, listOrders } from "@/api/marketplace";
 import { dotApi } from "@/api/client";
 import { formatDot } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { BuilderDocumentsForm } from "@/components/builder/BuilderDocumentsForm";
+import { BuilderCertificationsForm } from "@/components/builder/BuilderCertificationsForm";
+import { BuilderVouchCard } from "@/components/builder/BuilderVouchCard";
 
 interface Service {
   id: string;
@@ -326,6 +329,26 @@ export function BuilderProfileSection() {
               </a>
             ))}
           </div>
+        </section>
+      )}
+
+      {/* ── Documents (CV, certificates, projects) ────────── */}
+      <section className="mt-6 rounded-2xl border border-border bg-card p-6">
+        <BuilderDocumentsForm />
+      </section>
+
+      {/* ── Certifications ────────────────────────────────── */}
+      <section className="mt-6 rounded-2xl border border-border bg-card p-6">
+        <BuilderCertificationsForm />
+      </section>
+
+      {/* ── Community Vouches ─────────────────────────────── */}
+      {user && (
+        <section className="mt-6">
+          <BuilderVouchCard
+            builderId={user.id}
+            builderName={user.name || "Builder"}
+          />
         </section>
       )}
     </>

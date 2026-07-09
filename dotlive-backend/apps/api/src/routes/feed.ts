@@ -142,10 +142,10 @@ export async function feedRoutes(app: FastifyInstance) {
 
     const id = crypto.randomUUID();
     await db.execute(sql`
-      INSERT INTO feed_posts (id, type, title, body, author_id, tags, budget_dot, gig_type, funding_goal, funding_round)
+      INSERT INTO feed_posts (id, type, title, body, author_id, author_name, author_dot_id, author_role, tags, budget_dot, gig_type, funding_goal, funding_round)
       VALUES (
         ${id}, ${parsed.data.type}, ${parsed.data.title ?? null}, ${parsed.data.body},
-        ${sub}, ${parsed.data.tags as any},
+        ${sub}, ${u?.name ?? "Unknown"}, ${u?.dotId ?? null}, "builder", ${parsed.data.tags as any},
         ${parsed.data.budgetDot ?? null}, ${parsed.data.gigType ?? null},
         ${parsed.data.fundingGoal ?? null}, ${parsed.data.fundingRound ?? null}
       )

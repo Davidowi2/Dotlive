@@ -4,6 +4,9 @@
  *   GET  /api/builders/:id/arena         public profile (no auth)
  *   GET  /api/builders/:id/reviews       public reviews list
  *   POST /api/builders/:id/reviews       leave a review (auth, must be order client)
+ *   GET  /api/builders/:id/documents     portfolio documents
+ *   GET  /api/builders/:id/certifications certifications
+ *   GET  /api/builders/:id/vouches       vouch count summary
  *   POST /api/builders/:id/refresh-stats re-aggregate stats (admin/dev)
  */
 import type { FastifyInstance } from "fastify";
@@ -15,6 +18,9 @@ import {
   users,
   builderProfiles,
   builderReviews,
+  builderDocuments,
+  builderCertifications,
+  builderVouches,
 } from "../db/schema.js";
 
 export async function builderArenaRoutes(app: FastifyInstance) {
@@ -148,6 +154,81 @@ export async function builderArenaRoutes(app: FastifyInstance) {
     async (req, reply) => {
       await refreshBuilderStats(req.params.id);
       return reply.send({ ok: true });
+    },
+  );
+
+  /** GET /api/builders/:id/documents — portfolio documents */
+  app.get<{ Params: { id: string } }>(
+    "/builders/:id/documents",
+    async (req, reply) => {
+      const builderId = req.params.id;
+      const docs = await db
+        .select({
+          id: builderDocuments.id,
+          type: builderDocuments.type,
+          title: builderDocuments.title,
+          description: builderDocuments.description,
+          fileUrl: builderDocuments.fileUrl,
+          fileName: builderDocuments.fileName,
+          isVerified: builderDocuments.isVerified,
+          displayOrder: builderDocuments.displayOrder,
+          createdAt: builderDocuments.createdAt,
+        })
+        .from(builderDocuments)
+        .where(eq(builderDocuments.builderId, builderId))
+        .orderBy(builderDocuments.displayOrder, builderDocuments.createdAt);
+      return reply.send({ documents: docs });
+    },
+  );
+
+  /** GET /api/builders/:id/certifications — certifications */
+  app.get<{ Params: { id: string } }>(
+    "/builders/:id/certifications",
+    async (req, reply) => {
+      const builderId = req.params.id;
+      const certs = await db
+        .select({
+          id: builderCertifications.id,
+          name: builderCertifications.name,
+          issuer: builderCertifications.issuer,
+          issuedDate: builderCertifications.issuedDate,
+          expiresDate: builderCertifications.expiresDate,
+          credentialUrl: builderCertifications.credentialUrl,
+          badgeUrl: builderCertifications.badgeUrl,
+          isVerified: builderCertifications.isVerified,
+          createdAt: builderCertifications.createdAt,
+        })
+        .from(builderCertifications)
+        .where(eq(builderCertifications.builderId, builderId))
+        .orderBy(desc(builderCertifications.createdAt));
+      return reply.send({ certifications: certs });
+    },
+  );
+
+  /** GET /api/builders/:id/vouches — vouch summary */
+  app.get<{ Params: { id: string } }>(
+    "/builders/:id/vouches",
+    async (req, reply) => {
+      const builderId = req.params.id;
+      const rows = await db
+        .select({
+          skill: builderVouches.skill,
+          count: sql`COUNT(*)::int`.as("count"),
+          endorsed: sql`COUNT(CASE WHEN ${builderVouches.isEndorsed} THEN 1 END)::int`.as("endorsed"),
+        })
+        .from(builderVouches)
+        .where(eq(builderVouches.builderId, builderId))
+        .groupBy(builderVouches.skill);
+      
+      const totalVouches = await db
+        .select({ count: sql`COUNT(*)::int` })
+        .from(builderVouches)
+        .where(eq(builderVouches.builderId, builderId));
+
+      return reply.send({
+        total: totalVouches[0]?.count ?? 0,
+        bySkill: rows,
+      });
     },
   );
 }

@@ -8,7 +8,7 @@ import { z } from "zod";
 import { eq, sql, desc } from "drizzle-orm";
 
 import { db } from "../db/client.js";
-import { users, userRoles, roleRequirements, wallets, founderProfiles, builderProfiles, ventures } from "../db/schema.js";
+import { users, userRoles, roleRequirements, wallets, founderProfiles, builderProfiles, ventures, builderDocuments, builderCertifications, builderVouches } from "../db/schema.js";
 import { loadUserWithRoles, userHasRole } from "../lib/auth.js";
 import { debitWallet } from "../lib/dot.js";
 import { publicCache, cached, k, invalidatePrefix } from "../lib/cache.js";
@@ -605,6 +605,180 @@ export async function userRoutes(app: FastifyInstance) {
         createdAt: r.createdAt,
       },
     });
+  });
+
+  /* ── Builder Documents (Portfolio) ────────────────────── */
+  /** POST /api/users/me/builder-documents — upload a document */
+  app.post("/users/me/builder-documents", { preHandler: app.authenticate }, async (req, reply) => {
+    const { sub } = req.user as { sub: string };
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    
+    const docSchema = z.object({
+      type: z.enum(["cv", "certificate", "project", "sample"]),
+      title: z.string().min(1).max(255),
+      description: z.string().max(1000).optional(),
+      fileUrl: z.string().url(),
+      fileName: z.string().max(255).optional(),
+      fileSize: z.number().optional(),
+      displayOrder: z.number().int().min(0).optional(),
+    });
+    
+    const parsed = docSchema.safeParse(body);
+    if (!parsed.success) return reply.code(400).send({ error: "Invalid input" });
+    
+    const doc = await db.insert(builderDocuments).values({
+      builderId: sub,
+      type: parsed.data.type,
+      title: parsed.data.title,
+      description: parsed.data.description ?? null,
+      fileUrl: parsed.data.fileUrl,
+      fileName: parsed.data.fileName ?? null,
+      fileSize: parsed.data.fileSize ?? null,
+      displayOrder: parsed.data.displayOrder ?? 0,
+      isVerified: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as any).returning();
+    
+    return reply.status(201).send({ document: doc[0] });
+  });
+
+  /** GET /api/users/me/builder-documents — list my documents */
+  app.get("/users/me/builder-documents", { preHandler: app.authenticate }, async (req, reply) => {
+    const { sub } = req.user as { sub: string };
+    const docs = await db
+      .select()
+      .from(builderDocuments)
+      .where(eq(builderDocuments.builderId, sub))
+      .orderBy(builderDocuments.displayOrder, builderDocuments.createdAt);
+    return reply.send({ documents: docs });
+  });
+
+  /** DELETE /api/users/me/builder-documents/:id — delete a document */
+  app.delete<{ Params: { id: string } }>("/users/me/builder-documents/:id", { preHandler: app.authenticate }, async (req, reply) => {
+    const { sub } = req.user as { sub: string };
+    const { id } = req.params;
+    
+    const doc = await db.select().from(builderDocuments).where(eq(builderDocuments.id, id)).limit(1);
+    if (!doc[0] || doc[0].builderId !== sub) {
+      return reply.code(403).send({ error: "Not authorized" });
+    }
+    
+    await db.delete(builderDocuments).where(eq(builderDocuments.id, id));
+    return reply.send({ ok: true });
+  });
+
+  /* ── Builder Certifications ────────────────────── */
+  /** POST /api/users/me/builder-certifications — add a certification */
+  app.post("/users/me/builder-certifications", { preHandler: app.authenticate }, async (req, reply) => {
+    const { sub } = req.user as { sub: string };
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    
+    const certSchema = z.object({
+      name: z.string().min(1).max(255),
+      issuer: z.string().min(1).max(255),
+      issuedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      expiresDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      credentialUrl: z.string().url().optional(),
+      credentialId: z.string().max(255).optional(),
+      badgeUrl: z.string().url().optional(),
+    });
+    
+    const parsed = certSchema.safeParse(body);
+    if (!parsed.success) return reply.code(400).send({ error: "Invalid input" });
+    
+    const cert = await db.insert(builderCertifications).values({
+      builderId: sub,
+      name: parsed.data.name,
+      issuer: parsed.data.issuer,
+      issuedDate: parsed.data.issuedDate ?? null,
+      expiresDate: parsed.data.expiresDate ?? null,
+      credentialUrl: parsed.data.credentialUrl ?? null,
+      credentialId: parsed.data.credentialId ?? null,
+      badgeUrl: parsed.data.badgeUrl ?? null,
+      isVerified: false,
+      createdAt: new Date(),
+    } as any).returning();
+    
+    return reply.status(201).send({ certification: cert[0] });
+  });
+
+  /** GET /api/users/me/builder-certifications — list my certifications */
+  app.get("/users/me/builder-certifications", { preHandler: app.authenticate }, async (req, reply) => {
+    const { sub } = req.user as { sub: string };
+    const certs = await db
+      .select()
+      .from(builderCertifications)
+      .where(eq(builderCertifications.builderId, sub))
+      .orderBy(desc(builderCertifications.createdAt));
+    return reply.send({ certifications: certs });
+  });
+
+  /** DELETE /api/users/me/builder-certifications/:id — delete a certification */
+  app.delete<{ Params: { id: string } }>("/users/me/builder-certifications/:id", { preHandler: app.authenticate }, async (req, reply) => {
+    const { sub } = req.user as { sub: string };
+    const { id } = req.params;
+    
+    const cert = await db.select().from(builderCertifications).where(eq(builderCertifications.id, id)).limit(1);
+    if (!cert[0] || cert[0].builderId !== sub) {
+      return reply.code(403).send({ error: "Not authorized" });
+    }
+    
+    await db.delete(builderCertifications).where(eq(builderCertifications.id, id));
+    return reply.send({ ok: true });
+  });
+
+  /* ── Builder Vouches ────────────────────── */
+  /** POST /api/users/:id/vouch — vouch for a builder */
+  app.post<{ Params: { id: string } }>("/users/:id/vouch", { preHandler: app.authenticate }, async (req, reply) => {
+    const { sub } = req.user as { sub: string };
+    const { id: builderId } = req.params;
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    
+    if (sub === builderId) {
+      return reply.code(400).send({ error: "Cannot vouch for yourself" });
+    }
+    
+    const vouchSchema = z.object({
+      skill: z.string().min(1).max(100),
+      comment: z.string().max(500).optional(),
+      isEndorsed: z.boolean().optional(),
+    });
+    
+    const parsed = vouchSchema.safeParse(body);
+    if (!parsed.success) return reply.code(400).send({ error: "Invalid input" });
+    
+    const vouch = await db
+      .insert(builderVouches)
+      .values({
+        builderId,
+        voucherId: sub,
+        skill: parsed.data.skill,
+        comment: parsed.data.comment ?? null,
+        isEndorsed: parsed.data.isEndorsed !== false,
+        createdAt: new Date(),
+      } as any)
+      .onConflictDoUpdate({
+        target: [builderVouches.builderId, builderVouches.voucherId, builderVouches.skill],
+        set: {
+          comment: parsed.data.comment ?? null,
+          isEndorsed: parsed.data.isEndorsed !== false,
+        } as any,
+      })
+      .returning();
+    
+    return reply.status(201).send({ vouch: vouch[0] });
+  });
+
+  /** GET /api/users/:id/vouches — get vouches for a builder */
+  app.get<{ Params: { id: string } }>("/users/:id/vouches", async (req, reply) => {
+    const { id: builderId } = req.params;
+    const vouches = await db
+      .select()
+      .from(builderVouches)
+      .where(eq(builderVouches.builderId, builderId))
+      .orderBy(desc(builderVouches.createdAt));
+    return reply.send({ vouches });
   });
 }
 // @ts-nocheck

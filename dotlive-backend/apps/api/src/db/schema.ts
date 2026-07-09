@@ -235,6 +235,71 @@ export const builderProfiles = pgTable("builder_profiles", {
   bpCompletedIdx: index("builder_profiles_completed_idx").on(t.totalCompletedOrders),
 }));
 
+/* ──────────────────── Builder Portfolio Documents ──────────────── */
+/**
+ * Store builder portfolio items (CV, certificates, project links, samples).
+ * Allows builders to upload and display documents that differentiate them.
+ */
+export const builderDocuments = pgTable("builder_documents", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  builderId: text("builder_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  type: text("type").notNull(), // "cv" | "certificate" | "project" | "sample"
+  title: text("title").notNull(),
+  description: text("description"),
+  fileUrl: text("file_url").notNull(), // S3 or CDN URL
+  fileName: text("file_name"),
+  fileSize: integer("file_size"), // in bytes
+  isVerified: boolean("is_verified").notNull().default(false), // admin-verified credentials
+  displayOrder: integer("display_order").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  bdBuilderIdx: index("builder_documents_builder_idx").on(t.builderId),
+  bdTypeIdx: index("builder_documents_type_idx").on(t.type),
+  bdVerifiedIdx: index("builder_documents_verified_idx").on(t.isVerified),
+}));
+
+/* ──────────────────── Builder Certifications ──────────────────── */
+/**
+ * Track verified certifications and badges for builders.
+ * Enables peer verification of skills and credentials.
+ */
+export const builderCertifications = pgTable("builder_certifications", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  builderId: text("builder_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(), // e.g., "AWS Certified Solutions Architect"
+  issuer: text("issuer").notNull(), // e.g., "Amazon Web Services"
+  issuedDate: date("issued_date"),
+  expiresDate: date("expires_date"),
+  credentialUrl: text("credential_url"),
+  credentialId: text("credential_id"),
+  badgeUrl: text("badge_url"), // Badge image/icon URL
+  isVerified: boolean("is_verified").notNull().default(false), // admin or issuer verified
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  bcBuilderIdx: index("builder_certifications_builder_idx").on(t.builderId),
+  bcVerifiedIdx: index("builder_certifications_verified_idx").on(t.isVerified),
+}));
+
+/* ──────────────────── Builder Vouches (Peer Verification) ──────────────── */
+/**
+ * Peer-to-peer vouching system for builder credibility.
+ * Other users (founders, investors, builders) vouch for a builder's skills/character.
+ */
+export const builderVouches = pgTable("builder_vouches", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  builderId: text("builder_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  voucherId: text("voucher_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  skill: text("skill").notNull(), // The skill/trait being vouched for
+  comment: text("comment"), // Why you vouch for this builder
+  isEndorsed: boolean("is_endorsed").notNull().default(true), // true = positive, false = challenge
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  bvBuilderIdx: index("builder_vouches_builder_idx").on(t.builderId),
+  bvVoucherIdx: index("builder_vouches_voucher_idx").on(t.voucherId),
+  bvUniqueIdx: unique("builder_vouches_unique").on(t.builderId, t.voucherId, t.skill),
+}));
+
 /* --------------------------- Courses --------------------------- */
 export const courses = pgTable("courses", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -562,6 +627,12 @@ export type ServiceOrderRow = typeof serviceOrders.$inferSelect;
 export type ServiceReviewRow = typeof serviceReviews.$inferSelect;
 export type RoleRequirementRow = typeof roleRequirements.$inferSelect;
 export type PaymentRow = typeof payments.$inferSelect;
+export type BuilderDocument = typeof builderDocuments.$inferSelect;
+export type NewBuilderDocument = typeof builderDocuments.$inferInsert;
+export type BuilderCertification = typeof builderCertifications.$inferSelect;
+export type NewBuilderCertification = typeof builderCertifications.$inferInsert;
+export type BuilderVouch = typeof builderVouches.$inferSelect;
+export type NewBuilderVouch = typeof builderVouches.$inferInsert;
 
 /* ============================ ADMIN ============================ */
 
@@ -1727,7 +1798,7 @@ export const pageViews = pgTable(
   "page_views",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }), // the user whose profile was viewed
+    userId: text("user_id").references(() => users.id, { onDelete: "cascade" }), // the user whose profile was viewed (changed from uuid to text)
     viewerId: text("viewer_id").references(() => users.id, { onDelete: "cascade" }), // who viewed
     pageType: text("page_type").notNull(), // "venture" | "founder" | "builder" | "investor"
     referrer: text("referrer"), // source of the view

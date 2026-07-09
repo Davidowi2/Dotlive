@@ -56,7 +56,7 @@ export async function meetingsRoutes(app: FastifyInstance) {
       filters.push(lte(meetingSlots.date, endDate));
     }
 
-    const whereClause = filters.length > 1 ? and(...filters) : filters[0];
+    const whereClause = and(...filters);
 
     const slots = await db
       .select({
