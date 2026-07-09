@@ -24,24 +24,24 @@ export interface StakePosition {
  * Get all stakes for the current user.
  */
 export async function getStakes(): Promise<StakePosition[]> {
-  const response = await dotApi.get<StakePosition[]>("/stakes");
-  return response.data ?? [];
+  const response = await dotApi.get<StakePosition[]>("/api/stakes");
+  return response ?? [];
 }
 
 /**
  * Create a new stake (in DOT cents).
  */
 export async function createStake(amount: number): Promise<StakePosition> {
-  const response = await dotApi.post<StakePosition>("/stakes", { amount });
-  return response.data;
+  const response = await dotApi.post<StakePosition>("/api/stakes", { amount });
+  return response;
 }
 
 /**
  * Start the 14-day unbonding cooldown.
  */
 export async function unstake(stakeId: string): Promise<StakePosition> {
-  const response = await dotApi.post<StakePosition>(`/stakes/${stakeId}/unbond`, {});
-  return response.data;
+  const response = await dotApi.post<StakePosition>(`/api/stakes/${stakeId}/unbond`, {});
+  return response;
 }
 
 /**
@@ -51,10 +51,10 @@ export async function claimRewards(
   stakeId: string
 ): Promise<{ claimed: number; stake: StakePosition }> {
   const response = await dotApi.post<{ claimed: number; stake: StakePosition }>(
-    `/stakes/${stakeId}/claim`,
+    `/api/stakes/${stakeId}/claim`,
     {}
   );
-  return response.data;
+  return response;
 }
 
 /**
@@ -62,6 +62,6 @@ export async function claimRewards(
  * Withdraws the staked amount back to wallet.
  */
 export async function completeUnbond(stakeId: string): Promise<StakePosition> {
-  const response = await dotApi.post<StakePosition>(`/stakes/${stakeId}/complete`, {});
-  return response.data;
+  const response = await dotApi.post<StakePosition>(`/api/stakes/${stakeId}/complete`, {});
+  return response;
 }

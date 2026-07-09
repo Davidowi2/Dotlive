@@ -52,9 +52,9 @@ export async function getAvailableSlots(options?: {
   if (options?.endDate) params.append("endDate", options.endDate);
 
   const response = await dotApi.get<MeetingSlot[]>(
-    `/meetings/slots${params.toString() ? "?" + params.toString() : ""}`
+    `/api/meetings/slots${params.toString() ? "?" + params.toString() : ""}`
   );
-  return response.data ?? [];
+  return response ?? [];
 }
 
 /**
@@ -66,8 +66,8 @@ export async function createSlot(data: {
   endTime: string;
   durationMinutes?: number;
 }): Promise<MeetingSlot> {
-  const response = await dotApi.post<MeetingSlot>("/meetings/slots", data);
-  return response.data;
+  const response = await dotApi.post<MeetingSlot>("/api/meetings/slots", data);
+  return response;
 }
 
 /**
@@ -79,8 +79,8 @@ export async function requestMeeting(data: {
   description?: string;
   meetingReason?: string;
 }): Promise<Meeting> {
-  const response = await dotApi.post<Meeting>("/meetings", data);
-  return response.data;
+  const response = await dotApi.post<Meeting>("/api/meetings", data);
+  return response;
 }
 
 /**
@@ -88,30 +88,30 @@ export async function requestMeeting(data: {
  */
 export async function getMyMeetings(status?: "upcoming" | "past"): Promise<Meeting[]> {
   const params = status ? `?status=${status}` : "";
-  const response = await dotApi.get<Meeting[]>(`/meetings${params}`);
-  return response.data ?? [];
+  const response = await dotApi.get<Meeting[]>(`/api/meetings${params}`);
+  return response ?? [];
 }
 
 /**
  * Confirm a meeting (host only)
  */
 export async function confirmMeeting(id: string): Promise<Meeting> {
-  const response = await dotApi.post<Meeting>(`/meetings/${id}/confirm`);
-  return response.data;
+  const response = await dotApi.post<Meeting>(`/api/meetings/${id}/confirm`, {});
+  return response;
 }
 
 /**
  * Decline a meeting (host only)
  */
 export async function declineMeeting(id: string, reason?: string): Promise<Meeting> {
-  const response = await dotApi.post<Meeting>(`/meetings/${id}/decline`, { reason });
-  return response.data;
+  const response = await dotApi.post<Meeting>(`/api/meetings/${id}/decline`, { reason });
+  return response;
 }
 
 /**
  * Cancel a meeting (host or guest)
  */
 export async function cancelMeeting(id: string, reason?: string): Promise<Meeting & { warning?: string }> {
-  const response = await dotApi.post<Meeting & { warning?: string }>(`/meetings/${id}/cancel`, { reason });
-  return response.data;
+  const response = await dotApi.post<Meeting & { warning?: string }>(`/api/meetings/${id}/cancel`, { reason });
+  return response;
 }

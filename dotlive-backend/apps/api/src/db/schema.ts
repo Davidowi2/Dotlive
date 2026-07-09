@@ -43,9 +43,6 @@ export const users = pgTable("users", {
     onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
     privacyAcceptedAt: timestamp("privacy_accepted_at", { withTimezone: true }),
     termsAcceptedAt: timestamp("terms_accepted_at", { withTimezone: true }),
-    // Denormalized mirror of tier_upgrades.expiresAt (latest active upgrade).
-    // Set on upgrade/renew, cleared on expiry.
-    tierExpiresAt: timestamp("tier_expires_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -1622,42 +1619,6 @@ export const dotStakePositions = pgTable("dot_stake_positions", {
 
 export type DotStakePosition = typeof dotStakePositions.$inferSelect;
 export type NewDotStakePosition = typeof dotStakePositions.$inferInsert;
-
-/* ──────────────────────── Tier Upgrades (Session 15) ─────────────────────── */
-/**
- * Paid, time-limited tier upgrades.
- *
- *   builder         → free, default. Granted at signup.
- *   founder         → 5,000 DOT / 365 days. Unlocks venture creation + pitches.
- *   capital_partner → 25,000 DOT / 365 days. Unlocks invest + deal flow.
- *   operator        → internal only, not buyable.
- *
- * Multiple rows per (user, tier) are allowed — a user can renew a tier
- * before it expires and the new row stacks on top of the old one
- * (via `renewed_from`). Auto-revert on expiry is handled by
- * `tierExpirySweep()` in server.ts.
- */
-export const tierUpgrades = pgTable(
-  "tier_upgrades",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-    tier: text("tier").notNull(), // 'founder' | 'capital_partner'
-    costDot: numeric("cost_dot", { precision: 20, scale: 2 }).notNull(),
-    purchasedAt: timestamp("purchased_at", { withTimezone: true }).notNull().defaultNow(),
-    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-    renewedFrom: uuid("renewed_from"),
-    status: text("status").notNull().default("active"), // active | expired | revoked
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => ({
-    tuUserIdx: index("tier_upgrades_user_idx").on(t.userId, t.status),
-    tuExpiresIdx: index("tier_upgrades_expires_idx").on(t.expiresAt),
-  }),
-);
-
-export type TierUpgrade = typeof tierUpgrades.$inferSelect;
-export type NewTierUpgrade = typeof tierUpgrades.$inferInsert;
 
 /* ──────────────────────── Dot Stake History (audit log) ─────────────── */
 export const dotStakeHistory = pgTable("dot_stake_history", {
