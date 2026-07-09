@@ -333,10 +333,15 @@ export async function feedRoutes(app: FastifyInstance) {
     const u = userRow[0];
 
     const id = crypto.randomUUID();
-    await db.execute(sql`
-      INSERT INTO feed_comments (id, post_id, author_id, body)
-      VALUES (${id}, ${req.params.id}, ${sub}, ${parsed.data.body})
-    `);
+    try {
+      await db.execute(sql`
+        INSERT INTO feed_comments (id, post_id, author_id, author_name, author_dot_id, author_role, body)
+        VALUES (${id}, ${req.params.id}, ${sub}, ${u?.name ?? "Unknown"}, ${u?.dotId ?? null}, 'builder', ${parsed.data.body})
+      `);
+    } catch (err) {
+      console.error("[feed] POST /feed/:id/comments error:", err);
+      return reply.code(500).send({ error: "Failed to create comment", details: err instanceof Error ? err.message : String(err) });
+    }
     await db.execute(sql`
       UPDATE feed_posts SET comments_count = comments_count + 1 WHERE id = ${req.params.id}
     `);

@@ -130,6 +130,7 @@ export async function withdrawalRoutes(app: FastifyInstance) {
         bankInfo,
         kycTier: tier,
         status: "pending",
+        updatedAt: new Date(),
       } as any)
       .returning();
 

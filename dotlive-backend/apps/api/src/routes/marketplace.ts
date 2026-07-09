@@ -244,6 +244,7 @@ export async function marketplaceRoutes(app: FastifyInstance) {
         title: svc[0].title,
         requirements: parsed.data.requirements,
         status: "in_progress",
+        updatedAt: new Date(),
       } as any)
       .returning();
 
