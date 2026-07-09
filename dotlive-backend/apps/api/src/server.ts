@@ -52,6 +52,7 @@ import { extrasRoutes } from "./routes/extras.js";
 import { otpRoutes } from "./routes/otp.js";
 import { paymentsRoutes } from "./routes/payments.js";
 import { magicLinkRoutes } from "./routes/magic-link.js";
+import { vouchesRoutes } from "./routes/vouches.js";
 import { notificationsRoutes } from "./routes/notifications.js";
 import { certificatesRoutes } from "./routes/certificates.js";
 import { wizardRoutes } from "./routes/wizard.js";
@@ -692,6 +693,7 @@ await app.register(withdrawalRoutes,    { prefix: "/api" });
     await app.register(loansRoutes,                       { prefix: "/api" });
     await app.register(dividendsRoutes,                   { prefix: "/api" });
     await app.register(meetingsRoutes,                    { prefix: "/api" });
+    await app.register(vouchesRoutes,                     { prefix: "/api" });
 
 /* ── Error handler ───────────────────────────────────────────── */
 
@@ -829,6 +831,118 @@ async function runBootstrapMigrations() {
     console.log("[startup] Bootstrap migrations complete");
   } catch (err) {
     console.error("[startup] Bootstrap migration error:", err);
+  }
+
+  // 0013 — runtime fixes (missing tables/columns causing 500s)
+  try {
+    const { sql: neonSql } = await import("./db/client.js");
+    await neonSql`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS is_archived boolean NOT NULL DEFAULT false`;
+    await neonSql`ALTER TABLE users ADD COLUMN IF NOT EXISTS headline text`;
+    await neonSql`ALTER TABLE users ADD COLUMN IF NOT EXISTS location text`;
+    await neonSql`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url text`;
+    await neonSql`CREATE INDEX IF NOT EXISTS notifications_archived_idx ON notifications(user_id, is_archived)`;
+    await neonSql`
+      CREATE TABLE IF NOT EXISTS dot_stake_positions (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        venture_id uuid REFERENCES ventures(id) ON DELETE CASCADE,
+        position_type text NOT NULL DEFAULT 'dot',
+        amount numeric(20,2) NOT NULL DEFAULT 0,
+        staked_at timestamptz NOT NULL DEFAULT now(),
+        unstaked_at timestamptz,
+        status text NOT NULL DEFAULT 'active',
+        created_at timestamptz NOT NULL DEFAULT now()
+      )
+    `;
+    await neonSql`CREATE INDEX IF NOT EXISTS dot_stake_positions_user_idx ON dot_stake_positions(user_id, status)`;
+    await neonSql`
+      CREATE TABLE IF NOT EXISTS meeting_slots (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        host_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        date date NOT NULL,
+        start_time text NOT NULL,
+        end_time text NOT NULL,
+        duration_minutes integer DEFAULT 30,
+        status text NOT NULL DEFAULT 'available',
+        title text,
+        description text,
+        created_at timestamptz NOT NULL DEFAULT now()
+      )
+    `;
+    await neonSql`CREATE INDEX IF NOT EXISTS meeting_slots_host_idx ON meeting_slots(host_id, date)`;
+    await neonSql`CREATE INDEX IF NOT EXISTS meeting_slots_status_idx ON meeting_slots(status)`;
+    await neonSql`
+      CREATE TABLE IF NOT EXISTS meetings (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        slot_id uuid NOT NULL REFERENCES meeting_slots(id) ON DELETE CASCADE,
+        host_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        guest_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        title text NOT NULL,
+        description text,
+        scheduled_at timestamptz NOT NULL,
+        status text NOT NULL DEFAULT 'pending',
+        created_at timestamptz NOT NULL DEFAULT now()
+      )
+    `;
+    await neonSql`
+      CREATE TABLE IF NOT EXISTS page_views (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id uuid,
+        viewer_id text REFERENCES users(id) ON DELETE SET NULL,
+        page_type text NOT NULL,
+        referrer text,
+        created_at timestamptz NOT NULL DEFAULT now()
+      )
+    `;
+    await neonSql`CREATE INDEX IF NOT EXISTS page_views_page_type_idx ON page_views(page_type, created_at)`;
+    await neonSql`
+      CREATE TABLE IF NOT EXISTS activity_log (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        action text NOT NULL,
+        metadata jsonb,
+        created_at timestamptz NOT NULL DEFAULT now()
+      )
+    `;
+    await neonSql`CREATE INDEX IF NOT EXISTS activity_log_user_idx ON activity_log(user_id, created_at DESC)`;
+    await neonSql`
+      CREATE TABLE IF NOT EXISTS dividends (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        venture_id uuid REFERENCES ventures(id) ON DELETE CASCADE,
+        recipient_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        amount numeric(20,2) NOT NULL,
+        status text NOT NULL DEFAULT 'pending',
+        paid_at timestamptz,
+        created_at timestamptz NOT NULL DEFAULT now()
+      )
+    `;
+    await neonSql`
+      CREATE TABLE IF NOT EXISTS loans (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        amount numeric(20,2) NOT NULL,
+        term_months integer NOT NULL,
+        interest_rate numeric(5,2) NOT NULL,
+        status text NOT NULL DEFAULT 'pending',
+        purpose text,
+        created_at timestamptz NOT NULL DEFAULT now()
+      )
+    `;
+    await neonSql`
+      CREATE TABLE IF NOT EXISTS pitch_decks (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        venture_id uuid REFERENCES ventures(id) ON DELETE SET NULL,
+        title text NOT NULL,
+        slides jsonb NOT NULL DEFAULT '[]',
+        status text NOT NULL DEFAULT 'draft',
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now()
+      )
+    `;
+    console.log("[startup] Bootstrap 0013 (runtime fixes) complete");
+  } catch (err) {
+    console.error("[startup] Bootstrap 0013 error:", err);
   }
 }
 
