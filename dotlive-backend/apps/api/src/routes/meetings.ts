@@ -47,7 +47,18 @@ export async function meetingsRoutes(app: FastifyInstance) {
       endDate?: string;
     };
 
-    let query = db
+    // Build filter conditions
+    const filters: any[] = [eq(meetingSlots.status, "available")];
+    if (hostId) filters.push(eq(meetingSlots.hostId, hostId));
+    if (date) filters.push(eq(meetingSlots.date, date));
+    if (startDate && endDate) {
+      filters.push(gte(meetingSlots.date, startDate));
+      filters.push(lte(meetingSlots.date, endDate));
+    }
+
+    const whereClause = filters.length > 1 ? and(...filters) : filters[0];
+
+    const slots = await db
       .select({
         id: meetingSlots.id,
         hostId: meetingSlots.hostId,
@@ -61,28 +72,10 @@ export async function meetingsRoutes(app: FastifyInstance) {
       })
       .from(meetingSlots)
       .leftJoin(users, eq(users.id, meetingSlots.hostId))
-      .where(eq(meetingSlots.status, "available"));
+      .where(whereClause)
+      .orderBy(meetingSlots.date, meetingSlots.startTime);
 
-    // Apply filters
-    if (hostId) {
-      query = query.where(and(eq(meetingSlots.hostId, hostId), eq(meetingSlots.status, "available")));
-    }
-    if (date) {
-      query = query.where(and(eq(meetingSlots.date, date), eq(meetingSlots.status, "available")));
-    }
-    if (startDate && endDate) {
-      query = query.where(
-        and(
-          gte(meetingSlots.date, startDate),
-          lte(meetingSlots.date, endDate),
-          eq(meetingSlots.status, "available")
-        )
-      );
-    }
-
-    const slots = await query.orderBy(meetingSlots.date, meetingSlots.startTime);
-
-    return reply.send(slots);
+    return reply.send({ slots: slots });
   });
 
   /** POST /api/meetings/slots — create available slot (host) */
@@ -197,7 +190,7 @@ export async function meetingsRoutes(app: FastifyInstance) {
 
       await tx
         .update(meetingSlots)
-        .set({ status: "booked" })
+        .set({ status: "booked" } as any)
         .where(eq(meetingSlots.id, slotId));
     });
 
@@ -206,11 +199,12 @@ export async function meetingsRoutes(app: FastifyInstance) {
     const [host] = await db.select().from(users).where(eq(users.id, slot.hostId));
     
     if (host && guest) {
-      await notify(host.id, `New meeting request from ${guest.name || "Unknown"} at ${slot.date} ${slot.startTime}`, {
-        type: "meeting_request",
-        meetingId: id,
-        guestId: sub,
-        slotId,
+      await notify({
+        userId: host.id,
+        title: `New meeting request from ${guest.name || "Unknown"}`,
+        body: `At ${slot.date} ${slot.startTime}`,
+        type: "meeting_requested",
+        link: `/meetings`,
       });
     }
 
@@ -301,12 +295,12 @@ export async function meetingsRoutes(app: FastifyInstance) {
     await db.transaction(async (tx) => {
       await tx
         .update(meetings)
-        .set({ status: "confirmed", confirmedAt: now, updatedAt: now })
+        .set({ status: "confirmed", confirmedAt: now, updatedAt: now } as any)
         .where(eq(meetings.id, id));
 
       await tx
         .update(meetingSlots)
-        .set({ status: "confirmed" })
+        .set({ status: "confirmed" } as any)
         .where(eq(meetingSlots.id, meeting.slotId));
     });
 
@@ -315,11 +309,13 @@ export async function meetingsRoutes(app: FastifyInstance) {
     const [slot] = await db.select().from(meetingSlots).where(eq(meetingSlots.id, meeting.slotId));
     
     if (host && slot) {
-      await notify(
-        meeting.guestId,
-        `Your meeting with ${host.name || "Host"} has been confirmed for ${slot.date} at ${slot.startTime}`,
-        { type: "meeting_confirmed", meetingId: id, hostId: sub }
-      );
+      await notify({
+        userId: meeting.guestId,
+        title: `Meeting confirmed`,
+        body: `Your meeting with ${host.name || "Host"} has been confirmed for ${slot.date} at ${slot.startTime}`,
+        type: "meeting_accepted",
+        link: `/meetings`,
+      });
     }
 
     const [updated] = await db.select().from(meetings).where(eq(meetings.id, id));
@@ -353,24 +349,26 @@ export async function meetingsRoutes(app: FastifyInstance) {
     await db.transaction(async (tx) => {
       await tx
         .update(meetings)
-        .set({ status: "declined", declinedAt: now, declinedReason: reason, updatedAt: now })
+        .set({ status: "declined", declinedAt: now, declinedReason: reason, updatedAt: now } as any)
         .where(eq(meetings.id, id));
 
       // Release slot back to available
       await tx
         .update(meetingSlots)
-        .set({ status: "available" })
+        .set({ status: "available" } as any)
         .where(eq(meetingSlots.id, meeting.slotId));
     });
 
     // Notify guest
     const [host] = await db.select().from(users).where(eq(users.id, sub));
     if (host) {
-      await notify(
-        meeting.guestId,
-        `${host.name || "Host"} declined your meeting request${reason ? `: ${reason}` : ""}`,
-        { type: "meeting_declined", meetingId: id }
-      );
+      await notify({
+        userId: meeting.guestId,
+        title: `Meeting declined`,
+        body: `${host.name || "Host"} declined your meeting request${reason ? `: ${reason}` : ""}`,
+        type: "system",
+        link: `/meetings`,
+      });
     }
 
     const [updated] = await db.select().from(meetings).where(eq(meetings.id, id));
@@ -408,13 +406,13 @@ export async function meetingsRoutes(app: FastifyInstance) {
     await db.transaction(async (tx) => {
       await tx
         .update(meetings)
-        .set({ status: "cancelled", cancelledAt: now, cancelledReason: reason, updatedAt: now })
+        .set({ status: "cancelled", cancelledAt: now, cancelledReason: reason, updatedAt: now } as any)
         .where(eq(meetings.id, id));
 
       // Release slot back to available
       await tx
         .update(meetingSlots)
-        .set({ status: "available" })
+        .set({ status: "available" } as any)
         .where(eq(meetingSlots.id, meeting.slotId));
     });
 
@@ -424,11 +422,13 @@ export async function meetingsRoutes(app: FastifyInstance) {
     const [slot] = await db.select().from(meetingSlots).where(eq(meetingSlots.id, meeting.slotId));
     
     if (user && slot) {
-      await notify(
-        otherUserId,
-        `${user.name || "User"} cancelled your meeting scheduled for ${slot.date} at ${slot.startTime}${reason ? `: ${reason}` : ""}`,
-        { type: "meeting_cancelled", meetingId: id }
-      );
+      await notify({
+        userId: otherUserId,
+        title: `Meeting cancelled`,
+        body: `${user.name || "User"} cancelled your meeting scheduled for ${slot.date} at ${slot.startTime}${reason ? `: ${reason}` : ""}`,
+        type: "system",
+        link: `/meetings`,
+      });
     }
 
     const [updated] = await db.select().from(meetings).where(eq(meetings.id, id));

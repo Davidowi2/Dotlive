@@ -1,11 +1,10 @@
 /**
  * Community Challenges API client.
- * Routes are prefixed /api/community/challenges on the backend
- * to avoid conflict with builder arena /api/challenges.
+ * Routes are prefixed /api/challenges on the backend.
  */
 import { dotApi } from "./client";
 
-const BASE = "/api/community/challenges";
+const BASE = "/api/challenges";
 
 export interface Challenge {
   id: string;

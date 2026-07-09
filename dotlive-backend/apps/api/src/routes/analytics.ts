@@ -255,13 +255,12 @@ export async function analyticsRoutes(app: FastifyInstance) {
       try {
               const viewerId = parsed.data.viewerId || userId;
 
-              // @ts-ignore - Drizzle type inference issue with Neon
               await db.insert(pageViews).values({
                 userId: userId as string,
                 viewerId: viewerId as string,
                 pageType: parsed.data.pageType,
                 referrer: parsed.data.referrer || null,
-              });
+              } as any);
 
         return reply.code(201).send({ success: true });
       } catch (err) {
