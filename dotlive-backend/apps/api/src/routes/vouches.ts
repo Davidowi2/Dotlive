@@ -29,6 +29,7 @@ import { eq, and, desc } from "drizzle-orm";
 import { db } from "../db/client.js";
 import { userVouches, users, userRoles, assessments } from "../db/schema.js";
 import { sql } from "drizzle-orm";
+import { invalidatePrefix } from "../lib/cache.js";
 
 const VOUCH_CAPS = {
   founder: 1.0,
@@ -127,6 +128,7 @@ export async function vouchesRoutes(app: FastifyInstance) {
           score,
         } as any)
         .returning();
+      invalidateAfterVouchChange();
       return reply.code(201).send({ vouch: inserted[0] });
     } catch (err: any) {
       // Unique-pair violation → already vouched.
@@ -136,6 +138,18 @@ export async function vouchesRoutes(app: FastifyInstance) {
       throw err;
     }
   });
+
+  /**
+   * NOTE on cache invalidation:
+   *  - `users:*` — public profile view shows vouch counts.
+   *  - `leaderboard:*` — user reputation rank is derived from vouches.
+   *  - `feed:*` — Discover feed surfaces top-vouched users / ventures.
+   */
+  function invalidateAfterVouchChange() {
+    invalidatePrefix("users:profile");
+    invalidatePrefix("leaderboard");
+    invalidatePrefix("feed");
+  }
 
   /** GET /api/vouches/received/:userId */
   app.get<{ Params: { userId: string } }>(
@@ -179,6 +193,7 @@ export async function vouchesRoutes(app: FastifyInstance) {
       if (deleted.length === 0) {
         return reply.code(404).send({ error: "Vouch not found or not owned by you." });
       }
+      invalidateAfterVouchChange();
       return reply.send({ ok: true });
     },
   );

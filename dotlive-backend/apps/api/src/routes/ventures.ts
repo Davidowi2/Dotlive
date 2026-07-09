@@ -23,6 +23,9 @@ import {
   ventureAdvisors,
 } from "../db/schema.js";
 import { userHasRole } from "../lib/auth.js";
+import { publicCache, cached, k, invalidatePrefix } from "../lib/cache.js";
+
+const VENTURE_TTL_MS = 60_000; // 60 seconds
 
 const STAGES = ["Assess", "Validate", "Build", "Fund", "Scale"] as const;
 
@@ -60,6 +63,13 @@ export async function ventureRoutes(app: FastifyInstance) {
         logoUrl: v.logoUrl,
       } as any)
       .returning();
+
+    // A new venture changes list output, detail output, feed (Discover),
+    // and leaderboard (rank is derived from vantage / fundability).
+    invalidatePrefix("ventures");
+    invalidatePrefix("feed");
+    invalidatePrefix("leaderboard");
+
     return reply.send({ venture: serialize(inserted[0]) });
   });
 
@@ -82,40 +92,69 @@ export async function ventureRoutes(app: FastifyInstance) {
     if (!q.success) return reply.code(400).send({ error: "Invalid query" });
     const { stage, industry, country, search, minVantage, maxVantage, minFundability, sort, limit, cursor } = q.data;
 
-    const conds: any[] = [];
-    if (stage) conds.push(eq(ventures.stage, stage));
-    if (industry) conds.push(ilike(ventures.industry, `%${industry}%`));
-    if (country) conds.push(ilike(ventures.country, `%${country}%`));
-    if (search) conds.push(ilike(ventures.name, `%${search}%`));
-    if (minVantage != null) conds.push(sql`${ventures.vantagePoint} >= ${minVantage}`);
-    if (maxVantage != null) conds.push(sql`${ventures.vantagePoint} <= ${maxVantage}`);
-    if (minFundability != null) conds.push(sql`${ventures.fundability} >= ${minFundability}`);
-    if (cursor) conds.push(sql`${ventures.createdAt} < ${new Date(cursor)}`);
+    // Cache key covers every filter so two different queries
+    // get separate entries.
+    const cacheKey = k(
+      "ventures:list",
+      stage ?? "",
+      industry ?? "",
+      country ?? "",
+      search ?? "",
+      minVantage ?? "",
+      maxVantage ?? "",
+      minFundability ?? "",
+      sort,
+      limit,
+      cursor ?? "",
+    );
 
-    let qb = db.select().from(ventures).$dynamic();
-    if (conds.length > 0) qb = qb.where(and(...conds) as any);
+    const payload = await cached(publicCache, cacheKey, VENTURE_TTL_MS, async () => {
+      const conds: any[] = [];
+      if (stage) conds.push(eq(ventures.stage, stage));
+      if (industry) conds.push(ilike(ventures.industry, `%${industry}%`));
+      if (country) conds.push(ilike(ventures.country, `%${country}%`));
+      if (search) conds.push(ilike(ventures.name, `%${search}%`));
+      if (minVantage != null) conds.push(sql`${ventures.vantagePoint} >= ${minVantage}`);
+      if (maxVantage != null) conds.push(sql`${ventures.vantagePoint} <= ${maxVantage}`);
+      if (minFundability != null) conds.push(sql`${ventures.fundability} >= ${minFundability}`);
+      if (cursor) conds.push(sql`${ventures.createdAt} < ${new Date(cursor)}`);
 
-    // Sorting
-    if (sort === "vantage_desc") qb = qb.orderBy(desc(ventures.vantagePoint));
-    else if (sort === "fundability_desc") qb = qb.orderBy(desc(ventures.fundability));
-    else if (sort === "alpha") qb = qb.orderBy(ventures.name);
-    else qb = qb.orderBy(desc(ventures.createdAt));
+      let qb = db.select().from(ventures).$dynamic();
+      if (conds.length > 0) qb = qb.where(and(...conds) as any);
 
-    const rows = await qb.limit(limit + 1);
-    const hasMore = rows.length > limit;
-    const slice = hasMore ? rows.slice(0, limit) : rows;
+      // Sorting
+      if (sort === "vantage_desc") qb = qb.orderBy(desc(ventures.vantagePoint));
+      else if (sort === "fundability_desc") qb = qb.orderBy(desc(ventures.fundability));
+      else if (sort === "alpha") qb = qb.orderBy(ventures.name);
+      else qb = qb.orderBy(desc(ventures.createdAt));
 
-    return reply.send({
-      ventures: slice.map(serialize),
-      nextCursor: hasMore ? slice[slice.length - 1].createdAt.toISOString() : null,
+      const rows = await qb.limit(limit + 1);
+      const hasMore = rows.length > limit;
+      const slice = hasMore ? rows.slice(0, limit) : rows;
+
+      return {
+        ventures: slice.map(serialize),
+        nextCursor: hasMore ? slice[slice.length - 1].createdAt.toISOString() : null,
+      };
     });
+
+    reply.header("Cache-Control", `public, max-age=${Math.floor(VENTURE_TTL_MS / 1000)}`);
+    return reply.send(payload);
   });
 
   /** GET /api/ventures/:id */
   app.get<{ Params: { id: string } }>("/ventures/:id", async (req, reply) => {
-    const rows = await db.select().from(ventures).where(eq(ventures.id, req.params.id)).limit(1);
-    if (rows.length === 0) return reply.code(404).send({ error: "Not found" });
-    return reply.send({ venture: serialize(rows[0]) });
+    const cacheKey = k("ventures:item", req.params.id);
+
+    const payload = await cached(publicCache, cacheKey, VENTURE_TTL_MS, async () => {
+      const rows = await db.select().from(ventures).where(eq(ventures.id, req.params.id)).limit(1);
+      if (rows.length === 0) return null;
+      return { venture: serialize(rows[0]) };
+    });
+
+    if (!payload) return reply.code(404).send({ error: "Not found" });
+    reply.header("Cache-Control", `public, max-age=${Math.floor(VENTURE_TTL_MS / 1000)}`);
+    return reply.send(payload);
   });
 
   /** PATCH /api/ventures/:id — owner only */
@@ -146,6 +185,12 @@ export async function ventureRoutes(app: FastifyInstance) {
         .set(updates as any)
         .where(eq(ventures.id, req.params.id))
         .returning();
+
+      // Stage/industry/vantage changes affect list and detail output.
+      invalidatePrefix("ventures");
+      invalidatePrefix("feed");
+      invalidatePrefix("leaderboard");
+
       return reply.send({ venture: serialize(updated[0]) });
     }
   );

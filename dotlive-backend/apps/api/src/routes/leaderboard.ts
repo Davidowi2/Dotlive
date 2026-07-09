@@ -13,6 +13,9 @@
 import type { FastifyInstance } from "fastify";
 import { sql } from "drizzle-orm";
 import { db } from "../db/client.js";
+import { publicCache, cached, k, invalidatePrefix } from "../lib/cache.js";
+
+const LB_TTL_MS = 60_000; // 60 seconds
 
 type Sort = "earnings" | "contracts" | "reputation";
 type Window = "all" | "monthly" | "weekly" | "daily";
@@ -36,68 +39,83 @@ export async function leaderboardRoutes(app: FastifyInstance) {
 
     const limit = Math.min(100, Math.max(1, Number(q.limit ?? 50)));
 
-    // Build the date filter for the contracts + credit subqueries.
-    // "all" → no filter (lifetime).
-    // daily → last 24 h; weekly → last 7 d; monthly → last 30 d.
-    const sinceClause =
-      window === "all"
-        ? sql``
-        : window === "daily"
-        ? sql`AND t.created_at >= NOW() - INTERVAL '1 day'`
-        : window === "weekly"
-        ? sql`AND t.created_at >= NOW() - INTERVAL '7 days'`
-        : sql`AND t.created_at >= NOW() - INTERVAL '30 days'`;
+    // Cache key includes every query dimension so two clients
+    // asking for different sort/windows get separate entries.
+    const cacheKey = k("leaderboard", sort, window, limit);
 
-    const orderBy =
-      sort === "contracts"
-        ? sql`contracts_completed DESC NULLS LAST`
-        : sort === "reputation"
-        ? sql`reputation DESC NULLS LAST`
-        : sql`dot_earned DESC NULLS LAST`;
+    const payload = await cached(publicCache, cacheKey, LB_TTL_MS, async () => {
+      // Build the date filter for the contracts + credit subqueries.
+      // "all" → no filter (lifetime).
+      // daily → last 24 h; weekly → last 7 d; monthly → last 30 d.
+      const sinceClause =
+        window === "all"
+          ? sql``
+          : window === "daily"
+          ? sql`AND t.created_at >= NOW() - INTERVAL '1 day'`
+          : window === "weekly"
+          ? sql`AND t.created_at >= NOW() - INTERVAL '7 days'`
+          : sql`AND t.created_at >= NOW() - INTERVAL '30 days'`;
 
-    const rows = await db.execute(sql`
-      WITH board AS (
+      const orderBy =
+        sort === "contracts"
+          ? sql`contracts_completed DESC NULLS LAST`
+          : sort === "reputation"
+          ? sql`reputation DESC NULLS LAST`
+          : sql`dot_earned DESC NULLS LAST`;
+
+      const rows = await db.execute(sql`
+        WITH board AS (
+          SELECT
+            u.id,
+            u.name,
+            u.avatar_url,
+            u.headline,
+            u.location,
+            u.dot_id,
+            COALESCE(w.balance, 0)::numeric AS dot_balance,
+            COALESCE((
+              SELECT SUM(amount)::numeric
+              FROM transactions t
+              WHERE t.user_id = u.id AND t.type IN ('credit', 'Gig Order', 'Service Order')
+                ${sinceClause}
+            ), 0) AS dot_earned,
+            COALESCE((
+              SELECT COUNT(*)::int
+              FROM service_orders so
+              WHERE so.builder_id = u.id AND so.status = 'completed'
+                ${window === "all" ? sql`` : window === "daily" ? sql`AND so.updated_at >= NOW() - INTERVAL '1 day'` : window === "weekly" ? sql`AND so.updated_at >= NOW() - INTERVAL '7 days'` : sql`AND so.updated_at >= NOW() - INTERVAL '30 days'`}
+            ), 0) AS contracts_completed,
+            COALESCE((
+              SELECT score::int
+              FROM user_reputation ur
+              WHERE ur.user_id = u.id
+              LIMIT 1
+            ), 0) AS reputation
+          FROM users u
+          LEFT JOIN wallets w ON w.user_id = u.id
+        )
         SELECT
-          u.id,
-          u.name,
-          u.avatar_url,
-          u.headline,
-          u.location,
-          u.dot_id,
-          COALESCE(w.balance, 0)::numeric AS dot_balance,
-          COALESCE((
-            SELECT SUM(amount)::numeric
-            FROM transactions t
-            WHERE t.user_id = u.id AND t.type IN ('credit', 'Gig Order', 'Service Order')
-              ${sinceClause}
-          ), 0) AS dot_earned,
-          COALESCE((
-            SELECT COUNT(*)::int
-            FROM service_orders so
-            WHERE so.builder_id = u.id AND so.status = 'completed'
-              ${window === "all" ? sql`` : window === "daily" ? sql`AND so.updated_at >= NOW() - INTERVAL '1 day'` : window === "weekly" ? sql`AND so.updated_at >= NOW() - INTERVAL '7 days'` : sql`AND so.updated_at >= NOW() - INTERVAL '30 days'`}
-          ), 0) AS contracts_completed,
-          COALESCE((
-            SELECT score::int
-            FROM user_reputation ur
-            WHERE ur.user_id = u.id
-            LIMIT 1
-          ), 0) AS reputation
-        FROM users u
-        LEFT JOIN wallets w ON w.user_id = u.id
-      )
-      SELECT
-        id, name, avatar_url, headline, location, dot_id,
-        dot_balance, dot_earned, contracts_completed, reputation
-      FROM board
-      ORDER BY ${orderBy}
-      LIMIT ${limit}
-    `);
+          id, name, avatar_url, headline, location, dot_id,
+          dot_balance, dot_earned, contracts_completed, reputation
+        FROM board
+        ORDER BY ${orderBy}
+        LIMIT ${limit}
+      `);
 
-    return reply.send({
-      sort,
-      window,
-      leaders: (rows as any).rows ?? rows ?? [],
+      return {
+        sort,
+        window,
+        leaders: (rows as any).rows ?? rows ?? [],
+      };
     });
+
+    reply.header("Cache-Control", `public, max-age=${Math.floor(LB_TTL_MS / 1000)}`);
+    return reply.send(payload);
+  });
+
+  /* POST /api/leaderboard — explicit invalidation hook. */
+  app.post("/leaderboard", { preHandler: app.authenticate }, async (_req, reply) => {
+    invalidatePrefix("leaderboard");
+    return reply.send({ ok: true });
   });
 }

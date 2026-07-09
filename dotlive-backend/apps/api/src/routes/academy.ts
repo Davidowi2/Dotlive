@@ -9,27 +9,37 @@ import { eq, and, desc, sql } from "drizzle-orm";
 import { db } from "../db/client.js";
 import { courses, courseEnrollments } from "../db/schema.js";
 import { creditWallet } from "../lib/dot.js";
+import { publicCache, cached, k, invalidatePrefix } from "../lib/cache.js";
+
+const ACADEMY_TTL_MS = 5 * 60_000; // 5 minutes
 
 export async function academyRoutes(app: FastifyInstance) {
   /** GET /api/academy/courses */
   app.get("/academy/courses", async (_req, reply) => {
-    const rows = await db
-      .select()
-      .from(courses)
-      .where(eq(courses.isPublished, true))
-      .orderBy(desc(courses.createdAt));
-    return reply.send({
-      courses: rows.map((c) => ({
-        id: c.id,
-        title: c.title,
-        description: c.description,
-        category: c.category,
-        whopUrl: c.whopUrl,
-        dotReward: c.dotReward,
-        vantageBoost: c.vantageBoost,
-        coverImageUrl: (c as any).coverImageUrl ?? null,
-      })),
+    const cacheKey = k("academy:courses");
+
+    const payload = await cached(publicCache, cacheKey, ACADEMY_TTL_MS, async () => {
+      const rows = await db
+        .select()
+        .from(courses)
+        .where(eq(courses.isPublished, true))
+        .orderBy(desc(courses.createdAt));
+      return {
+        courses: rows.map((c) => ({
+          id: c.id,
+          title: c.title,
+          description: c.description,
+          category: c.category,
+          whopUrl: c.whopUrl,
+          dotReward: c.dotReward,
+          vantageBoost: c.vantageBoost,
+          coverImageUrl: (c as any).coverImageUrl ?? null,
+        })),
+      };
     });
+
+    reply.header("Cache-Control", `public, max-age=${Math.floor(ACADEMY_TTL_MS / 1000)}`);
+    return reply.send(payload);
   });
 
   /** POST /api/academy/enroll */

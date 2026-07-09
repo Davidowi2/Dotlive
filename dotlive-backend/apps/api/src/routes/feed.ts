@@ -20,6 +20,10 @@ import crypto from "node:crypto";
 import { db } from "../db/client.js";
 import { users, userRoles } from "../db/schema.js";
 import { eq } from "drizzle-orm";
+import { publicCache, cached, k, invalidatePrefix } from "../lib/cache.js";
+
+const FEED_TTL_MS = 30_000; // 30 seconds
+const FEED_POST_TTL_MS = 60_000; // 60 seconds
 
 const createPostSchema = z.object({
   type: z.enum(["gig", "announcement", "venture_update", "funding", "general"]).default("general"),
@@ -45,66 +49,74 @@ export async function feedRoutes(app: FastifyInstance) {
     const limit = Math.min(50, Math.max(1, parseInt(q.limit ?? "20", 10) || 20));
     const offset = Math.max(0, (parseInt(q.page ?? "1", 10) - 1) * limit);
 
-    // Get caller id if authenticated (for isLiked / isBookmarked)
+    // Cache key includes caller id (auth changes isLiked / isBookmarked).
     let callerId: string | null = null;
     try {
       await app.authenticate(req as any, reply);
       callerId = (req as any).user?.sub ?? null;
     } catch {}
 
-    // Build ORDER BY based on tab
-    const orderBy =
-      tab === "popular"  ? sql`likes_count DESC, created_at DESC`  :
-      tab === "trending" ? sql`(likes_count * 2 + comments_count) DESC, created_at DESC` :
-                          sql`created_at DESC`;
+    const cacheKey = k("feed", tab, limit, offset, callerId ?? "anon");
 
-    const rows = await db.execute(sql`
-      SELECT
-        p.id, p.type, p.title, p.body, p.tags,
-        p.likes_count, p.comments_count,
-        p.budget_dot, p.gig_type, p.funding_goal, p.funding_round,
-        p.created_at,
-        u.id AS author_id, u.name AS author_name, u.dot_id AS author_dot_id,
-        u.avatar_url AS author_avatar
-        ${callerId ? sql`, EXISTS(
-            SELECT 1 FROM feed_post_likes l
-            WHERE l.post_id = p.id AND l.user_id = ${callerId}
-          ) AS is_liked,
-          EXISTS(
-            SELECT 1 FROM feed_post_bookmarks b
-            WHERE b.post_id = p.id AND b.user_id = ${callerId}
-          ) AS is_bookmarked` : sql`, false AS is_liked, false AS is_bookmarked`}
-      FROM feed_posts p
-      JOIN users u ON u.id = p.author_id
-      ORDER BY ${orderBy}
-      LIMIT ${limit} OFFSET ${offset}
-    `) as any;
+    const payload = await cached(publicCache, cacheKey, FEED_TTL_MS, async () => {
+      // Build ORDER BY based on tab
+      const orderBy =
+        tab === "popular"  ? sql`likes_count DESC, created_at DESC`  :
+        tab === "trending" ? sql`(likes_count * 2 + comments_count) DESC, created_at DESC` :
+                            sql`created_at DESC`;
 
-    const countRow = await db.execute(sql`SELECT COUNT(*)::int AS n FROM feed_posts`) as any;
-    const total = Number((countRow?.rows ?? countRow)?.[0]?.n ?? 0);
+      const rows = await db.execute(sql`
+        SELECT
+          p.id, p.type, p.title, p.body, p.tags,
+          p.likes_count, p.comments_count,
+          p.budget_dot, p.gig_type, p.funding_goal, p.funding_round,
+          p.created_at,
+          u.id AS author_id, u.name AS author_name, u.dot_id AS author_dot_id,
+          u.avatar_url AS author_avatar
+          ${callerId ? sql`, EXISTS(
+              SELECT 1 FROM feed_post_likes l
+              WHERE l.post_id = p.id AND l.user_id = ${callerId}
+            ) AS is_liked,
+            EXISTS(
+              SELECT 1 FROM feed_post_bookmarks b
+              WHERE b.post_id = p.id AND b.user_id = ${callerId}
+            ) AS is_bookmarked` : sql`, false AS is_liked, false AS is_bookmarked`}
+        FROM feed_posts p
+        JOIN users u ON u.id = p.author_id
+        ORDER BY ${orderBy}
+        LIMIT ${limit} OFFSET ${offset}
+      `) as any;
 
-    const posts = ((rows as any).rows ?? rows).map((r: any) => ({
-      id: r.id,
-      type: r.type,
-      title: r.title,
-      body: r.body,
-      tags: r.tags ?? [],
-      likesCount: Number(r.likes_count ?? 0),
-      commentsCount: Number(r.comments_count ?? 0),
-      isLiked: !!r.is_liked,
-      isBookmarked: !!r.is_bookmarked,
-      budgetDot: r.budget_dot ? Number(r.budget_dot) : null,
-      gigType: r.gig_type,
-      fundingGoal: r.funding_goal ? Number(r.funding_goal) : null,
-      fundingRound: r.funding_round,
-      createdAt: r.created_at,
-      authorId: r.author_id,
-      authorName: r.author_name,
-      authorDotId: r.author_dot_id,
-      authorAvatar: r.author_avatar,
-    }));
+      const countRow = await db.execute(sql`SELECT COUNT(*)::int AS n FROM feed_posts`) as any;
+      const total = Number((countRow?.rows ?? countRow)?.[0]?.n ?? 0);
 
-    return reply.send({ posts, hasMore: offset + limit < total, total });
+      const posts = ((rows as any).rows ?? rows).map((r: any) => ({
+        id: r.id,
+        type: r.type,
+        title: r.title,
+        body: r.body,
+        tags: r.tags ?? [],
+        likesCount: Number(r.likes_count ?? 0),
+        commentsCount: Number(r.comments_count ?? 0),
+        isLiked: !!r.is_liked,
+        isBookmarked: !!r.is_bookmarked,
+        budgetDot: r.budget_dot ? Number(r.budget_dot) : null,
+        gigType: r.gig_type,
+        fundingGoal: r.funding_goal ? Number(r.funding_goal) : null,
+        fundingRound: r.funding_round,
+        createdAt: r.created_at,
+        authorId: r.author_id,
+        authorName: r.author_name,
+        authorDotId: r.author_dot_id,
+        authorAvatar: r.author_avatar,
+      }));
+
+      return { posts, hasMore: offset + limit < total, total };
+    });
+
+    // HTTP cache hint — matches in-memory TTL.
+    reply.header("Cache-Control", `public, max-age=${Math.floor(FEED_TTL_MS / 1000)}`);
+    return reply.send(payload);
   });
 
   /* ── POST /api/feed ────────────────────────────────────────── */
@@ -139,6 +151,9 @@ export async function feedRoutes(app: FastifyInstance) {
       )
     `);
 
+    // Invalidate all feed caches — new post changes pagination & order.
+    invalidatePrefix("feed");
+
     return reply.code(201).send({
       post: {
         id, type: parsed.data.type, title: parsed.data.title ?? null,
@@ -153,6 +168,73 @@ export async function feedRoutes(app: FastifyInstance) {
         authorId: sub, authorName: u?.name ?? null, authorDotId: u?.dotId ?? null,
       },
     });
+  });
+
+  /* ── GET /api/feed/posts/:id ───────────────────────────────── */
+  // Single post lookup (cache-aside, 60s TTL).
+  app.get<{ Params: { id: string } }>("/feed/posts/:id", async (req, reply) => {
+    const { id } = req.params;
+
+    // Resolve caller id for isLiked/isBookmarked.
+    let callerId: string | null = null;
+    try {
+      await app.authenticate(req as any, reply);
+      callerId = (req as any).user?.sub ?? null;
+    } catch {}
+
+    const cacheKey = k("feed:post", id, callerId ?? "anon");
+
+    const payload = await cached(publicCache, cacheKey, FEED_POST_TTL_MS, async () => {
+      const rows = await db.execute(sql`
+        SELECT
+          p.id, p.type, p.title, p.body, p.tags,
+          p.likes_count, p.comments_count,
+          p.budget_dot, p.gig_type, p.funding_goal, p.funding_round,
+          p.created_at,
+          u.id AS author_id, u.name AS author_name, u.dot_id AS author_dot_id,
+          u.avatar_url AS author_avatar
+          ${callerId ? sql`, EXISTS(
+              SELECT 1 FROM feed_post_likes l
+              WHERE l.post_id = p.id AND l.user_id = ${callerId}
+            ) AS is_liked,
+            EXISTS(
+              SELECT 1 FROM feed_post_bookmarks b
+              WHERE b.post_id = p.id AND b.user_id = ${callerId}
+            ) AS is_bookmarked` : sql`, false AS is_liked, false AS is_bookmarked`}
+        FROM feed_posts p
+        JOIN users u ON u.id = p.author_id
+        WHERE p.id = ${id}
+        LIMIT 1
+      `) as any;
+      const r = ((rows as any).rows ?? rows)?.[0];
+      if (!r) return null;
+      return {
+        post: {
+          id: r.id,
+          type: r.type,
+          title: r.title,
+          body: r.body,
+          tags: r.tags ?? [],
+          likesCount: Number(r.likes_count ?? 0),
+          commentsCount: Number(r.comments_count ?? 0),
+          isLiked: !!r.is_liked,
+          isBookmarked: !!r.is_bookmarked,
+          budgetDot: r.budget_dot ? Number(r.budget_dot) : null,
+          gigType: r.gig_type,
+          fundingGoal: r.funding_goal ? Number(r.funding_goal) : null,
+          fundingRound: r.funding_round,
+          createdAt: r.created_at,
+          authorId: r.author_id,
+          authorName: r.author_name,
+          authorDotId: r.author_dot_id,
+          authorAvatar: r.author_avatar,
+        },
+      };
+    });
+
+    if (!payload) return reply.code(404).send({ error: "Post not found" });
+    reply.header("Cache-Control", `public, max-age=${Math.floor(FEED_POST_TTL_MS / 1000)}`);
+    return reply.send(payload);
   });
 
   /* ── POST /api/feed/:id/like ───────────────────────────────── */
@@ -173,6 +255,9 @@ export async function feedRoutes(app: FastifyInstance) {
       await db.execute(sql`INSERT INTO feed_post_likes (post_id, user_id) VALUES (${id}, ${sub}) ON CONFLICT DO NOTHING`);
       await db.execute(sql`UPDATE feed_posts SET likes_count = likes_count + 1 WHERE id = ${id}`);
     }
+
+    // Invalidate feed caches — like count changed.
+    invalidatePrefix("feed");
 
     const row = await db.execute(sql`SELECT likes_count FROM feed_posts WHERE id = ${id}`) as any;
     const likesCount = Number(((row?.rows ?? row) as any[])[0]?.likes_count ?? 0);
@@ -195,6 +280,9 @@ export async function feedRoutes(app: FastifyInstance) {
     } else {
       await db.execute(sql`INSERT INTO feed_post_bookmarks (post_id, user_id) VALUES (${id}, ${sub}) ON CONFLICT DO NOTHING`);
     }
+
+    // Invalidate feed caches — bookmark state changed for this user.
+    invalidatePrefix("feed");
 
     return reply.send({ bookmarked: !alreadyBookmarked });
   });
@@ -247,6 +335,9 @@ export async function feedRoutes(app: FastifyInstance) {
       UPDATE feed_posts SET comments_count = comments_count + 1 WHERE id = ${req.params.id}
     `);
 
+    // Invalidate feed caches — comment count changed.
+    invalidatePrefix("feed");
+
     return reply.code(201).send({
       comment: {
         id, body: parsed.data.body, likesCount: 0,
@@ -274,6 +365,9 @@ export async function feedRoutes(app: FastifyInstance) {
     }
 
     await db.execute(sql`DELETE FROM feed_posts WHERE id = ${req.params.id}`);
+
+    // Invalidate feed caches — a post was removed.
+    invalidatePrefix("feed");
     return reply.send({ ok: true });
   });
 

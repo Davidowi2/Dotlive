@@ -27,6 +27,7 @@ import {
   HelpCircle,
   LineChart,
   MessageSquare,
+  Crown,
   type LucideIcon,
 } from "lucide-react";
 import { Logo } from "@/components/site/Logo";
@@ -77,6 +78,7 @@ const NAV_ITEMS: NavItem[] = [
   /* operator (formerly "admin" — internal staff, not a self-assignable role) */
   { label: "Operator",      to: "/admin",         icon: Shield,      roles: ["admin", "super_admin"],    section: "admin" },
   /* always */
+  { label: "Tier",          to: "/tier",          icon: Crown,                                       section: "main" },
   { label: "Settings",      to: "/settings",      icon: Settings,                                   section: "main" },
   { label: "Help",          to: "/help",          icon: HelpCircle,                                section: "main" },
 ];

@@ -11,7 +11,10 @@ import { db } from "../db/client.js";
 import { users, userRoles, roleRequirements, wallets, founderProfiles, builderProfiles, ventures } from "../db/schema.js";
 import { loadUserWithRoles, userHasRole } from "../lib/auth.js";
 import { debitWallet } from "../lib/dot.js";
+import { publicCache, cached, k, invalidatePrefix } from "../lib/cache.js";
 import type { AppRole } from "../sharedTypes.js";
+
+const USER_TTL_MS = 60_000; // 60 seconds
 
 const profilePatchSchema = z.object({
   name: z.string().min(1).max(100).optional(),
@@ -67,6 +70,8 @@ export async function userRoutes(app: FastifyInstance) {
     }
     await db.update(users).set(updates as any).where(eq(users.id, sub));
     const user = await loadUserWithRoles(sub);
+    // Profile bits are returned by /users/:dotId — invalidate that view.
+    invalidatePrefix("users:profile");
     return reply.send({ user });
   });
 
@@ -129,6 +134,9 @@ export async function userRoutes(app: FastifyInstance) {
         `);
 
         const user = await loadUserWithRoles(sub);
+        // Public profile view (`/users/:dotId`) shows roles — invalidate.
+        invalidatePrefix("users:profile");
+        invalidatePrefix("leaderboard");
         return reply.send({ user });
       });
 
@@ -168,26 +176,34 @@ export async function userRoutes(app: FastifyInstance) {
           /** GET /api/users/:dotId — public profile lookup */
   app.get<{ Params: { dotId: string } }>("/users/:dotId", async (req, reply) => {
     const { dotId } = req.params;
-    const rows = await db
-      .select({
-        id: users.id,
-        name: users.name,
-        avatarUrl: users.avatarUrl,
-        dotId: users.dotId,
-      })
-      .from(users)
-      .where(eq(users.dotId, dotId))
-      .limit(1);
-    const u = rows[0];
-    if (!u) return reply.code(404).send({ error: "Not found" });
+    const cacheKey = k("users:profile", dotId);
 
-    const roles = await db
-      .select({ role: userRoles.role })
-      .from(userRoles)
-      .where(eq(userRoles.userId, u.id));
-    return reply.send({
-      user: { ...u, roles: roles.map((r) => r.role) },
+    const payload = await cached(publicCache, cacheKey, USER_TTL_MS, async () => {
+      const rows = await db
+        .select({
+          id: users.id,
+          name: users.name,
+          avatarUrl: users.avatarUrl,
+          dotId: users.dotId,
+        })
+        .from(users)
+        .where(eq(users.dotId, dotId))
+        .limit(1);
+      const u = rows[0];
+      if (!u) return null;
+
+      const roles = await db
+        .select({ role: userRoles.role })
+        .from(userRoles)
+        .where(eq(userRoles.userId, u.id));
+      return {
+        user: { ...u, roles: roles.map((r) => r.role) },
+      };
     });
+
+    if (!payload) return reply.code(404).send({ error: "Not found" });
+    reply.header("Cache-Control", `public, max-age=${Math.floor(USER_TTL_MS / 1000)}`);
+    return reply.send(payload);
   });
 
   /* ── Founder profile (founder_profiles table) ─────────────── */

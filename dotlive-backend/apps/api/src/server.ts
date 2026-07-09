@@ -63,6 +63,7 @@ import { pitchRoutes } from "./routes/pitch.js";
 import { dividendsRoutes } from "./routes/dividends.js";
 import { meetingsRoutes } from "./routes/meetings.js";
 import { analyticsRoutes } from "./routes/analytics.js";
+import { tiersRoutes, tierExpirySweep } from "./routes/tiers.js";
 
 /* ── Env validation ─────────────────────────────────────────── */
 
@@ -694,6 +695,7 @@ await app.register(withdrawalRoutes,    { prefix: "/api" });
     await app.register(dividendsRoutes,                   { prefix: "/api" });
     await app.register(meetingsRoutes,                    { prefix: "/api" });
     await app.register(vouchesRoutes,                     { prefix: "/api" });
+    await app.register(tiersRoutes,                        { prefix: "/api" });
 
 /* ── Error handler ───────────────────────────────────────────── */
 
@@ -944,6 +946,30 @@ async function runBootstrapMigrations() {
   } catch (err) {
     console.error("[startup] Bootstrap 0013 error:", err);
   }
+
+  // 0014 — paid tier upgrades (Session 15)
+  try {
+    const { sql: neonSql } = await import("./db/client.js");
+    await neonSql`
+      CREATE TABLE IF NOT EXISTS tier_upgrades (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        tier text NOT NULL CHECK (tier IN ('founder', 'capital_partner')),
+        cost_dot numeric(20,2) NOT NULL,
+        purchased_at timestamptz NOT NULL DEFAULT now(),
+        expires_at timestamptz NOT NULL,
+        renewed_from uuid REFERENCES tier_upgrades(id),
+        status text NOT NULL DEFAULT 'active',
+        created_at timestamptz NOT NULL DEFAULT now()
+      )
+    `;
+    await neonSql`CREATE INDEX IF NOT EXISTS tier_upgrades_user_idx ON tier_upgrades(user_id, status)`;
+    await neonSql`CREATE INDEX IF NOT EXISTS tier_upgrades_expires_idx ON tier_upgrades(expires_at) WHERE status = 'active'`;
+    await neonSql`ALTER TABLE users ADD COLUMN IF NOT EXISTS tier_expires_at timestamptz`;
+    console.log("[startup] Bootstrap 0014 (tier_upgrades) complete");
+  } catch (err) {
+    console.error("[startup] Bootstrap 0014 error:", err);
+  }
 }
 
 const start = async () => {
@@ -953,6 +979,25 @@ const start = async () => {
   try {
     await app.listen({ port: PORT, host: "0.0.0.0" });
     app.log.info(`DOT API listening on http://0.0.0.0:${PORT}`);
+
+    // ── Tier expiry sweep (boot + every hour) ─────────────────
+    // Reverts any tier_upgrade rows whose expires_at has passed.
+    // The sweep is idempotent — safe to re-run as often as we want.
+    try {
+      const n0 = await tierExpirySweep();
+      if (n0 > 0) app.log.info(`[tiers] reverted ${n0} expired upgrades on boot`);
+      else app.log.info("[tiers] no expired upgrades to revert on boot");
+    } catch (err) {
+      app.log.warn(`[tiers] boot sweep failed: ${(err as Error).message}`);
+    }
+    setInterval(async () => {
+      try {
+        const n = await tierExpirySweep();
+        if (n > 0) app.log.info(`[tiers] reverted ${n} expired upgrades`);
+      } catch (err) {
+        app.log.warn(`[tiers] hourly sweep failed: ${(err as Error).message}`);
+      }
+    }, 60 * 60 * 1000); // 1 hour
 
     // ── Self-ping keep-alive (Render free tier stays awake) ──────
     // Render spins down free services after 15 min of inactivity.
