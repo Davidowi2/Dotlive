@@ -355,13 +355,18 @@ async function runBootstrapMigrations() {
         title         text,
         body          text NOT NULL,
         author_id     text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        tags          text[] NOT NULL DEFAULT '{}',
+        author_name   text NOT NULL DEFAULT 'Unknown',
+        author_dot_id text,
+        author_role   text,
+        tags          jsonb NOT NULL DEFAULT '[]',
         likes_count   integer NOT NULL DEFAULT 0,
         comments_count integer NOT NULL DEFAULT 0,
-        budget_dot    numeric(20,2),
+        budget_dot    integer,
         gig_type      text,
-        funding_goal  numeric(20,2),
+        funding_goal  integer,
         funding_round text,
+        venture_name  text,
+        venture_stage text,
         created_at    timestamptz NOT NULL DEFAULT now(),
         updated_at    timestamptz NOT NULL DEFAULT now()
       )
@@ -387,6 +392,9 @@ async function runBootstrapMigrations() {
         id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         post_id    uuid NOT NULL REFERENCES feed_posts(id) ON DELETE CASCADE,
         author_id  text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        author_name text NOT NULL DEFAULT 'Unknown',
+        author_dot_id text,
+        author_role text,
         body       text NOT NULL,
         likes_count integer NOT NULL DEFAULT 0,
         created_at timestamptz NOT NULL DEFAULT now()
@@ -440,7 +448,7 @@ async function runBootstrapMigrations() {
     console.error("[startup] Bootstrap migration error:", err);
   }
 
-  // 0013 — runtime fixes (missing tables/columns causing 500s)
+    // 0013 — runtime fixes (missing tables/columns causing 500s)
   try {
     const { sql: neonSql } = await import("./db/client.js");
     await neonSql`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS is_archived boolean NOT NULL DEFAULT false`;
@@ -448,6 +456,18 @@ async function runBootstrapMigrations() {
     await neonSql`ALTER TABLE users ADD COLUMN IF NOT EXISTS location text`;
     await neonSql`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url text`;
     await neonSql`CREATE INDEX IF NOT EXISTS notifications_archived_idx ON notifications(user_id, is_archived)`;
+    
+    // Feed posts missing columns
+    await neonSql`ALTER TABLE feed_posts ADD COLUMN IF NOT EXISTS author_name text NOT NULL DEFAULT 'Unknown'`;
+    await neonSql`ALTER TABLE feed_posts ADD COLUMN IF NOT EXISTS author_dot_id text`;
+    await neonSql`ALTER TABLE feed_posts ADD COLUMN IF NOT EXISTS author_role text`;
+    await neonSql`ALTER TABLE feed_posts ADD COLUMN IF NOT EXISTS venture_name text`;
+    await neonSql`ALTER TABLE feed_posts ADD COLUMN IF NOT EXISTS venture_stage text`;
+    
+    // Feed comments missing columns
+    await neonSql`ALTER TABLE feed_comments ADD COLUMN IF NOT EXISTS author_name text NOT NULL DEFAULT 'Unknown'`;
+    await neonSql`ALTER TABLE feed_comments ADD COLUMN IF NOT EXISTS author_dot_id text`;
+    await neonSql`ALTER TABLE feed_comments ADD COLUMN IF NOT EXISTS author_role text`;
     await neonSql`
       CREATE TABLE IF NOT EXISTS dot_stake_positions (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
