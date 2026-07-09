@@ -636,8 +636,6 @@ export async function userRoutes(app: FastifyInstance) {
       fileSize: parsed.data.fileSize ?? null,
       displayOrder: parsed.data.displayOrder ?? 0,
       isVerified: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
     } as any).returning();
     
     return reply.status(201).send({ document: doc[0] });
@@ -697,7 +695,6 @@ export async function userRoutes(app: FastifyInstance) {
       credentialId: parsed.data.credentialId ?? null,
       badgeUrl: parsed.data.badgeUrl ?? null,
       isVerified: false,
-      createdAt: new Date(),
     } as any).returning();
     
     return reply.status(201).send({ certification: cert[0] });
@@ -756,7 +753,6 @@ export async function userRoutes(app: FastifyInstance) {
         skill: parsed.data.skill,
         comment: parsed.data.comment ?? null,
         isEndorsed: parsed.data.isEndorsed !== false,
-        createdAt: new Date(),
       } as any)
       .onConflictDoUpdate({
         target: [builderVouches.builderId, builderVouches.voucherId, builderVouches.skill],

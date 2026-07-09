@@ -152,7 +152,6 @@ export async function osRoutes(app: FastifyInstance) {
         maxSubmissions: parsed.data.maxSubmissions,
         status: "open",
         ventureId: parsed.data.ventureId ?? null,
-        createdAt: new Date(),
       } as any)
       .returning();
 

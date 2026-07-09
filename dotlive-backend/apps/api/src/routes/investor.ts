@@ -100,8 +100,6 @@ export async function investorRoutes(app: FastifyInstance) {
         message: parsed.data.message ?? null,
         requestedFor: parsed.data.requestedFor ? new Date(parsed.data.requestedFor) : null,
         status: "pending",
-        createdAt: new Date(),
-        updatedAt: new Date(),
       } as any)
       .returning();
     return reply.send({ meeting: inserted[0] });

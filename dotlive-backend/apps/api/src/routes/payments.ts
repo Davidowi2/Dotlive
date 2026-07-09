@@ -76,7 +76,6 @@ export async function paymentsRoutes(app: FastifyInstance) {
       nairaAmount: String(amountNaira / 100),
       status: "pending",
       reference,
-      createdAt: new Date(),
     } as any);
 
     // Look up the user's email from the DB — JWT only carries `sub` (userId).

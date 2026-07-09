@@ -45,8 +45,6 @@ export async function communityRoutes(app: FastifyInstance) {
       category: parsed.data.category ?? null,
       leaderId: sub,
       referralCode,
-      createdAt: new Date(),
-      updatedAt: new Date(),
     } as any);
 
     return reply.send({ community: { id, referralCode } });

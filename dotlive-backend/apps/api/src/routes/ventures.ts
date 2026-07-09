@@ -355,11 +355,10 @@ export async function ventureRoutes(app: FastifyInstance) {
         pitchDeckUrl: data.pitchDeckUrl ?? null,
         foundingDate: data.foundingDate ?? null,
         stageRationale: data.stageRationale ?? null,
-        updatedAt: new Date(),
       };
-      await db.insert(ventureDetails).values(values).onConflictDoUpdate({
+      await db.insert(ventureDetails).values(values as any).onConflictDoUpdate({
         target: ventureDetails.ventureId,
-        set: values,
+        set: { ...values, updatedAt: new Date() } as any,
       });
       return reply.send({ ok: true });
     },

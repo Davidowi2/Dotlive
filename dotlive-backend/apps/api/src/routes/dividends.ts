@@ -151,7 +151,6 @@ export async function dividendsRoutes(app: FastifyInstance) {
       perShareAmount,
       period,
       status: "declared",
-      createdAt: new Date(),
     } as any);
 
     // Create dividend payments for each investor
@@ -171,7 +170,6 @@ export async function dividendsRoutes(app: FastifyInstance) {
       sharesOwned: inv.shares,
       amountNaira: inv.shares * perShareAmount,
       status: "pending" as const,
-      createdAt: new Date(),
     }));
 
     if (paymentValues.length > 0) {

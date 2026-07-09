@@ -127,7 +127,6 @@ export async function meetingsRoutes(app: FastifyInstance) {
       endTime,
       durationMinutes: durationMinutes || 30,
       status: "available",
-      createdAt: new Date(),
     } as any);
 
     const [slot] = await db.select().from(meetingSlots).where(eq(meetingSlots.id, id));
@@ -184,8 +183,6 @@ export async function meetingsRoutes(app: FastifyInstance) {
         meetingReason,
         status: "pending",
         scheduledAt,
-        createdAt: new Date(),
-        updatedAt: new Date(),
       } as any);
 
       await tx
