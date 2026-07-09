@@ -143,13 +143,13 @@ export async function feedRoutes(app: FastifyInstance) {
     const id = crypto.randomUUID();
     try {
       await db.execute(sql`
-        INSERT INTO feed_posts (id, type, title, body, author_id, author_name, author_dot_id, author_role, tags, budget_dot, gig_type, funding_goal, funding_round, created_at, updated_at)
+        INSERT INTO feed_posts (id, type, title, body, author_id, author_name, author_dot_id, author_role, tags, budget_dot, gig_type, funding_goal, funding_round, likes_count, comments_count, created_at, updated_at)
         VALUES (
           ${id}, ${parsed.data.type}, ${parsed.data.title ?? null}, ${parsed.data.body},
           ${sub}, ${u?.name ?? "Unknown"}, ${u?.dotId ?? null}, 'builder', ${JSON.stringify(parsed.data.tags)},
           ${parsed.data.budgetDot ? parseInt(String(parsed.data.budgetDot), 10) : null}, ${parsed.data.gigType ?? null},
           ${parsed.data.fundingGoal ? parseInt(String(parsed.data.fundingGoal), 10) : null}, ${parsed.data.fundingRound ?? null},
-          NOW(), NOW()
+          0, 0, NOW(), NOW()
         )
       `);
     } catch (err) {
