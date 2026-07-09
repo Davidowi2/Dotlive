@@ -146,9 +146,9 @@ export async function feedRoutes(app: FastifyInstance) {
         INSERT INTO feed_posts (id, type, title, body, author_id, author_name, author_dot_id, author_role, tags, budget_dot, gig_type, funding_goal, funding_round, created_at, updated_at)
         VALUES (
           ${id}, ${parsed.data.type}, ${parsed.data.title ?? null}, ${parsed.data.body},
-          ${sub}, ${u?.name ?? "Unknown"}, ${u?.dotId ?? null}, "builder", ${JSON.stringify(parsed.data.tags)},
-          ${parsed.data.budgetDot ?? null}, ${parsed.data.gigType ?? null},
-          ${parsed.data.fundingGoal ?? null}, ${parsed.data.fundingRound ?? null},
+          ${sub}, ${u?.name ?? "Unknown"}, ${u?.dotId ?? null}, 'builder', ${JSON.stringify(parsed.data.tags)},
+          ${parsed.data.budgetDot ? parseInt(String(parsed.data.budgetDot), 10) : null}, ${parsed.data.gigType ?? null},
+          ${parsed.data.fundingGoal ? parseInt(String(parsed.data.fundingGoal), 10) : null}, ${parsed.data.fundingRound ?? null},
           NOW(), NOW()
         )
       `);
