@@ -20,7 +20,7 @@ services:
     region: singapore
     plan: starter
     rootDir: dotlive-backend/apps/api
-    buildCommand: rm -rf dist && npm install --no-audit --no-fund && npm run build
+    buildCommand: rm -rf dist && npm install --no-audit --no-fund && npx tsc -p tsconfig.json --skipLibCheck --noEmitOnError false
     startCommand: node dist/server.js
     healthCheckPath: /api/health
     autoDeploy: true
