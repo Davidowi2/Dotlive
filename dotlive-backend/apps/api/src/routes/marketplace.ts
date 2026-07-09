@@ -537,7 +537,6 @@ export async function marketplaceRoutes(app: FastifyInstance) {
                   clientId: sub,
                   rating,
                   comment: comment ?? null,
-                  createdAt: new Date(),
                 } as any)
                 .returning();
               return reply.send({ review: inserted[0] });
