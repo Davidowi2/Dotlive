@@ -253,14 +253,18 @@ export async function analyticsRoutes(app: FastifyInstance) {
       }
 
       try {
-              const viewerId = parsed.data.viewerId || userId;
+        const viewerId = parsed.data.viewerId || userId;
 
-              await db.insert(pageViews).values({
-                userId: userId as string,
-                viewerId: viewerId as string,
-                pageType: parsed.data.pageType,
-                referrer: parsed.data.referrer || null,
-              } as any);
+        if (userId && viewerId) {
+          await db
+            .insert(pageViews)
+            .values({
+              userId: userId,
+              viewerId: viewerId,
+              pageType: parsed.data.pageType,
+              referrer: parsed.data.referrer || null,
+            } as any);
+        }
 
         return reply.code(201).send({ success: true });
       } catch (err) {
