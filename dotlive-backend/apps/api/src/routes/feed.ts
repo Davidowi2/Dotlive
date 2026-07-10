@@ -153,8 +153,8 @@ export async function feedRoutes(app: FastifyInstance) {
       });
       
       // Insert post using raw SQL with explicit column list
-      // IMPORTANT: tags must be converted to JSONB using to_jsonb()
-      const tagsArray = parsed.data.tags || [];
+      // IMPORTANT: Convert tags array to JSON string that PostgreSQL can parse
+      const tagsJson = JSON.stringify(parsed.data.tags || []);
       const insertResult = await db.execute(sql`
         INSERT INTO feed_posts (
           type, title, body, author_id, author_name, author_dot_id, author_role, 
@@ -164,7 +164,7 @@ export async function feedRoutes(app: FastifyInstance) {
         VALUES (
           ${parsed.data.type}, ${parsed.data.title ?? null}, ${parsed.data.body},
           ${sub}, ${u?.name ?? "Unknown"}, ${u?.dotId ?? null}, 'builder', 
-          to_jsonb(${tagsArray}),
+          ${tagsJson}::jsonb,
           ${parsed.data.budgetDot ? parseInt(String(parsed.data.budgetDot), 10) : null}, 
           ${parsed.data.gigType ?? null},
           ${parsed.data.fundingGoal ? parseInt(String(parsed.data.fundingGoal), 10) : null}, 
