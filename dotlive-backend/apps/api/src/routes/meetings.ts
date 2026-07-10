@@ -38,8 +38,8 @@ const confirmDeclineSchema = z.object({
 });
 
 export async function meetingsRoutes(app: FastifyInstance) {
-  /** GET /api/meetings/slots — list available slots */
-  app.get("/api/meetings/slots", { preHandler: app.authenticate }, async (req, reply) => {
+  /** GET /meetings/slots — list available slots */
+  app.get("/meetings/slots", { preHandler: app.authenticate }, async (req, reply) => {
     const { hostId, date, startDate, endDate } = req.query as {
       hostId?: string;
       date?: string;
@@ -78,8 +78,8 @@ export async function meetingsRoutes(app: FastifyInstance) {
     return reply.send({ slots });
   });
 
-  /** POST /api/meetings/slots — create available slot (host) */
-  app.post("/api/meetings/slots", { preHandler: app.authenticate }, async (req, reply) => {
+  /** POST /meetings/slots — create available slot (host) */
+  app.post("/meetings/slots", { preHandler: app.authenticate }, async (req, reply) => {
     const { sub } = req.user as { sub: string };
     const parsed = createSlotSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -133,8 +133,8 @@ export async function meetingsRoutes(app: FastifyInstance) {
     return reply.status(201).send(slot);
   });
 
-  /** POST /api/meetings — request meeting (guest) */
-  app.post("/api/meetings", { preHandler: app.authenticate }, async (req, reply) => {
+  /** POST /meetings — request meeting (guest) */
+  app.post("/meetings", { preHandler: app.authenticate }, async (req, reply) => {
     const { sub } = req.user as { sub: string };
     const parsed = requestMeetingSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -209,8 +209,8 @@ export async function meetingsRoutes(app: FastifyInstance) {
     return reply.status(201).send(meeting);
   });
 
-  /** GET /api/meetings — my meetings (as host or guest) */
-  app.get("/api/meetings", { preHandler: app.authenticate }, async (req, reply) => {
+  /** GET /meetings — my meetings (as host or guest) */
+  app.get("/meetings", { preHandler: app.authenticate }, async (req, reply) => {
     const { sub } = req.user as { sub: string };
     const { status } = req.query as { status?: string };
 
@@ -267,8 +267,8 @@ export async function meetingsRoutes(app: FastifyInstance) {
     return reply.send(meetingsList);
   });
 
-  /** POST /api/meetings/:id/confirm — host confirms meeting */
-  app.post("/api/meetings/:id/confirm", { preHandler: app.authenticate }, async (req, reply) => {
+  /** POST /meetings/:id/confirm — host confirms meeting */
+  app.post("/meetings/:id/confirm", { preHandler: app.authenticate }, async (req, reply) => {
     const { sub } = req.user as { sub: string };
     const { id } = req.params as { id: string };
 
@@ -319,8 +319,8 @@ export async function meetingsRoutes(app: FastifyInstance) {
     return reply.send(updated);
   });
 
-  /** POST /api/meetings/:id/decline — host declines meeting */
-  app.post("/api/meetings/:id/decline", { preHandler: app.authenticate }, async (req, reply) => {
+  /** POST /meetings/:id/decline — host declines meeting */
+  app.post("/meetings/:id/decline", { preHandler: app.authenticate }, async (req, reply) => {
     const { sub } = req.user as { sub: string };
     const { id } = req.params as { id: string };
     const parsed = confirmDeclineSchema.safeParse(req.body);
@@ -372,8 +372,8 @@ export async function meetingsRoutes(app: FastifyInstance) {
     return reply.send(updated);
   });
 
-  /** POST /api/meetings/:id/cancel — cancel meeting */
-  app.post("/api/meetings/:id/cancel", { preHandler: app.authenticate }, async (req, reply) => {
+  /** POST /meetings/:id/cancel — cancel meeting */
+  app.post("/meetings/:id/cancel", { preHandler: app.authenticate }, async (req, reply) => {
     const { sub } = req.user as { sub: string };
     const { id } = req.params as { id: string };
     const parsed = confirmDeclineSchema.safeParse(req.body);
