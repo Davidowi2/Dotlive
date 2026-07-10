@@ -180,7 +180,7 @@ function MyReferralsTab() {
         />
         <StatCard
           label="Pending Referrals"
-          value={String(referrer?.totalReferrals ?? 0 - (referrer?.completedReferrals ?? 0))}
+          value={String((referrer?.totalReferrals ?? 0) - (referrer?.completedReferrals ?? 0))}
           badge={{ text: "pending", variant: "secondary" }}
           icon={Clock}
           accent="amber"
