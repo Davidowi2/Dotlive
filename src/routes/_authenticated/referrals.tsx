@@ -129,23 +129,7 @@ function MyReferralsTab() {
     },
   });
 
-  if (isLoading) {
-    return <MyReferralsLoadingState />;
-  }
-
-  if (error) {
-    return (
-      <div className="rounded-lg border border-border bg-card p-8 text-center">
-        <AlertCircle className="mx-auto h-12 w-12 text-destructive/50" />
-        <h3 className="mt-4 font-semibold">Could not load referrals</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {error instanceof Error ? error.message : "An error occurred"}
-        </p>
-      </div>
-    );
-  }
-
-  // Sort referrals
+  // Sort referrals (must be called before any conditional returns to respect Rules of Hooks)
   const sortedReferrals = useMemo(() => {
     let sorted = [...referrals];
     switch (sortBy) {
@@ -161,6 +145,22 @@ function MyReferralsTab() {
     }
     return sorted;
   }, [referrals, sortBy]);
+
+  if (isLoading) {
+    return <MyReferralsLoadingState />;
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-lg border border-border bg-card p-8 text-center">
+        <AlertCircle className="mx-auto h-12 w-12 text-destructive/50" />
+        <h3 className="mt-4 font-semibold">Could not load referrals</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {error instanceof Error ? error.message : "An error occurred"}
+        </p>
+      </div>
+    );
+  }
 
   const hasNextPage = pagination?.hasMore ?? false;
   const hasPrevPage = page > 0;
@@ -406,22 +406,7 @@ function LeaderboardTab() {
     offset: page * pageSize,
   });
 
-  if (isLoading) {
-    return <LeaderboardLoadingState />;
-  }
-
-  if (error) {
-    return (
-      <div className="rounded-lg border border-border bg-card p-8 text-center">
-        <AlertCircle className="mx-auto h-12 w-12 text-destructive/50" />
-        <h3 className="mt-4 font-semibold">Could not load leaderboard</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {error instanceof Error ? error.message : "An error occurred"}
-        </p>
-      </div>
-    );
-  }
-
+  // Sort leaderboard (must be called before any conditional returns to respect Rules of Hooks)
   const sortedLeaderboard = useMemo(() => {
     let sorted = [...leaderboard];
     switch (sortBy) {
@@ -437,6 +422,22 @@ function LeaderboardTab() {
     }
     return sorted;
   }, [leaderboard, sortBy]);
+
+  if (isLoading) {
+    return <LeaderboardLoadingState />;
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-lg border border-border bg-card p-8 text-center">
+        <AlertCircle className="mx-auto h-12 w-12 text-destructive/50" />
+        <h3 className="mt-4 font-semibold">Could not load leaderboard</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {error instanceof Error ? error.message : "An error occurred"}
+        </p>
+      </div>
+    );
+  }
 
   const hasNextPage = pagination?.hasMore ?? false;
   const hasPrevPage = page > 0;
