@@ -6,7 +6,7 @@ import {
   Share2, Plus, Flame, Clock, Zap, Building2,
   Megaphone, Coins, MoreHorizontal, Loader2, Send,
   ChevronDown, Vote, Users, Compass, Trophy, Lock, Globe,
-  ChevronRight, Award, GraduationCap,
+  ChevronRight, Award, GraduationCap, Trash2, Edit,
 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
@@ -21,6 +21,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/app/EmptyState";
 import { cn } from "@/lib/utils";
 import { dotApi } from "@/api/client";
@@ -363,9 +369,7 @@ function PostCard({ post, onRefresh }: { post: FeedPost; onRefresh?: () => void 
               </span>
             </div>
           </div>
-          <button className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground">
-            <MoreHorizontal className="size-4" />
-          </button>
+          <PostMenu post={post} onRefresh={onRefresh} />
         </div>
 
         {/* Content */}
@@ -696,6 +700,57 @@ function ComposeModal({ onClose }: { onClose: () => void }) {
         </div>
       </div>
     </div>
+  );
+}
+
+/* ─── Post Menu (3-dot dropdown) ──────────────────────────────────── */
+function PostMenu({ post, onRefresh }: { post: FeedPost; onRefresh?: () => void }) {
+  const { user } = useDotAuth();
+  const qc = useQueryClient();
+  
+  // Check if user can delete (is author or admin)
+  const canDelete = user?.id === post.authorId || user?.roles?.includes("admin") || user?.roles?.includes("super_admin");
+  
+  const deleteMut = useMutation({
+    mutationFn: async () => {
+      await dotApi.delete(`/api/feed/${post.id}`);
+    },
+    onSuccess: () => {
+      toast.success("Post deleted");
+      qc.invalidateQueries({ queryKey: ["feed"] });
+      onRefresh?.();
+    },
+    onError: (e: any) => {
+      toast.error(e?.message ?? "Failed to delete post");
+    },
+  });
+  
+  const handleDelete = () => {
+    if (confirm("Delete this post? This action cannot be undone.")) {
+      deleteMut.mutate();
+    }
+  };
+  
+  if (!canDelete) return null;
+  
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground">
+          <MoreHorizontal className="size-4" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem 
+          onClick={handleDelete}
+          className="text-destructive cursor-pointer"
+          disabled={deleteMut.isPending}
+        >
+          <Trash2 className="mr-2 size-4" />
+          {deleteMut.isPending ? "Deleting..." : "Delete post"}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

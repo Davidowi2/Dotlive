@@ -50,6 +50,7 @@ import { Route as AuthenticatedKycRouteImport } from './routes/_authenticated/ky
 import { Route as AuthenticatedJudgeRouteImport } from './routes/_authenticated/judge'
 import { Route as AuthenticatedInvestorRouteImport } from './routes/_authenticated/investor'
 import { Route as AuthenticatedHelpRouteImport } from './routes/_authenticated/help'
+import { Route as AuthenticatedDiscoverNewRouteImport } from './routes/_authenticated/discover-new'
 import { Route as AuthenticatedDiscoverRouteImport } from './routes/_authenticated/discover'
 import { Route as AuthenticatedDemoRouteImport } from './routes/_authenticated/demo'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -292,6 +293,12 @@ const AuthenticatedHelpRoute = AuthenticatedHelpRouteImport.update({
   path: '/help',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedDiscoverNewRoute =
+  AuthenticatedDiscoverNewRouteImport.update({
+    id: '/discover-new',
+    path: '/discover-new',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedDiscoverRoute = AuthenticatedDiscoverRouteImport.update({
   id: '/discover',
   path: '/discover',
@@ -499,6 +506,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/demo': typeof AuthenticatedDemoRouteWithChildren
   '/discover': typeof AuthenticatedDiscoverRouteWithChildren
+  '/discover-new': typeof AuthenticatedDiscoverNewRoute
   '/help': typeof AuthenticatedHelpRoute
   '/investor': typeof AuthenticatedInvestorRoute
   '/judge': typeof AuthenticatedJudgeRoute
@@ -573,6 +581,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/demo': typeof AuthenticatedDemoRouteWithChildren
   '/discover': typeof AuthenticatedDiscoverRouteWithChildren
+  '/discover-new': typeof AuthenticatedDiscoverNewRoute
   '/help': typeof AuthenticatedHelpRoute
   '/investor': typeof AuthenticatedInvestorRoute
   '/judge': typeof AuthenticatedJudgeRoute
@@ -650,6 +659,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/demo': typeof AuthenticatedDemoRouteWithChildren
   '/_authenticated/discover': typeof AuthenticatedDiscoverRouteWithChildren
+  '/_authenticated/discover-new': typeof AuthenticatedDiscoverNewRoute
   '/_authenticated/help': typeof AuthenticatedHelpRoute
   '/_authenticated/investor': typeof AuthenticatedInvestorRoute
   '/_authenticated/judge': typeof AuthenticatedJudgeRoute
@@ -727,6 +737,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/demo'
     | '/discover'
+    | '/discover-new'
     | '/help'
     | '/investor'
     | '/judge'
@@ -801,6 +812,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/demo'
     | '/discover'
+    | '/discover-new'
     | '/help'
     | '/investor'
     | '/judge'
@@ -877,6 +889,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/demo'
     | '/_authenticated/discover'
+    | '/_authenticated/discover-new'
     | '/_authenticated/help'
     | '/_authenticated/investor'
     | '/_authenticated/judge'
@@ -1240,6 +1253,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedHelpRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/discover-new': {
+      id: '/_authenticated/discover-new'
+      path: '/discover-new'
+      fullPath: '/discover-new'
+      preLoaderRoute: typeof AuthenticatedDiscoverNewRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/discover': {
       id: '/_authenticated/discover'
       path: '/discover'
@@ -1582,6 +1602,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDemoRoute: typeof AuthenticatedDemoRouteWithChildren
   AuthenticatedDiscoverRoute: typeof AuthenticatedDiscoverRouteWithChildren
+  AuthenticatedDiscoverNewRoute: typeof AuthenticatedDiscoverNewRoute
   AuthenticatedHelpRoute: typeof AuthenticatedHelpRoute
   AuthenticatedInvestorRoute: typeof AuthenticatedInvestorRoute
   AuthenticatedJudgeRoute: typeof AuthenticatedJudgeRoute
@@ -1624,6 +1645,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDemoRoute: AuthenticatedDemoRouteWithChildren,
   AuthenticatedDiscoverRoute: AuthenticatedDiscoverRouteWithChildren,
+  AuthenticatedDiscoverNewRoute: AuthenticatedDiscoverNewRoute,
   AuthenticatedHelpRoute: AuthenticatedHelpRoute,
   AuthenticatedInvestorRoute: AuthenticatedInvestorRoute,
   AuthenticatedJudgeRoute: AuthenticatedJudgeRoute,
