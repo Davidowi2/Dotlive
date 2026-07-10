@@ -1162,7 +1162,7 @@ export const feedPosts = pgTable("feed_posts", {
   type: text("type").notNull().default("general"), // gig | announcement | venture_update | funding | general
   title: text("title"),
   body: text("body").notNull(),
-  tags: jsonb("tags").$type<string[]>().default([]),
+  tags: text("tags").array().$type<string[]>().default(sql`'{}'::text[]`),
   gigType: text("gig_type"),                     // part-time | full-time | contract
   budgetDot: integer("budget_dot"),             // for gigs
   fundingGoal: integer("funding_goal"),        // for funding posts

@@ -153,9 +153,15 @@ export async function feedRoutes(app: FastifyInstance) {
       });
       
       // Insert post using raw SQL with explicit column list
-      // tags column is text[] - PostgreSQL array format is {tag1,tag2}, not JSON ["tag1","tag2"]
+      // tags column is text[] - need to properly escape and quote each element
       const tags = parsed.data.tags || [];
-      const pgArray = tags.length > 0 ? `{${tags.join(',')}}` : '{}';
+      // Escape each tag: replace backslashes and quotes, then wrap in quotes
+      const escapedTags = tags.map(tag => {
+        const escaped = tag.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        return `"${escaped}"`;
+      });
+      const pgArray = tags.length > 0 ? `{${escapedTags.join(',')}}` : '{}';
+      
       const insertResult = await db.execute(sql`
         INSERT INTO feed_posts (
           type, title, body, author_id, author_name, author_dot_id, author_role, 
