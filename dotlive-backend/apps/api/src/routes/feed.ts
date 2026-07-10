@@ -140,10 +140,9 @@ export async function feedRoutes(app: FastifyInstance) {
       .from(users).where(eq(users.id, sub)).limit(1);
     const u = userRow[0];
 
-    const id = crypto.randomUUID();
+    let newPostId: string | null = null;
     try {
       console.log("[feed] Creating post with:", {
-        id,
         type: parsed.data.type,
         title: parsed.data.title,
         body: parsed.data.body.substring(0, 50),
@@ -153,17 +152,29 @@ export async function feedRoutes(app: FastifyInstance) {
         budgetDot: parsed.data.budgetDot,
       });
       
-      await db.execute(sql`
-        INSERT INTO feed_posts (id, type, title, body, author_id, author_name, author_dot_id, author_role, tags, budget_dot, gig_type, funding_goal, funding_round, likes_count, comments_count, created_at, updated_at)
+      // Insert post using raw SQL with explicit column list
+      const insertResult = await db.execute(sql`
+        INSERT INTO feed_posts (
+          type, title, body, author_id, author_name, author_dot_id, author_role, 
+          tags, budget_dot, gig_type, funding_goal, funding_round, likes_count, 
+          comments_count, created_at, updated_at
+        )
         VALUES (
-          ${id}, ${parsed.data.type}, ${parsed.data.title ?? null}, ${parsed.data.body},
-          ${sub}, ${u?.name ?? "Unknown"}, ${u?.dotId ?? null}, 'builder', ${JSON.stringify(parsed.data.tags)},
-          ${parsed.data.budgetDot ? parseInt(String(parsed.data.budgetDot), 10) : null}, ${parsed.data.gigType ?? null},
-          ${parsed.data.fundingGoal ? parseInt(String(parsed.data.fundingGoal), 10) : null}, ${parsed.data.fundingRound ?? null},
+          ${parsed.data.type}, ${parsed.data.title ?? null}, ${parsed.data.body},
+          ${sub}, ${u?.name ?? "Unknown"}, ${u?.dotId ?? null}, 'builder', 
+          ${JSON.stringify(parsed.data.tags)},
+          ${parsed.data.budgetDot ? parseInt(String(parsed.data.budgetDot), 10) : null}, 
+          ${parsed.data.gigType ?? null},
+          ${parsed.data.fundingGoal ? parseInt(String(parsed.data.fundingGoal), 10) : null}, 
+          ${parsed.data.fundingRound ?? null},
           0, 0, NOW(), NOW()
         )
-      `);
-      console.log("[feed] Post created successfully:", id);
+        RETURNING id
+      `) as any;
+      
+      // Extract the returned ID
+      newPostId = ((insertResult?.rows ?? insertResult)?.[0]?.id) as string;
+      console.log("[feed] Post created successfully:", newPostId);
     } catch (err) {
       console.error("[feed] POST /feed error:", err);
       console.error("[feed] Error stack:", err instanceof Error ? err.stack : "no stack");
@@ -178,7 +189,7 @@ export async function feedRoutes(app: FastifyInstance) {
 
     return reply.code(201).send({
       post: {
-        id, type: parsed.data.type, title: parsed.data.title ?? null,
+        id: newPostId || crypto.randomUUID(), type: parsed.data.type, title: parsed.data.title ?? null,
         body: parsed.data.body, tags: parsed.data.tags,
         likesCount: 0, commentsCount: 0,
         isLiked: false, isBookmarked: false,
@@ -348,12 +359,18 @@ export async function feedRoutes(app: FastifyInstance) {
       .from(users).where(eq(users.id, sub)).limit(1);
     const u = userRow[0];
 
-    const id = crypto.randomUUID();
+    let newCommentId: string | null = null;
     try {
-      await db.execute(sql`
-        INSERT INTO feed_comments (id, post_id, author_id, author_name, author_dot_id, author_role, body)
-        VALUES (${id}, ${req.params.id}, ${sub}, ${u?.name ?? "Unknown"}, ${u?.dotId ?? null}, 'builder', ${parsed.data.body})
-      `);
+      const result = await db.execute(sql`
+        INSERT INTO feed_comments (
+          post_id, author_id, author_name, author_dot_id, author_role, body, likes_count, created_at
+        )
+        VALUES (
+          ${req.params.id}, ${sub}, ${u?.name ?? "Unknown"}, ${u?.dotId ?? null}, 'builder', ${parsed.data.body}, 0, NOW()
+        )
+        RETURNING id
+      `) as any;
+      newCommentId = ((result?.rows ?? result)?.[0]?.id) as string;
     } catch (err) {
       console.error("[feed] POST /feed/:id/comments error:", err);
       return reply.code(500).send({ error: "Failed to create comment", details: err instanceof Error ? err.message : String(err) });
@@ -367,7 +384,7 @@ export async function feedRoutes(app: FastifyInstance) {
 
     return reply.code(201).send({
       comment: {
-        id, body: parsed.data.body, likesCount: 0,
+        id: newCommentId || crypto.randomUUID(), body: parsed.data.body, likesCount: 0,
         createdAt: new Date().toISOString(),
         authorName: u?.name ?? null, authorDotId: u?.dotId ?? null,
       },
