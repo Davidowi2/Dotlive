@@ -506,11 +506,35 @@ async function runBootstrapMigrations() {
         guest_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         title text NOT NULL,
         description text,
+        meeting_reason text,
         scheduled_at timestamptz NOT NULL,
         status text NOT NULL DEFAULT 'pending',
-        created_at timestamptz NOT NULL DEFAULT now()
+        confirmed_at timestamptz,
+        declined_at timestamptz,
+        declined_reason text,
+        cancelled_at timestamptz,
+        cancelled_reason text,
+        completed_at timestamptz,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now()
       )
     `;
+    
+    // Add missing columns to existing meetings table
+    await neonSql`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS meeting_reason text`;
+    await neonSql`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS confirmed_at timestamptz`;
+    await neonSql`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS declined_at timestamptz`;
+    await neonSql`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS declined_reason text`;
+    await neonSql`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS cancelled_at timestamptz`;
+    await neonSql`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS cancelled_reason text`;
+    await neonSql`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS completed_at timestamptz`;
+    await neonSql`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now()`;
+    
+    // Create indexes for meetings table
+    await neonSql`CREATE INDEX IF NOT EXISTS meetings_slot_idx ON meetings(slot_id)`;
+    await neonSql`CREATE INDEX IF NOT EXISTS meetings_host_idx ON meetings(host_id, scheduled_at)`;
+    await neonSql`CREATE INDEX IF NOT EXISTS meetings_guest_idx ON meetings(guest_id, scheduled_at)`;
+    await neonSql`CREATE INDEX IF NOT EXISTS meetings_status_idx ON meetings(status)`;
     await neonSql`
       CREATE TABLE IF NOT EXISTS page_views (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
