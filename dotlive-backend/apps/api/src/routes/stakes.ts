@@ -20,7 +20,7 @@ const COOLDOWN_DAYS = 14;
 const COOLDOWN_MS = COOLDOWN_DAYS * 24 * 60 * 60 * 1000;
 
 const stakeSchema = z.object({
-  amount: z.number().int().min(100).max(1000000), // 1 DOT to 10k DOT in cents
+  amount: z.number().int().min(1).max(1000000), // 1 DOT to 1M DOT
 });
 
 export async function stakesRoutes(app: FastifyInstance) {

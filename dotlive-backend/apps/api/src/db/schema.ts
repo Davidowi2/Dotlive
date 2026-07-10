@@ -1718,6 +1718,7 @@ export type NewDotStakeHistoryEntry = typeof dotStakeHistory.$inferInsert;
 export const meetingSlots = pgTable("meeting_slots", {
   id: uuid("id").primaryKey().defaultRandom(),
   hostId: text("host_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: text("title").notNull().default("Available Slot"),
   date: date("date").notNull(),
   startTime: text("start_time").notNull(), // "09:00", "10:00"
   endTime: text("end_time").notNull(),
@@ -1750,6 +1751,14 @@ export const meetings = pgTable("meetings", {
   cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
   cancelledReason: text("cancelled_reason"),
   completedAt: timestamp("completed_at", { withTimezone: true }),
+  // New fields for meeting coordination
+  meetingPlatform: text("meeting_platform"), // "zoom", "google_meet", "teams", "other"
+  meetingLink: text("meeting_link"),
+  coordinationNotes: text("coordination_notes"),
+  // Optional agenda
+  agenda: jsonb("agenda"), // array of agenda items
+  // Reminder tracking
+  reminderSentAt: timestamp("reminder_sent_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({

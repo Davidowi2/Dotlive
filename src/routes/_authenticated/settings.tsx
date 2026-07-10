@@ -361,8 +361,12 @@ function SettingsPage() {
 
           <Section icon={Globe} title="Region & currency" description="How money, dates and language are presented.">
             <div className="grid gap-4 sm:grid-cols-3">
-              <Field label="Language">
+              <div>
+                <label className="mb-1 block text-[10px] uppercase tracking-widest text-muted-foreground" htmlFor="settings-language">
+                  Language
+                </label>
                 <select
+                  id="settings-language"
                   className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm"
                   value={language}
                   onChange={(e) => setLanguage(e.target.value)}
@@ -372,9 +376,13 @@ function SettingsPage() {
                   <option value="fr">Français</option>
                   <option value="sw">Kiswahili</option>
                 </select>
-              </Field>
-              <Field label="Currency display">
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] uppercase tracking-widest text-muted-foreground" htmlFor="settings-currency">
+                  Currency display
+                </label>
                 <select
+                  id="settings-currency"
                   className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm"
                   value={currency}
                   onChange={(e) => setCurrency(e.target.value)}
@@ -385,9 +393,13 @@ function SettingsPage() {
                   <option value="KES">KES — KSh</option>
                   <option value="GHS">GHS — GH₵</option>
                 </select>
-              </Field>
-              <Field label="Timezone">
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] uppercase tracking-widest text-muted-foreground" htmlFor="settings-timezone">
+                  Timezone
+                </label>
                 <select
+                  id="settings-timezone"
                   className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm"
                   value={timezone}
                   onChange={(e) => setTimezone(e.target.value)}
@@ -398,7 +410,7 @@ function SettingsPage() {
                   <option value="Europe/London">London (UTC+0)</option>
                   <option value="America/New_York">New York (UTC-5)</option>
                 </select>
-              </Field>
+              </div>
             </div>
             <div className="flex justify-end border-t border-border pt-4">
               <Button onClick={saveLocale}><Save className="size-4" /> Save locale</Button>
@@ -512,19 +524,9 @@ function SettingsPage() {
               </div>
 
               {/* Available toggle */}
-              <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-3">
-                <div>
-                  <p className="text-sm font-medium">Available for hire</p>
-                  <p className="text-xs text-muted-foreground">Show a green "Available" badge on your profile</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setBuilderAvailable((v) => !v)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${builderAvailable ? "bg-primary" : "bg-muted"}`}
-                >
-                  <span className={`inline-block size-4 rounded-full bg-white shadow transition-transform ${builderAvailable ? "translate-x-6" : "translate-x-1"}`} />
-                </button>
-              </div>
+              <Row label="Available for hire" sub="Show a green 'Available' badge on your profile">
+                <Switch checked={builderAvailable} onCheckedChange={setBuilderAvailable} />
+              </Row>
 
               <div className="flex justify-end border-t border-border pt-4">
                 <Button onClick={saveBuilderProfile} disabled={savingBuilder || builderSkills.length < 3}>

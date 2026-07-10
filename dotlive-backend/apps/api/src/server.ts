@@ -535,6 +535,8 @@ async function runBootstrapMigrations() {
     await neonSql`CREATE INDEX IF NOT EXISTS meetings_host_idx ON meetings(host_id, scheduled_at)`;
     await neonSql`CREATE INDEX IF NOT EXISTS meetings_guest_idx ON meetings(guest_id, scheduled_at)`;
     await neonSql`CREATE INDEX IF NOT EXISTS meetings_status_idx ON meetings(status)`;
+    // Add meeting reminder column
+    await neonSql`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS reminder_sent_at timestamptz`;
     await neonSql`
       CREATE TABLE IF NOT EXISTS page_views (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -590,6 +592,101 @@ const start = async () => {
 
       app.log.info(`[keep-alive] Self-ping active every 10 minutes → ${SELF_URL}`);
     }
+
+    // ── Meeting reminders ─────────────────────────────────────────
+    // Check for upcoming meetings every 15 minutes and send reminders
+    // to both host and guest for confirmed meetings starting in next 30 mins
+    // that haven't been reminded yet
+    const REMINDER_CHECK_INTERVAL = 15 * 60 * 1000; // 15 minutes
+    const REMINDER_WINDOW_MINUTES = 30; // Send reminder 30 mins before meeting
+
+    async function checkAndSendMeetingReminders() {
+      try {
+        const { db } = await import("./db/client.js");
+        const { meetings, users } = await import("./db/schema.js");
+        const { and, eq, isNull, gte, lte, sql } = await import("drizzle-orm");
+        const { notify } = await import("./lib/notify.js");
+
+        const now = new Date();
+        const reminderWindowStart = new Date(now.getTime());
+        const reminderWindowEnd = new Date(now.getTime() + REMINDER_WINDOW_MINUTES * 60 * 1000);
+
+        // Find all confirmed meetings that start in the reminder window
+        // and haven't had a reminder sent yet
+        const upcomingMeetings = await db
+          .select()
+          .from(meetings)
+          .where(
+            and(
+              eq(meetings.status, "confirmed"),
+              isNull(meetings.reminderSentAt),
+              gte(meetings.scheduledAt, reminderWindowStart),
+              lte(meetings.scheduledAt, reminderWindowEnd)
+            )
+          );
+
+        if (upcomingMeetings.length > 0) {
+          app.log.info(`[meeting-reminders] Found ${upcomingMeetings.length} meetings to remind`);
+
+          for (const meeting of upcomingMeetings) {
+            // Get host and guest info
+            const [host] = await db
+              .select({ name: users.name })
+              .from(users)
+              .where(eq(users.id, meeting.hostId));
+            const [guest] = await db
+              .select({ name: users.name })
+              .from(users)
+              .where(eq(users.id, meeting.guestId));
+
+            const hostName = host?.name || "Host";
+            const guestName = guest?.name || "Guest";
+
+            // Format meeting time for display
+            const meetingTime = new Date(meeting.scheduledAt).toLocaleString("en-US", {
+              weekday: "short",
+              month: "short",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+
+            // Send reminder to host
+            await notify({
+              userId: meeting.hostId,
+              type: "meeting_reminder",
+              title: "Reminder: Upcoming Meeting",
+              body: `You have a meeting "${meeting.title}" with ${guestName} at ${meetingTime}`,
+              link: "/meetings",
+              sendEmail: true,
+            });
+
+            // Send reminder to guest
+            await notify({
+              userId: meeting.guestId,
+              type: "meeting_reminder",
+              title: "Reminder: Upcoming Meeting",
+              body: `You have a meeting "${meeting.title}" with ${hostName} at ${meetingTime}`,
+              link: "/meetings",
+              sendEmail: true,
+            });
+
+            // Mark reminder as sent for this meeting
+            await db
+              .update(meetings)
+              .set({ reminderSentAt: new Date() })
+              .where(eq(meetings.id, meeting.id));
+          }
+        }
+      } catch (err) {
+        app.log.error(`[meeting-reminders] Error checking meetings:`, err);
+      }
+    }
+
+    // Run the reminder check immediately on start, then every interval
+    checkAndSendMeetingReminders();
+    setInterval(checkAndSendMeetingReminders, REMINDER_CHECK_INTERVAL);
+    app.log.info(`[meeting-reminders] Reminder check active every ${REMINDER_CHECK_INTERVAL / 1000 / 60} minutes`);
   } catch (err) {
     app.log.error(err);
     process.exit(1);

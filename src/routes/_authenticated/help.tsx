@@ -532,17 +532,17 @@ function HelpPage() {
                   topic.
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <Button asChild size="sm">
-                    <a href="#basics">Getting started</a>
+                  <Button size="sm" onClick={() => document.getElementById("basics")?.scrollIntoView({ behavior: "smooth" })}>
+                    Getting started
                   </Button>
-                  <Button asChild size="sm" variant="outline">
-                    <a href="#gigs">Gigs &amp; challenges</a>
+                  <Button size="sm" variant="outline" onClick={() => document.getElementById("gigs")?.scrollIntoView({ behavior: "smooth" })}>
+                    Gigs &amp; challenges
                   </Button>
-                  <Button asChild size="sm" variant="outline">
-                    <a href="#scoring">Scores &amp; ranking</a>
+                  <Button size="sm" variant="outline" onClick={() => document.getElementById("scoring")?.scrollIntoView({ behavior: "smooth" })}>
+                    Scores &amp; ranking
                   </Button>
-                  <Button asChild size="sm" variant="outline">
-                    <a href="#money">Wallet &amp; cash-out</a>
+                  <Button size="sm" variant="outline" onClick={() => document.getElementById("money")?.scrollIntoView({ behavior: "smooth" })}>
+                    Wallet &amp; cash-out
                   </Button>
                 </div>
               </div>
@@ -585,7 +585,7 @@ function HelpPage() {
               Still stuck?
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Email <strong>hello@dotlive.cv</strong> or DM <strong>@DOTafrica</strong> on X.
+              Email <strong>support@dot.africa</strong> or DM <strong>@DOTafrica</strong> on X.
               We respond within 24 hours.
             </p>
             <div className="mt-4 flex flex-wrap justify-center gap-2">

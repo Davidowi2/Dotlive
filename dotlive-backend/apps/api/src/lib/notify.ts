@@ -29,6 +29,7 @@ export type NotificationType =
   | "withdrawal_rejected"
   | "meeting_requested"
   | "meeting_accepted"
+  | "meeting_reminder"
   | "role_granted"
   | "job_posted"
   | "job_application_received"

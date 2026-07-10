@@ -3,12 +3,13 @@
  *
  *   POST /api/payments/deposit     Initiate a Paystack checkout; returns { authorization_url, reference }.
  *   GET  /api/payments/deposit/callback  Public callback that Paystack redirects to after payment.
+ *   POST /api/payments/webhook     Paystack webhook endpoint for charge.success.
  *   GET  /api/payments/:id          Check status of a payment row.
  *   POST /api/payments/:id/replay   Re-query Paystack and update status (admin / self only).
+ *   GET  /api/payments              List user's payment history.
  *
- * The actual crediting of the wallet happens via /api/webhooks/paystack on
- * charge.success. The callback here just shows the user a "thank you" page
- * and tells them to wait for the webhook.
+ * The actual crediting of the wallet happens via the webhook or replay endpoint.
+ * The callback just shows the user a message and tells them to wait for the webhook.
  *
  * If PAYSTACK_SECRET_KEY is not set, returns 503 — the frontend should show
  * "deposits temporarily disabled" (which it already does).
@@ -16,13 +17,50 @@
 
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { randomBytes } from "crypto";
+import { randomBytes, createHmac, timingSafeEqual } from "crypto";
 import { eq, sql } from "drizzle-orm";
 
 import { db } from "../db/client.js";
-import { payments, wallets, users } from "../db/schema.js";
+import { payments, wallets, users, transactions } from "../db/schema.js";
 
 const DEPOSIT_DOT_TO_NAIRA = 15; // 1 DOT = ₦15 (matches dotToNaira in frontend)
+
+// Helper function to credit wallet atomically
+async function creditWalletAndUpdatePayment(
+  paymentId: string,
+  reference: string,
+  userId: string,
+  amountDot: number
+) {
+  await db.transaction(async (tx) => {
+    // Credit wallet
+    await tx
+      .update(wallets)
+      .set({
+        balance: sql`${wallets.balance} + ${String(amountDot)}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(wallets.userId, userId));
+
+    // Update payment
+    await tx
+      .update(payments)
+      .set({
+        status: "completed",
+        creditedAt: new Date(),
+        paidAt: new Date(),
+      })
+      .where(eq(payments.id, paymentId));
+
+    // Insert transaction record
+    await tx.insert(transactions).values({
+      userId: userId,
+      amount: String(amountDot),
+      type: "Deposit",
+      description: `Paystack deposit ref=${reference}`,
+    } as any);
+  });
+}
 
 export async function paymentsRoutes(app: FastifyInstance) {
   /* ─── DEPOSIT CONFIG (public) ─── */
@@ -94,13 +132,13 @@ export async function paymentsRoutes(app: FastifyInstance) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-              email: userEmail,
-              amount: amountNaira,
-              reference,
-              callback_url: callbackUrl ?? `${process.env.FRONTEND_URL ?? "https://dotlive.cv"}/wallet?deposit=success&ref=${reference}`,
-              metadata: { user_id: id, amount_dot: amountDot, purpose: "wallet_deposit" },
-            }),
-          });
+        email: userEmail,
+        amount: amountNaira,
+        reference,
+        callback_url: callbackUrl ?? `${process.env.FRONTEND_URL ?? "https://dotlive.cv"}/wallet?deposit=success&ref=${reference}`,
+        metadata: { user_id: id, amount_dot: amountDot, purpose: "wallet_deposit" },
+      }),
+    });
 
     if (!initRes.ok) {
       const text = await initRes.text();
@@ -161,6 +199,66 @@ export async function paymentsRoutes(app: FastifyInstance) {
     }
   );
 
+  /* ─── PAYSTACK WEBHOOK (server-to-server) ─── */
+  app.post("/payments/webhook", async (req, reply) => {
+    const secret = process.env.PAYSTACK_SECRET_KEY;
+    if (!secret) return reply.status(500).send("Not configured");
+
+    // Verify Paystack signature
+    const raw = await req.body;
+    const signature = req.headers["x-paystack-signature"] as string | undefined;
+    if (!signature) return reply.status(401).send("Invalid signature");
+
+    const expected = createHmac("sha512", secret)
+      .update(JSON.stringify(raw))
+      .digest("hex");
+    const sigBuf = Buffer.from(signature);
+    const expBuf = Buffer.from(expected);
+
+    if (sigBuf.length !== expBuf.length || !timingSafeEqual(sigBuf, expBuf)) {
+      return reply.status(401).send("Invalid signature");
+    }
+
+    // Parse event
+    const event = raw as {
+      event?: string;
+      data?: { reference?: string; status?: string; amount?: number };
+    };
+
+    if (event.event !== "charge.success" || !event.data?.reference) {
+      return reply.status(200).send("Ignored");
+    }
+
+    // Find payment record
+    const [payment] = await db
+      .select()
+      .from(payments)
+      .where(eq(payments.reference, event.data.reference));
+    if (!payment || payment.status !== "pending") {
+      return reply.status(200).send("OK");
+    }
+
+    // Verify amount
+    const expectedKobo = Math.round(Number(payment.nairaAmount) * 100);
+    if (event.data.amount !== expectedKobo) {
+      await db
+        .update(payments)
+        .set({ status: "failed" })
+        .where(eq(payments.id, payment.id));
+      return reply.status(200).send("OK");
+    }
+
+    // Credit wallet
+    await creditWalletAndUpdatePayment(
+      payment.id,
+      event.data.reference,
+      payment.userId,
+      Number(payment.dotAmount)
+    );
+
+    return reply.status(200).send("OK");
+  });
+
   /* ─── STATUS CHECK ─── */
 
   app.get<{ Params: { id: string } }>("/payments/:id", { preHandler: app.authenticate }, async (req, reply) => {
@@ -193,20 +291,16 @@ export async function paymentsRoutes(app: FastifyInstance) {
     const paystackStatus = vData.data?.status;
 
     if (paystackStatus === "success" && row.status === "pending") {
-      // Credit the wallet
-      await db.execute(sql`
-        UPDATE wallets SET balance = balance + ${Number(row.dotAmount)}, updated_at = NOW()
-        WHERE user_id = ${row.userId}
-      `);
-      await db.execute(sql`
-        UPDATE payments SET status = 'completed' WHERE id = ${id}
-      `);
-      await db.execute(sql`
-        INSERT INTO transactions (user_id, amount, type, description)
-        VALUES (${row.userId}, ${row.dotAmount}, 'credit', ${'Paystack deposit ref=' + row.reference})
-      `);
+      await creditWalletAndUpdatePayment(
+        row.id,
+        row.reference,
+        row.userId,
+        Number(row.dotAmount)
+      );
     }
-    return reply.send({ payment: { ...row, status: paystackStatus } });
+
+    const [updatedPayment] = await db.select().from(payments).where(eq(payments.id, id));
+    return reply.send({ payment: updatedPayment });
   });
 
   /* ─── HISTORY (recent deposits) ─── */

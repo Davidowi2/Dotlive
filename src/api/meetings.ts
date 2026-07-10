@@ -9,6 +9,7 @@ export interface MeetingSlot {
   id: string;
   hostId: string;
   hostName: string | null;
+  title: string;
   date: string;
   startTime: string;
   endTime: string;
@@ -32,9 +33,16 @@ export interface Meeting {
   declinedReason: string | null;
   cancelledAt: string | null;
   cancelledReason: string | null;
+  completedAt: string | null;
   createdAt: string;
+  updatedAt: string;
   hostName?: string | null;
   hostEmail?: string | null;
+  meetingPlatform?: string | null;
+  meetingLink?: string | null;
+  coordinationNotes?: string | null;
+  agenda?: any[] | null;
+  reminderSentAt?: string | null;
 }
 
 /**
@@ -66,12 +74,36 @@ export async function getAvailableSlots(options?: {
  * Create a new meeting slot (host only)
  */
 export async function createSlot(data: {
+  title?: string;
   date: string;
   startTime: string;
   endTime: string;
   durationMinutes?: number;
 }): Promise<MeetingSlot> {
   return dotApi.post<MeetingSlot>("/api/meetings/slots", data);
+}
+
+/**
+ * Edit a meeting slot (host only, only if available)
+ */
+export async function editSlot(
+  id: string,
+  data: {
+    title?: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    durationMinutes?: number;
+  }
+): Promise<MeetingSlot> {
+  return dotApi.put<MeetingSlot>(`/api/meetings/slots/${id}`, data);
+}
+
+/**
+ * Delete a meeting slot (host only, only if available)
+ */
+export async function deleteSlot(id: string): Promise<void> {
+  return dotApi.delete(`/api/meetings/slots/${id}`);
 }
 
 /**
@@ -115,4 +147,19 @@ export async function declineMeeting(id: string, reason?: string): Promise<Meeti
  */
 export async function cancelMeeting(id: string, reason?: string): Promise<Meeting & { warning?: string }> {
   return dotApi.post<Meeting & { warning?: string }>(`/api/meetings/${id}/cancel`, { reason });
+}
+
+/**
+ * Update meeting coordination details (host or guest)
+ */
+export async function updateMeetingCoordination(
+  id: string, 
+  data: {
+    meetingPlatform?: string;
+    meetingLink?: string;
+    coordinationNotes?: string;
+    agenda?: any[];
+  }
+): Promise<Meeting> {
+  return dotApi.put<Meeting>(`/api/meetings/${id}/coordination`, data);
 }

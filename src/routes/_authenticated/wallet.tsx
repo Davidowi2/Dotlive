@@ -80,6 +80,7 @@ import {
 import { getByDotId } from "@/api/users";
 import { getStakes, createStake, unstake, claimRewards, type StakePosition } from "@/api/stakes";
 import { getMyVenture } from "@/api/ventures";
+import { getPaymentByReference, replayPayment } from "@/api/payments";
 import { ApiError } from "@/types/api";
 // Paystack server functions removed — wired via Render API when configured.
 import {
@@ -299,17 +300,29 @@ function WalletPage() {
     const url = new URL(window.location.href);
     const ref = url.searchParams.get("ref");
     if (ref) {
-      // Refresh wallet — webhook should have credited already; if not, force a replay
-      setTimeout(() => {
-        toast.info("Verifying your deposit...");
-        refresh();
-      }, 800);
+      const verifyAndCredit = async () => {
+        try {
+          toast.info("Verifying your deposit...");
+          const payment = await getPaymentByReference(ref);
+          if (payment && payment.status === "pending") {
+            await replayPayment(payment.id);
+            toast.success("Deposit credited successfully!");
+          } else if (payment && payment.status === "completed") {
+            toast.success("Deposit already credited!");
+          }
+          refresh();
+        } catch (e: any) {
+          console.error("Failed to verify deposit", e);
+          toast.error("Failed to verify deposit");
+        }
+      };
+      verifyAndCredit();
       // Clean the URL
       url.searchParams.delete("ref");
       url.searchParams.delete("deposit");
       window.history.replaceState({}, "", url.toString());
     }
-  }, []);
+  }, [refresh]);
 
   async function handleDeposit() {
     if (amount < MIN_DEPOSIT_DOT) {

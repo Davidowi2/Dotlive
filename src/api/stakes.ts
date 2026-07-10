@@ -28,10 +28,10 @@ export async function getStakes(): Promise<StakePosition[]> {
 }
 
 /**
- * Create a new stake (in DOT cents).
+ * Create a new stake (in whole DOT).
  */
-export async function createStake(amount: number): Promise<StakePosition> {
-  return dotApi.post<StakePosition>("/api/stakes", { amount });
+export async function createStake(data: { amount: number }): Promise<StakePosition> {
+  return dotApi.post<StakePosition>("/api/stakes", data);
 }
 
 /**

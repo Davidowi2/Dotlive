@@ -24,6 +24,7 @@ const MEETINGS_TTL_MS = 30_000; // 30s — list of my meetings (per-user, invali
 const SLOTS_TTL_MS    = 30_000; // 30s — available slots list (public-ish, invalidated on writes)
 
 const createSlotSchema = z.object({
+  title: z.string().min(1).max(255).optional().default("Available Slot"),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), // YYYY-MM-DD
   startTime: z.string().regex(/^\d{2}:\d{2}$/), // HH:MM
   endTime: z.string().regex(/^\d{2}:\d{2}$/), // HH:MM
@@ -72,6 +73,7 @@ export async function meetingsRoutes(app: FastifyInstance) {
           id: meetingSlots.id,
           hostId: meetingSlots.hostId,
           hostName: users.name,
+          title: meetingSlots.title,
           date: meetingSlots.date,
           startTime: meetingSlots.startTime,
           endTime: meetingSlots.endTime,
@@ -99,7 +101,7 @@ export async function meetingsRoutes(app: FastifyInstance) {
       return reply.code(400).send({ error: "Invalid input", details: parsed.error.flatten() });
     }
 
-    const { date, startTime, endTime, durationMinutes } = parsed.data;
+    const { title, date, startTime, endTime, durationMinutes } = parsed.data;
 
     // Validate time
     if (startTime >= endTime) {
@@ -135,6 +137,7 @@ export async function meetingsRoutes(app: FastifyInstance) {
     await db.insert(meetingSlots).values({
       id,
       hostId: sub,
+      title,
       date,
       startTime,
       endTime,
@@ -481,5 +484,142 @@ export async function meetingsRoutes(app: FastifyInstance) {
       ...updated,
       warning: isWithin24Hours ? "Cancelling within 24 hours may impact your reputation" : undefined,
     });
+  });
+
+  /** PUT /meetings/slots/:id — edit an available slot (host only, only if status is available) */
+  app.put("/meetings/slots/:id", { preHandler: app.authenticate }, async (req, reply) => {
+    const { sub } = req.user as { sub: string };
+    const { id } = req.params as { id: string };
+    const parsed = createSlotSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Invalid input", details: parsed.error.flatten() });
+    }
+
+    // Check if slot exists and belongs to user
+    const [slot] = await db.select().from(meetingSlots).where(eq(meetingSlots.id, id));
+    if (!slot) {
+      return reply.code(404).send({ error: "Slot not found" });
+    }
+    if (slot.hostId !== sub) {
+      return reply.code(403).send({ error: "Not authorized" });
+    }
+    if (slot.status !== "available") {
+      return reply.code(400).send({ error: "Cannot edit a slot that is booked or confirmed" });
+    }
+
+    const { title, date, startTime, endTime, durationMinutes } = parsed.data;
+
+    // Validate time
+    if (startTime >= endTime) {
+      return reply.code(400).send({ error: "End time must be after start time" });
+    }
+
+    // Check for past date
+    const slotDate = new Date(date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (slotDate < today) {
+      return reply.code(400).send({ error: "Cannot set time slots in the past" });
+    }
+
+    // Check for overlapping slots (excluding the current slot)
+    const existing = await db
+      .select()
+      .from(meetingSlots)
+      .where(
+        and(
+          eq(meetingSlots.hostId, sub),
+          eq(meetingSlots.date, date),
+          sql`${meetingSlots.startTime} < ${endTime} AND ${meetingSlots.endTime} > ${startTime}`,
+          sql`${meetingSlots.id} != ${id}`
+        )
+      );
+
+    if (existing.length > 0) {
+      return reply.code(409).send({ error: "Time slot overlaps with existing slot" });
+    }
+
+    // Update slot
+    await db
+      .update(meetingSlots)
+      .set({
+        title,
+        date,
+        startTime,
+        endTime,
+        durationMinutes: durationMinutes || 30,
+      })
+      .where(eq(meetingSlots.id, id));
+
+    invalidatePrefix("meetings:slots");
+
+    const [updatedSlot] = await db.select().from(meetingSlots).where(eq(meetingSlots.id, id));
+    return reply.send(updatedSlot);
+  });
+
+  /** DELETE /meetings/slots/:id — delete an available slot (host only, only if status is available) */
+  app.delete("/meetings/slots/:id", { preHandler: app.authenticate }, async (req, reply) => {
+    const { sub } = req.user as { sub: string };
+    const { id } = req.params as { id: string };
+
+    // Check if slot exists and belongs to user
+    const [slot] = await db.select().from(meetingSlots).where(eq(meetingSlots.id, id));
+    if (!slot) {
+      return reply.code(404).send({ error: "Slot not found" });
+    }
+    if (slot.hostId !== sub) {
+      return reply.code(403).send({ error: "Not authorized" });
+    }
+    if (slot.status !== "available") {
+      return reply.code(400).send({ error: "Cannot delete a slot that is booked or confirmed" });
+    }
+
+    await db.delete(meetingSlots).where(eq(meetingSlots.id, id));
+
+    invalidatePrefix("meetings:slots");
+
+    return reply.status(204).send();
+  });
+
+  /** PUT /meetings/:id/coordination — update meeting coordination details (host or guest) */
+  app.put("/meetings/:id/coordination", { preHandler: app.authenticate }, async (req, reply) => {
+    const { sub } = req.user as { sub: string };
+    const { id } = req.params as { id: string };
+    
+    const updateCoordinationSchema = z.object({
+      meetingPlatform: z.string().optional(),
+      meetingLink: z.string().optional(),
+      coordinationNotes: z.string().optional(),
+      agenda: z.array(z.any()).optional(),
+    });
+
+    const parsed = updateCoordinationSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Invalid input", details: parsed.error.flatten() });
+    }
+
+    // Check if meeting exists and user is host or guest
+    const [meeting] = await db.select().from(meetings).where(eq(meetings.id, id));
+    if (!meeting) {
+      return reply.code(404).send({ error: "Meeting not found" });
+    }
+    if (meeting.hostId !== sub && meeting.guestId !== sub) {
+      return reply.code(403).send({ error: "Not authorized" });
+    }
+
+    // Update meeting
+    const now = new Date();
+    await db
+      .update(meetings)
+      .set({ 
+        ...parsed.data, 
+        updatedAt: now 
+      })
+      .where(eq(meetings.id, id));
+
+    invalidatePrefix("meetings:list");
+
+    const [updatedMeeting] = await db.select().from(meetings).where(eq(meetings.id, id));
+    return reply.send(updatedMeeting);
   });
 }
