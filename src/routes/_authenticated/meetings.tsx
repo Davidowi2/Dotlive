@@ -46,7 +46,7 @@ import {
 } from "@/components/ui/dialog";
 import { useDotAuth } from "@/contexts/DotAuthContext";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn, asArray } from "@/lib/utils";
 import {
   getAvailableSlots,
   getMyMeetings,
@@ -113,11 +113,19 @@ function MeetingsPage() {
     queryFn: () => getAvailableSlots(),
   });
 
+  // Defensive normalization — the API client already returns an array, but if
+  // any future caller passes a non-iterable here (e.g. a wrapper object
+  // regression on the backend) the page used to crash with
+  // `T.filter is not a function`. The asArray() helper unwraps known shapes
+  // and falls back to [] for everything else.
+  const meetingsList = asArray<Meeting>(meetings);
+  const slotsList = asArray<MeetingSlot>(slots);
+
   // Categorize meetings
-  const upcoming = meetings.filter(
+  const upcoming = meetingsList.filter(
     (m) => (m.status === "pending" || m.status === "confirmed")
   );
-  const past = meetings.filter(
+  const past = meetingsList.filter(
     (m) => m.status === "completed" || m.status === "cancelled" || m.status === "declined"
   );
 
@@ -168,7 +176,7 @@ function MeetingsPage() {
           <SummaryTile
             icon={Clock}
             label="Available Slots"
-            value={String(slots.filter((s) => s.status === "available").length)}
+            value={String(slotsList.filter((s) => s.status === "available").length)}
             sub="open for booking"
             accent="gold"
           />
@@ -231,7 +239,7 @@ function MeetingsPage() {
             <div className="flex items-center justify-center py-16">
               <Loader2 className="size-6 animate-spin text-primary" />
             </div>
-          ) : slots.filter((s) => s.status === "available").length === 0 ? (
+          ) : slotsList.filter((s) => s.status === "available").length === 0 ? (
             <EmptyState
               icon={Clock}
               title="No available slots"
@@ -245,7 +253,7 @@ function MeetingsPage() {
             />
           ) : (
             <div className="space-y-4">
-              {slots
+              {slotsList
                 .filter((s) => s.status === "available")
                 .map((slot) => (
                   <SlotCard

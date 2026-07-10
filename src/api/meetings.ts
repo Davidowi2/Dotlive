@@ -3,6 +3,7 @@
  */
 
 import { dotApi } from "./client";
+import { asArray } from "@/lib/utils";
 
 export interface MeetingSlot {
   id: string;
@@ -51,9 +52,14 @@ export async function getAvailableSlots(options?: {
   if (options?.startDate) params.append("startDate", options.startDate);
   if (options?.endDate) params.append("endDate", options.endDate);
 
-  return dotApi.get<MeetingSlot[]>(
+  // Normalize at the API boundary — the backend used to return
+  // `{ slots: [...] }` and then switched to a flat array. The page calls
+  // `.filter()` directly, so it must always receive an array even if the
+  // backend shape regresses or returns an error payload.
+  const data = await dotApi.get<unknown>(
     `/api/meetings/slots${params.toString() ? "?" + params.toString() : ""}`
   );
+  return asArray<MeetingSlot>(data);
 }
 
 /**
@@ -85,7 +91,9 @@ export async function requestMeeting(data: {
  */
 export async function getMyMeetings(status?: "upcoming" | "past"): Promise<Meeting[]> {
   const params = status ? `?status=${status}` : "";
-  return dotApi.get<Meeting[]>(`/api/meetings${params}`);
+  // Normalize at the API boundary — see getAvailableSlots() above.
+  const data = await dotApi.get<unknown>(`/api/meetings${params}`);
+  return asArray<Meeting>(data);
 }
 
 /**

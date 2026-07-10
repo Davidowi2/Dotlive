@@ -18,6 +18,10 @@ import crypto from "node:crypto";
 import { db } from "../db/client.js";
 import { meetings, meetingSlots, users } from "../db/schema.js";
 import { notify } from "../lib/notify.js";
+import { publicCache, cached, k, invalidatePrefix } from "../lib/cache.js";
+
+const MEETINGS_TTL_MS = 30_000; // 30s — list of my meetings (per-user, invalidated on writes)
+const SLOTS_TTL_MS    = 30_000; // 30s — available slots list (public-ish, invalidated on writes)
 
 const createSlotSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), // YYYY-MM-DD
@@ -47,35 +51,44 @@ export async function meetingsRoutes(app: FastifyInstance) {
       endDate?: string;
     };
 
-    // Build filter conditions
-    const filters: any[] = [eq(meetingSlots.status, "available")];
-    if (hostId) filters.push(eq(meetingSlots.hostId, hostId));
-    if (date) filters.push(eq(meetingSlots.date, date));
-    if (startDate && endDate) {
-      filters.push(gte(meetingSlots.date, startDate));
-      filters.push(lte(meetingSlots.date, endDate));
-    }
+    // Cache key — every query dimension is part of the key so two callers
+    // asking for different filters get independent entries.
+    const cacheKey = k("meetings:slots", hostId ?? "any", date ?? "any", startDate ?? "", endDate ?? "");
 
-    const whereClause = and(...filters);
+    const slots = await cached(publicCache, cacheKey, SLOTS_TTL_MS, async () => {
+      // Build filter conditions
+      const filters: any[] = [eq(meetingSlots.status, "available")];
+      if (hostId) filters.push(eq(meetingSlots.hostId, hostId));
+      if (date) filters.push(eq(meetingSlots.date, date));
+      if (startDate && endDate) {
+        filters.push(gte(meetingSlots.date, startDate));
+        filters.push(lte(meetingSlots.date, endDate));
+      }
 
-    const slots = await db
-      .select({
-        id: meetingSlots.id,
-        hostId: meetingSlots.hostId,
-        hostName: users.name,
-        date: meetingSlots.date,
-        startTime: meetingSlots.startTime,
-        endTime: meetingSlots.endTime,
-        durationMinutes: meetingSlots.durationMinutes,
-        status: meetingSlots.status,
-        createdAt: meetingSlots.createdAt,
-      })
-      .from(meetingSlots)
-      .leftJoin(users, eq(users.id, meetingSlots.hostId))
-      .where(whereClause)
-      .orderBy(meetingSlots.date, meetingSlots.startTime);
+      const whereClause = and(...filters);
 
-    return reply.send({ slots });
+      return db
+        .select({
+          id: meetingSlots.id,
+          hostId: meetingSlots.hostId,
+          hostName: users.name,
+          date: meetingSlots.date,
+          startTime: meetingSlots.startTime,
+          endTime: meetingSlots.endTime,
+          durationMinutes: meetingSlots.durationMinutes,
+          status: meetingSlots.status,
+          createdAt: meetingSlots.createdAt,
+        })
+        .from(meetingSlots)
+        .leftJoin(users, eq(users.id, meetingSlots.hostId))
+        .where(whereClause)
+        .orderBy(meetingSlots.date, meetingSlots.startTime);
+    });
+
+    // Return the array directly — matches the `Promise<MeetingSlot[]>` contract
+    // declared by the frontend client (`src/api/meetings.ts#getAvailableSlots`).
+    reply.header("Cache-Control", `public, max-age=${Math.floor(SLOTS_TTL_MS / 1000)}`);
+    return reply.send(slots);
   });
 
   /** POST /meetings/slots — create available slot (host) */
@@ -128,6 +141,9 @@ export async function meetingsRoutes(app: FastifyInstance) {
       durationMinutes: durationMinutes || 30,
       status: "available",
     } as any);
+
+    // Invalidate slot list caches — a new slot changes the list.
+    invalidatePrefix("meetings:slots");
 
     const [slot] = await db.select().from(meetingSlots).where(eq(meetingSlots.id, id));
     return reply.status(201).send(slot);
@@ -191,10 +207,16 @@ export async function meetingsRoutes(app: FastifyInstance) {
         .where(eq(meetingSlots.id, slotId));
     });
 
+    // Invalidate caches — a new meeting is created and the slot is now booked.
+    // Both the slots list (the booked slot must drop out of "available") and
+    // both the host's and guest's meeting lists need to refresh.
+    invalidatePrefix("meetings:slots");
+    invalidatePrefix("meetings:list");
+
     // Notify host
     const [guest] = await db.select().from(users).where(eq(users.id, sub));
     const [host] = await db.select().from(users).where(eq(users.id, slot.hostId));
-    
+
     if (host && guest) {
       await notify({
         userId: host.id,
@@ -214,57 +236,66 @@ export async function meetingsRoutes(app: FastifyInstance) {
     const { sub } = req.user as { sub: string };
     const { status } = req.query as { status?: string };
 
-    const now = new Date();
+    // Cache key — user + status filter (host and guest both see this same list,
+    // but the cache is per-user so two users don't share data).
+    const cacheKey = k("meetings:list", sub, status ?? "all");
 
-    let whereCondition = or(eq(meetings.hostId, sub), eq(meetings.guestId, sub));
+    const payload = await cached(publicCache, cacheKey, MEETINGS_TTL_MS, async () => {
+      const now = new Date();
 
-    const meetingsList = await db
-      .select({
-        id: meetings.id,
-        slotId: meetings.slotId,
-        hostId: meetings.hostId,
-        guestId: meetings.guestId,
-        title: meetings.title,
-        description: meetings.description,
-        meetingReason: meetings.meetingReason,
-        status: meetings.status,
-        scheduledAt: meetings.scheduledAt,
-        confirmedAt: meetings.confirmedAt,
-        declinedAt: meetings.declinedAt,
-        declinedReason: meetings.declinedReason,
-        cancelledAt: meetings.cancelledAt,
-        cancelledReason: meetings.cancelledReason,
-        createdAt: meetings.createdAt,
-        // Get other party info
-        hostName: users.name,
-        hostEmail: users.email,
-      })
-      .from(meetings)
-      .leftJoin(users, eq(users.id, meetings.hostId))
-      .where(whereCondition)
-      .orderBy(desc(meetings.scheduledAt));
+      let whereCondition = or(eq(meetings.hostId, sub), eq(meetings.guestId, sub));
 
-    // Categorize meetings
-    const categorized = {
-      upcoming: meetingsList.filter(m => 
-        (m.status === "pending" || m.status === "confirmed") && new Date(m.scheduledAt) > now
-      ),
-      past: meetingsList.filter(m => 
-        new Date(m.scheduledAt) <= now || m.status === "completed"
-      ),
-      cancelled: meetingsList.filter(m => 
-        m.status === "cancelled" || m.status === "declined"
-      ),
-    };
+      const meetingsList = await db
+        .select({
+          id: meetings.id,
+          slotId: meetings.slotId,
+          hostId: meetings.hostId,
+          guestId: meetings.guestId,
+          title: meetings.title,
+          description: meetings.description,
+          meetingReason: meetings.meetingReason,
+          status: meetings.status,
+          scheduledAt: meetings.scheduledAt,
+          confirmedAt: meetings.confirmedAt,
+          declinedAt: meetings.declinedAt,
+          declinedReason: meetings.declinedReason,
+          cancelledAt: meetings.cancelledAt,
+          cancelledReason: meetings.cancelledReason,
+          createdAt: meetings.createdAt,
+          // Get other party info
+          hostName: users.name,
+          hostEmail: users.email,
+        })
+        .from(meetings)
+        .leftJoin(users, eq(users.id, meetings.hostId))
+        .where(whereCondition)
+        .orderBy(desc(meetings.scheduledAt));
 
-    if (status === "upcoming") {
-      return reply.send(categorized.upcoming);
-    }
-    if (status === "past") {
-      return reply.send(categorized.past);
-    }
+      // Categorize meetings
+      const categorized = {
+        upcoming: meetingsList.filter(m =>
+          (m.status === "pending" || m.status === "confirmed") && new Date(m.scheduledAt) > now
+        ),
+        past: meetingsList.filter(m =>
+          new Date(m.scheduledAt) <= now || m.status === "completed"
+        ),
+        cancelled: meetingsList.filter(m =>
+          m.status === "cancelled" || m.status === "declined"
+        ),
+      };
 
-    return reply.send(meetingsList);
+      if (status === "upcoming") {
+        return categorized.upcoming;
+      }
+      if (status === "past") {
+        return categorized.past;
+      }
+
+      return meetingsList;
+    });
+
+    reply.header("Cache-Control", `private, max-age=${Math.floor(MEETINGS_TTL_MS / 1000)}`);
+    return reply.send(payload);
   });
 
   /** POST /meetings/:id/confirm — host confirms meeting */
@@ -304,7 +335,7 @@ export async function meetingsRoutes(app: FastifyInstance) {
     // Notify guest
     const [host] = await db.select().from(users).where(eq(users.id, sub));
     const [slot] = await db.select().from(meetingSlots).where(eq(meetingSlots.id, meeting.slotId));
-    
+
     if (host && slot) {
       await notify({
         userId: meeting.guestId,
@@ -314,6 +345,11 @@ export async function meetingsRoutes(app: FastifyInstance) {
         link: `/meetings`,
       });
     }
+
+    // Invalidate caches — confirmed meetings must disappear from the slots list
+    // (slot is now `confirmed`, not `available`) and refresh both parties' lists.
+    invalidatePrefix("meetings:slots");
+    invalidatePrefix("meetings:list");
 
     const [updated] = await db.select().from(meetings).where(eq(meetings.id, id));
     return reply.send(updated);
@@ -368,6 +404,12 @@ export async function meetingsRoutes(app: FastifyInstance) {
       });
     }
 
+    // Invalidate caches — declined meetings must release the slot back to
+    // `available` (slots list refresh) and move the meeting out of "upcoming"
+    // on both parties' lists.
+    invalidatePrefix("meetings:slots");
+    invalidatePrefix("meetings:list");
+
     const [updated] = await db.select().from(meetings).where(eq(meetings.id, id));
     return reply.send(updated);
   });
@@ -417,7 +459,7 @@ export async function meetingsRoutes(app: FastifyInstance) {
     const otherUserId = meeting.hostId === sub ? meeting.guestId : meeting.hostId;
     const [user] = await db.select().from(users).where(eq(users.id, sub));
     const [slot] = await db.select().from(meetingSlots).where(eq(meetingSlots.id, meeting.slotId));
-    
+
     if (user && slot) {
       await notify({
         userId: otherUserId,
@@ -427,6 +469,12 @@ export async function meetingsRoutes(app: FastifyInstance) {
         link: `/meetings`,
       });
     }
+
+    // Invalidate caches — cancelled meetings must release the slot back to
+    // `available` (slots list refresh) and move the meeting out of "upcoming"
+    // on both parties' lists.
+    invalidatePrefix("meetings:slots");
+    invalidatePrefix("meetings:list");
 
     const [updated] = await db.select().from(meetings).where(eq(meetings.id, id));
     return reply.send({
