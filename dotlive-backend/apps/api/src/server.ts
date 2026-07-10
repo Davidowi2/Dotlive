@@ -468,20 +468,40 @@ async function runBootstrapMigrations() {
     await neonSql`ALTER TABLE feed_comments ADD COLUMN IF NOT EXISTS author_name text NOT NULL DEFAULT 'Unknown'`;
     await neonSql`ALTER TABLE feed_comments ADD COLUMN IF NOT EXISTS author_dot_id text`;
     await neonSql`ALTER TABLE feed_comments ADD COLUMN IF NOT EXISTS author_role text`;
+    // Drop old dot_stake_positions if it has wrong schema, then create correct one
+    await neonSql`DROP TABLE IF EXISTS dot_stake_positions CASCADE`;
     await neonSql`
       CREATE TABLE IF NOT EXISTS dot_stake_positions (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        venture_id uuid REFERENCES ventures(id) ON DELETE CASCADE,
-        position_type text NOT NULL DEFAULT 'dot',
-        amount numeric(20,2) NOT NULL DEFAULT 0,
-        staked_at timestamptz NOT NULL DEFAULT now(),
-        unstaked_at timestamptz,
+        amount integer NOT NULL,
+        reward_claimed integer NOT NULL DEFAULT 0,
+        reward_accrued integer NOT NULL DEFAULT 0,
         status text NOT NULL DEFAULT 'active',
-        created_at timestamptz NOT NULL DEFAULT now()
+        staked_at timestamptz NOT NULL DEFAULT now(),
+        unbonded_at timestamptz,
+        claimed_at timestamptz,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now()
       )
     `;
     await neonSql`CREATE INDEX IF NOT EXISTS dot_stake_positions_user_idx ON dot_stake_positions(user_id, status)`;
+    await neonSql`CREATE INDEX IF NOT EXISTS dot_stake_positions_status_idx ON dot_stake_positions(status)`;
+    // Create dot_stake_history
+    await neonSql`DROP TABLE IF EXISTS dot_stake_history CASCADE`;
+    await neonSql`
+      CREATE TABLE IF NOT EXISTS dot_stake_history (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        stake_id uuid NOT NULL REFERENCES dot_stake_positions(id) ON DELETE CASCADE,
+        user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        action text NOT NULL,
+        amount integer,
+        reward_amount integer,
+        created_at timestamptz NOT NULL DEFAULT now()
+      )
+    `;
+    await neonSql`CREATE INDEX IF NOT EXISTS dot_stake_history_stake_idx ON dot_stake_history(stake_id)`;
+    await neonSql`CREATE INDEX IF NOT EXISTS dot_stake_history_user_idx ON dot_stake_history(user_id)`;
     await neonSql`
       CREATE TABLE IF NOT EXISTS meeting_slots (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
