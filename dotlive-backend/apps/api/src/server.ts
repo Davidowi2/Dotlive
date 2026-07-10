@@ -502,6 +502,44 @@ async function runBootstrapMigrations() {
     `;
     await neonSql`CREATE INDEX IF NOT EXISTS dot_stake_history_stake_idx ON dot_stake_history(stake_id)`;
     await neonSql`CREATE INDEX IF NOT EXISTS dot_stake_history_user_idx ON dot_stake_history(user_id)`;
+    // Add referral columns to users
+    await neonSql`ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code text UNIQUE`;
+    await neonSql`ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by text`;
+    await neonSql`ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_count integer NOT NULL DEFAULT 0`;
+    await neonSql`ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_earnings_dot numeric(20,2) NOT NULL DEFAULT 0`;
+    // Create referrals table
+    await neonSql`
+      CREATE TABLE IF NOT EXISTS referrals (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        referrer_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        referee_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        referral_code text NOT NULL,
+        status text NOT NULL DEFAULT 'pending',
+        reward_claimed boolean NOT NULL DEFAULT false,
+        claimed_at timestamptz,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        completed_at timestamptz
+      )
+    `;
+    await neonSql`CREATE INDEX IF NOT EXISTS referrals_referrer_idx ON referrals(referrer_id)`;
+    await neonSql`CREATE INDEX IF NOT EXISTS referrals_referee_idx ON referrals(referee_id)`;
+    await neonSql`CREATE INDEX IF NOT EXISTS referrals_code_idx ON referrals(referral_code)`;
+    await neonSql`CREATE INDEX IF NOT EXISTS referrals_status_idx ON referrals(status)`;
+    // Create user_vouches table
+    await neonSql`
+      CREATE TABLE IF NOT EXISTS user_vouches (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        voucher_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        vouchee_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        scope text NOT NULL,
+        score integer NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now(),
+        UNIQUE(voucher_id, vouchee_id)
+      )
+    `;
+    await neonSql`CREATE INDEX IF NOT EXISTS user_vouches_voucher_idx ON user_vouches(voucher_id)`;
+    await neonSql`CREATE INDEX IF NOT EXISTS user_vouches_vouchee_idx ON user_vouches(vouchee_id)`;
     await neonSql`
       CREATE TABLE IF NOT EXISTS meeting_slots (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
