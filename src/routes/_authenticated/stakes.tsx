@@ -321,7 +321,7 @@ function StakeRow({
   const days = daysUntil((stake as any).lockEndsAt ?? (stake as any).unbondedAt);
   const canUnstake = isActive && days === 0;
   const claimable = Number(stake.rewardAccrued) > 0;
-  const canClaim = !isActive ? false : isActive && days === 0 && claimable;
+  const canClaim = isActive && days === 0 && claimable;
 
   const statusLabel: Record<string, string> = {
     active: "Active",
