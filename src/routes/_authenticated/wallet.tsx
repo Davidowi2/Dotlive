@@ -50,6 +50,7 @@ import {
     TrendingUp,
     TrendingDown,
     Lock,
+  ChevronRight,
   } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
@@ -669,7 +670,7 @@ function WalletPage() {
           </Dialog>
 
           {isFeatureEnabled("bank_withdrawals") && (
-            <CardReportProblem
+            <Card
               className="cursor-pointer hover:shadow-lg transition"
               onClick={() => setWithdrawOpen(true)}
             >
@@ -690,7 +691,7 @@ function WalletPage() {
                   </Button>
                 </div>
               </div>
-            </CardReportProblem>
+            </Card>
           )}
           {!isFeatureEnabled("bank_withdrawals") && (
             <div className="group flex items-center justify-between gap-4 rounded-xl border border-dashed border-border bg-muted/30 p-5 opacity-80">
@@ -1653,7 +1654,7 @@ function WalletStakeRow({
   onUnstake,
   onClaim,
 }: {
-  stake: StakePosition;
+  stake: StakePosition & { lockEndsAt?: string; apyPct?: number };
   busy: boolean;
   onUnstake: () => void;
   onClaim: () => void;

@@ -145,25 +145,25 @@ function OperatorPage() {
               label="Total Users"
               value={stats?.users?.toLocaleString() || "0"}
               icon={Users}
-              variant="primary"
+              accent="primary"
             />
             <StatCard
               label="Ventures"
               value={stats?.ventures?.toLocaleString() || "0"}
               icon={Activity}
-              variant="secondary"
+              accent="muted"
             />
             <StatCard
               label="DOT in Circulation"
-              value={formatDot(stats?.dotInCirculation?.toString() || "0")}
+              value={formatDot(Number(stats?.dotInCirculation) || 0)}
               icon={Wallet}
-              variant="accent"
+              accent="primary"
             />
             <StatCard
               label="Beta Mode"
               value={stats?.isBeta ? "Active" : "Inactive"}
               icon={ShieldAlert}
-              variant={stats?.isBeta ? "tertiary" : "secondary"}
+              accent={stats?.isBeta ? "gold" : "muted"}
             />
           </>
         )}
@@ -261,7 +261,7 @@ function OperatorPage() {
                             Banned
                           </Badge>
                         ) : (
-                          <Badge variant="secondary" className="text-xs">
+                          <Badge variant="outline" className="text-xs">
                             Active
                           </Badge>
                         )}
@@ -452,7 +452,7 @@ function OperatorPage() {
                 {selectedUser.wallet && (
                   <div>
                     <Label className="text-xs text-muted-foreground">Wallet Balance</Label>
-                    <p className="font-medium">{formatDot(selectedUser.wallet.balance.toString())} DOT</p>
+                    <p className="font-medium">{formatDot(Number(selectedUser.wallet.balance))} DOT</p>
                   </div>
                 )}
 

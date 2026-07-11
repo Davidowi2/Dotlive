@@ -127,18 +127,18 @@ function OverviewTab() {
           icon={Gauge}
           label="Wallet"
           value={`${formatDot(walletBalance)} DOT`}
-          subValue={`≈ ${formatNaira(dotToNaira(walletBalance))}`}
+          sub={`≈ ${formatNaira(dotToNaira(walletBalance))}`}
         />
         <StatCard
           icon={Briefcase}
           label="Active contracts"
-          value={activeContracts}
+          value={String(activeContracts)}
           sub={activeContracts === 0 ? "No contracts yet" : "In progress / delivered"}
         />
         <StatCard
           icon={ClipboardList}
           label="Open proposals"
-          value={pendingProposals}
+          value={String(pendingProposals)}
           sub={pendingProposals === 0 ? "Apply to a gig" : "Visible in Proposals tab"}
         />
         <StatCard
@@ -325,7 +325,7 @@ function ContractsTab() {
               </p>
             </div>
             <span
-              className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${meta?.cls ?? "bg-muted text-muted-foreground"}`}
+              className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${meta?.tone ?? "bg-muted text-muted-foreground"}`}
             >
               {meta?.label ?? o.status}
             </span>
@@ -364,12 +364,12 @@ function EarningsTab() {
           icon={DollarSign}
           label="Total DOT earned"
           value={`${formatDot(totalDot)} DOT`}
-          subValue={`≈ ${formatNaira(totalNaira)}`}
+          sub={`≈ ${formatNaira(totalNaira)}`}
         />
         <StatCard
           icon={Briefcase}
           label="Contracts completed"
-          value={completed.length}
+          value={String(completed.length)}
         />
         <StatCard
           icon={TrendingUp}

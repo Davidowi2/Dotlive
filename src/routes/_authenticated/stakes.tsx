@@ -311,23 +311,22 @@ function StakeRow({
   onUnstake,
   onClaim,
 }: {
-  stake: StakePosition;
+  stake: StakePosition & { lockEndsAt?: string; apyPct?: number };
   busy: boolean;
   onUnstake: () => void;
   onClaim: () => void;
 }) {
   const isActive = stake.status === "active";
   const isUnstaking = stake.status === "unstaking";
-  const days = daysUntil(stake.lockEndsAt);
+  const days = daysUntil((stake as any).lockEndsAt ?? (stake as any).unbondedAt);
   const canUnstake = isActive && days === 0;
   const claimable = Number(stake.rewardAccrued) > 0;
   const canClaim = !isActive ? false : isActive && days === 0 && claimable;
 
-  const statusLabel: Record<StakePosition["status"], string> = {
+  const statusLabel: Record<string, string> = {
     active: "Active",
-    unstaking: `Unstaking · ${days}d to release`,
-    unstaked: "Unstaked",
-    claimed: "Claimed",
+    unstaking: days > 0 ? `Unstaking · ${days}d to release` : "Unstaking",
+    withdrawn: "Withdrawn",
   };
 
   return (
@@ -335,7 +334,7 @@ function StakeRow({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
           <p className="font-display text-lg font-light">
-            {formatDot(Number(stake.amount))} DOT · {stake.apyPct}% APY
+            {formatDot(Number(stake.amount))} DOT · {(stake as any).apyPct ?? 12}% APY
           </p>
           <p className="text-xs text-muted-foreground">
             {statusLabel[stake.status]} · started {formatDate(stake.createdAt)}
@@ -375,7 +374,7 @@ function StakeRow({
       </div>
       {isUnstaking ? (
         <p className="mt-3 text-xs text-muted-foreground">
-          Funds return to your available balance on {formatDate(stake.lockEndsAt)}.
+          Funds return to your available balance on {formatDate((stake as any).lockEndsAt ?? (stake as any).unbondedAt)}.
         </p>
       ) : null}
     </li>
