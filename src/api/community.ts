@@ -58,7 +58,7 @@ export async function getMyAllCommunities(): Promise<Community[]> {
 }
 
 export async function listMembers(communityId: string): Promise<CommunityMember[]> {
-  const res = await dotApi.get<{ members: CommunityMember[] }>(`/api/community/${communityId}/members`);
+  const res = await dotApi.get<{ members: CommunityMember[] }>(`/api/communities/${communityId}/members`);
   return res.members ?? [];
 }
 

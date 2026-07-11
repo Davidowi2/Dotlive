@@ -8,6 +8,10 @@ export function dotToNaira(dot: number): number {
   return Math.round(dot * DOT_RATE_NGN);
 }
 
+export function nairaToDot(naira: number): number {
+  return naira / DOT_RATE_NGN;
+}
+
 export function formatNaira(amount: number): string {
   return new Intl.NumberFormat("en-NG", {
     style: "currency",
@@ -17,7 +21,7 @@ export function formatNaira(amount: number): string {
 }
 
 export function formatDot(dot: number): string {
-  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(dot);
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(dot);
 }
 
 export const JOURNEY_STAGES = [
