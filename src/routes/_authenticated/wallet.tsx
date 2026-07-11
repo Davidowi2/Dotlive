@@ -667,26 +667,44 @@ function WalletPage() {
             </DialogContent>
           </Dialog>
 
-          {/* Withdraw to bank — PAUSED pending Paystack recipient setup.
-                     Per ops direction, withdrawals are disabled until the bank
-                     recipient + transfer API is fully configured in Paystack. */}
-                    <div
-                      className="group flex items-center justify-between gap-4 rounded-xl border border-dashed border-border bg-card/40 p-5 opacity-70 cursor-not-allowed"
-                      title="Withdrawals are temporarily paused"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="flex size-10 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600">
-                          <ArrowDownToLine className="size-5" />
-                        </span>
-                        <div>
-                          <div className="font-medium">Withdraw to bank</div>
-                          <div className="text-xs text-muted-foreground">
-                            Temporarily paused — DOT deposits work, cash-out coming soon.
-                          </div>
-                        </div>
-                      </div>
-                      <Lock className="size-5 text-muted-foreground" />
+          {isFeatureEnabled("bank_withdrawals") && (
+            <CardReportProblem
+              className="cursor-pointer hover:shadow-lg transition"
+              onClick={() => setWithdrawOpen(true)}
+            >
+              <div className="flex flex-col gap-2">
+                <div className="flex flex-row items-center gap-3">
+                  <ArrowDownToLine className="size-6" />
+                  <div>
+                    <div className="font-medium">Withdraw to bank</div>
+                    <div className="text-xs text-muted-foreground">
+                      Cash out DOT to a Nigerian bank account
                     </div>
+                  </div>
+                </div>
+                <div className="flex justify-end">
+                  <Button size="sm" variant="secondary">
+                    Withdraw
+                    <ChevronRight className="ml-1 size-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardReportProblem>
+          )}
+          {!isFeatureEnabled("bank_withdrawals") && (
+            <div className="group flex items-center justify-between gap-4 rounded-xl border border-dashed border-border bg-muted/30 p-5 opacity-80">
+              <div className="flex items-center gap-3">
+                <span className="flex size-10 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                  <ArrowDownToLine className="size-5" />
+                </span>
+                <div>
+                  <div className="font-medium">Withdraw to bank</div>
+                  <div className="text-xs text-muted-foreground">Temporarily disabled</div>
+                </div>
+              </div>
+              <Lock className="size-5 text-muted-foreground" />
+            </div>
+          )}
 
           {/* Withdraw / Transfer — ghost */}
           <button
@@ -921,43 +939,44 @@ function WalletPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Withdraw dialog (KYC gated) ── */}
-      <Dialog open={withdrawOpen} onOpenChange={setWithdrawOpen}>
-        <DialogContent>
-          {kyc?.status !== "approved" ? (
-            <>
-              <DialogHeader>
-                <DialogTitle>Verify KYC to withdraw</DialogTitle>
-                <DialogDescription>
-                  DOT withdrawals to a Nigerian bank require identity verification.
-                  You currently have <strong>{kyc?.status ?? "no"}</strong> KYC.
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setWithdrawOpen(false)}>
-                  Cancel
-                </Button>
-                <Button asChild>
-                  <Link to="/kyc">Start KYC</Link>
-                </Button>
-              </DialogFooter>
-            </>
-          ) : (
-            <InlineWithdrawForm
-              balance={balance}
-              kycTier={kyc?.tier}
-              withdrawalLimit={kyc?.withdrawalLimit ?? 0}
-              onSuccess={() => {
-                qc.invalidateQueries({ queryKey: ["wallet"] });
-                qc.invalidateQueries({ queryKey: ["transactions"] });
-                qc.invalidateQueries({ queryKey: ["withdrawals"] });
-                setWithdrawOpen(false);
-              }}
-              onClose={() => setWithdrawOpen(false)}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+      {isFeatureEnabled("bank_withdrawals") && (
+        <Dialog open={withdrawOpen} onOpenChange={setWithdrawOpen}>
+          <DialogContent>
+            {kyc?.status !== "approved" ? (
+              <>
+                <DialogHeader>
+                  <DialogTitle>Verify KYC to withdraw</DialogTitle>
+                  <DialogDescription>
+                    DOT withdrawals to a Nigerian bank require identity verification.
+                    You currently have <strong>{kyc?.status ?? "no"}</strong> KYC.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setWithdrawOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button asChild>
+                    <Link to="/kyc">Start KYC</Link>
+                  </Button>
+                </DialogFooter>
+              </>
+            ) : (
+              <InlineWithdrawForm
+                balance={balance}
+                kycTier={kyc?.tier}
+                withdrawalLimit={kyc?.withdrawalLimit ?? 0}
+                onSuccess={() => {
+                  qc.invalidateQueries({ queryKey: ["wallet"] });
+                  qc.invalidateQueries({ queryKey: ["transactions"] });
+                  qc.invalidateQueries({ queryKey: ["withdrawals"] });
+                  setWithdrawOpen(false);
+                }}
+                onClose={() => setWithdrawOpen(false)}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
 
       <Dialog open={!!receipt} onOpenChange={(o) => !o && setReceipt(null)}>
         <DialogContent>
@@ -1931,22 +1950,28 @@ function WalletSettingsTab({
       </div>
 
       {/* Withdraw */}
-      <div className="rounded-2xl border border-border bg-card p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-[10px] font-medium tracking-widest uppercase text-muted-foreground">
-              Withdraw to bank
-            </p>
-            <p className="mt-1 font-display text-xl font-light">Cash out DOT</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Send DOT to a Nigerian bank account. KYC required.
-            </p>
-          </div>
-          <Button onClick={onWithdraw} variant="default" size="sm">
-            <ArrowDownToLine className="size-4" /> Withdraw
-          </Button>
+      {!isFeatureEnabled("bank_withdrawals") ? (
+        <div className="rounded-2xl border border-dashed border-border bg-muted/30 p-5 text-center">
+          <p className="text-sm text-muted-foreground">Bank withdrawals are currently disabled.</p>
         </div>
-      </div>
+      ) : (
+        <div className="rounded-2xl border border-border bg-card p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-medium tracking-widest uppercase text-muted-foreground">
+                Withdraw to bank
+              </p>
+              <p className="mt-1 font-display text-xl font-light">Cash out DOT</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Send DOT to a Nigerian bank account. KYC required.
+              </p>
+            </div>
+            <Button onClick={onWithdraw} variant="default" size="sm">
+              <ArrowDownToLine className="size-4" /> Withdraw
+            </Button>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

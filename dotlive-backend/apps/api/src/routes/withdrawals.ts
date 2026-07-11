@@ -54,6 +54,10 @@ export async function withdrawalRoutes(app: FastifyInstance) {
     const { sub } = req.user as { sub: string };
     const raw = (req.body ?? {}) as Record<string, any>;
 
+    if (Number(process.env.WITHDRAWALS_ENABLED ?? 1) !== 1) {
+      return reply.code(403).send({ error: "Withdrawals are temporarily disabled." });
+    }
+
     // Accept BOTH shapes:
     //   1) Flat:   { amountDot, bankCode, bankName, accountNumber, accountName }
     //   2) Nested: { amountDot, bankInfo: { accountName, accountNumber, bankCode, bankName? } }
