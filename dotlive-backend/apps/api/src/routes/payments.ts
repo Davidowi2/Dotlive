@@ -99,7 +99,7 @@ export async function paymentsRoutes(app: FastifyInstance) {
     const paystackKey = process.env.PAYSTACK_SECRET_KEY;
     if (!paystackKey) {
       return reply.code(503).send({
-        error: "Deposits are temporarily disabled. Set PAYSTACK_SECRET_KEY in env to enable.",
+        error: "Deposits aren't available right now. Set PAYSTACK_SECRET_KEY in env to enable.",
         code: "paystack_disabled",
       });
     }

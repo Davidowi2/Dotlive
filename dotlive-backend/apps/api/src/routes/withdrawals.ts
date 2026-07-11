@@ -55,7 +55,7 @@ export async function withdrawalRoutes(app: FastifyInstance) {
     const raw = (req.body ?? {}) as Record<string, any>;
 
     if (Number(process.env.WITHDRAWALS_ENABLED ?? 1) !== 1) {
-      return reply.code(403).send({ error: "Withdrawals are temporarily disabled." });
+      return reply.code(403).send({ error: "Withdrawals aren't available right now." });
     }
 
     // Accept BOTH shapes:
