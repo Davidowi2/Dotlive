@@ -82,6 +82,7 @@ import { getStakes, createStake, unstake, claimRewards, type StakePosition } fro
 import { getMyVenture } from "@/api/ventures";
 import { getPaymentByReference, replayPayment } from "@/api/payments";
 import { ApiError } from "@/types/api";
+import { isFeatureEnabled } from "@/lib/feature-flags";
 // Paystack server functions removed — wired via Render API when configured.
 import {
   MIN_DEPOSIT_DOT,
