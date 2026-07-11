@@ -616,6 +616,212 @@ async function runBootstrapMigrations() {
       )
     `;
     await neonSql`CREATE INDEX IF NOT EXISTS activity_log_user_idx ON activity_log(user_id, created_at DESC)`;
+    
+    // user_reputation
+    await neonSql`
+      CREATE TABLE IF NOT EXISTS user_reputation (
+        user_id text PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        score integer NOT NULL DEFAULT 0,
+        review_count integer NOT NULL DEFAULT 0,
+        avg_rating numeric(3,2) NOT NULL DEFAULT 0,
+        completed_orders integer NOT NULL DEFAULT 0,
+        total_earned numeric(20,2) NOT NULL DEFAULT 0,
+        last_updated timestamptz NOT NULL DEFAULT now(),
+        created_at timestamptz NOT NULL DEFAULT now()
+      )
+    `;
+    
+    // feed_comment_likes
+    await neonSql`
+      CREATE TABLE IF NOT EXISTS feed_comment_likes (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        comment_id uuid NOT NULL REFERENCES feed_comments(id) ON DELETE CASCADE,
+        user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        UNIQUE(user_id, comment_id)
+      )
+    `;
+    await neonSql`CREATE INDEX IF NOT EXISTS feed_comment_likes_user_comment_unique ON feed_comment_likes(user_id, comment_id)`;
+    
+    // community_challenges
+    await neonSql`
+      CREATE TABLE IF NOT EXISTS community_challenges (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        community_id uuid NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+        posted_by_user_id text NOT NULL REFERENCES users(id),
+        title text NOT NULL,
+        description text NOT NULL,
+        prize_dot numeric(20,2) NOT NULL,
+        prize_total_dot numeric(20,2) NOT NULL,
+        deadline timestamptz NOT NULL,
+        max_winners integer NOT NULL DEFAULT 1,
+        status text NOT NULL DEFAULT 'open',
+        escrow_reference text,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now()
+      )
+    `;
+    await neonSql`CREATE INDEX IF NOT EXISTS community_challenges_community_idx ON community_challenges(community_id)`;
+    await neonSql`CREATE INDEX IF NOT EXISTS community_challenges_status_idx ON community_challenges(status)`;
+    await neonSql`CREATE INDEX IF NOT EXISTS community_challenges_deadline_idx ON community_challenges(deadline)`;
+    
+    // community_challenge_submissions
+    await neonSql`
+      CREATE TABLE IF NOT EXISTS community_challenge_submissions (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        challenge_id uuid NOT NULL REFERENCES community_challenges(id) ON DELETE CASCADE,
+        user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        body text NOT NULL,
+        attachment_url text,
+        status text NOT NULL DEFAULT 'submitted',
+        winning_rank integer,
+        payout_dot numeric(20,2),
+        submitted_at timestamptz NOT NULL DEFAULT now(),
+        decided_at timestamptz,
+        UNIQUE(challenge_id, user_id)
+      )
+    `;
+    await neonSql`CREATE INDEX IF NOT EXISTS community_challenge_submissions_challenge_idx ON community_challenge_submissions(challenge_id)`;
+    await neonSql`CREATE INDEX IF NOT EXISTS community_challenge_submissions_user_idx ON community_challenge_submissions(user_id)`;
+
+    // builder_certifications
+    await neonSql`
+      CREATE TABLE IF NOT EXISTS builder_certifications (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        builder_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name text NOT NULL,
+        issuer text NOT NULL,
+        issued_date date,
+        expires_date date,
+        credential_url text,
+        credential_id text,
+        badge_url text,
+        is_verified boolean NOT NULL DEFAULT false,
+        created_at timestamptz NOT NULL DEFAULT now()
+      )
+    `;
+    await neonSql`CREATE INDEX IF NOT EXISTS builder_certifications_builder_idx ON builder_certifications(builder_id)`;
+    await neonSql`CREATE INDEX IF NOT EXISTS builder_certifications_verified_idx ON builder_certifications(is_verified)`;
+
+    // builder_documents
+    await neonSql`
+      CREATE TABLE IF NOT EXISTS builder_documents (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        builder_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        type text NOT NULL,
+        title text NOT NULL,
+        description text,
+        file_url text NOT NULL,
+        file_name text,
+        file_size integer,
+        is_verified boolean NOT NULL DEFAULT false,
+        display_order integer NOT NULL DEFAULT 0,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now()
+      )
+    `;
+    await neonSql`CREATE INDEX IF NOT EXISTS builder_documents_builder_idx ON builder_documents(builder_id)`;
+    await neonSql`CREATE INDEX IF NOT EXISTS builder_documents_type_idx ON builder_documents(type)`;
+    await neonSql`CREATE INDEX IF NOT EXISTS builder_documents_verified_idx ON builder_documents(is_verified)`;
+
+    // builder_vouches
+    await neonSql`
+      CREATE TABLE IF NOT EXISTS builder_vouches (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        builder_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        voucher_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        skill text NOT NULL,
+        comment text,
+        is_endorsed boolean NOT NULL DEFAULT true,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        UNIQUE(builder_id, voucher_id, skill)
+      )
+    `;
+    await neonSql`CREATE INDEX IF NOT EXISTS builder_vouches_builder_idx ON builder_vouches(builder_id)`;
+    await neonSql`CREATE INDEX IF NOT EXISTS builder_vouches_voucher_idx ON builder_vouches(voucher_id)`;
+
+    // connection_messages
+    await neonSql`
+      CREATE TABLE IF NOT EXISTS connection_messages (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        connection_id uuid NOT NULL REFERENCES connections(id) ON DELETE CASCADE,
+        sender_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        body text NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        read_at timestamptz
+      )
+    `;
+    await neonSql`CREATE INDEX IF NOT EXISTS connection_messages_conn_idx ON connection_messages(connection_id)`;
+    await neonSql`CREATE INDEX IF NOT EXISTS connection_messages_created_idx ON connection_messages(created_at)`;
+
+    // connections
+    await neonSql`
+      CREATE TABLE IF NOT EXISTS connections (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_a_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        user_b_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        status text NOT NULL DEFAULT 'pending',
+        meeting_id uuid REFERENCES meeting_requests(id) ON DELETE SET NULL,
+        initiated_by text NOT NULL REFERENCES users(id),
+        created_at timestamptz NOT NULL DEFAULT now(),
+        closed_at timestamptz
+      )
+    `;
+    await neonSql`CREATE INDEX IF NOT EXISTS connections_user_a_idx ON connections(user_a_id)`;
+    await neonSql`CREATE INDEX IF NOT EXISTS connections_user_b_idx ON connections(user_b_id)`;
+    await neonSql`CREATE INDEX IF NOT EXISTS connections_unique ON connections(user_a_id, user_b_id)`;
+
+    // dividend_payments
+    await neonSql`
+      CREATE TABLE IF NOT EXISTS dividend_payments (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        dividend_id uuid NOT NULL REFERENCES dividends(id) ON DELETE CASCADE,
+        investor_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        investment_id uuid NOT NULL REFERENCES investments(id) ON DELETE CASCADE,
+        shares_owned integer NOT NULL,
+        amount_naira integer NOT NULL,
+        status text NOT NULL DEFAULT 'pending',
+        created_at timestamptz NOT NULL DEFAULT now(),
+        paid_at timestamptz
+      )
+    `;
+    await neonSql`CREATE INDEX IF NOT EXISTS dividend_payments_dividend_idx ON dividend_payments(dividend_id)`;
+    await neonSql`CREATE INDEX IF NOT EXISTS dividend_payments_investor_idx ON dividend_payments(investor_id, created_at)`;
+    await neonSql`CREATE INDEX IF NOT EXISTS dividend_payments_status_idx ON dividend_payments(status)`;
+
+    // loan_requests
+    await neonSql`
+      CREATE TABLE IF NOT EXISTS loan_requests (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        venture_id uuid NOT NULL REFERENCES ventures(id),
+        requested_by text NOT NULL REFERENCES users(id),
+        amount_naira integer NOT NULL,
+        term_months integer NOT NULL,
+        purpose text,
+        status text NOT NULL DEFAULT 'pending',
+        created_at timestamptz NOT NULL DEFAULT now(),
+        voting_ends_at timestamptz NOT NULL
+      )
+    `;
+    await neonSql`CREATE INDEX IF NOT EXISTS loan_requests_venture_idx ON loan_requests(venture_id)`;
+    await neonSql`CREATE INDEX IF NOT EXISTS loan_requests_requested_by_idx ON loan_requests(requested_by)`;
+    await neonSql`CREATE INDEX IF NOT EXISTS loan_requests_status_idx ON loan_requests(status)`;
+
+    // loan_votes
+    await neonSql`
+      CREATE TABLE IF NOT EXISTS loan_votes (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        loan_request_id uuid NOT NULL REFERENCES loan_requests(id) ON DELETE CASCADE,
+        voter_id text NOT NULL REFERENCES users(id),
+        vote boolean NOT NULL,
+        amount_naira integer,
+        voted_at timestamptz NOT NULL DEFAULT now(),
+        UNIQUE(loan_request_id, voter_id)
+      )
+    `;
+    await neonSql`CREATE INDEX IF NOT EXISTS loan_votes_loan_request_idx ON loan_votes(loan_request_id)`;
+    await neonSql`CREATE INDEX IF NOT EXISTS loan_votes_voter_idx ON loan_votes(voter_id)`;
+
     console.log("[startup] Bootstrap 0013 (runtime fixes) complete");
   } catch (err) {
     console.error("[startup] Bootstrap 0013 error:", err);
