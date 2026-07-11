@@ -346,7 +346,7 @@ function WalletPage() {
     } catch (e: any) {
       const msg = e?.message ?? "Could not start payment";
       // The backend returns 503 if PAYSTACK_SECRET_KEY isn't set
-      if (e?.code === "paystack_disabled" || msg.includes("temporarily disabled")) {
+      if (e?.code === "paystack_disabled" || msg.includes("Deposits aren't available right now")) {
         toast.error("Deposits aren't available right now. We'll notify you when they're back online.");
       } else {
         toast.error(msg);

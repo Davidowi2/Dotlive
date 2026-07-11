@@ -12,7 +12,7 @@
  * The callback just shows the user a message and tells them to wait for the webhook.
  *
  * If PAYSTACK_SECRET_KEY is not set, returns 503 — the frontend should show
- * "deposits temporarily disabled" (which it already does).
+ * "deposits unavailable" (which it already does).
  */
 
 import type { FastifyInstance } from "fastify";
