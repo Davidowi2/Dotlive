@@ -943,7 +943,7 @@ const start = async () => {
           }
         }
       } catch (err) {
-        app.log.error(`[meeting-reminders] Error checking meetings:`, err);
+        app.log.error({ msg: "[meeting-reminders] Error checking meetings:", err });
       }
     }
 

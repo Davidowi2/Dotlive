@@ -548,7 +548,7 @@ export async function meetingsRoutes(app: FastifyInstance) {
         startTime,
         endTime,
         durationMinutes: durationMinutes || 30,
-      })
+      } as any)
       .where(eq(meetingSlots.id, id));
 
     invalidatePrefix("meetings:slots");
@@ -611,10 +611,10 @@ export async function meetingsRoutes(app: FastifyInstance) {
     const now = new Date();
     await db
       .update(meetings)
-      .set({ 
-        ...parsed.data, 
-        updatedAt: now 
-      })
+      .set({
+        ...parsed.data,
+        updatedAt: now,
+      } as any)
       .where(eq(meetings.id, id));
 
     invalidatePrefix("meetings:list");
