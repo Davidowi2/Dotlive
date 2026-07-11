@@ -701,7 +701,7 @@ function WalletPage() {
                 </span>
                 <div>
                   <div className="font-medium">Withdraw to bank</div>
-                  <div className="text-xs text-muted-foreground">Temporarily disabled</div>
+                  <div className="text-xs text-muted-foreground">Coming soon</div>
                 </div>
               </div>
               <Lock className="size-5 text-muted-foreground" />
