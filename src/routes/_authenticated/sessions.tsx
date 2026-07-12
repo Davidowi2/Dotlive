@@ -135,88 +135,43 @@ function SessionsPage() {
 
       {isLoading ? (
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          {events.map((e) => {
-            const isReg = registered.has(e.id);
-            const date = e.event_date ? new Date(e.event_date) : null;
-            const priceLabel = e.price_usd_cents
-              ? `$${(Number(e.price_usd_cents) / 100).toFixed(2)}`
-              : e.dot_cost > 0
-                ? `${formatDot(e.dot_cost)} DOT`
-                : "Free";
-            return (
-              <div
-                key={e.id}
-                className="flex flex-col rounded-2xl border border-border bg-card p-5"
-              >
-                <div className="flex items-center justify-between">
-                  <Badge variant="secondary">
-                    <CalendarCheck className="mr-1 size-3" />
-                    {date
-                      ? date.toLocaleDateString("en", { month: "short", day: "numeric" })
-                      : "TBA"}
-                  </Badge>
-                  <span className="flex items-center gap-1 text-sm font-medium text-gold">
-                    <Coins className="size-4" /> {priceLabel}
-                  </span>
-                </div>
-                <h3 className="mt-4 font-display text-lg font-semibold">{e.title}</h3>
-                {e.speaker && (
-                  <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
-                    <User className="size-3.5" /> {e.speaker}
-                  </p>
-                )}
-                <p className="mt-2 flex-1 text-sm text-muted-foreground">{e.description}</p>
-                {date && (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {date.toLocaleString("en", {
-                      weekday: "long",
-                      hour: "numeric",
-                      minute: "2-digit",
-                    })}
-                  </p>
-                )}
-                <div className="mt-4 flex gap-2">
-                  {isReg ? (
-                    <Button variant="outline" className="flex-1" disabled>
-                      <Check className="size-4 text-primary" /> Registered
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="hero"
-                      className="flex-1"
-                      onClick={() => register(e.id, e.dot_cost)}
-                    >
-                      Register {e.dot_cost > 0 ? `· ${formatDot(e.dot_cost)} DOT` : ""}
-                    </Button>
-                  )}
-                  {(e.whop_product_id || e.price_usd_cents || e.whop_url) && (
-                    <Button variant="outline" size="icon" asChild title="Open Whop checkout">
-                      <a
-                        href={`#`}
-                        onClick={(ev) => {
-                          ev.preventDefault();
-                          openCheckout(e);
-                        }}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <ExternalLink className="size-4" />
-                      </a>
-                    </Button>
-                  )}
-                </div>
+          {[1, 2].map((i) => (
+            <div key={i} className="h-40 animate-pulse rounded-2xl bg-muted" />
+          ))}
+        </div>
+      ) : error ? (
+        <p className="mt-6 text-sm text-red-500">{error}</p>
+      ) : (
+        <>
+          {/* Upcoming */}
+          <section>
+            <h2 className="font-display text-lg font-light tracking-tight mb-4 text-muted-foreground">
+              Upcoming
+            </h2>
+            {upcoming.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No upcoming sessions.</p>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2">
+                {upcoming.map((e) => (
+                  <SessionCard
+                    key={e.id}
+                    ev={e}
+                    isReg={registered.has(e.id)}
+                    onRegister={() => register(e.id, e.dot_cost)}
+                  />
+                ))}
               </div>
-            </section>
-          )}
+            )}
+          </section>
 
           {/* Past */}
-          {past.length > 0 && (
-            <section>
+          {past.length > 0 ? (
+            <section className="mt-8">
               <h2 className="font-display text-lg font-light tracking-tight mb-4 text-muted-foreground">
                 Past sessions
               </h2>
               <div className="grid gap-4 sm:grid-cols-2">
-                {past.map(ev => (
+                {past.map((ev) => (
                   <SessionCard
                     key={ev.id}
                     ev={ev}
@@ -227,8 +182,8 @@ function SessionsPage() {
                 ))}
               </div>
             </section>
-          )}
-        </div>
+          ) : null}
+        </>
       )}
     </AppShell>
   );

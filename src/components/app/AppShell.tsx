@@ -18,7 +18,6 @@ import {
   CalendarDays,
   Bell,
   Settings,
-  Compass,
   User,
 } from "lucide-react";
 import { Logo } from "@/components/site/Logo";
@@ -39,22 +38,22 @@ interface NavItem {
 
 /* Section order is fixed; sections without items get hidden automatically. */
 const NAV_ITEMS: NavItem[] = [
-  { label: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
-  { label: "Vantage", to: "/vantage", icon: Gauge, roles: ["founder"] },
-  { label: "Wallet", to: "/wallet", icon: Wallet },
-  { label: "DOT Work", to: "/work", icon: Hammer },
-  { label: "Academy", to: "/academy", icon: BookOpen, roles: ["founder"] },
-  { label: "Sessions", to: "/sessions", icon: CalendarCheck },
-  { label: "Pitchathons", to: "/pitchathons", icon: Trophy, roles: ["founder"] },
-  { label: "Meetings", to: "/meetings", icon: CalendarDays },
-  { label: "Notifications", to: "/notifications", icon: Bell },
-  { label: "Discover", to: "/discover", icon: Compass },
-  { label: "Community", to: "/community", icon: Users, roles: ["community_leader"] },
-  { label: "DOT Demo", to: "/demo", icon: Building2 },
-  { label: "Investor Portal", to: "/investor", icon: Briefcase, roles: ["investor"] },
-  { label: "Admin", to: "/admin", icon: Shield, roles: ["admin"] },
-  { label: "Settings", to: "/settings", icon: Settings },
-  { label: "Profile", to: "/account", icon: User },
+  { label: "Dashboard", to: "/dashboard", icon: LayoutDashboard, section: "main" },
+  { label: "Vantage", to: "/vantage", icon: Gauge, roles: ["founder"], section: "growth" },
+  { label: "Wallet", to: "/wallet", icon: Wallet, section: "main" },
+  { label: "Work Board", to: "/work", icon: Hammer, section: "growth" },
+  { label: "Academy", to: "/academy", icon: BookOpen, roles: ["founder"], section: "growth" },
+  { label: "Sessions", to: "/sessions", icon: CalendarCheck, section: "growth" },
+  { label: "Pitchathons", to: "/pitchathons", icon: Trophy, roles: ["founder"], section: "growth" },
+  { label: "Meetings", to: "/meetings", icon: CalendarDays, section: "main" },
+  { label: "Notifications", to: "/notifications", icon: Bell, section: "main" },
+  { label: "Discover", to: "/discover", icon: Compass, section: "main" },
+  { label: "Community", to: "/community", icon: Users, roles: ["community_leader"], section: "community" },
+  { label: "Venture Demos", to: "/demo", icon: Building2, section: "community" },
+  { label: "Investor Portal", to: "/investor", icon: Briefcase, roles: ["investor"], section: "capital" },
+  { label: "Admin", to: "/admin", icon: Shield, roles: ["admin"], section: "admin" },
+  { label: "Settings", to: "/settings", icon: Settings, section: "main" },
+  { label: "Profile", to: "/profile", icon: User, section: "main" },
 ];
 
 const SECTION_META: Record<string, { label: string }> = {

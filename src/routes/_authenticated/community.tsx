@@ -203,10 +203,10 @@ function CommunityPage() {
             {joinTab === "join" ? (
               <JoinByCodPanel />
             ) : (
-            <form
-              onSubmit={handleCreate}
-              className="space-y-5 rounded-sm border border-border bg-card p-6"
-            >
+              <form
+                onSubmit={handleCreate}
+                className="space-y-5 rounded-sm border border-border bg-card p-6"
+              >
               <div className="space-y-2">
                 <Label htmlFor="name">Community name</Label>
                 <Input id="name" required value={name} onChange={(e) => setName(e.target.value)} placeholder="Lagos Builders" />
@@ -360,49 +360,51 @@ function CommunityPage() {
         </div>
 
         {/* Community switcher — if user is in multiple communities */}
-        {myCommunities.length > 1 && (
-          <div className="mb-4 flex flex-wrap gap-2">
-            {myCommunities.map((c: any) => (
-              <button
-                key={c.id}
-                onClick={() => setSelectedId(c.id)}
-                className={cn(
-                  "flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-                  community?.id === c.id
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground",
-                )}
+        {myCommunities.length > 1 ? (
+          <>
+            <div className="mb-4 flex flex-wrap gap-2">
+              {myCommunities.map((c: any) => (
+                <button
+                  key={c.id}
+                  onClick={() => setSelectedId(c.id)}
+                  className={cn(
+                    "flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                    community?.id === c.id
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground",
+                  )}
+                >
+                  <span className="flex size-5 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
+                    {c.name?.charAt(0).toUpperCase()}
+                  </span>
+                  {c.name}
+                  {(c as any).role === "leader" && (
+                    <span className="rounded bg-gold/10 px-1 text-[10px] text-gold">Leader</span>
+                  )}
+                </button>
+              ))}
+            </div>
+            <p className="mt-4 text-xs text-muted-foreground">Referral code</p>
+            <div className="mt-1 flex items-center gap-2">
+              <code className="flex-1 rounded-lg bg-muted px-3 py-2 text-sm font-medium">
+                {community.referral_code}
+              </code>
+              <Button
+                asChild
+                variant="hero"
+                size="lg"
+                className="mt-6"
               >
-                <span className="flex size-5 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
-                  {c.name?.charAt(0).toUpperCase()}
-                </span>
-                {c.name}
-                {(c as any).role === "leader" && (
-                  <span className="rounded bg-gold/10 px-1 text-[10px] text-gold">Leader</span>
-                )}
-              </button>
-            ))}
-          </div>
-          <p className="mt-4 text-xs text-muted-foreground">Referral code</p>
-          <div className="mt-1 flex items-center gap-2">
-            <code className="flex-1 rounded-lg bg-muted px-3 py-2 text-sm font-medium">
-              {community.referral_code}
-            </code>
-            <Button
-              asChild
-              variant="hero"
-              size="lg"
-              className="mt-6"
-            >
-              <Link to="/community/channels">
-                <MessageSquare className="size-4" />
-                Open Channels
-                <ArrowRight className="size-4" />
-              </Link>
-            </Button>
-          </div>
-          <p className="mt-2 break-all text-xs text-muted-foreground">{joinUrl}</p>
-        </div>
+                <Link to="/community/channels">
+                  <MessageSquare className="size-4" />
+                  Open Channels
+                  <ArrowRight className="size-4" />
+                </Link>
+              </Button>
+            </div>
+            <p className="mt-2 break-all text-xs text-muted-foreground">{joinUrl}</p>
+          </>
+        ) : null}
       </div>
 
       {chatTab && (
