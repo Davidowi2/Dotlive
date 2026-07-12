@@ -8,7 +8,7 @@ import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import crypto from "node:crypto";
 
 import { db } from "../db/client.js";
-import { communities, communityMembers, communityChannels, communityPosts, users } from "../db/schema.js";
+import { communities, communityMembers, communityChannels, communityPosts, communityChatMessages, users } from "../db/schema.js";
 import { userHasRole } from "../lib/auth.js";
 
 const createSchema = z.object({
@@ -542,8 +542,7 @@ export async function communityRoutes(app: FastifyInstance) {
       return reply.send({ reactions });
     },
   );
-}
-// @ts-nocheck
+
   /** GET /api/communities/:id/channels — list chat channels for a community */
   app.get<{ Params: { id: string } }>("/communities/:id/channels", async (req, reply) => {
     const { id } = req.params;
@@ -582,3 +581,4 @@ export async function communityRoutes(app: FastifyInstance) {
     const [msg] = await db.insert(communityChatMessages).values({ communityId: id, authorId: sub, body: body.trim() }).returning();
     return reply.code(201).send({ message: msg });
   });
+}

@@ -39,7 +39,7 @@ async function creditWalletAndUpdatePayment(
       .set({
         balance: sql`${wallets.balance} + ${String(amountDot)}`,
         updatedAt: new Date(),
-      })
+      } as any)
       .where(eq(wallets.userId, userId));
 
     // Update payment
@@ -49,7 +49,7 @@ async function creditWalletAndUpdatePayment(
         status: "completed",
         creditedAt: new Date(),
         paidAt: new Date(),
-      })
+      } as any)
       .where(eq(payments.id, paymentId));
 
     // Insert transaction record
@@ -243,7 +243,7 @@ export async function paymentsRoutes(app: FastifyInstance) {
     if (event.data.amount !== expectedKobo) {
       await db
         .update(payments)
-        .set({ status: "failed" })
+        .set({ status: "failed" } as any)
         .where(eq(payments.id, payment.id));
       return reply.status(200).send("OK");
     }

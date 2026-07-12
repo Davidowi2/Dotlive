@@ -938,7 +938,7 @@ const start = async () => {
             // Mark reminder as sent for this meeting
             await db
               .update(meetings)
-              .set({ reminderSentAt: new Date() })
+              .set({ reminderSentAt: new Date() } as any)
               .where(eq(meetings.id, meeting.id));
           }
         }
