@@ -427,8 +427,13 @@ export const communities = pgTable("communities", {
   leaderId: text("leader_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   region: text("region"),
   category: text("category"),
+  visibility: text("visibility").notNull().default("private"), // public | private
+  inviteCode: text("invite_code").notNull().unique(),
+  inviteExpiresAt: timestamp("invite_expires_at", { withTimezone: true }),
   referralCode: text("referral_code").notNull().unique(),
   tier: text("tier").notNull().default("free"), // free | verified | campus | enterprise
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
   annualRenewalAt: timestamp("annual_renewal_at", { withTimezone: true }),
   subscriptionStatus: text("subscription_status").notNull().default("active"), // active | grace | expired | cancelled
   paidThroughAt: timestamp("paid_through_at", { withTimezone: true }),
@@ -436,23 +441,26 @@ export const communities = pgTable("communities", {
   memberCount: integer("member_count").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-},
-  (t) => ({
-      communities_leader_idx: index("communities_leader_idx").on(t.leaderId),
-      communities_tier_idx: index("communities_tier_idx").on(t.tier),
+}, (t) => ({
+    communities_leader_idx: index("communities_leader_idx").on(t.leaderId),
+    communities_tier_idx: index("communities_tier_idx").on(t.tier),
+    communities_visibility_idx: index("communities_visibility_idx").on(t.visibility),
+    communities_invite_idx: index("communities_invite_idx").on(t.inviteCode),
   }));
-
 /* --------------------------- Community members ---------------- */
 export const communityMembers = pgTable("community_members", {
   id: uuid("id").primaryKey().defaultRandom(),
   communityId: uuid("community_id").notNull().references(() => communities.id, { onDelete: "cascade" }),
   founderId: text("founder_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  status: text("status").notNull().default("active"),
+  role: text("role").notNull().default("member"), // member | moderator | leader
+  status: text("status").notNull().default("active"), // active | removed | banned
+  removedAt: timestamp("removed_at", { withTimezone: true }),
+  removedBy: text("removed_by").references(() => users.id, { onDelete: "set null" }),
   joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
-},
-  (t) => ({
-      community_members_uniq: unique("community_members_unique").on(t.communityId, t.founderId),
-      community_members_founder_idx: index("community_members_founder_idx").on(t.founderId),
+}, (t) => ({
+    community_members_uniq: unique("community_members_unique").on(t.communityId, t.founderId),
+    community_members_founder_idx: index("community_members_founder_idx").on(t.founderId),
+    community_members_community_role_idx: uniqueIndex("community_members_community_role_idx").on(t.communityId, t.role),
   }));
 
 /* --------------------------- Services (Gigs) ------------------- */
