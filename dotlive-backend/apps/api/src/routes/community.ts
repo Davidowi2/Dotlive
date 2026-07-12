@@ -575,7 +575,7 @@ export async function communityRoutes(app: FastifyInstance) {
     const { body } = (req.body ?? {}) as { body?: string };
     if (!body || !body.trim()) return reply.code(400).send({ error: "body required" });
 
-    const member = await db.select().from(communityMembers).where(eq(communityMembers.communityId, id), eq(communityMembers.founderId, sub)).limit(1);
+    const member = await db.select().from(communityMembers).where(and(eq(communityMembers.communityId, id), eq(communityMembers.founderId, sub))).limit(1);
     if (!member.length) return reply.code(403).send({ error: "Not a member" });
 
     const [msg] = await db.insert(communityChatMessages).values({ communityId: id, authorId: sub, body: body.trim() }).returning();
