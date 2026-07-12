@@ -199,68 +199,6 @@ function CommunityPage() {
                 placeholder="Tech / Agric"
               />
             </div>
-
-            {joinTab === "join" ? (
-              <JoinByCodPanel />
-            ) : (
-              <form
-                onSubmit={handleCreate}
-                className="space-y-5 rounded-sm border border-border bg-card p-6"
-              >
-              <div className="space-y-2">
-                <Label htmlFor="name">Community name</Label>
-                <Input id="name" required value={name} onChange={(e) => setName(e.target.value)} placeholder="Lagos Builders" />
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="region">Region</Label>
-                  <Input id="region" value={region} onChange={(e) => setRegion(e.target.value)} placeholder="Lagos, Nigeria" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="cat">Category</Label>
-                  <Input id="cat" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Tech / Agric" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="desc">Description</Label>
-                <Textarea id="desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="What kind of founders belong here?" />
-              </div>
-
-              {/* Privacy toggle */}
-              <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 p-3">
-                <div className="flex items-center gap-2.5">
-                  {isPrivate ? <Lock className="size-4 text-amber-500" /> : <Globe className="size-4 text-emerald-500" />}
-                  <div>
-                    <p className="text-sm font-medium">{isPrivate ? "Private community" : "Public community"}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {isPrivate
-                        ? "Members join via unique invite code only — not listed publicly"
-                        : "Listed on Discover — anyone can request to join"}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsPrivate((p) => !p)}
-                  className={cn(
-                    "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-                    isPrivate ? "bg-amber-500" : "bg-emerald-500",
-                  )}
-                >
-                  <span className={cn("inline-block size-4 rounded-full bg-white shadow transition-transform", isPrivate ? "translate-x-6" : "translate-x-1")} />
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between border-t border-border pt-4">
-                <p className="text-xs text-muted-foreground">You become the leader and receive a referral code.</p>
-                <Button type="submit" variant="hero" disabled={createMutation.isPending}>
-                  {createMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
-                  Create community
-                  <ArrowRight className="size-4" />
-                </Button>
-              </div>
-            </form>
-            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="desc">Description</Label>
@@ -271,8 +209,8 @@ function CommunityPage() {
               rows={3}
             />
           </div>
-          <Button type="submit" variant="hero" disabled={busy}>
-            {busy ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+          <Button type="submit" variant="hero" disabled={createMutation.isPending}>
+            {createMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
             Create community
           </Button>
         </form>
