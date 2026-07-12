@@ -16,7 +16,7 @@ import { z } from "zod";
 import { signDirectUpload, uploadDocument } from "../lib/cloudinary.js";
 
 const signSchema = z.object({
-  folder: z.enum(["avatars", "ventures", "services", "community", "misc"]),
+  folder: z.enum(["avatars", "ventures", "services", "community", "misc", "feed"]),
 });
 
 export async function uploadRoutes(app: FastifyInstance) {

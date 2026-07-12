@@ -62,6 +62,68 @@ export async function academyRoutes(app: FastifyInstance) {
     }
   });
 
+  /** POST /api/academy/checkout — create a Whop checkout session. */
+  app.post("/academy/checkout", { preHandler: app.authenticate }, async (req, reply) => {
+    const { sub } = req.user as { sub: string };
+    const parsed = z
+      .object({
+        productId: z.string().optional().nullable().or(z.literal("")),
+        amountCents: z.number().int().nonnegative().max(100_000_000).optional(),
+        metadata: z.record(z.string(), z.any()).optional(),
+      })
+      .safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Invalid input", details: parsed.error.issues });
+    }
+
+    const productId = parsed.data.productId || null;
+    const amountCents = Number(parsed.data.amountCents ?? 0);
+
+    // For now, this proxy requires a mapped Whop product; otherwise we return
+    // a preserved fallback URL so the frontend can still redirect.
+    if (!productId || amountCents <= 0) {
+      return reply.code(400).send({ error: "Missing productId or amountCents" });
+    }
+
+    // Admin/users-only path: Whop API_KEY is expected in server env.
+    const apiKey = process.env.WHOP_API_KEY;
+    if (!apiKey) {
+      return reply.code(501).send({ error: "Whop not configured" });
+    }
+
+    const metadata = {
+      user_id: sub,
+      amount_usd_cents: String(amountCents),
+      ...(parsed.data.metadata ?? {}),
+    };
+
+    let res: Response;
+    try {
+      res = await fetch("https://api.whop.com/api/v1/checkout_sessions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          product_id: productId,
+          metadata,
+          return_url: `${process.env.PUBLIC_SITE_URL ?? "https://dotlive.app"}/academy?whop_return=1`,
+        }),
+      });
+    } catch (e) {
+      return reply.code(502).send({ error: `Whop request failed: ${(e as Error).message}` });
+    }
+
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      return reply.code(res.status).send({ error: `Whop checkout failed: ${res.status}`, details: txt });
+    }
+
+    const data = (await res.json()) as { id: string; url: string };
+    return reply.send({ checkout: { id: data.id, url: data.url } });
+  });
+
   /**
    * POST /api/academy/complete
    * Idempotent: completing an already-rewarded enrollment is a

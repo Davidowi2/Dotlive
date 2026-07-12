@@ -544,3 +544,41 @@ export async function communityRoutes(app: FastifyInstance) {
   );
 }
 // @ts-nocheck
+  /** GET /api/communities/:id/channels — list chat channels for a community */
+  app.get<{ Params: { id: string } }>("/communities/:id/channels", async (req, reply) => {
+    const { id } = req.params;
+    const rows = await db.select().from(communityChannels).where(eq(communityChannels.communityId, id)).orderBy(communityChannels.position);
+    return reply.send({ channels: rows });
+  });
+
+  /** GET /api/communities/:id/chat — list latest chat messages */
+  app.get<{ Params: { id: string } }>("/communities/:id/chat", async (req, reply) => {
+    const { id } = req.params;
+    const q = (req.query ?? {}) as Record<string, unknown>;
+    const limit = Math.min(Number(q.limit ?? 50), 100);
+    const rows = await db.execute(sql`
+      SELECT m.id, m.body, m.created_at,
+             u.id AS author_id, u.name AS author_name, u.avatar_url AS author_avatar
+      FROM community_chat_messages m
+      JOIN users u ON u.id = m.author_id
+      WHERE m.community_id = ${id}
+      ORDER BY m.created_at DESC
+      LIMIT ${limit}
+    `);
+    const messages = ((rows as any).rows ?? rows).reverse();
+    return reply.send({ messages });
+  });
+
+  /** POST /api/communities/:id/chat — send chat message */
+  app.post<{ Params: { id: string } }>("/communities/:id/chat", { preHandler: app.authenticate }, async (req, reply) => {
+    const { id } = req.params;
+    const { sub } = req.user as { sub: string };
+    const { body } = (req.body ?? {}) as { body?: string };
+    if (!body || !body.trim()) return reply.code(400).send({ error: "body required" });
+
+    const member = await db.select().from(communityMembers).where(eq(communityMembers.communityId, id), eq(communityMembers.founderId, sub)).limit(1);
+    if (!member.length) return reply.code(403).send({ error: "Not a member" });
+
+    const [msg] = await db.insert(communityChatMessages).values({ communityId: id, authorId: sub, body: body.trim() }).returning();
+    return reply.code(201).send({ message: msg });
+  });
