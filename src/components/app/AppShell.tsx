@@ -15,19 +15,11 @@ import {
   Shield,
   LogOut,
   Loader2,
-  Search,
-  Filter,
+  CalendarDays,
   Bell,
-  Award,
   Settings,
-  Lock,
-  Menu as MenuIcon,
-  X,
-  BarChart3,
-  HelpCircle,
-  LineChart,
-  MessageSquare,
-  type LucideIcon,
+  Compass,
+  User,
 } from "lucide-react";
 import { Logo } from "@/components/site/Logo";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
@@ -47,38 +39,22 @@ interface NavItem {
 
 /* Section order is fixed; sections without items get hidden automatically. */
 const NAV_ITEMS: NavItem[] = [
-  /* main */
-  { label: "Dashboard",     to: "/dashboard",     icon: LayoutDashboard, section: "main" },
-    { label: "Discover",      to: "/discover",      icon: Search,          section: "main" },
-    { label: "Search",        to: "/search",        icon: Filter,          section: "main" },
-  { label: "Meetings",      to: "/meetings",      icon: MessageSquare,   section: "main" },
-  { label: "Notifications", to: "/notifications", icon: Bell,            section: "main" },
-  /* growth — founder progression */
-  { label: "Vantage",       to: "/vantage",       icon: Gauge,       roles: ["founder"],                 section: "growth" },
-  { label: "Wallet",        to: "/wallet",           icon: Wallet,                                     section: "growth" },
-  { label: "Stakes",        to: "/stakes",        icon: Lock,                                       section: "growth" },
-  { label: "Refer & Earn",  to: "/referrals",        icon: Users,                                      section: "growth" },
-  { label: "Leaderboard",   to: "/leaderboard",    icon: Trophy,                                     section: "growth" },
-  { label: "Builder Arena", to: "/builder",       icon: Trophy,      roles: ["builder"],                 section: "growth" },
-  { label: "DOT Work",      to: "/work",          icon: Hammer,                                     section: "growth" },
-  { label: "Academy",       to: "/academy",       icon: BookOpen,                                      section: "growth" },
-  { label: "Sessions",      to: "/sessions",      icon: CalendarCheck,                              section: "growth" },
-  { label: "Pitchathons",   to: "/pitchathons",   icon: Trophy,      roles: ["founder"],                 section: "growth" },
-  { label: "Certificates",  to: "/certificates",  icon: Award,       roles: ["founder"],                 section: "growth" },
-  /* community */
-    { label: "My Community",  to: "/community",           icon: Users,   roles: ["community_leader", "admin", "super_admin"], section: "community" },
-  /* capital */
-  { label: "DOT Demo",      to: "/demo",          icon: Building2,                                  section: "capital" },
-  { label: "My Venture",    to: "/ventures",      icon: LineChart,    roles: ["founder"],                 section: "capital" },
-  { label: "Investor Portal", to: "/investor",    icon: Briefcase,   roles: ["investor"],                section: "capital" },
-  { label: "My Portfolio",   to: "/portfolio",    icon: LineChart,    roles: ["investor"],                section: "capital" },
-  { label: "Capital Partner", to: "/capital",     icon: Wallet,      roles: ["capital_partner"],         section: "capital" },
-  { label: "Judge Portal",  to: "/judge",         icon: Trophy,      roles: ["judge"],                    section: "capital" },
-  /* operator (formerly "admin" — internal staff, not a self-assignable role) */
-  { label: "Operator",      to: "/admin",         icon: Shield,      roles: ["admin", "super_admin"],    section: "admin" },
-  /* always */
-  { label: "Settings",      to: "/settings",      icon: Settings,                                   section: "main" },
-  { label: "Help",          to: "/help",          icon: HelpCircle,                                section: "main" },
+  { label: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
+  { label: "Vantage", to: "/vantage", icon: Gauge, roles: ["founder"] },
+  { label: "Wallet", to: "/wallet", icon: Wallet },
+  { label: "DOT Work", to: "/work", icon: Hammer },
+  { label: "Academy", to: "/academy", icon: BookOpen, roles: ["founder"] },
+  { label: "Sessions", to: "/sessions", icon: CalendarCheck },
+  { label: "Pitchathons", to: "/pitchathons", icon: Trophy, roles: ["founder"] },
+  { label: "Meetings", to: "/meetings", icon: CalendarDays },
+  { label: "Notifications", to: "/notifications", icon: Bell },
+  { label: "Discover", to: "/discover", icon: Compass },
+  { label: "Community", to: "/community", icon: Users, roles: ["community_leader"] },
+  { label: "DOT Demo", to: "/demo", icon: Building2 },
+  { label: "Investor Portal", to: "/investor", icon: Briefcase, roles: ["investor"] },
+  { label: "Admin", to: "/admin", icon: Shield, roles: ["admin"] },
+  { label: "Settings", to: "/settings", icon: Settings },
+  { label: "Profile", to: "/account", icon: User },
 ];
 
 const SECTION_META: Record<string, { label: string }> = {

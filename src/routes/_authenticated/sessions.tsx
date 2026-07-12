@@ -23,14 +23,19 @@ import { dotApi } from "@/api/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDotAuth } from "@/contexts/DotAuthContext";
 import { formatDot } from "@/lib/constants";
+import { isWhopConfigured } from "@/lib/whop";
+import { createCheckout } from "@/api/academy";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/sessions")({
   head: () => ({
     meta: [
-      { title: "Sessions — DOT" },
-      { name: "description", content: "Live sessions with founders, operators and investors." },
+      { title: "Founder Sessions — DOT" },
+      {
+        name: "description",
+        content: "Register for live founder sessions with operators and investors.",
+      },
     ],
   }),
   component: SessionsPage,
@@ -108,53 +113,98 @@ function SessionsPage() {
     }
   }
 
-  const upcoming = events.filter(ev => isUpcoming(ev.eventDate) || isLive(ev.eventDate));
-  const past = events.filter(ev => ev.eventDate && !isUpcoming(ev.eventDate) && !isLive(ev.eventDate));
+  async function openCheckout(e: any) {
+    try {
+      const checkout = await createCheckout({
+        productId: e.whop_product_id ?? e.whopUrl,
+        amountCents: e.price_usd_cents ?? e.dot_cost * 100,
+        metadata: { eventId: e.id, source: "event" },
+      });
+      window.open(checkout.url, "_blank", "noopener");
+    } catch {
+      if (e.whop_url) window.open(e.whop_url, "_blank", "noopener");
+    }
+  }
 
   return (
     <AppShell>
-      <PageHeader
-        eyebrow="Live"
-        title="Founder Sessions"
-        subtitle="Live discussions, seminars, and expert talks. Register with DOT, join on the day."
-      />
+      <h1 className="font-display text-3xl font-bold">Founder Sessions</h1>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Live access to operators, experts and investors.
+      </p>
 
       {isLoading ? (
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          {[1,2,3,4].map(i => <div key={i} className="h-48 animate-pulse rounded-2xl bg-muted/40" />)}
-        </div>
-      ) : events.length === 0 ? (
-        <div className="mt-6">
-          <EcosystemEmptyState
-            icon={CalendarCheck}
-            title="No sessions scheduled yet"
-            subtitle="Live sessions with operators, experts and investors. Operators schedule sessions from the admin panel."
-            postedBy="Operators and Capital Partners"
-            requiredRole={["admin", "capital_partner"]}
-            accent="teal"
-            postHref="/admin"
-            postLabel="Schedule a session"
-            secondaryAction={{ label: "Browse the network", href: "/discover" }}
-          />
-        </div>
-      ) : (
-        <div className="mt-6 space-y-8">
-          {/* Upcoming + Live */}
-          {upcoming.length > 0 && (
-            <section>
-              <h2 className="font-display text-lg font-light tracking-tight mb-4 flex items-center gap-2">
-                <Radio className="size-4 text-primary" />
-                Upcoming sessions
-              </h2>
-              <div className="grid gap-4 sm:grid-cols-2">
-                {upcoming.map(ev => (
-                  <SessionCard
-                    key={ev.id}
-                    ev={ev}
-                    isReg={registered.has(ev.id)}
-                    onRegister={() => register(ev.id, ev.dotCost ?? 0)}
-                  />
-                ))}
+          {events.map((e) => {
+            const isReg = registered.has(e.id);
+            const date = e.event_date ? new Date(e.event_date) : null;
+            const priceLabel = e.price_usd_cents
+              ? `$${(Number(e.price_usd_cents) / 100).toFixed(2)}`
+              : e.dot_cost > 0
+                ? `${formatDot(e.dot_cost)} DOT`
+                : "Free";
+            return (
+              <div
+                key={e.id}
+                className="flex flex-col rounded-2xl border border-border bg-card p-5"
+              >
+                <div className="flex items-center justify-between">
+                  <Badge variant="secondary">
+                    <CalendarCheck className="mr-1 size-3" />
+                    {date
+                      ? date.toLocaleDateString("en", { month: "short", day: "numeric" })
+                      : "TBA"}
+                  </Badge>
+                  <span className="flex items-center gap-1 text-sm font-medium text-gold">
+                    <Coins className="size-4" /> {priceLabel}
+                  </span>
+                </div>
+                <h3 className="mt-4 font-display text-lg font-semibold">{e.title}</h3>
+                {e.speaker && (
+                  <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
+                    <User className="size-3.5" /> {e.speaker}
+                  </p>
+                )}
+                <p className="mt-2 flex-1 text-sm text-muted-foreground">{e.description}</p>
+                {date && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {date.toLocaleString("en", {
+                      weekday: "long",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                )}
+                <div className="mt-4 flex gap-2">
+                  {isReg ? (
+                    <Button variant="outline" className="flex-1" disabled>
+                      <Check className="size-4 text-primary" /> Registered
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="hero"
+                      className="flex-1"
+                      onClick={() => register(e.id, e.dot_cost)}
+                    >
+                      Register {e.dot_cost > 0 ? `· ${formatDot(e.dot_cost)} DOT` : ""}
+                    </Button>
+                  )}
+                  {(e.whop_product_id || e.price_usd_cents || e.whop_url) && (
+                    <Button variant="outline" size="icon" asChild title="Open Whop checkout">
+                      <a
+                        href={`#`}
+                        onClick={(ev) => {
+                          ev.preventDefault();
+                          openCheckout(e);
+                        }}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <ExternalLink className="size-4" />
+                      </a>
+                    </Button>
+                  )}
+                </div>
               </div>
             </section>
           )}

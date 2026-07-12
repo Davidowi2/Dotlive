@@ -1,27 +1,7 @@
-import { useState } from "react";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { createFileRoute } from "@tanstack/react-router";
 import { QRCodeCanvas } from "qrcode.react";
-import {
-  Users,
-  Loader2,
-  Copy,
-  Plus,
-  Gauge,
-  CheckCircle2,
-  TrendingUp,
-  Share2,
-  QrCode,
-  UserPlus,
-  ArrowRight,
-  Lock,
-  MessageSquare,
-  Hash,
-  Globe,
-  Shield,
-  Key,
-  Eye,
-  EyeOff,
-} from "lucide-react";
+import { Users, Loader2, Copy, Plus, Gauge, CheckCircle2, TrendingUp, Send } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { BackButton } from "@/components/app/BackButton";
 import { PageHeader } from "@/components/app/PageHeader";
@@ -54,6 +34,31 @@ export const Route = createFileRoute("/_authenticated/community")({
   component: CommunityPage,
 });
 
+interface FounderInfo {
+  user_id: string;
+  venture_name: string | null;
+  vantage_point: number | null;
+  stage: string | null;
+}
+
+interface MemberRow {
+  id: string;
+  community_id: string;
+  founder_id: string;
+  status: string;
+  joined_at: string;
+  founder_profiles: FounderInfo | null;
+}
+
+interface ChatMessage {
+  id: string;
+  body: string;
+  created_at: string;
+  author_name: string;
+  author_avatar: string | null;
+  author_id: string;
+}
+
 function CommunityPage() {
   const { user, roles } = useDotAuth();
   const navigate = useNavigate();
@@ -63,9 +68,10 @@ function CommunityPage() {
   const [description, setDescription] = useState("");
   const [region, setRegion] = useState("");
   const [category, setCategory] = useState("");
-  const [isPrivate, setIsPrivate] = useState(false);
-  const [joinTab, setJoinTab] = useState<"create" | "join">("create");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [chatTab, setChatTab] = useState(false);
+  const [chatInput, setChatInput] = useState("");
+  const [chatSending, setChatSending] = useState(false);
 
   // Load ALL communities the user is part of (led + member)
   const { data: myCommunities = [], isLoading } = useQuery({
@@ -105,18 +111,50 @@ function CommunityPage() {
     },
   });
 
-  async function handleCreate(e: React.FormEvent) {
+  const { data: communityChat } = useQuery({
+    queryKey: ["community-chat", community?.id],
+    enabled: !!community?.id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("community_chat_messages")
+        .select("id,body,created_at,author_id,author_name,author_avatar")
+        .eq("community_id", community!.id)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      return (data ?? []) as ChatMessage[];
+    },
+  });
+
+  async function createCommunity(e: React.FormEvent) {
     e.preventDefault();
     if (!user) return;
     await createMutation.mutateAsync({ name, description, region, category });
   }
 
+  async function sendChat(e: React.FormEvent) {
+    e.preventDefault();
+    if (!user || !community?.id || !chatInput.trim()) return;
+    setChatSending(true);
+    try {
+      const { error } = await supabase.from("community_chat_messages").insert({
+        community_id: community.id,
+        author_id: user.id,
+        body: chatInput.trim(),
+      });
+      if (error) throw error;
+      setChatInput("");
+      qc.invalidateQueries({ queryKey: ["community-chat", community.id] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Message failed");
+    } finally {
+      setChatSending(false);
+    }
+  }
+
   if (isLoading) {
     return (
       <AppShell>
-        <PageSkeleton.Header />
-        <PageSkeleton.StatCards count={4} />
-        <PageSkeleton.TableRows rows={5} cols={4} />
+        <Loader2 className="size-6 animate-spin text-primary" />
       </AppShell>
     );
   }
@@ -124,91 +162,42 @@ function CommunityPage() {
   if (!community) {
     return (
       <AppShell>
-        <div className="mb-3">
-          <BackButton label="Back" fallback="/discover/communities" />
-        </div>
-        <PageHeader
-          eyebrow="Community OS"
-          title="Start a community"
-          subtitle={
-            canCreateCommunity
-              ? "Launch a hub for founders in your region and start onboarding."
-              : "Communities are owned by Community Leaders. Builders join them; leaders run them."
-          }
-          action={
-            <Badge variant="outline" className="font-medium">
-              <UserPlus className="mr-1.5 size-3" />
-              Community OS
-            </Badge>
-          }
-        />
-
-        {!canCreateCommunity ? (
-          // ─── Gate + Join by code for non-leaders ───
-          <section className="mt-8 max-w-xl space-y-4">
-            {/* Join by code */}
-            <JoinByCodPanel />
-
-            <div className="rounded-sm border-2 border-dashed border-primary/30 bg-primary/5 p-8 text-center">
-              <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-primary/15">
-                <Lock className="size-6 text-primary" />
-              </div>
-              <h2 className="mt-4 font-display text-xl font-semibold">
-                Becoming a Community Leader is a 1,000 DOT commitment
-              </h2>
-              <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-                Builders join communities. Leaders <em>run</em> them. Leaders set
-                the rules, host sessions, and earn a referral share when founders raise capital.
-              </p>
-              <div className="mt-6 grid gap-3 text-left sm:grid-cols-3">
-                <div className="rounded-lg border border-border bg-card p-3">
-                  <p className="text-[10px] font-medium tracking-widest uppercase text-muted-foreground">Earn</p>
-                  <p className="mt-1 font-display text-sm font-semibold">5% referral share</p>
-                  <p className="text-xs text-muted-foreground">on every raise in your community</p>
-                </div>
-                <div className="rounded-lg border border-border bg-card p-3">
-                  <p className="text-[10px] font-medium tracking-widest uppercase text-muted-foreground">Reach</p>
-                  <p className="mt-1 font-display text-sm font-semibold">Regional founders</p>
-                  <p className="text-xs text-muted-foreground">your member list, your events</p>
-                </div>
-                <div className="rounded-lg border border-border bg-card p-3">
-                  <p className="text-[10px] font-medium tracking-widest uppercase text-muted-foreground">Status</p>
-                  <p className="mt-1 font-display text-sm font-semibold">Leader badge</p>
-                  <p className="text-xs text-muted-foreground">on every community page</p>
-                </div>
-              </div>
-              <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-                <Button asChild variant="hero">
-                  <Link to="/settings">Become a Community Leader <ArrowRight className="size-4" /></Link>
-                </Button>
-                <Button asChild variant="ghost">
-                  <Link to="/discover/communities">Browse existing communities</Link>
-                </Button>
-              </div>
+        <h1 className="font-display text-3xl font-bold">Create your community</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Launch your community and start onboarding founders.
+        </p>
+        <form
+          onSubmit={createCommunity}
+          className="mt-6 max-w-lg space-y-4 rounded-2xl border border-border bg-card p-6"
+        >
+          <div className="space-y-2">
+            <Label htmlFor="name">Community name</Label>
+            <Input
+              id="name"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Lagos Builders"
+            />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="region">Region</Label>
+              <Input
+                id="region"
+                value={region}
+                onChange={(e) => setRegion(e.target.value)}
+                placeholder="Lagos, Nigeria"
+              />
             </div>
-          </section>
-        ) : (
-          <div className="mt-8 max-w-xl space-y-4">
-            {/* Toggle: Create or Join */}
-            <div className="flex gap-1 rounded-xl border border-border bg-muted/30 p-1">
-              <button
-                onClick={() => setJoinTab("create")}
-                className={cn(
-                  "flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-sm font-medium transition-colors",
-                  joinTab === "create" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                <Plus className="size-3.5" /> Create community
-              </button>
-              <button
-                onClick={() => setJoinTab("join")}
-                className={cn(
-                  "flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-sm font-medium transition-colors",
-                  joinTab === "join" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                <Key className="size-3.5" /> Join by code
-              </button>
+            <div className="space-y-2">
+              <Label htmlFor="cat">Category</Label>
+              <Input
+                id="cat"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                placeholder="Tech / Agric"
+              />
             </div>
 
             {joinTab === "join" ? (
@@ -273,7 +262,20 @@ function CommunityPage() {
             </form>
             )}
           </div>
-        )}
+          <div className="space-y-2">
+            <Label htmlFor="desc">Description</Label>
+            <Textarea
+              id="desc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+            />
+          </div>
+          <Button type="submit" variant="hero" disabled={busy}>
+            {busy ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+            Create community
+          </Button>
+        </form>
       </AppShell>
     );
   }
@@ -281,15 +283,80 @@ function CommunityPage() {
   const code = referralCode ?? community.referralCode;
   const joinUrl = `https://dotlive-lake.vercel.app/join/${code}`;
   const activeCount = members.filter((m) => m.status === "active").length;
-
-  /* Honest: vantage completed / avg vantage aren't computed yet —
-   * show placeholders that don't pretend to be a number. */
-  const vantageDone = members.filter((m) => m.founder).length;
+  const withVantage = members.filter(
+    (m) => (m.founder_profiles as { vantage_point?: number } | null)?.vantage_point,
+  ).length;
+  const avgVantage = members.length
+    ? Math.round(
+        members.reduce(
+          (s, m) =>
+            s + ((m.founder_profiles as { vantage_point?: number } | null)?.vantage_point ?? 0),
+          0,
+        ) / members.length,
+      )
+    : 0;
 
   return (
-      <AppShell>
-        <div className="mb-3">
-          <BackButton label="Back to communities" fallback="/discover/communities" />
+    <AppShell>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="font-display text-3xl font-bold">{community.name}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{community.description}</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setChatTab((v) => !v)}>
+            {chatTab ? "Hide chat" : "Open chat"}
+          </Button>
+        </div>
+      </div>
+
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Stat label="Members" value={members.length} icon={Users} />
+        <Stat label="Active founders" value={activeCount} icon={TrendingUp} />
+        <Stat label="Vantage completed" value={withVantage} icon={CheckCircle2} />
+        <Stat label="Avg Vantage" value={avgVantage} icon={Gauge} />
+      </div>
+
+      <div className={`grid gap-6 lg:grid-cols-3 ${chatTab ? "mt-6" : "mt-6"}`}>
+        <div className="rounded-2xl border border-border bg-card p-6 lg:col-span-2">
+          <h2 className="font-display text-lg font-semibold">Members</h2>
+          {members.length === 0 ? (
+            <p className="mt-4 text-sm text-muted-foreground">
+              No members yet. Share your referral link to onboard founders.
+            </p>
+          ) : (
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border text-left text-muted-foreground">
+                    <th className="pb-2 font-medium">Venture</th>
+                    <th className="pb-2 font-medium">Stage</th>
+                    <th className="pb-2 font-medium">Vantage</th>
+                    <th className="pb-2 font-medium">Joined</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {members.map((m) => {
+                    const fp = m.founder_profiles as {
+                      venture_name?: string;
+                      vantage_point?: number;
+                      stage?: string;
+                    } | null;
+                    return (
+                      <tr key={m.id}>
+                        <td className="py-2.5 font-medium">{fp?.venture_name ?? "—"}</td>
+                        <td className="py-2.5 text-muted-foreground">{fp?.stage ?? "—"}</td>
+                        <td className="py-2.5">{fp?.vantage_point ?? 0}</td>
+                        <td className="py-2.5 text-muted-foreground">
+                          {new Date(m.joined_at).toLocaleDateString()}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {/* Community switcher — if user is in multiple communities */}
@@ -316,198 +383,11 @@ function CommunityPage() {
               </button>
             ))}
           </div>
-        )}
-
-        <PageHeader
-          eyebrow="Community OS"
-          title={community.name}
-              subtitle={community.description ?? `Active in ${community.region ?? "your region"}.`}
-              action={
-                <Button variant="outline" size="sm">
-                  <Share2 className="size-4" />
-                  Share invite
-                </Button>
-              }
-            />
-
-      {/* ─── Tabs for Overview and Channels ─────────────────────── */}
-      <Tabs defaultValue="overview" className="mt-6">
-        <TabsList>
-          <TabsTrigger value="overview" className="gap-2">
-            <Users className="size-4" />
-            Overview
-          </TabsTrigger>
-          <TabsTrigger value="channels" className="gap-2">
-            <MessageSquare className="size-4" />
-            Channels
-          </TabsTrigger>
-        </TabsList>
-
-        {/* ─── Overview Tab ─────────────────────────────────────── */}
-        <TabsContent value="overview" className="mt-6">
-      {/* ─── Stats ─────────────────────────────────────────────────── */}
-      <section>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard
-            label="Members"
-            value={String(members.length)}
-            icon={Users}
-            accent="primary"
-          />
-          <StatCard
-            label="Active founders"
-            value={String(activeCount)}
-            icon={TrendingUp}
-            accent="primary"
-          />
-          <StatCard
-            label="Onboarded"
-            value={String(vantageDone)}
-            icon={CheckCircle2}
-            accent="gold"
-          />
-          <StatCard
-            label="Avg Vantage"
-            value="—"
-            sub="per member"
-            icon={Gauge}
-            accent="muted"
-          />
-        </div>
-      </section>
-
-      {/* ─── Section divider ───────────────────────────────────────── */}
-      <hr className="my-10 border-border" />
-
-      {/* ─── Roster + invite ───────────────────────────────────────── */}
-      <section className="grid gap-6 lg:grid-cols-3">
-        <div className="rounded-sm border border-border bg-card lg:col-span-2">
-          <PageHeader
-            variant="compact"
-            title="Members"
-            subtitle="Founders who joined via your referral code."
-            action={<Badge variant="outline">{members.length}</Badge>}
-          />
-          <div className="p-2 pt-0">
-            <DataTable
-              columns={[
-                {
-                  key: "founder",
-                  header: "Founder",
-                  cell: (m: CommunityMember) => (
-                    <div className="flex items-center gap-3">
-                      <span className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-                        {(m.founder?.name ?? "?").charAt(0).toUpperCase()}
-                      </span>
-                      <span className="font-medium">{m.founder?.name ?? "—"}</span>
-                    </div>
-                  ),
-                },
-                {
-                  key: "dotId",
-                  header: "DOT ID",
-                  hideOnMobile: true,
-                  cell: (m: CommunityMember) => (
-                    <span className="font-mono text-xs text-muted-foreground">
-                      {m.founder?.dotId ?? "—"}
-                    </span>
-                  ),
-                },
-                {
-                  key: "status",
-                  header: "Status",
-                  align: "right",
-                  cell: (m: CommunityMember) => (
-                    <Badge
-                      variant={m.status === "active" ? "default" : "secondary"}
-                      className="text-[10px]"
-                    >
-                      {m.status}
-                    </Badge>
-                  ),
-                },
-                {
-                  key: "joined",
-                  header: "Joined",
-                  align: "right",
-                  hideOnMobile: true,
-                  cell: (m: CommunityMember) => (
-                    <span className="tabular text-xs text-muted-foreground">
-                      {new Date(m.joinedAt).toLocaleDateString()}
-                    </span>
-                  ),
-                },
-              ]}
-              rows={members}
-              getRowKey={(m) => m.id}
-              emptyState={
-                <EmptyState
-                  variant="inline"
-                  icon={Users}
-                  title="No members yet"
-                  description="Share your referral link or QR code to onboard founders."
-                />
-              }
-            />
-          </div>
-        </div>
-
-        {/* Invite panel */}
-        <div className="rounded-sm border border-border bg-card p-6">
-          <div className="flex items-center gap-2">
-            <span className="flex size-8 items-center justify-center rounded-sm bg-primary/10 text-primary">
-              <QrCode className="size-4" />
-            </span>
-            <h2 className="font-display text-lg font-light tracking-tight">Invite founders</h2>
-          </div>
-
-          <div className="mt-5 flex justify-center rounded-sm border border-border bg-background p-5">
-            <QRCodeCanvas value={joinUrl} size={140} className="max-w-full h-auto" />
-          </div>
-
-          <div className="mt-5 space-y-2">
-            <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              Referral code
-            </Label>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 truncate rounded-sm border border-border bg-muted/40 px-3 py-2 text-sm font-medium">
-                {code}
-              </code>
-              <Button
-                variant="outline"
-                size="icon"
-                aria-label="Copy invite link"
-                onClick={() => {
-                  navigator.clipboard.writeText(joinUrl);
-                  toast.success("Invite link copied!");
-                }}
-              >
-                <Copy className="size-4" />
-              </Button>
-            </div>
-            <p className="break-all text-xs text-muted-foreground">{joinUrl}</p>
-          </div>
-
-          <div className="mt-6 rounded-sm border border-dashed border-border bg-muted/30 p-4 text-xs text-muted-foreground">
-            Members join via this code. Once onboarded, their Vantage assessments
-            feed into your community's stats here.
-          </div>
-        </div>
-      </section>
-        </TabsContent>
-
-        {/* ─── Channels Tab ─────────────────────────────────────── */}
-        <TabsContent value="channels" className="mt-6">
-          <div className="rounded-lg border border-border bg-card p-8 text-center">
-            <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-primary/10">
-              <Hash className="size-8 text-primary" />
-            </div>
-            <h3 className="mt-4 font-display text-xl font-semibold">
-              Community Channels
-            </h3>
-            <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-              Join live conversations with your community members. Discuss ideas, share updates, and collaborate in real-time.
-            </p>
+          <p className="mt-4 text-xs text-muted-foreground">Referral code</p>
+          <div className="mt-1 flex items-center gap-2">
+            <code className="flex-1 rounded-lg bg-muted px-3 py-2 text-sm font-medium">
+              {community.referral_code}
+            </code>
             <Button
               asChild
               variant="hero"
@@ -521,8 +401,47 @@ function CommunityPage() {
               </Link>
             </Button>
           </div>
-        </TabsContent>
-      </Tabs>
+          <p className="mt-2 break-all text-xs text-muted-foreground">{joinUrl}</p>
+        </div>
+      </div>
+
+      {chatTab && (
+        <div className="mt-6 rounded-2xl border border-border bg-card p-5">
+          <h2 className="font-display text-lg font-semibold">Community chat</h2>
+          <div className="mt-4 max-h-[320px] space-y-3 overflow-y-auto">
+            {(communityChat ?? []).map((m) => (
+              <div key={m.id} className="flex items-start gap-3">
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">
+                  {m.author_name ? m.author_name.charAt(0).toUpperCase() : "?"}
+                </div>
+                <div className="rounded-xl bg-muted/60 px-3 py-2">
+                  <p className="text-xs font-medium">
+                    {m.author_name ?? "User"} {m.author_id === user?.id ? "(you)" : ""}
+                  </p>
+                  <p className="text-sm">{m.body}</p>
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    {new Date(m.created_at).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <form onSubmit={sendChat} className="mt-4 flex gap-2">
+            <Input
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              placeholder="Message the community"
+            />
+            <Button type="submit" variant="hero" disabled={chatSending}>
+              {chatSending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Send className="size-4" />
+              )}
+            </Button>
+          </form>
+        </div>
+      )}
     </AppShell>
   );
 }
