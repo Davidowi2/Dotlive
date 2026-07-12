@@ -16,7 +16,7 @@ import { eq, and, or, desc, gte, lte, sql } from "drizzle-orm";
 import crypto from "node:crypto";
 
 import { db } from "../db/client.js";
-import { meetings, meetingSlots, users } from "../db/schema.js";
+import { meetings, meetingSlots, meetingMessages, users } from "../db/schema.js";
 import { notify } from "../lib/notify.js";
 import { publicCache, cached, k, invalidatePrefix } from "../lib/cache.js";
 
@@ -579,6 +579,163 @@ export async function meetingsRoutes(app: FastifyInstance) {
     invalidatePrefix("meetings:slots");
 
     return reply.status(204).send();
+  });
+
+  /** GET /meetings/:id/chat — list chat messages for accepted meetings */
+  app.get("/meetings/:id/chat", { preHandler: app.authenticate }, async (req, reply) => {
+    const { sub } = req.user as { sub: string };
+    const { id } = req.params as { id: string };
+
+    const [meeting] = await db.select().from(meetings).where(eq(meetings.id, id));
+    if (!meeting) return reply.code(404).send({ error: "Meeting not found" });
+    if (meeting.hostId !== sub && meeting.guestId !== sub) return reply.code(403).send({ error: "Not authorized" });
+    if (meeting.status !== "confirmed" && meeting.status !== "completed") {
+      return reply.code(400).send({ error: "Chat unlocks after both parties accept" });
+    }
+
+    const rows = await db
+      .select({
+        id: meetingMessages.id,
+        meetingId: meetingMessages.meetingId,
+        authorId: meetingMessages.authorId,
+        body: meetingMessages.body,
+        createdAt: meetingMessages.createdAt,
+        authorName: users.name,
+      })
+      .from(meetingMessages)
+      .leftJoin(users, eq(users.id, meetingMessages.authorId))
+      .where(eq(meetingMessages.meetingId, id))
+      .orderBy(meetingMessages.createdAt);
+
+    return reply.send(rows);
+  });
+
+  /** POST /meetings/:id/chat — send chat message in accepted meeting */
+  app.post("/meetings/:id/chat", { preHandler: app.authenticate }, async (req, reply) => {
+    const { sub } = req.user as { sub: string };
+    const { id } = req.params as { id: string };
+    const { body } = (req.body ?? {}) as { body?: string };
+    if (!body || !body.trim()) return reply.code(400).send({ error: "body required" });
+
+    const [meeting] = await db.select().from(meetings).where(eq(meetings.id, id));
+    if (!meeting) return reply.code(404).send({ error: "Meeting not found" });
+    if (meeting.hostId !== sub && meeting.guestId !== sub) return reply.code(403).send({ error: "Not authorized" });
+    if (meeting.status !== "confirmed" && meeting.status !== "completed") {
+      return reply.code(400).send({ error: "Chat unlocks after both parties accept" });
+    }
+
+    const [msg] = await db.insert(meetingMessages).values({ meetingId: id, authorId: sub, body: body.trim() } as any).returning();
+    return reply.code(201).send(msg);
+  });
+
+  /** PUT /meetings/:id/complete — manual completion by either party + auto-complete rule */
+  app.post("/meetings/:id/complete", { preHandler: app.authenticate }, async (req, reply) => {
+    const { sub } = req.user as { sub: string };
+    const { id } = req.params as { id: string };
+
+    const [meeting] = await db.select().from(meetings).where(eq(meetings.id, id));
+    if (!meeting) return reply.code(404).send({ error: "Meeting not found" });
+    if (meeting.hostId !== sub && meeting.guestId !== sub) return reply.code(403).send({ error: "Not authorized" });
+    if (meeting.status !== "confirmed" && meeting.status !== "completed") {
+      return reply.code(400).send({ error: "Only confirmed meetings can be completed" });
+    }
+
+    const now = new Date();
+    const isAuto = meeting.status === "confirmed" && new Date(meeting.scheduledAt).getTime() + 60 * 60 * 1000 < now.getTime();
+
+    await db
+      .update(meetings)
+      .set({ status: "completed", completedAt: now, updatedAt: now } as any)
+      .where(eq(meetings.id, id));
+
+    const otherId = meeting.hostId === sub ? meeting.guestId : meeting.hostId;
+    const [me] = await db.select({ name: users.name }).from(users).where(eq(users.id, sub)).limit(1);
+    if (otherId && me) {
+      await notify({
+        userId: otherId,
+        title: isAuto ? "Meeting auto-completed" : "Meeting marked complete",
+        body: `${me.name || "User"} marked this meeting as complete.`,
+        type: "system",
+        link: `/meetings/${id}`,
+      }).catch(() => {});
+    }
+
+    const [updated] = await db.select().from(meetings).where(eq(meetings.id, id));
+    return reply.send({ ...updated, autoCompleted: !!isAuto });
+  });
+
+  /** POST /meetings/:id/reschedule — cancel + invalidate slot so requester can book again */
+  app.post("/meetings/:id/reschedule", { preHandler: app.authenticate }, async (req, reply) => {
+    const { sub } = req.user as { sub: string };
+    const { id } = req.params as { id: string };
+    const parsed = confirmDeclineSchema.safeParse(req.body);
+    const reason = parsed.success ? parsed.data.reason : undefined;
+
+    const [meeting] = await db.select().from(meetings).where(eq(meetings.id, id));
+    if (!meeting) return reply.code(404).send({ error: "Meeting not found" });
+    if (meeting.hostId !== sub && meeting.guestId !== sub) return reply.code(403).send({ error: "Not authorized" });
+    if (meeting.status !== "confirmed") return reply.code(400).send({ error: "Only confirmed meetings can be rescheduled" });
+
+    const now = new Date();
+    await db.transaction(async (tx) => {
+      await tx
+        .update(meetings)
+        .set({ status: "cancelled", cancelledAt: now, cancelledReason: reason ? `Reschedule: ${reason}` : "Reschedule", updatedAt: now } as any)
+        .where(eq(meetings.id, id));
+
+      await tx
+        .update(meetingSlots)
+        .set({ status: "available" } as any)
+        .where(eq(meetingSlots.id, meeting.slotId));
+    });
+
+    invalidatePrefix("meetings:slots");
+    invalidatePrefix("meetings:list");
+
+    const otherUserId = meeting.hostId === sub ? meeting.guestId : meeting.hostId;
+    const [user] = await db.select().from(users).where(eq(users.id, sub)).limit(1);
+    const [slot] = await db.select().from(meetingSlots).where(eq(meetingSlots.id, meeting.slotId)).limit(1);
+    if (user && slot && otherUserId) {
+      await notify({
+        userId: otherUserId,
+        title: "Meeting rescheduled",
+        body: `${user.name || "User"} rescheduled your meeting planned for ${slot.date} at ${slot.startTime}${reason ? `: ${reason}` : ""}`,
+        type: "system",
+        link: `/meetings`,
+      }).catch(() => {});
+    }
+
+    const [updated] = await db.select().from(meetings).where(eq(meetings.id, id)).limit(1);
+    return reply.send(updated);
+  });
+
+  /** POST /admin/meetings/expire-pending — expire stale pending requests after 72h */
+  app.post("/admin/meetings/expire-pending", { preHandler: app.authenticate }, async (req, reply) => {
+    const { sub } = req.user as { sub: string };
+    const [me] = await db.select().from(users).where(eq(users.id, sub)).limit(1);
+    if (!me || !(await import("../lib/auth.js")).userHasRole(sub, "admin")) {
+      return reply.code(403).send({ error: "Not authorized" });
+    }
+
+    const cutoff = new Date(Date.now() - 72 * 60 * 60 * 1000);
+    const stale = await db.select().from(meetings).where(and(eq(meetings.status, "pending"), lte(meetings.createdAt, cutoff)));
+
+    for (const m of stale) {
+      await db.transaction(async (tx) => {
+        await tx.update(meetings).set({ status: "declined", declinedAt: new Date(), declinedReason: "Expired after 72h", updatedAt: new Date() } as any).where(eq(meetings.id, m.id));
+        await tx.update(meetingSlots).set({ status: "available" } as any).where(eq(meetingSlots.id, m.slotId));
+      });
+
+      await notify({
+        userId: m.guestId,
+        title: "Meeting request expired",
+        body: "Your meeting request expired because it wasn't accepted within 72 hours.",
+        type: "system",
+        link: `/meetings`,
+      }).catch(() => {});
+    }
+
+    return reply.send({ expired: stale.length });
   });
 
   /** PUT /meetings/:id/coordination — update meeting coordination details (host or guest) */

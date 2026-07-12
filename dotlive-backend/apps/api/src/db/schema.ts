@@ -1784,6 +1784,20 @@ export const meetings = pgTable("meetings", {
 export type Meeting = typeof meetings.$inferSelect;
 export type NewMeeting = typeof meetings.$inferInsert;
 
+// Meeting messages — per-meeting chat thread, unlocked once both parties accept.
+export const meetingMessages = pgTable("meeting_messages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  meetingId: text("meeting_id").notNull().references(() => meetings.id, { onDelete: "cascade" }),
+  authorId: text("author_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  body: text("body").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  meetingMessagesMeetingIdx: index("meeting_messages_meeting_idx").on(t.meetingId, t.createdAt),
+}));
+
+export type MeetingMessage = typeof meetingMessages.$inferSelect;
+export type NewMeetingMessage = typeof meetingMessages.$inferInsert;
+
 /* ──────────────────────── Referral System ─────────────────────── */
 /**
  * Tracks individual referral relationships between users.
