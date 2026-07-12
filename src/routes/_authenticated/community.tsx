@@ -68,10 +68,11 @@ function CommunityPage() {
   const [description, setDescription] = useState("");
   const [region, setRegion] = useState("");
   const [category, setCategory] = useState("");
-  const [busy, setBusy] = useState(false);
+  const busy = false;
   const [chatTab, setChatTab] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [chatSending, setChatSending] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   // Load ALL communities the user is part of (led + member)
   const { data: myCommunities = [], isLoading } = useQuery({
