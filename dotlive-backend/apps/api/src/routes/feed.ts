@@ -29,6 +29,7 @@ const createPostSchema = z.object({
   type: z.enum(["gig", "announcement", "venture_update", "funding", "general"]).default("general"),
   title: z.string().max(200).optional(),
   body: z.string().min(1).max(5000),
+  imageUrl: z.string().url().max(2048).optional(),
   tags: z.array(z.string().max(50)).max(10).default([]),
   budgetDot: z.number().optional(),
   gigType: z.string().optional(),
@@ -67,7 +68,7 @@ export async function feedRoutes(app: FastifyInstance) {
 
       const rows = await db.execute(sql`
         SELECT
-          p.id, p.type, p.title, p.body, p.tags,
+          p.id, p.type, p.title, p.body, p.image_url, p.tags,
           p.likes_count, p.comments_count,
           p.budget_dot, p.gig_type, p.funding_goal, p.funding_round,
           p.created_at,
@@ -164,12 +165,12 @@ export async function feedRoutes(app: FastifyInstance) {
       
       const insertResult = await db.execute(sql`
         INSERT INTO feed_posts (
-          type, title, body, author_id, author_name, author_dot_id, author_role, 
+          type, title, body, image_url, author_id, author_name, author_dot_id, author_role, 
           tags, budget_dot, gig_type, funding_goal, funding_round, likes_count, 
           comments_count, created_at, updated_at
         )
         VALUES (
-          ${parsed.data.type}, ${parsed.data.title ?? null}, ${parsed.data.body},
+          ${parsed.data.type}, ${parsed.data.title ?? null}, ${parsed.data.body}, ${parsed.data.imageUrl ?? null},
           ${sub}, ${u?.name ?? "Unknown"}, ${u?.dotId ?? null}, 'builder', 
           ${pgArray}::text[],
           ${parsed.data.budgetDot ? parseInt(String(parsed.data.budgetDot), 10) : null}, 
@@ -229,7 +230,7 @@ export async function feedRoutes(app: FastifyInstance) {
     const payload = await cached(publicCache, cacheKey, FEED_POST_TTL_MS, async () => {
       const rows = await db.execute(sql`
         SELECT
-          p.id, p.type, p.title, p.body, p.tags,
+          p.id, p.type, p.title, p.body, p.image_url, p.tags,
           p.likes_count, p.comments_count,
           p.budget_dot, p.gig_type, p.funding_goal, p.funding_round,
           p.created_at,
@@ -256,6 +257,7 @@ export async function feedRoutes(app: FastifyInstance) {
           type: r.type,
           title: r.title,
           body: r.body,
+          imageUrl: r.image_url ?? null,
           tags: r.tags ?? [],
           likesCount: Number(r.likes_count ?? 0),
           commentsCount: Number(r.comments_count ?? 0),

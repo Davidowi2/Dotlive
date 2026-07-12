@@ -1162,6 +1162,7 @@ export const feedPosts = pgTable("feed_posts", {
   type: text("type").notNull().default("general"), // gig | announcement | venture_update | funding | general
   title: text("title"),
   body: text("body").notNull(),
+  imageUrl: text("image_url"),
   tags: text("tags").array().$type<string[]>().default(sql`'{}'::text[]`),
   gigType: text("gig_type"),                     // part-time | full-time | contract
   budgetDot: integer("budget_dot"),             // for gigs
@@ -1252,6 +1253,18 @@ export const communityChannels = pgTable("community_channels", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   ccCommunityIdx: index("community_channels_community_idx").on(t.communityId),
+}));
+
+/* --------------------------- Community chat messages ----------- */
+/* Chat messages for community WhatsApp/Discord-style channels. */
+export const communityChatMessages = pgTable("community_chat_messages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  communityId: uuid("community_id").notNull().references(() => communities.id, { onDelete: "cascade" }),
+  authorId: text("author_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  body: text("body").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  ccmCommunityIdx: index("community_chat_messages_community_idx").on(t.communityId, t.createdAt),
 }));
 
 /* --------------------------- Community posts -------------------- */
