@@ -6,12 +6,13 @@
  * currency = "NGN", timezone = "Africa/Lagos") and notification Switches
  * with no onChange handlers. All of that is gone.
  */
+import { useState, useEffect } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import {
   Bell, Shield, Palette, Globe, Trash2, LogOut, Mail,
   User as UserIcon, Save, Loader2, Check, ExternalLink, Hammer,
+  Upload,
 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
