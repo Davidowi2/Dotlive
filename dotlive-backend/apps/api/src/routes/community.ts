@@ -543,13 +543,6 @@ export async function communityRoutes(app: FastifyInstance) {
     },
   );
 
-  /** GET /api/communities/:id/channels — list chat channels for a community */
-  app.get<{ Params: { id: string } }>("/communities/:id/channels", async (req, reply) => {
-    const { id } = req.params;
-    const rows = await db.select().from(communityChannels).where(eq(communityChannels.communityId, id)).orderBy(communityChannels.position);
-    return reply.send({ channels: rows });
-  });
-
   /** GET /api/communities/:id/chat — list latest chat messages */
   app.get<{ Params: { id: string } }>("/communities/:id/chat", async (req, reply) => {
     const { id } = req.params;
