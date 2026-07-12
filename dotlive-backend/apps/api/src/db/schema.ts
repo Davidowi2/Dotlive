@@ -307,7 +307,9 @@ export const courses = pgTable("courses", {
   description: text("description"),
   category: text("category"),
   whopUrl: text("whop_url"),
-  whopProductId: text("whop_product_id"),     // for webhook match
+  externalUrl: text("external_url"),            // direct Whop course URL when available
+  whopProductId: text("whop_product_id"),        // for webhook match / checkout fallback
+  priceUsdCents: integer("price_usd_cents"),
   dotReward: integer("dot_reward").notNull().default(0),
   vantageBoost: integer("vantage_boost").notNull().default(0),
   isPublished: boolean("is_published").notNull().default(true),

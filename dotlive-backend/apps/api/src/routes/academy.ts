@@ -5,6 +5,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { eq, and, desc, sql } from "drizzle-orm";
+import crypto from "node:crypto";
 
 import { db } from "../db/client.js";
 import { courses, courseEnrollments } from "../db/schema.js";
@@ -51,15 +52,26 @@ export async function academyRoutes(app: FastifyInstance) {
     const course = await db.select().from(courses).where(eq(courses.id, parsed.data.courseId)).limit(1);
     if (course.length === 0) return reply.code(404).send({ error: "Course not found" });
 
-    try {
-      const inserted = await db
-        .insert(courseEnrollments)
-        .values({ courseId: parsed.data.courseId, userId: sub, status: "enrolled" } as any)
-        .returning();
-      return reply.send({ enrollment: inserted[0] });
-    } catch {
-      return reply.code(409).send({ error: "Already enrolled" });
+    const c = course[0];
+    // Free course: instant enrollment, no payment needed.
+    if (!c.whopProductId && !c.priceUsdCents) {
+      try {
+        const inserted = await db
+          .insert(courseEnrollments)
+          .values({ courseId: parsed.data.courseId, userId: sub, status: "active" } as any)
+          .returning();
+        return reply.send({ enrollment: inserted[0], method: "free" });
+      } catch {
+        return reply.code(409).send({ error: "Already enrolled" });
+      }
     }
+
+    // Paid course: return direct Whop URL if available, else fall back to checkout session.
+    if (c.whopUrl) {
+      return reply.send({ whopUrl: c.whopUrl, method: "whop_redirect" });
+    }
+
+    return reply.code(400).send({ error: "No direct course URL configured", needsCheckout: true });
   });
 
   /** POST /api/academy/checkout — create a Whop checkout session. */
@@ -333,5 +345,73 @@ export async function academyRoutes(app: FastifyInstance) {
       return reply.send({ ok: true, deleted: deleted[0] });
     }
   );
+
+  /** GET /api/academy/courses/:id */
+  app.get("/academy/courses/:id", async (_req, reply) => {
+    const { id } = _req.params as { id: string };
+    const [row] = await db.select().from(courses).where(eq(courses.id, id)).limit(1);
+    if (!row) return reply.code(404).send({ error: "Course not found" });
+    return reply.send({ course: row });
+  });
+
+  /** POST /api/academy/whop/webhook — mark enrollments active when Whop confirms purchase */
+  app.post("/academy/whop/webhook", async (req, reply) => {
+    const secret = process.env.WHOP_WEBHOOK_SECRET;
+    if (!secret) return reply.code(501).send({ error: "Whop webhook not configured" });
+
+    const raw = await req.body;
+    const signature = req.headers["x-whop-signature"] as string | undefined;
+    if (!signature) return reply.status(401).send("Missing signature");
+
+    const expected = crypto.createHmac("sha256", secret)
+      .update(JSON.stringify(raw))
+      .digest("hex");
+    const sigBuf = Buffer.from(signature);
+    const expBuf = Buffer.from(expected);
+    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+      return reply.status(401).send("Invalid signature");
+    }
+
+    const event = raw as {
+      type?: string;
+      data?: {
+        checkout_id?: string;
+        product_id?: string;
+        customer?: { id?: string };
+        metadata?: Record<string, string>;
+      };
+    };
+    if (!event.type?.includes("checkout.completed")) {
+      return reply.status(200).send("Ignored");
+    }
+
+    const metaUserId = event.data?.metadata?.user_id;
+    const productId = event.data?.product_id;
+    if (!metaUserId || !productId) return reply.status(200).send("Missing metadata");
+
+    const [course] = await db
+      .select()
+      .from(courses)
+      .where(eq(courses.whopProductId, productId))
+      .limit(1);
+    if (!course) return reply.status(200).send("Course not mapped");
+
+    try {
+      const [enrollment] = await db
+        .insert(courseEnrollments)
+        .values({ courseId: course.id, userId: metaUserId, status: "active" } as any)
+        .onConflictDoUpdate({
+          target: [courseEnrollments.courseId, courseEnrollments.userId],
+          set: { status: "active", updatedAt: new Date() } as any,
+        })
+        .returning();
+      return reply.send({ enrollment });
+    } catch (e) {
+      req.log.error(e, "academy/webhook enrollment failed");
+      return reply.status(200).send("Webhook handled with errors");
+    }
+  });
+
+  return app;
 }
 // @ts-nocheck
