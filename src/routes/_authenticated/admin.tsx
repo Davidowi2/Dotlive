@@ -31,7 +31,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { formatDot, formatNaira, ROLE_LABELS, type AppRole } from "@/lib/constants";
-import { elevateUser, revokeAdmin, claimSuperAdmin } from "@/lib/admin.functions";
+import { elevateUser, revokeAdmin } from "@/lib/admin.functions";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin")({
@@ -43,43 +43,16 @@ function AdminPage() {
   const { roles, refresh } = useAuth();
   const isAdmin = roles.includes("admin") || roles.includes("super_admin");
   const isSuperAdmin = roles.includes("super_admin");
-  const claim = useServerFn(claimSuperAdmin);
-  const [claiming, setClaiming] = useState(false);
-
-  async function handleClaim() {
-    setClaiming(true);
-    try {
-      await claim();
-      toast.success("You are now the Super Admin");
-      await refresh();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to claim");
-    } finally {
-      setClaiming(false);
-    }
-  }
 
   if (!isAdmin) {
     return (
       <AppShell>
         <div className="py-16 text-center">
           <Shield className="mx-auto size-10 text-muted-foreground" />
-          <h1 className="mt-4 font-display text-2xl font-bold">Admins only</h1>
-          <p className="mt-2 text-sm text-muted-foreground">You don't have access to this area.</p>
-          <div className="mx-auto mt-6 max-w-md rounded-2xl border border-dashed border-border bg-card p-5 text-left">
-            <h2 className="font-display font-semibold">Platform setup</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              If no Super Admin exists yet, you can claim it once to initialise the platform.
-            </p>
-            <Button variant="hero" className="mt-4" onClick={handleClaim} disabled={claiming}>
-              {claiming ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <ShieldCheck className="size-4" />
-              )}
-              Claim initial Super Admin
-            </Button>
-          </div>
+          <h1 className="mt-4 font-display text-2xl font-bold">Platform setup required</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Admin access is restricted. Contact a super_admin to grant you access.
+          </p>
         </div>
       </AppShell>
     );

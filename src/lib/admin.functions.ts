@@ -1,6 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const adminRole = z.enum(["admin", "super_admin"]);
 
@@ -17,59 +16,82 @@ const revokeInput = z.object({
 });
 
 /**
- * Elevate a user to an admin role. Runs as the authenticated caller; the
- * underlying SECURITY DEFINER function enforces that only super admins can
- * call it and blocks self-assignment.
+ * Elevate a user to an admin-ish role by calling the Fastify backend
+ * POST /api/admin/users/:id/promote with our custom JWT auth.
+ *
+ * NOTE: the backend default role for this endpoint is `admin`.
  */
 export const elevateUser = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => elevateInput.parse(data))
-  .handler(async ({ data, context }) => {
-    const { error } = await context.supabase.rpc("elevate_user_to_admin", {
-      _target_user_id: data.targetUserId,
-      _new_role: data.newRole,
-      _reason: data.reason ?? undefined,
-    });
-    if (error) throw new Error(error.message);
-    return { ok: true };
-  });
+  .handler(async ({ data }) => {
+    const token = (await import("@/api/client")).getToken();
+    if (!token) throw new Error("Not authenticated");
 
-/** Revoke an admin role from a user. Super admins only; cannot revoke self. */
-export const revokeAdmin = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => revokeInput.parse(data))
-  .handler(async ({ data, context }) => {
-    const { error } = await context.supabase.rpc("revoke_admin_role", {
-      _target_user_id: data.targetUserId,
-      _role: data.role,
-      _reason: data.reason ?? undefined,
-    });
-    if (error) throw new Error(error.message);
-    return { ok: true };
+    const res = await fetch(
+      `${(await import("@/api/client")).BASE_URL}/api/admin/users/${encodeURIComponent(data.targetUserId)}/promote`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          role: data.newRole,
+          reason: data.reason ?? undefined,
+        }),
+      },
+    );
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({ error: `Failed with ${res.status}` }));
+      throw new Error((body as { error?: string }).error ?? "Elevate failed");
+    }
+
+    return (await res.json()) as { ok: boolean; role: string };
   });
 
 /**
- * One-time bootstrap: the first authenticated user can claim the Super Admin
- * role, but only while no super admin exists yet. Uses the service-role-only
- * bootstrap_super_admin function via the admin client.
+ * Revoke a role from a user by calling the Fastify backend
+ * PUT /api/admin/users/:id/roles with our custom JWT auth.
+ *
+ * You must pass the exact role array you want the target to keep.
  */
-export const claimSuperAdmin = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const email = (context.claims as { email?: string })?.email;
-    if (!email) throw new Error("No email on account");
+export const revokeAdmin = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => revokeInput.parse(data))
+  .handler(async ({ data }) => {
+    const token = (await import("@/api/client")).getToken();
+    if (!token) throw new Error("Not authenticated");
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const res = await fetch(
+      `${(await import("@/api/client")).BASE_URL}/api/admin/users/${encodeURIComponent(data.targetUserId)}/roles`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          remove: [data.role],
+          reason: data.reason ?? undefined,
+        }),
+      },
+    );
 
-    // Guard: refuse if a super admin already exists.
-    const { count, error: countErr } = await supabaseAdmin
-      .from("user_roles")
-      .select("id", { count: "exact", head: true })
-      .eq("role", "super_admin");
-    if (countErr) throw new Error(countErr.message);
-    if ((count ?? 0) > 0) throw new Error("A super admin already exists");
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({ error: `Failed with ${res.status}` }));
+      throw new Error((body as { error?: string }).error ?? "Revoke failed");
+    }
 
-    const { error } = await supabaseAdmin.rpc("bootstrap_super_admin", { _email: email });
-    if (error) throw new Error(error.message);
-    return { ok: true };
+    return (await res.json()) as { ok: boolean; roles: string[] };
   });
+
+/**
+ * Bootstrap/claim the first Super Admin role is intentionally removed.
+ *
+ * The latest backend exposes the same bootstrap logic only through the
+ * authenticated `/api/admin/users/:id/roles` path; there is no separate
+ * public RPC endpoint for RPC/bootstrap_super_admin anymore.
+ *
+ * If you need first-time Super Admin creation, use `elevateUser(...)`
+ * from an already-authenticated super admin context.
+ */
