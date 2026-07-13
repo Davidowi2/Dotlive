@@ -110,8 +110,12 @@ export function BuilderProfileSection() {
   const profile = profileQ.data?.profile ?? {};
   const reputation = repQ.data;
 
-  const activeServices = services.filter((s) => s.isActive);
-  const completedOrders = orders.filter((o) => o.status === "completed");
+  const activeServices = Array.isArray(services)
+    ? services.filter((s) => s.isActive)
+    : [];
+  const completedOrders = Array.isArray(orders)
+    ? orders.filter((o) => o.status === "completed")
+    : [];
   const totalEarned = completedOrders.reduce(
     (sum, o) => sum + Number(o.amountDot || 0),
     0,

@@ -55,7 +55,9 @@ export function BuilderVouchCard({
   };
 
   const totalVouches = vouchSummary?.total || 0;
-  const topSkills = vouchSummary?.bySkill.slice(0, 3) || [];
+  const topSkills = Array.isArray(vouchSummary?.bySkill)
+    ? vouchSummary.bySkill.slice(0, 3)
+    : [];
   const endorsedCount = topSkills.reduce((sum, s) => sum + s.endorsed, 0);
 
   return (
