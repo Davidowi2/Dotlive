@@ -1,6 +1,6 @@
 import { useEffect, useState, useNavigate } from "react";
-import { createFileRoute } from "@tanstack/react-router";
-import { Users, Loader2, Copy, Plus, Gauge, CheckCircle2, TrendingUp, Send } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Users, Loader2, Copy, Plus, Gauge, CheckCircle2, TrendingUp, Send, RefreshCw, MessageSquare, ArrowRight, Key } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { BackButton } from "@/components/app/BackButton";
 import { PageHeader } from "@/components/app/PageHeader";

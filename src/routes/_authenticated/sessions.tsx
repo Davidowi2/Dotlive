@@ -74,7 +74,7 @@ function SessionsPage() {
   const { user } = useDotAuth();
   const qc = useQueryClient();
 
-  const { data: events = [], isLoading } = useQuery({
+  const { data: events = [], isLoading, error } = useQuery({
     queryKey: ["events"],
     queryFn: async () => {
       const res = await dotApi.get<{ events: any[] }>("/api/events");

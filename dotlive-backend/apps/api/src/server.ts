@@ -684,6 +684,120 @@ async function runBootstrapMigrations() {
     await neonSql`CREATE INDEX IF NOT EXISTS community_challenge_submissions_challenge_idx ON community_challenge_submissions(challenge_id)`;
     await neonSql`CREATE INDEX IF NOT EXISTS community_challenge_submissions_user_idx ON community_challenge_submissions(user_id)`;
 
+    // communities table
+    await neonSql`
+      CREATE TABLE IF NOT EXISTS communities (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        name text NOT NULL,
+        description text,
+        leader_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        region text,
+        category text,
+        visibility text NOT NULL DEFAULT 'private',
+        invite_code text UNIQUE NOT NULL,
+        invite_expires_at timestamptz,
+        referral_code text UNIQUE NOT NULL,
+        tier text NOT NULL DEFAULT 'free',
+        archived_at timestamptz,
+        deleted_at timestamptz,
+        annual_renewal_at timestamptz,
+        subscription_status text NOT NULL DEFAULT 'active',
+        paid_through_at timestamptz,
+        verified_at timestamptz,
+        member_count integer NOT NULL DEFAULT 0,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now()
+      )
+    `;
+    await neonSql`CREATE INDEX IF NOT EXISTS communities_leader_idx ON communities(leader_id)`;
+    await neonSql`CREATE INDEX IF NOT EXISTS communities_tier_idx ON communities(tier)`;
+    await neonSql`CREATE INDEX IF NOT EXISTS communities_visibility_idx ON communities(visibility)`;
+    await neonSql`CREATE INDEX IF NOT EXISTS communities_invite_idx ON communities(invite_code)`;
+
+    // community_members
+    await neonSql`
+      CREATE TABLE IF NOT EXISTS community_members (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        community_id uuid NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+        founder_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        role text NOT NULL DEFAULT 'member',
+        status text NOT NULL DEFAULT 'active',
+        removed_at timestamptz,
+        removed_by text REFERENCES users(id) ON DELETE SET NULL,
+        joined_at timestamptz NOT NULL DEFAULT now(),
+        UNIQUE(community_id, founder_id)
+      )
+    `;
+    await neonSql`CREATE INDEX IF NOT EXISTS community_members_founder_idx ON community_members(founder_id)`;
+    
+    // community_channels
+    await neonSql`
+      CREATE TABLE IF NOT EXISTS community_channels (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        community_id uuid NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+        name text NOT NULL,
+        description text,
+        is_admin_only boolean NOT NULL DEFAULT false,
+        position integer NOT NULL DEFAULT 0,
+        created_at timestamptz NOT NULL DEFAULT now()
+      )
+    `;
+    await neonSql`CREATE INDEX IF NOT EXISTS community_channels_community_idx ON community_channels(community_id)`;
+    
+    // community_posts
+    await neonSql`
+      CREATE TABLE IF NOT EXISTS community_posts (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        community_id uuid NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+        channel_id uuid NOT NULL REFERENCES community_channels(id) ON DELETE CASCADE,
+        author_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        parent_id uuid,
+        body text NOT NULL,
+        reactions jsonb NOT NULL DEFAULT '{}',
+        reply_count integer NOT NULL DEFAULT 0,
+        pinned boolean NOT NULL DEFAULT false,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now()
+      )
+    `;
+    await neonSql`CREATE INDEX IF NOT EXISTS community_posts_community_idx ON community_posts(community_id, created_at)`;
+    await neonSql`CREATE INDEX IF NOT EXISTS community_posts_channel_idx ON community_posts(channel_id, created_at)`;
+    
+    // community_chat_messages
+    await neonSql`
+      CREATE TABLE IF NOT EXISTS community_chat_messages (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        community_id uuid NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+        author_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        body text NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now()
+      )
+    `;
+    await neonSql`CREATE INDEX IF NOT EXISTS community_chat_messages_community_idx ON community_chat_messages(community_id, created_at)`;
+    
+    // certificates
+    await neonSql`
+      CREATE TABLE IF NOT EXISTS certificates (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        course_id text,
+        title text NOT NULL,
+        issuer text NOT NULL,
+        score integer,
+        dot_earned integer NOT NULL DEFAULT 0,
+        level text,
+        credential_id text UNIQUE NOT NULL,
+        source text NOT NULL DEFAULT 'course',
+        source_id text,
+        issued_at timestamptz NOT NULL DEFAULT now(),
+        expires_at timestamptz,
+        meta jsonb,
+        created_at timestamptz NOT NULL DEFAULT now()
+      )
+    `;
+    await neonSql`CREATE INDEX IF NOT EXISTS certificates_user_idx ON certificates(user_id)`;
+    await neonSql`CREATE INDEX IF NOT EXISTS certificates_source_idx ON certificates(source, source_id)`;
+
     // builder_certifications
     await neonSql`
       CREATE TABLE IF NOT EXISTS builder_certifications (
