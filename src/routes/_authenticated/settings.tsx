@@ -27,11 +27,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useDotAuth } from "@/contexts/DotAuthContext";
 import { dotApi } from "@/api/client";
+import { signCloudinaryImageUpload, uploadImageToCloudinary } from "@/lib/upload";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/settings")({
-  head: () => ({ meta: [{ title: "Settings — DOT" }] }),
+  head: () => ({ meta: [{ title: "Settings — DOT" }], link: [{ rel: "canonical", href: "/settings" }] }),
   component: SettingsPage,
 });
 
@@ -103,6 +104,8 @@ function SettingsPage() {
   const [linkedinUrl, setLinkedinUrl] = useState((user as any)?.linkedinUrl ?? "");
   const [githubUrl, setGithubUrl] = useState((user as any)?.githubUrl ?? "");
   const [savingProfile, setSavingProfile] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState((user as any)?.avatarUrl ?? "");
+  const [avatarBusy, setAvatarBusy] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -113,6 +116,7 @@ function SettingsPage() {
       setTwitterUrl((user as any).twitterUrl ?? "");
       setLinkedinUrl((user as any).linkedinUrl ?? "");
       setGithubUrl((user as any).githubUrl ?? "");
+      setAvatarUrl((user as any).avatarUrl ?? "");
     }
   }, [user]);
 
@@ -319,6 +323,34 @@ function SettingsPage() {
         {/* ── Account ───────────────────────────────────────── */}
         <TabsContent value="account" className="space-y-6">
           <Section icon={UserIcon} title="Profile" description="Visible to investors, founders and community members.">
+            <div className="flex items-center gap-4">
+              <div className="flex size-16 items-center justify-center overflow-hidden rounded-full border border-border bg-muted text-xl font-semibold text-muted-foreground">
+                {avatarUrl ? (<img src={avatarUrl} alt="Avatar" className="size-full object-cover" />) : ((user?.name ?? "U").charAt(0).toUpperCase())}
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Profile photo</p>
+                <p className="text-xs text-muted-foreground">PNG/JPG/WEBP. Saved immediately after upload.</p>
+                <div className="flex items-center gap-2">
+                  <Input id="avatar-upload" type="file" accept="image/*" className="text-xs" onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setAvatarBusy(true);
+                    try {
+                      const { url } = await uploadImageToCloudinary(file, "avatars", user!.dotId ?? user!.id);
+                      setAvatarUrl(url);
+                      await dotApi.patch("/api/users/me", { avatarUrl: url });
+                      toast.success("Avatar updated");
+                      await refresh();
+                    } catch (err: any) {
+                      toast.error(err?.message ?? "Upload failed");
+                    } finally {
+                      setAvatarBusy(false);
+                    }
+                  }} />
+                  {avatarBusy && <span className="text-xs text-muted-foreground">Uploading…</span>}
+                </div>
+              </div>
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Display name">
                 <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
