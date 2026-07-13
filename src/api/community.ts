@@ -89,12 +89,20 @@ export async function regenerateInviteCode(communityId: string): Promise<{ code:
   return dotApi.post(`/api/communities/${communityId}/referral-code/regenerate`, {});
 }
 
-export async function kickMember(communityId: string, memberId: string): Promise<{ ok: boolean }> {
-  return dotApi.post(`/api/communities/${communityId}/members/${memberId}/kick`, {});
+export async function updateMemberStatus(
+  communityId: string,
+  memberId: string,
+  status: "active" | "removed" | "banned",
+): Promise<{ ok: boolean }> {
+  return dotApi.patch(`/api/communities/${communityId}/members/${memberId}`, { status });
 }
 
-export async function banMember(communityId: string, memberId: string): Promise<{ ok: boolean }> {
-  return dotApi.post(`/api/communities/${communityId}/members/${memberId}/ban`, {});
+export async function updateMemberRole(
+  communityId: string,
+  memberId: string,
+  role: "leader" | "moderator" | "member",
+): Promise<{ ok: boolean }> {
+  return dotApi.patch(`/api/communities/${communityId}/members/${memberId}`, { role });
 }
 
 export interface PublicCommunity {

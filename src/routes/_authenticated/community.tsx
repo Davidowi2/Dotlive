@@ -23,6 +23,9 @@ import {
   listMembers,
   getReferralCode,
   createCommunity,
+  leaveCommunity,
+  regenerateInviteCode,
+  updateMemberStatus,
   type CommunityMember,
 } from "@/api/community";
 import { dotApi } from "@/api/client";
@@ -214,8 +217,22 @@ function CommunityPage() {
     );
   }
 
+  async function regenerateCode() {
+    if (!community?.id) return;
+    await regenerateInviteCode(community.id);
+    toast.success("Invite code regenerated");
+    qc.invalidateQueries({ queryKey: ["referral-code", community.id] });
+  }
+
+  async function leave() {
+    if (!community?.id) return;
+    await leaveCommunity(community.id);
+    toast.success("Left community");
+    setSelectedId(null);
+  }
+
   const code = referralCode ?? community.referralCode;
-  const joinUrl = `https://dotlive-lake.vercel.app/join/${code}`;
+  const joinUrl = `https://dotlive.cv/join/${code}`;
   const activeCount = members.filter((m) => m.status === "active").length;
   const withVantage = members.filter(
     (m) => (m.founder_profiles as { vantage_point?: number } | null)?.vantage_point,
@@ -263,10 +280,10 @@ function CommunityPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-muted-foreground">
-                    <th className="pb-2 font-medium">Venture</th>
-                    <th className="pb-2 font-medium">Stage</th>
-                    <th className="pb-2 font-medium">Vantage</th>
-                    <th className="pb-2 font-medium">Joined</th>
+                    <th className="py-2 font-medium">Venture</th>
+                    <th className="py-2 font-medium">Stage</th>
+                    <th className="py-2 font-medium">Vantage</th>
+                    <th className="py-2 font-medium">Joined</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -293,52 +310,34 @@ function CommunityPage() {
           )}
         </div>
 
-        {/* Community switcher — if user is in multiple communities */}
-        {myCommunities.length > 1 ? (
-          <>
-            <div className="mb-4 flex flex-wrap gap-2">
-              {myCommunities.map((c: any) => (
-                <button
-                  key={c.id}
-                  onClick={() => setSelectedId(c.id)}
-                  className={cn(
-                    "flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-                    community?.id === c.id
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground",
-                  )}
-                >
-                  <span className="flex size-5 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
-                    {c.name?.charAt(0).toUpperCase()}
-                  </span>
-                  {c.name}
-                  {(c as any).role === "leader" && (
-                    <span className="rounded bg-gold/10 px-1 text-[10px] text-gold">Leader</span>
-                  )}
-                </button>
-              ))}
-            </div>
-            <p className="mt-4 text-xs text-muted-foreground">Referral code</p>
-            <div className="mt-1 flex items-center gap-2">
-              <code className="flex-1 rounded-lg bg-muted px-3 py-2 text-sm font-medium">
-                {community.referral_code}
-              </code>
-              <Button
-                asChild
-                variant="hero"
-                size="lg"
-                className="mt-6"
-              >
-                <Link to="/community/channels">
-                  <MessageSquare className="size-4" />
-                  Open Channels
-                  <ArrowRight className="size-4" />
-                </Link>
+        {/* Community / referral panel */}
+        <div className="rounded-2xl border border-border bg-card p-6">
+          <h2 className="font-display text-lg font-semibold">Community</h2>
+          {(community as any).role === "leader" && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={regenerateCode}>
+                <RefreshCw className="size-4" /> Regenerate invite code
+              </Button>
+              <Button variant="destructive" size="sm" onClick={leave}>
+                Leave community
               </Button>
             </div>
-            <p className="mt-2 break-all text-xs text-muted-foreground">{joinUrl}</p>
-          </>
-        ) : null}
+          )}
+          <p className="mt-4 text-xs text-muted-foreground">Referral code</p>
+          <div className="mt-1 flex items-center gap-2">
+            <code className="flex-1 rounded-lg bg-muted px-3 py-2 text-sm font-medium">
+              {community.referral_code}
+            </code>
+            <Button asChild variant="hero" size="lg" className="mt-6">
+              <Link to="/community/channels">
+                <MessageSquare className="size-4" />
+                Open Channels
+                <ArrowRight className="size-4" />
+              </Link>
+            </Button>
+          </div>
+          <p className="mt-2 break-all text-xs text-muted-foreground">{joinUrl}</p>
+        </div>
       </div>
 
       {chatTab && (
