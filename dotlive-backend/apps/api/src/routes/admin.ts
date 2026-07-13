@@ -94,14 +94,14 @@ export async function adminRoutes(app: FastifyInstance) {
         .from(users)
         .where(eq(users.id, sub))
         .limit(1);
-              if (!u[0]) return reply.code(404).send({ error: "not_found" });
-              const roles = (req as any).adminRoles as string[];
-              return reply.send({
-                admin: { ...u[0], roles, isSuperAdmin: roles.includes("super_admin") },
-                permissions: derivePermissions(roles),
-              });
-            }
-          );
+      if (!u[0]) return reply.code(404).send({ error: "not_found" });
+      const roles = (req as any).adminRoles as string[];
+      return reply.send({
+        admin: { ...u[0], roles, isSuperAdmin: roles.includes("super_admin") },
+        permissions: derivePermissions(roles),
+      });
+    }
+  );
 
   /* ============================== CONFIRM ============================== */
   const confirmBodySchema = z.object({
