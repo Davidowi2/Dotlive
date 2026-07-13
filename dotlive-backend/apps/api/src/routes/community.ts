@@ -620,6 +620,17 @@ export async function communityRoutes(app: FastifyInstance) {
     return reply.send({ ok: true, member: { ...member, ...update } as any });
   });
 
+  /** POST /api/communities/:id/referral-code/regenerate — replace existing code */
+  app.post("/communities/:id/referral-code/regenerate", { preHandler: app.authenticate }, async (req, reply) => {
+    const { sub } = req.user as { sub: string };
+    const { id } = req.params as { id: string };
+    const [comm] = await db.select().from(communities).where(eq(communities.id, id)).limit(1);
+    if (!comm || comm.leaderId !== sub) return reply.code(403).send({ error: "Not authorized" });
+    const code = Math.random().toString(36).slice(2, 10).toUpperCase();
+    await db.update(communities).set({ inviteCode: code, updatedAt: new Date() } as any).where(eq(communities.id, id));
+    return reply.send({ code });
+  });
+
   // DEBUG: CLI dashboard removed; public hub list lives at /api/communities and /api/communities/:id
   // DEBUG: communityOS debug listener removed
 

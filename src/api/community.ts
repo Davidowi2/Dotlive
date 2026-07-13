@@ -80,6 +80,23 @@ export async function joinByCode(code: string): Promise<{ ok: boolean }> {
   return dotApi.post("/api/communities/join", { referralCode: code });
 }
 
+/* Community management actions */
+export async function leaveCommunity(communityId: string): Promise<{ ok: boolean }> {
+  return dotApi.post(`/api/communities/${communityId}/leave`, {});
+}
+
+export async function regenerateInviteCode(communityId: string): Promise<{ code: string }> {
+  return dotApi.post(`/api/communities/${communityId}/referral-code/regenerate`, {});
+}
+
+export async function kickMember(communityId: string, memberId: string): Promise<{ ok: boolean }> {
+  return dotApi.post(`/api/communities/${communityId}/members/${memberId}/kick`, {});
+}
+
+export async function banMember(communityId: string, memberId: string): Promise<{ ok: boolean }> {
+  return dotApi.post(`/api/communities/${communityId}/members/${memberId}/ban`, {});
+}
+
 export interface PublicCommunity {
   id: string;
   name: string;
