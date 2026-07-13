@@ -1,29 +1,35 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const completeInput = z.object({ courseId: z.string().uuid() });
 
 /**
  * Server-verified course completion + reward.
  *
- * The reward amount is determined server-side from the course's fixed
- * `dot_reward`, and the grant is idempotent (rewarded once per enrollment).
- * This replaces the previous client-side `reward_dot` call, which let any
- * user self-award arbitrary DOT.
+ * Calls POST /api/academy/complete with our custom JWT auth.
  */
 export const completeCourse = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => completeInput.parse(data))
-  .handler(async ({ data, context }) => {
-    const { userId } = context;
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  .handler(async ({ data }) => {
+    const token = (await import("@/api/client")).getToken();
+    if (!token) throw new Error("Not authenticated");
 
-    const { data: balance, error } = await supabaseAdmin.rpc("claim_course_reward", {
-      _user_id: userId,
-      _course_id: data.courseId,
-    });
-    if (error) throw new Error(error.message);
+    const res = await fetch(
+      `${(await import("@/api/client")).BASE_URL}/api/academy/complete`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ courseId: data.courseId }),
+      },
+    );
 
-    return { balance: Number(balance ?? 0) };
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({ error: `Failed with ${res.status}` }));
+      throw new Error((body as { error?: string }).error ?? "Complete failed");
+    }
+
+    return (await res.json()) as { enrollment: unknown; reward: number; alreadyRewarded?: boolean };
   });
