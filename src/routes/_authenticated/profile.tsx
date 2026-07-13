@@ -332,7 +332,7 @@ function PublicProfilePage() {
 
             {/* ─── Builder profile section (only for builders) ─────────── */}
             {roles.includes("builder") && (
-              {/* <BuilderProfileSection /> */}
+              <BuilderProfileSection />
             )}
 
             <ProfileActivityFeed />
