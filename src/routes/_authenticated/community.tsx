@@ -4,7 +4,7 @@ import { Users, Loader2, Copy, Plus, Gauge, CheckCircle2, TrendingUp, Send, Refr
 import { AppShell } from "@/components/app/AppShell";
 import { BackButton } from "@/components/app/BackButton";
 import { PageHeader } from "@/components/app/PageHeader";
-import { StatCard } from "@/components/app/StatCard";
+import { StatCard as Stat } from "@/components/app/StatCard";
 import { EmptyState } from "@/components/app/EmptyState";
 import { DataTable } from "@/components/app/DataTable";
 import { PageSkeleton } from "@/components/app/PageSkeleton";
