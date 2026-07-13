@@ -389,12 +389,24 @@ function Stat({
 function ProfileActivityFeed() {
   const { data: notifData } = useQuery({
     queryKey: ["profile", "notifications"],
-    queryFn: () => fetchNotifications({ limit: 10 }),
+    queryFn: async () => {
+      try {
+        return await fetchNotifications({ limit: 10 });
+      } catch {
+        return { items: [] as any[] };
+      }
+    },
     staleTime: 60_000,
   });
   const { data: txData } = useQuery({
     queryKey: ["profile", "transactions"],
-    queryFn: () => listTransactions(),
+    queryFn: async () => {
+      try {
+        return await listTransactions();
+      } catch {
+        return { transactions: [] as any[] };
+      }
+    },
     staleTime: 60_000,
   });
 
@@ -436,7 +448,12 @@ function ProfileActivityFeed() {
     });
   }
 
-  const txs: any[] = Array.isArray(txData) ? txData : (txData as any)?.transactions ?? [];
+  const txPayload: any = txData ?? {};
+  const txs: any[] = Array.isArray(txPayload)
+    ? txPayload
+    : Array.isArray(txPayload.transactions)
+      ? txPayload.transactions
+      : [];
   for (const t of txs.slice(0, 5)) {
     const positive = Number(t.amount) > 0;
     items.push({
