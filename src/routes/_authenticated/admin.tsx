@@ -721,12 +721,58 @@ function ModerationTab() {
     queryFn: async () => (await dotApi.get("/api/admin/queue")) as Record<string, unknown>,
     staleTime: 60_000,
   });
+  const { data: reports = [], isLoading: reportsLoading } = useQuery({
+    queryKey: ["admin-moderation-reports"],
+    queryFn: async () => (await dotApi.get("/api/admin/queue/reports")) as { reports: any[]; nextCursor: string | null },
+    staleTime: 30_000,
+  });
 
   return (
-    <div className="mt-4 grid gap-4 sm:grid-cols-3">
-      <StatCard title="Open reports" value={String((data?.open as number) ?? 0)} sub="Needs action" />
-      <StatCard title="In review" value={String((data?.inReview as number) ?? 0)} sub="Assigned" />
-      <StatCard title="Resolved today" value={String((data?.resolvedToday as number) ?? 0)} sub="Audited" />
+    <div className="mt-4 space-y-6">
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatCard title="Open reports" value={String((data?.open as number) ?? 0)} sub="Needs action" />
+        <StatCard title="In review" value={String((data?.inReview as number) ?? 0)} sub="Assigned" />
+        <StatCard title="Resolved today" value={String((data?.resolvedToday as number) ?? 0)} sub="Audited" />
+      </div>
+      <div className="overflow-hidden rounded-2xl border border-border bg-card">
+        <div className="border-b border-border p-4">
+          <h3 className="font-display font-semibold">Report queue</h3>
+          <p className="text-sm text-muted-foreground">Latest community reports, newest first.</p>
+        </div>
+        {reportsLoading ? (
+          <div className="p-4"><Loader2 className="size-5 animate-spin text-primary" /></div>
+        ) : reports.length === 0 ? (
+          <p className="p-4 text-sm text-muted-foreground">No reports yet.</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border text-left text-muted-foreground">
+                <th className="p-4 font-medium">Created</th>
+                <th className="p-4 font-medium">Target</th>
+                <th className="p-4 font-medium">Reason</th>
+                <th className="p-4 font-medium">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {reports.map((r) => (
+                <tr key={r.id}>
+                  <td className="p-4 text-muted-foreground">{new Date(r.createdAt).toLocaleString()}</td>
+                  <td className="p-4">
+                    <div className="font-medium">{r.targetType}</div>
+                    <div className="text-xs text-muted-foreground">{r.targetId}</div>
+                  </td>
+                  <td className="p-4 text-muted-foreground">{r.reason || "—"}</td>
+                  <td className="p-4">
+                    <Badge variant={r.status === "open" ? "destructive" : r.status === "resolved" ? "default" : "secondary"}>
+                      {r.status}
+                    </Badge>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 }
