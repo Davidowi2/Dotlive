@@ -38,6 +38,7 @@ export const Route = createFileRoute("/_authenticated/sessions")({
       },
     ],
   }),
+  ssr: false,
   component: SessionsPage,
 });
 

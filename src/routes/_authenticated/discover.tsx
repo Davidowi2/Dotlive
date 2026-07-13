@@ -48,6 +48,7 @@ import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/discover")({
   head: () => ({ meta: [{ title: "Discover — DOT" }] }),
+  ssr: false,
   component: DiscoverPage,
 });
 
