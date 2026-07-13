@@ -107,6 +107,12 @@ function AdminPage() {
         <TabsContent value="content">
           <ContentTab />
         </TabsContent>
+        <TabsContent value="systems">
+          <SystemsTab />
+        </TabsContent>
+        <TabsContent value="moderation">
+          <ModerationTab />
+        </TabsContent>
         {isSuperAdmin && (
           <TabsContent value="roles">
             <RolesTab />
@@ -689,5 +695,48 @@ function CreateCard({
         Create
       </Button>
     </form>
+  );
+}
+
+function SystemsTab() {
+  const { data: stats, isLoading } = useQuery({
+    queryKey: ["admin-stats"],
+    queryFn: async () => (await dotApi.get("/api/stats")) as Record<string, unknown>,
+    staleTime: 30_000,
+  });
+
+  return (
+    <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <StatCard title="Users" value={String((stats?.users as number) ?? 0)} sub={`${String((stats?.bannedUsers as number) ?? 0)} banned`} />
+      <StatCard title="Ventures" value={String((stats?.ventures as number) ?? 0)} sub={`${String((stats?.activeServices as number) ?? 0)} active services`} />
+      <StatCard title="Transactions" value={String((stats?.transactions as number) ?? 0)} sub={`${String((stats?.wallets?.totalBalance as number) ?? 0)} total balance`} />
+      <StatCard title="Communities" value="—" sub="Coming soon" />
+    </div>
+  );
+}
+
+function ModerationTab() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin-moderation-queue"],
+    queryFn: async () => (await dotApi.get("/api/admin/queue")) as Record<string, unknown>,
+    staleTime: 60_000,
+  });
+
+  return (
+    <div className="mt-4 grid gap-4 sm:grid-cols-3">
+      <StatCard title="Open reports" value={String((data?.open as number) ?? 0)} sub="Needs action" />
+      <StatCard title="In review" value={String((data?.inReview as number) ?? 0)} sub="Assigned" />
+      <StatCard title="Resolved today" value={String((data?.resolvedToday as number) ?? 0)} sub="Audited" />
+    </div>
+  );
+}
+
+function StatCard({ title, value, sub }: { title: string; value: string; sub: string }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-5">
+      <p className="text-xs text-muted-foreground">{title}</p>
+      <p className="mt-1 font-display text-2xl font-bold">{value}</p>
+      <p className="text-xs text-muted-foreground">{sub}</p>
+    </div>
   );
 }

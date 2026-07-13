@@ -759,6 +759,21 @@ export async function adminRoutes(app: FastifyInstance) {
     }
   );
 
+  app.get(
+    "/admin/queue",
+    { preHandler: [app.authenticate, requireSuperAdmin] },
+    async (_req, reply) => {
+      const safeCount = async (q: any) => {
+        try { const r: any = await db.execute(q); const row = Array.isArray(r) ? r[0] : (r?.rows?.[0]); return Number(row?.n ?? 0); }
+        catch { return 0; }
+      };
+      const open = await safeCount(sql`SELECT count(*)::int AS n FROM moderation_reports WHERE status = 'open'`);
+      const inReview = await safeCount(sql`SELECT count(*)::int AS n FROM moderation_reports WHERE status = 'in_review'`);
+      const resolvedToday = await safeCount(sql`SELECT count(*)::int AS n FROM moderation_reports WHERE status = 'resolved' AND resolved_at >= NOW() - interval '24 hours'`);
+      return reply.send({ open, inReview, resolvedToday });
+    }
+  );
+
   /* ============================== STATS ============================== */
 
   app.get(
@@ -1349,7 +1364,6 @@ function derivePermissions(roles: string[]) {
     canReplayPayments: isSuper,
   };
 }
-
 /**
  * Sign an impersonation JWT. We piggy-back on the existing
  * JWT_SECRET so the auth middleware can verify it. The token

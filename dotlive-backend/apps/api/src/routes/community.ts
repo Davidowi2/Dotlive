@@ -22,7 +22,8 @@ const createSchema = z.object({
 const joinSchema = z.object({
   referralCode: z.string().min(1).max(64).optional(),
   code: z.string().min(1).max(64).optional(),
-}).refine((d) => d.referralCode || d.code, { message: "referralCode or code required" });
+  communityId: z.string().min(1).optional(),
+}).refine((d) => d.referralCode || d.code || d.communityId, { message: "referralCode, code, or communityId required" });
 
 export async function communityRoutes(app: FastifyInstance) {
   /** POST /api/communities — create a new community */
