@@ -408,22 +408,17 @@ function SlotDialog({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    const token = (await import("@/api/client")).getToken();
     await fetch(`/api/meetings/slots`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...(await getAuthHeaders()),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify({ title: "Available Slot", date, startTime: start, endTime: end }),
     });
     onCreated();
     onOpenChange(false);
-  }
-
-  async function getAuthHeaders() {
-    const session = (await import("@/integrations/supabase/client")).supabase.auth.getSession();
-    const token = (await session).data.session?.access_token;
-    return token ? { Authorization: `Bearer ${token}` } : {};
   }
 
   return (
