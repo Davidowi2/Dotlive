@@ -32,10 +32,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { dotApi } from "@/api/client";
 
-export const Route = createFileRoute("/_authenticated/admin/")({
-  head: () => ({ meta: [{ title: "Operator Dashboard — DOT" }] }),
-  component: AdminDashboardPage,
-});
 
 /** Backend response shape (flat). */
 interface AdminStats {

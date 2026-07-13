@@ -63,7 +63,6 @@ import { Route as AuthenticatedAcademyRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/admin/route'
 import { Route as AuthenticatedMessagesIndexRouteImport } from './routes/_authenticated/messages/index'
 import { Route as AuthenticatedCapitalIndexRouteImport } from './routes/_authenticated/capital/index'
-import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedOnboardingBuilderRouteImport } from './routes/_authenticated/onboarding/builder'
 import { Route as AuthenticatedMessagesIdRouteImport } from './routes/_authenticated/messages/$id'
 import { Route as AuthenticatedJoinCodeRouteImport } from './routes/_authenticated/join.$code'
@@ -362,11 +361,6 @@ const AuthenticatedCapitalIndexRoute =
     path: '/capital/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AuthenticatedAdminRoute,
-} as any)
 const AuthenticatedOnboardingBuilderRoute =
   AuthenticatedOnboardingBuilderRouteImport.update({
     id: '/builder',
@@ -551,7 +545,6 @@ export interface FileRoutesByFullPath {
   '/join/$code': typeof AuthenticatedJoinCodeRoute
   '/messages/$id': typeof AuthenticatedMessagesIdRoute
   '/onboarding/builder': typeof AuthenticatedOnboardingBuilderRoute
-  '/admin/': typeof AuthenticatedAdminIndexRoute
   '/capital/': typeof AuthenticatedCapitalIndexRoute
   '/messages/': typeof AuthenticatedMessagesIndexRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
@@ -571,7 +564,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
-  '/admin': typeof AuthenticatedAdminIndexRoute
+  '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/academy': typeof AuthenticatedAcademyRoute
   '/analytics': typeof AuthenticatedAnalyticsRoute
   '/builder': typeof AuthenticatedBuilderRouteWithChildren
@@ -702,7 +695,6 @@ export interface FileRoutesById {
   '/_authenticated/join/$code': typeof AuthenticatedJoinCodeRoute
   '/_authenticated/messages/$id': typeof AuthenticatedMessagesIdRoute
   '/_authenticated/onboarding/builder': typeof AuthenticatedOnboardingBuilderRoute
-  '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/capital/': typeof AuthenticatedCapitalIndexRoute
   '/_authenticated/messages/': typeof AuthenticatedMessagesIndexRoute
   '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
@@ -779,7 +771,6 @@ export interface FileRouteTypes {
     | '/join/$code'
     | '/messages/$id'
     | '/onboarding/builder'
-    | '/admin/'
     | '/capital/'
     | '/messages/'
     | '/api/public/webhooks/paystack'
@@ -929,7 +920,6 @@ export interface FileRouteTypes {
     | '/_authenticated/join/$code'
     | '/_authenticated/messages/$id'
     | '/_authenticated/onboarding/builder'
-    | '/_authenticated/admin/'
     | '/_authenticated/capital/'
     | '/_authenticated/messages/'
     | '/api/public/webhooks/paystack'
@@ -1337,13 +1327,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCapitalIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/admin/': {
-      id: '/_authenticated/admin/'
-      path: '/'
-      fullPath: '/admin/'
-      preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
     '/_authenticated/onboarding/builder': {
       id: '/_authenticated/onboarding/builder'
       path: '/builder'
@@ -1497,7 +1480,6 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminTestWebhookRoute: typeof AuthenticatedAdminTestWebhookRoute
   AuthenticatedAdminTokensRoute: typeof AuthenticatedAdminTokensRoute
   AuthenticatedAdminWalletsRoute: typeof AuthenticatedAdminWalletsRoute
-  AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
 }
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
@@ -1510,7 +1492,6 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminTestWebhookRoute: AuthenticatedAdminTestWebhookRoute,
   AuthenticatedAdminTokensRoute: AuthenticatedAdminTokensRoute,
   AuthenticatedAdminWalletsRoute: AuthenticatedAdminWalletsRoute,
-  AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
 }
 
 const AuthenticatedAdminRouteWithChildren =
