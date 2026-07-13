@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs } from "@/components/ui/tabs";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,6 +17,7 @@ import {
   signCloudinaryImageUpload,
   uploadImageToCloudinary,
 } from "@/lib/upload";
+import { listPublicCommunities, joinByCode } from "@/api/community";
 import { toast } from "sonner";
 
 type Post = {
@@ -221,6 +223,63 @@ function DiscoverPage() {
           ))
         )}
       </div>
+
+      <section className="mt-8 rounded-2xl border border-border bg-card p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="font-display text-lg font-semibold">Communities</h2>
+            <p className="text-xs text-muted-foreground">Public groups you can join.</p>
+          </div>
+        </div>
+
+        <CommunityGrid />
+      </section>
     </AppShell>
+  );
+}
+
+/* Public community directory */
+function CommunityGrid() {
+  const q = useQuery({ queryKey: ["public-communities"], queryFn: listPublicCommunities, staleTime: 60_000 });
+  const joinMut = useMutation({
+    mutationFn: (code: string) => joinByCode(code),
+    onSuccess: () => {
+      toast.success("Joined community");
+    },
+    onError: (err: any) => {
+      toast.error(err?.message ?? "Could not join");
+    },
+  });
+  const items = q.data ?? [];
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {q.isLoading ? (
+        [1, 2, 3].map((i) => <div key={i} className="h-28 animate-pulse rounded-xl bg-muted/40" />)
+      ) : items.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No public communities yet.</p>
+      ) : (
+        items.map((c) => (
+          <div key={c.id} className="rounded-xl border border-border bg-background p-4 space-y-2">
+            <div>
+              <p className="text-sm font-semibold">{c.name}</p>
+              <p className="text-xs text-muted-foreground line-clamp-2">{c.description ?? ""}</p>
+            </div>
+            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+              <span>{c.category ?? "General"}</span>
+              <span>{c.region ?? "—"} · {c.memberCount} members</span>
+            </div>
+            <Button
+              size="sm"
+              className="w-full"
+              disabled={joinMut.isPending}
+              onClick={() => joinMut.mutate(c.referralCode)}
+            >
+              Join
+            </Button>
+          </div>
+        ))
+      )}
+    </div>
   );
 }

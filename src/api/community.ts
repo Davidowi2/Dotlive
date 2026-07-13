@@ -77,7 +77,30 @@ export async function createCommunity(data: CreateCommunityData): Promise<Commun
 }
 
 export async function joinByCode(code: string): Promise<{ ok: boolean }> {
-  return dotApi.post("/api/community/join", { code });
+  return dotApi.post("/api/communities/join", { referralCode: code });
+}
+
+export interface PublicCommunity {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string | null;
+  region: string | null;
+  memberCount: number;
+  leaderName?: string | null;
+}
+
+export async function listPublicCommunities(): Promise<PublicCommunity[]> {
+  const res = await dotApi.get<{ communities: any[] }>("/api/communities");
+  return (res.communities ?? []).map((c) => ({
+    id: c.id,
+    name: c.name,
+    description: c.description,
+    category: c.category,
+    region: c.region,
+    memberCount: Number(c.memberCount ?? 0),
+    leaderName: c.leader?.name ?? null,
+  }));
 }
 
 /* ============================== Discord-style channels + posts ============================== */
