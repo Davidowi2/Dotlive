@@ -19,6 +19,7 @@ import {
   Bell,
   Settings,
   User,
+  MenuIcon,
 } from "lucide-react";
 import { Logo } from "@/components/site/Logo";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
