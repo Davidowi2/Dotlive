@@ -161,6 +161,26 @@ export async function createPost(
   return dotApi.post<{ post: CommunityPost }>(`/api/communities/${communityId}/posts`, data);
 }
 
+/* Community chat */
+export interface CommunityChatMessage {
+  id: string;
+  body: string;
+  created_at: string;
+  author_id: string;
+  author_name: string | null;
+  author_avatar: string | null;
+}
+
+export async function listCommunityChat(communityId: string, limit = 50): Promise<CommunityChatMessage[]> {
+  const qs = new URLSearchParams({ limit: String(limit) });
+  const res = await dotApi.get<{ messages: CommunityChatMessage[] }>(`/api/communities/${communityId}/chat?${qs.toString()}`);
+  return res.messages ?? [];
+}
+
+export async function sendCommunityChat(communityId: string, body: string): Promise<{ message: CommunityChatMessage }> {
+  return dotApi.post(`/api/communities/${communityId}/chat`, { body });
+}
+
 export async function reactToPost(
   communityId: string,
   postId: string,

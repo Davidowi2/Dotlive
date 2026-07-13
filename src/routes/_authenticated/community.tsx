@@ -122,13 +122,7 @@ function CommunityPage() {
     queryKey: ["community-chat", community?.id],
     enabled: !!community?.id,
     queryFn: async () => {
-      const { data } = await supabase
-        .from("community_chat_messages")
-        .select("id,body,created_at,author_id,author_name,author_avatar")
-        .eq("community_id", community!.id)
-        .order("created_at", { ascending: false })
-        .limit(50);
-      return (data ?? []) as ChatMessage[];
+      return listCommunityChat(community!.id, 50);
     },
   });
 
@@ -143,12 +137,7 @@ function CommunityPage() {
     if (!user || !community?.id || !chatInput.trim()) return;
     setChatSending(true);
     try {
-      const { error } = await supabase.from("community_chat_messages").insert({
-        community_id: community.id,
-        author_id: user.id,
-        body: chatInput.trim(),
-      });
-      if (error) throw error;
+      await sendCommunityChat(community.id, chatInput.trim());
       setChatInput("");
       qc.invalidateQueries({ queryKey: ["community-chat", community.id] });
     } catch (err) {
