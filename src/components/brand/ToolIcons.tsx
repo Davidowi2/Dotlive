@@ -9,6 +9,7 @@
  * ────────────────────────────────────────────────────────────────── */
 
 import type { SVGProps } from "react";
+import { VercelIcon } from "./ToolIcons";
 
 type IconProps = SVGProps<SVGSVGElement> & { size?: number };
 
@@ -24,7 +25,7 @@ function baseProps(size: number, props: SVGProps<SVGSVGElement>) {
   } as const;
 }
 
-
+/* Vercel — triangle */
 export function VercelIcon({ size = 16, ...props }: IconProps) {
   return (
     <svg {...baseProps(size, props)}>
@@ -75,9 +76,19 @@ export function TanStackIcon({ size = 16, ...props }: IconProps) {
   );
 }
 
+/* Neon — simple glow dot */
+export function NeonIcon({ size = 16, ...props }: IconProps) {
+  return (
+    <svg {...baseProps(size, props)}>
+      <circle cx="12" cy="12" r="5" stroke="currentColor" strokeWidth="1.6" fill="currentColor" fillOpacity="0.2" />
+      <path d="M12 7v10M7 12h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 /* Map tool name to icon component */
 export const TOOL_ICONS: Record<string, React.FC<IconProps>> = {
-  Supabase: SupabaseIcon,
+  Neon: NeonIcon,
   Vercel: VercelIcon,
   Paystack: PaystackIcon,
   Whop: WhopIcon,

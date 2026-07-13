@@ -107,7 +107,7 @@ function DiscoverPage() {
   const navigate = useNavigate({ from: "/discover" });
 
   const [tab, setTab] = useState<"latest" | "popular" | "trending">("latest");
-  const [type, setType] = useState<"general" | "venture_update">("general");
+  const [type, setType] = useState<"general" | "venture_update" | "gig" | "announcement" | "funding">("general");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [tagsText, setTagsText] = useState("");
@@ -296,6 +296,9 @@ function DiscoverPage() {
                     <SelectContent>
                       <SelectItem value="general">📢 General</SelectItem>
                       <SelectItem value="venture_update">🚀 Venture Update</SelectItem>
+                      <SelectItem value="gig">🛠️ Gig</SelectItem>
+                      <SelectItem value="announcement">📣 Announcement</SelectItem>
+                      <SelectItem value="funding">💰 Funding</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -320,11 +323,39 @@ function DiscoverPage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground">Image</Label>
-                  <Input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
-                  />
+                  <div className="flex items-center gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => document.getElementById("discover-image-input")?.click()}
+                    >
+                      <ImagePlus className="size-4 mr-2" />
+                      {preview ? "Change image" : "Choose image"}
+                    </Button>
+                    <input
+                      id="discover-image-input"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
+                    />
+                    {preview && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          pickFile(null);
+                          const el = document.getElementById("discover-image-input") as HTMLInputElement | null;
+                          if (el) el.value = "";
+                        }}
+                      >
+                        <X className="size-4 mr-1" />
+                        Remove
+                      </Button>
+                    )}
+                  </div>
                   {preview && (
                     <img
                       src={preview}
