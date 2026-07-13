@@ -109,7 +109,8 @@ function ChannelsPage() {
     useQuery({
       queryKey: ["community-members", communityId],
       queryFn: async () => {
-        const token = typeof window !== "undefined" ? localStorage.getItem("dot_token") ?? "" : "";
+        if (typeof window === "undefined") return { members: [] };
+        const token = localStorage.getItem("dot_token") ?? "";
         const r = await fetch(`/api/communities/${communityId}/members`, {
           headers: { Authorization: `Bearer ${token}` },
         });
