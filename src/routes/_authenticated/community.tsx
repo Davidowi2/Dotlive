@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { QRCodeCanvas } from "qrcode.react";
 import { Users, Loader2, Copy, Plus, Gauge, CheckCircle2, TrendingUp, Send } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { BackButton } from "@/components/app/BackButton";
