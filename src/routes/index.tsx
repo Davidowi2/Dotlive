@@ -128,7 +128,7 @@ const audiences = [
 
 /* "Built with" — real tech stack, replaces fake "As seen in" */
 const builtWith = [
-  { name: "Supabase", role: "Auth & Postgres" },
+  { name: "Neon", role: "Postgres" },
   { name: "Vercel", role: "Edge runtime" },
   { name: "Paystack", role: "Payments" },
   { name: "Whop", role: "Academy content" },

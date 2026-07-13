@@ -116,7 +116,7 @@ function PrivacyPage() {
               <h2 className="mb-4 font-display text-xl font-semibold text-foreground">4. Data Sharing</h2>
               <p>We share your data only in the following circumstances:</p>
               <ul className="mt-3 list-disc space-y-2 pl-5">
-                <li><strong className="text-foreground">Service providers:</strong> We use Supabase (database and auth), Cloudinary (media storage), and Paystack (payments). These providers are contractually bound to protect your data.</li>
+                <li><strong className="text-foreground">Service providers:</strong> We use Neon (database and auth), Cloudinary (media storage), and Paystack (payments). These providers are contractually bound to protect your data.</li>
                 <li><strong className="text-foreground">Other platform users:</strong> Your public profile information (name, DOT ID, venture name, bio) is visible to other authenticated users. You control what you share in your profile settings.</li>
                 <li><strong className="text-foreground">Legal requirements:</strong> If required by law, court order, or regulatory authority, we may disclose your data.</li>
                 <li><strong className="text-foreground">Business transfers:</strong> In the event of a merger, acquisition, or sale of assets, your data may be transferred. We will notify you before this happens.</li>
@@ -179,7 +179,7 @@ function PrivacyPage() {
 
             <section id="international">
               <h2 className="mb-4 font-display text-xl font-semibold text-foreground">10. International Data Transfers</h2>
-              <p>Your data may be processed in countries outside Nigeria, including by our service providers (Supabase servers in the US, Cloudinary in the US). We ensure appropriate safeguards are in place for such transfers, including standard contractual clauses where required.</p>
+              <p>Your data may be processed in countries outside Nigeria, including by our service providers (Neon servers in the US, Cloudinary in the US). We ensure appropriate safeguards are in place for such transfers, including standard contractual clauses where required.</p>
             </section>
 
             <section id="changes">

@@ -66,9 +66,9 @@ const pillars = [
 
 const stack = [
   { label: "Frontend", value: "React 19 · TanStack Start 1.167 · Vite 8 · Tailwind CSS 4" },
-  { label: "Backend", value: "TanStack Start server functions · Supabase (Postgres + Auth)" },
+  { label: "Backend", value: "TanStack Start server functions · Neon (Postgres + Auth)" },
   { label: "Academy", value: "Whop — course hosting, payments, content delivery" },
-  { label: "Realtime", value: "Supabase Realtime channels · WhatsApp Business API (community)" },
+  { label: "Realtime", value: "TanStack Query cache polling · WhatsApp Business API (community)" },
   { label: "Payments", value: "DOT wallet on internal ledger · Stripe (capital partner flows)" },
 ];
 
@@ -154,7 +154,7 @@ function PlatformPage() {
                 Real stack, <span className="text-primary">no buzzwords</span>.
               </h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                DOT is a TanStack Start app on the edge, backed by Supabase, with Whop for
+                DOT is a TanStack Start app on the edge, backed by Neon, with Whop for
                 course delivery and Stripe for capital flows. We're happy to be specific —
                 every dependency is here because it's the right tool for the job.
               </p>

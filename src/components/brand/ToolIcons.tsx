@@ -24,23 +24,7 @@ function baseProps(size: number, props: SVGProps<SVGSVGElement>) {
   } as const;
 }
 
-/* Supabase — leaf/wing shape */
-export function SupabaseIcon({ size = 16, ...props }: IconProps) {
-  return (
-    <svg {...baseProps(size, props)}>
-      <path
-        d="M3 21V3L11 21V11H21L13 21"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-        fill="currentColor"
-        fillOpacity="0.15"
-      />
-    </svg>
-  );
-}
 
-/* Vercel — triangle */
 export function VercelIcon({ size = 16, ...props }: IconProps) {
   return (
     <svg {...baseProps(size, props)}>
