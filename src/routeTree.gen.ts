@@ -60,7 +60,6 @@ import { Route as AuthenticatedBuilderRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedAnalyticsRouteImport } from './routes/_authenticated/analytics'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedAcademyRouteImport } from './routes/_authenticated/academy'
-import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/admin/route'
 import { Route as AuthenticatedMessagesIndexRouteImport } from './routes/_authenticated/messages/index'
 import { Route as AuthenticatedCapitalIndexRouteImport } from './routes/_authenticated/capital/index'
 import { Route as AuthenticatedOnboardingBuilderRouteImport } from './routes/_authenticated/onboarding/builder'
@@ -344,11 +343,6 @@ const AuthenticatedAcademyRoute = AuthenticatedAcademyRouteImport.update({
   path: '/academy',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedAdminRouteRoute = AuthenticatedAdminRouteRouteImport.update({
-  id: '/admin',
-  path: '/admin',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedMessagesIndexRoute =
   AuthenticatedMessagesIndexRouteImport.update({
     id: '/messages/',
@@ -490,8 +484,8 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
-  '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/academy': typeof AuthenticatedAcademyRoute
+  '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/analytics': typeof AuthenticatedAnalyticsRoute
   '/builder': typeof AuthenticatedBuilderRouteWithChildren
   '/certificates': typeof AuthenticatedCertificatesRoute
@@ -564,8 +558,8 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
-  '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/academy': typeof AuthenticatedAcademyRoute
+  '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/analytics': typeof AuthenticatedAnalyticsRoute
   '/builder': typeof AuthenticatedBuilderRouteWithChildren
   '/certificates': typeof AuthenticatedCertificatesRoute
@@ -640,8 +634,8 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
-  '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/_authenticated/academy': typeof AuthenticatedAcademyRoute
+  '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/_authenticated/analytics': typeof AuthenticatedAnalyticsRoute
   '/_authenticated/builder': typeof AuthenticatedBuilderRouteWithChildren
   '/_authenticated/certificates': typeof AuthenticatedCertificatesRoute
@@ -716,8 +710,8 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/sitemap.xml'
     | '/terms'
-    | '/admin'
     | '/academy'
+    | '/admin'
     | '/analytics'
     | '/builder'
     | '/certificates'
@@ -790,8 +784,8 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/sitemap.xml'
     | '/terms'
-    | '/admin'
     | '/academy'
+    | '/admin'
     | '/analytics'
     | '/builder'
     | '/certificates'
@@ -865,8 +859,8 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/sitemap.xml'
     | '/terms'
-    | '/_authenticated/admin'
     | '/_authenticated/academy'
+    | '/_authenticated/admin'
     | '/_authenticated/analytics'
     | '/_authenticated/builder'
     | '/_authenticated/certificates'
@@ -1306,13 +1300,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAcademyRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/admin': {
-      id: '/_authenticated/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AuthenticatedAdminRouteRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/messages/': {
       id: '/_authenticated/messages/'
       path: '/messages'
@@ -1551,7 +1538,6 @@ const AuthenticatedOnboardingRouteWithChildren =
   )
 
 interface AuthenticatedRouteRouteChildren {
-  AuthenticatedAdminRouteRoute: typeof AuthenticatedAdminRouteRoute
   AuthenticatedAcademyRoute: typeof AuthenticatedAcademyRoute
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRouteWithChildren
   AuthenticatedAnalyticsRoute: typeof AuthenticatedAnalyticsRoute
@@ -1595,7 +1581,6 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
-  AuthenticatedAdminRouteRoute: AuthenticatedAdminRouteRoute,
   AuthenticatedAcademyRoute: AuthenticatedAcademyRoute,
   AuthenticatedAdminRoute: AuthenticatedAdminRouteWithChildren,
   AuthenticatedAnalyticsRoute: AuthenticatedAnalyticsRoute,

@@ -33,12 +33,7 @@ import { useDotAuth } from "@/contexts/DotAuthContext";
 import { AdminShell, AdminSidebar } from "@/components/app/AdminShell";
 import { Button } from "@/components/ui/button";
 
-export const Route: any = createFileRoute("/_authenticated/admin")({
-  head: () => ({ meta: [{ title: "Admin — DOT" }] }),
-  component: AdminLayout,
-});
-
-function AdminLayout() {
+export function AdminLayout() {
   const { roles } = useDotAuth();
   const location = useLocation();
   const isSuperAdmin = roles.includes("super_admin");
