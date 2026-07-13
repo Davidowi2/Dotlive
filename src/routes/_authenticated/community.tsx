@@ -33,6 +33,7 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/community")({
   head: () => ({ meta: [{ title: "Community OS — DOT" }] }),
+  ssr: false,
   component: CommunityPage,
 });
 
@@ -64,7 +65,8 @@ interface ChatMessage {
 function CommunityPage() {
   const { user, roles } = useDotAuth();
   const navigate = useNavigate();
-  const canCreateCommunity = roles.some((r) => r === "community_leader" || r === "admin" || r === "super_admin");
+  const safeRoles = roles ?? [];
+  const canCreateCommunity = safeRoles.some((r) => r === "community_leader" || r === "admin" || r === "super_admin");
   const qc = useQueryClient();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
