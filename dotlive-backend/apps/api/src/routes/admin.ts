@@ -44,6 +44,7 @@ import {
   adminAuditLog,
   adminConfirmTokens,
   adminImpersonationTokens,
+  moderation_reports,
 } from "../db/schema.js";
 import {
   requireAdmin,
@@ -771,6 +772,44 @@ export async function adminRoutes(app: FastifyInstance) {
       const inReview = await safeCount(sql`SELECT count(*)::int AS n FROM moderation_reports WHERE status = 'in_review'`);
       const resolvedToday = await safeCount(sql`SELECT count(*)::int AS n FROM moderation_reports WHERE status = 'resolved' AND resolved_at >= NOW() - interval '24 hours'`);
       return reply.send({ open, inReview, resolvedToday });
+    }
+  );
+
+  app.get(
+    "/admin/queue/reports",
+    { preHandler: [app.authenticate, requireSuperAdmin] },
+    async (req, reply) => {
+      const q = z
+        .object({ status: z.string().optional(), limit: z.coerce.number().min(1).max(100).default(50), cursor: z.string().optional() })
+        .safeParse(req.query);
+      if (!q.success) return reply.code(400).send({ error: "bad_query" });
+      const { status, limit, cursor } = q.data;
+      const conditions: any[] = [];
+      if (status && ["open", "in_review", "resolved", "dismissed"].includes(status)) {
+        conditions.push(eq(moderation_reports.status, status));
+      }
+      if (cursor) conditions.push(gte(moderation_reports.createdAt, new Date(cursor)));
+      const where = conditions.length ? and(...conditions) : undefined;
+      const rows = await db
+        .select({
+          id: moderation_reports.id,
+          communityId: moderation_reports.communityId,
+          reporterId: moderation_reports.reporterId,
+          targetType: moderation_reports.targetType,
+          targetId: moderation_reports.targetId,
+          reason: moderation_reports.reason,
+          status: moderation_reports.status,
+          resolvedBy: moderation_reports.resolvedBy,
+          resolvedAt: moderation_reports.resolvedAt,
+          createdAt: moderation_reports.createdAt,
+          updatedAt: moderation_reports.updatedAt,
+        })
+        .from(moderation_reports)
+        .where(where)
+        .orderBy(desc(moderation_reports.createdAt))
+        .limit(limit);
+      const nextCursor = rows.length ? new Date(rows[rows.length - 1].createdAt).toISOString() : null;
+      return reply.send({ reports: rows, nextCursor });
     }
   );
 
