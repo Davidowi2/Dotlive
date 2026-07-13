@@ -27,12 +27,29 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { formatDot, formatNaira, ROLE_LABELS, type AppRole } from "@/lib/constants";
 import { elevateUser, revokeAdmin } from "@/lib/admin.functions";
 import { toast } from "sonner";
+import {
+  listAdminUsers,
+  getAdminUser,
+  adjustBalance,
+  banUser,
+  unbanUser,
+  getAuditLog,
+  listFeedPosts,
+  deleteFeedPost,
+} from "@/api/admin";
+import {
+  listAdminCourses,
+  createAdminCourse,
+  updateAdminCourse,
+  deleteAdminCourse,
+} from "@/api/adminAcademy";
+import { getPayments } from "@/api/payments";
+import type { AdminCourse } from "@/api/admin";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({ meta: [{ title: "Admin — DOT" }] }),
@@ -106,29 +123,18 @@ function RolesTab() {
   const { data: members = [], isLoading } = useQuery({
     queryKey: ["admin-roles-members"],
     queryFn: async () => {
-      const [{ data: profiles }, { data: roleRows }] = await Promise.all([
-        supabase.from("profiles").select("id, name, email"),
-        supabase.from("user_roles").select("user_id, role"),
-      ]);
-      const rmap = new Map<string, AppRole[]>();
-      (roleRows ?? []).forEach((r) => {
-        const arr = rmap.get(r.user_id) ?? [];
-        arr.push(r.role as AppRole);
-        rmap.set(r.user_id, arr);
-      });
-      return (profiles ?? []).map((p) => ({ ...p, roles: rmap.get(p.id) ?? [] }));
+      const res = await listAdminUsers({ limit: 200 });
+      const roles = await Promise.all(res.users.map(u => getUserRolesInfo(u.id)));
+      const roleMap = new Map(roles.map(r => [r.user.id, r.roles]));
+      return res.users.map(u => ({ ...u, roles: roleMap.get(u.id) ?? [] }));
     },
   });
 
   const { data: audit = [] } = useQuery({
     queryKey: ["role-audit-log"],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("role_audit_log")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(50);
-      return data ?? [];
+      const res = await getAuditLog(200);
+      return res as unknown[];
     },
   });
 
@@ -137,6 +143,7 @@ function RolesTab() {
     try {
       await elevate({ data: { targetUserId: id, newRole: role } });
       toast.success(`Granted ${ROLE_LABELS[role]}`);
+      await refresh?.();
       qc.invalidateQueries({ queryKey: ["admin-roles-members"] });
       qc.invalidateQueries({ queryKey: ["role-audit-log"] });
     } catch (err) {
@@ -151,8 +158,35 @@ function RolesTab() {
     try {
       await revoke({ data: { targetUserId: id, role } });
       toast.success(`Revoked ${ROLE_LABELS[role]}`);
+      await refresh?.();
       qc.invalidateQueries({ queryKey: ["admin-roles-members"] });
       qc.invalidateQueries({ queryKey: ["role-audit-log"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function doBan(id: string) {
+    setBusyId(id);
+    try {
+      await banUser(id, "Banned by admin");
+      toast.success("User banned");
+      qc.invalidateQueries({ queryKey: ["admin-roles-members"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function doUnban(id: string) {
+    setBusyId(id);
+    try {
+      await unbanUser(id, "Unbanned by admin");
+      toast.success("User unbanned");
+      qc.invalidateQueries({ queryKey: ["admin-roles-members"] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
     } finally {
@@ -307,12 +341,9 @@ function MembersTab() {
   const { data: members = [], isLoading } = useQuery({
     queryKey: ["admin-members"],
     queryFn: async () => {
-      const [{ data: profiles }, { data: wallets }] = await Promise.all([
-        supabase.from("profiles").select("id, name, email"),
-        supabase.from("wallets").select("user_id, balance"),
-      ]);
-      const wmap = new Map((wallets ?? []).map((w) => [w.user_id, w.balance]));
-      return (profiles ?? []).map((p) => ({ ...p, balance: wmap.get(p.id) ?? 0 }));
+      const res = await listAdminUsers({ limit: 200 });
+      const map = new Map((await Promise.all(res.users.map((u) => getAdminUser(u.id)))).map((u) => [u.id, u.balance ?? u.wallet?.balance ?? 0]));
+      return res.users.map((u) => ({ ...u, balance: Number(map.get(u.id) ?? 0) }));
     },
   });
 
@@ -320,13 +351,7 @@ function MembersTab() {
     if (!target) return;
     setBusy(true);
     try {
-      const { error } = await supabase.rpc("admin_adjust_wallet", {
-        _user_id: target.id,
-        _amount: amount,
-        _type: type,
-        _description: `Admin ${type.toLowerCase()}`,
-      });
-      if (error) throw error;
+      await adjustBalance(target.id, amount, type);
       toast.success("Balance updated");
       qc.invalidateQueries({ queryKey: ["admin-members"] });
       setTarget(null);
@@ -417,12 +442,21 @@ function PaymentsTab() {
   const { data: payments = [], isLoading } = useQuery({
     queryKey: ["admin-payments"],
     queryFn: async () => {
-      const [{ data: rows }, { data: profiles }] = await Promise.all([
-        supabase.from("payments").select("*").order("created_at", { ascending: false }).limit(200),
-        supabase.from("profiles").select("id, name, email"),
-      ]);
-      const pmap = new Map((profiles ?? []).map((p) => [p.id, p]));
-      return (rows ?? []).map((r) => ({ ...r, profile: pmap.get(r.user_id) }));
+      const rows = await getPayments();
+      // Backend does not join profiles here, so populate via users instead
+      const userIds = [...new Set(rows.map((p) => p.userId))];
+      const profiles: Record<string, { name?: string; email: string }> = {};
+      await Promise.all(
+        userIds.map(async (id) => {
+          try {
+            const u = await getAdminUser(id);
+            profiles[id] = { name: u.name ?? undefined, email: u.email };
+          } catch {
+            profiles[id] = { email: id };
+          }
+        }),
+      );
+      return rows.map((r) => ({ ...r, profile: profiles[r.userId] }));
     },
   });
 
@@ -534,16 +568,15 @@ function ContentTab() {
           { key: "vantage_boost", label: "Vantage boost", number: true },
         ]}
         onSubmit={async (v) => {
-          const { error } = await supabase.from("courses").insert({
+          await createAdminCourse({
             title: v.title,
             description: v.description,
-            whop_url: v.whop_url,
-            whop_product_id: v.whop_product_id,
+            whopUrl: v.whop_url,
+            whopProductId: v.whop_product_id,
             category: v.category,
-            dot_reward: Number(v.dot_reward) || 0,
-            vantage_boost: Number(v.vantage_boost) || 0,
+            dotReward: Number(v.dot_reward) || 0,
+            vantageBoost: Number(v.vantage_boost) || 0,
           });
-          if (error) throw error;
           qc.invalidateQueries({ queryKey: ["courses"] });
         }}
       />
@@ -561,16 +594,16 @@ function ContentTab() {
           { key: "capacity", label: "Capacity", number: true },
         ]}
         onSubmit={async (v) => {
-          const { error } = await supabase.from("events").insert({
+          await dotApi.post("/api/admin/events", {
             title: v.title,
             description: v.description,
             speaker: v.speaker,
-            event_date: v.event_date ? new Date(v.event_date).toISOString() : null,
-            dot_cost: Number(v.dot_cost) || 0,
-            whop_url: v.whop_url,
+            eventDate: v.event_date ? new Date(v.event_date).toISOString() : null,
+            dotCost: Number(v.dot_cost) || 0,
+            whopUrl: v.whop_url,
+            whopProductId: v.whop_product_id,
             capacity: Number(v.capacity) || 100,
           });
-          if (error) throw error;
           qc.invalidateQueries({ queryKey: ["events"] });
         }}
       />
@@ -585,15 +618,13 @@ function ContentTab() {
           { key: "end_date", label: "End", type: "datetime-local" },
         ]}
         onSubmit={async (v) => {
-          const { error } = await supabase.from("pitchathons").insert({
+          await dotApi.post("/api/admin/pitchathons", {
             title: v.title,
             description: v.description,
-            prize: v.prize,
-            start_date: v.start_date ? new Date(v.start_date).toISOString() : null,
-            end_date: v.end_date ? new Date(v.end_date).toISOString() : null,
+            prizePoolDot: v.prize,
+            applicationDeadline: v.end_date ? new Date(v.end_date).toISOString() : null,
             status: "open",
           });
-          if (error) throw error;
           qc.invalidateQueries({ queryKey: ["pitchathons"] });
         }}
       />

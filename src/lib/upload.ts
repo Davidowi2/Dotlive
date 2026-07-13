@@ -1,28 +1,10 @@
-import { supabase } from "@/integrations/supabase/client";
-
-/* ----------------------------- Supabase Storage ----------------------------- */
 /**
- * Upload a file to Supabase Storage "documents" bucket.
- * Kept for backward-compat with onboarding/PDFs.
+ * Upload helpers — Cloudinary only.
+ *
+ * Direct Supabase Storage uploads were removed. Use /api/upload/*
+ * or the sign+upload flow in src/api/upload.ts instead.
  */
-export async function uploadDocument(userId: string, folder: string, file: File): Promise<string> {
-  const ext = file.name.split(".").pop();
-  const path = `${userId}/${folder}/${crypto.randomUUID()}.${ext}`;
-  const { error } = await supabase.storage.from("documents").upload(path, file, {
-    cacheControl: "3600",
-    upsert: false,
-  });
-  if (error) throw error;
-  return path;
-}
 
-export async function getSignedUrl(path: string, expiresIn = 3600): Promise<string | null> {
-  const { data, error } = await supabase.storage.from("documents").createSignedUrl(path, expiresIn);
-  if (error) return null;
-  return data.signedUrl;
-}
-
-/* ----------------------------- Cloudinary ----------------------------- */
 export type CloudinarySignResp = {
   cloudName: string;
   apiKey: string;
@@ -36,9 +18,12 @@ export async function signCloudinaryImageUpload(
   folder: "avatars" | "ventures" | "services" | "community" | "misc" | "feed",
   userId: string,
 ): Promise<CloudinarySignResp> {
-  const res = await fetch(`/api/upload/sign?folder=${encodeURIComponent(folder)}`, {
-    headers: { accept: "application/json" },
-  });
+  const res = await fetch(
+    `/api/upload/sign?folder=${encodeURIComponent(folder)}`,
+    {
+      headers: { accept: "application/json" },
+    },
+  );
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(`Sign upload failed: ${res.status} ${text}`);
@@ -66,6 +51,9 @@ export async function uploadImageToCloudinary(
     const text = await uploadRes.text().catch(() => "");
     throw new Error(`Cloudinary upload failed: ${uploadRes.status} ${text}`);
   }
-  const json = (await uploadRes.json()) as { secure_url: string; public_id: string };
+  const json = (await uploadRes.json()) as {
+    secure_url: string;
+    public_id: string;
+  };
   return { url: json.secure_url, publicId: json.public_id };
 }

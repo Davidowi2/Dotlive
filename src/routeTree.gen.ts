@@ -82,7 +82,6 @@ import { Route as AuthenticatedAdminPermissionsRouteImport } from './routes/_aut
 import { Route as AuthenticatedAdminMembersRouteImport } from './routes/_authenticated/admin/members'
 import { Route as AuthenticatedAdminIntegrationsRouteImport } from './routes/_authenticated/admin/integrations'
 import { Route as AuthenticatedAdminCoursesRouteImport } from './routes/_authenticated/admin/courses'
-import { Route as ApiPublicWebhooksPaystackRouteImport } from './routes/api/public/webhooks/paystack'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
@@ -468,12 +467,6 @@ const AuthenticatedAdminCoursesRoute =
     path: '/courses',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
-const ApiPublicWebhooksPaystackRoute =
-  ApiPublicWebhooksPaystackRouteImport.update({
-    id: '/api/public/webhooks/paystack',
-    path: '/api/public/webhooks/paystack',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -548,7 +541,6 @@ export interface FileRoutesByFullPath {
   '/onboarding/builder': typeof AuthenticatedOnboardingBuilderRoute
   '/capital/': typeof AuthenticatedCapitalIndexRoute
   '/messages/': typeof AuthenticatedMessagesIndexRoute
-  '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -623,7 +615,6 @@ export interface FileRoutesByTo {
   '/onboarding/builder': typeof AuthenticatedOnboardingBuilderRoute
   '/capital': typeof AuthenticatedCapitalIndexRoute
   '/messages': typeof AuthenticatedMessagesIndexRoute
-  '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -700,7 +691,6 @@ export interface FileRoutesById {
   '/_authenticated/onboarding/builder': typeof AuthenticatedOnboardingBuilderRoute
   '/_authenticated/capital/': typeof AuthenticatedCapitalIndexRoute
   '/_authenticated/messages/': typeof AuthenticatedMessagesIndexRoute
-  '/api/public/webhooks/paystack': typeof ApiPublicWebhooksPaystackRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -777,7 +767,6 @@ export interface FileRouteTypes {
     | '/onboarding/builder'
     | '/capital/'
     | '/messages/'
-    | '/api/public/webhooks/paystack'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -852,7 +841,6 @@ export interface FileRouteTypes {
     | '/onboarding/builder'
     | '/capital'
     | '/messages'
-    | '/api/public/webhooks/paystack'
   id:
     | '__root__'
     | '/'
@@ -928,7 +916,6 @@ export interface FileRouteTypes {
     | '/_authenticated/onboarding/builder'
     | '/_authenticated/capital/'
     | '/_authenticated/messages/'
-    | '/api/public/webhooks/paystack'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -950,7 +937,6 @@ export interface RootRouteChildren {
   EventsSlugRoute: typeof EventsSlugRoute
   FounderIdRoute: typeof FounderIdRoute
   EventsIndexRoute: typeof EventsIndexRoute
-  ApiPublicWebhooksPaystackRoute: typeof ApiPublicWebhooksPaystackRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1466,13 +1452,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminCoursesRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
-    '/api/public/webhooks/paystack': {
-      id: '/api/public/webhooks/paystack'
-      path: '/api/public/webhooks/paystack'
-      fullPath: '/api/public/webhooks/paystack'
-      preLoaderRoute: typeof ApiPublicWebhooksPaystackRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
@@ -1677,7 +1656,6 @@ const rootRouteChildren: RootRouteChildren = {
   EventsSlugRoute: EventsSlugRoute,
   FounderIdRoute: FounderIdRoute,
   EventsIndexRoute: EventsIndexRoute,
-  ApiPublicWebhooksPaystackRoute: ApiPublicWebhooksPaystackRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
