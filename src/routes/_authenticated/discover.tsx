@@ -207,7 +207,6 @@ function DiscoverPage() {
   }
 
   const posts: Post[] = postsQ.data ?? [];
-  const [commentText, setCommentText] = useState<Record<string, string>>({});
   const expandedRef = useRef<Record<string, boolean>>({});
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
 
