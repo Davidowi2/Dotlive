@@ -74,6 +74,12 @@ function CommunityPage() {
   const [chatSending, setChatSending] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!selectedId && myCommunities.length > 0) {
+      setSelectedId(myCommunities[0].id);
+    }
+  }, [myCommunities, selectedId]);
+
   // Load ALL communities the user is part of (led + member)
   const { data: myCommunities = [], isLoading } = useQuery({
     queryKey: ["my-communities"],
