@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import {
   ImagePlus,
@@ -11,6 +12,12 @@ import {
   Hash,
   Globe,
   Clock,
+  ArrowBigUp,
+  ArrowBigDown,
+  MoreHorizontal,
+  ChevronDown,
+  Send,
+  X,
 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
@@ -27,10 +34,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/use-auth";
+import { useDotAuth } from "@/contexts/DotAuthContext";
 import { useNavigate } from "@tanstack/react-router";
-import { supabase } from "@/integrations/supabase/client";
 import {
   type CloudinarySignResp,
   signCloudinaryImageUpload,
@@ -38,6 +43,13 @@ import {
 } from "@/lib/upload";
 import { listPublicCommunities, joinByCode } from "@/api/community";
 import { toast } from "sonner";
+import { dotApi } from "@/api/client";
+import { cn } from "@/lib/utils";
+
+export const Route = createFileRoute("/_authenticated/discover")({
+  head: () => ({ meta: [{ title: "Discover — DOT" }] }),
+  component: DiscoverPage,
+});
 
 type Post = {
   id: string;
@@ -56,15 +68,60 @@ type Post = {
   authorDotId: string | null;
 };
 
-export const Route = createFileRoute("/_authenticated/discover")({
-  head: () => ({ meta: [{ title: "Discover — DOT" }] }),
-  component: DiscoverPage,
-});
+type Comment = {
+  id: string;
+  body: string;
+  createdAt: string;
+  authorName: string | null;
+  authorId: string | null;
+};
+
+function timeAgo(iso: string) {
+  const diff = Math.max(0, Date.now() - new Date(iso).getTime());
+  const s = Math.floor(diff / 1000);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}d`;
+  return new Date(iso).toLocaleDateString();
+}
+
+function useFeed(tab: "latest" | "popular" | "trending") {
+  return useQuery({
+    queryKey: ["feed", tab],
+    queryFn: async () => {
+      const r = await dotApi.get<{ posts: Post[] }>(`/api/feed?tab=${tab}&limit=50`);
+      return r.posts ?? [];
+    },
+    staleTime: 30_000,
+  });
+}
+
+function useComments(postId: string) {
+  return useQuery({
+    queryKey: [`feed-comments`, postId],
+    queryFn: async () => {
+      try {
+        const r = await dotApi.get<{ comments: Comment[] }>(`/api/feed/${postId}/comments`);
+        return r.comments ?? [];
+      } catch {
+        return [];
+      }
+    },
+    staleTime: 15_000,
+    enabled: !!postId,
+  });
+}
 
 function DiscoverPage() {
-  const { user } = useAuth();
+  const { user } = useDotAuth();
   const qc = useQueryClient();
   const navigate = useNavigate({ from: "/discover" });
+
+  const [tab, setTab] = useState<"latest" | "popular" | "trending">("latest");
   const [type, setType] = useState<"general" | "venture_update">("general");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -72,20 +129,10 @@ function DiscoverPage() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [commentText, setCommentText] = useState<Record<string, string>>({});
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["discover-posts"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("feed_posts")
-        .select(
-          "id,type,title,body,tags,likes_count,comments_count,budget_dot,created_at,author_name,author_dot_id",
-        )
-        .order("created_at", { ascending: false })
-        .limit(50);
-      return (data ?? []) as Post[];
-    },
-  });
+  const postsQ = useFeed(tab);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -101,31 +148,63 @@ function DiscoverPage() {
         .split(",")
         .map((t) => t.trim())
         .filter(Boolean);
-      const { error } = await supabase.from("feed_posts").insert({
+      await dotApi.post("/api/feed", {
         type,
         title: title || null,
         body,
         tags,
-        author_id: user.id,
-        author_name: user.user_metadata?.name ?? null,
-        author_dot_id: null,
-        author_role: "builder",
-        image_url: imageUrl,
-        likes_count: 0,
-        comments_count: 0,
+        imageUrl,
+        budgetDot: null,
       });
-      if (error) throw error;
-      qc.invalidateQueries({ queryKey: ["discover-posts"] });
       toast.success("Posted to Discover");
       setTitle("");
       setBody("");
       setTagsText("");
       setFile(null);
       setPreview(null);
+      qc.invalidateQueries({ queryKey: ["feed"] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Post failed");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function toggleLike(post: Post) {
+    try {
+      if (post.isLiked) {
+        await dotApi.post(`/api/feed/${post.id}/like`, {});
+      } else {
+        await dotApi.post(`/api/feed/${post.id}/like`, {});
+      }
+      qc.invalidateQueries({ queryKey: ["feed"] });
+    } catch {
+      toast.error("Could not update like");
+    }
+  }
+
+  async function toggleBookmark(post: Post) {
+    try {
+      await dotApi.post(`/api/feed/${post.id}/bookmark`, {});
+      qc.invalidateQueries({ queryKey: ["feed"] });
+      toast.success(post.isBookmarked ? "Removed bookmark" : "Saved");
+    } catch {
+      toast.error("Could not update bookmark");
+    }
+  }
+
+  async function submitComment(e: React.FormEvent, postId: string) {
+    e.preventDefault();
+    const text = (commentText[postId] ?? "").trim();
+    if (!text) return;
+    try {
+      await dotApi.post(`/api/feed/${postId}/comments`, { body: text });
+      setCommentText((x) => ({ ...x, [postId]: "" }));
+      qc.invalidateQueries({ queryKey: [`feed-comments`, postId] });
+      qc.invalidateQueries({ queryKey: ["feed"] });
+      toast.success("Comment added");
+    } catch {
+      toast.error("Could not post comment");
     }
   }
 
@@ -143,25 +222,51 @@ function DiscoverPage() {
     reader.readAsDataURL(f);
   }
 
+  const posts = postsQ.data ?? [];
+
   return (
     <AppShell>
       <div className="max-w-5xl mx-auto">
-        <h1 className="font-display text-3xl font-bold">Discover</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Share venture updates, gigs and announcements.
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="font-display text-3xl font-bold">Discover</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Share venture updates, gigs and announcements.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant={tab === "latest" ? "hero" : "outline"}
+              size="sm"
+              onClick={() => setTab("latest")}
+            >
+              Latest
+            </Button>
+            <Button
+              variant={tab === "popular" ? "hero" : "outline"}
+              size="sm"
+              onClick={() => setTab("popular")}
+            >
+              Popular
+            </Button>
+            <Button
+              variant={tab === "trending" ? "hero" : "outline"}
+              size="sm"
+              onClick={() => setTab("trending")}
+            >
+              Trending
+            </Button>
+          </div>
+        </div>
 
-        {/* Post Composer */}
+        {/* Composer */}
         <Card className="mt-6">
           <CardContent className="p-5">
             <form onSubmit={submit} className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground">Post Type</Label>
-                  <Select
-                    value={type}
-                    onValueChange={(value) => setType(value as typeof type)}
-                  >
+                  <Select value={type} onValueChange={(v) => setType(v as typeof type)}>
                     <SelectTrigger className="h-9">
                       <SelectValue placeholder="Select type" />
                     </SelectTrigger>
@@ -217,11 +322,14 @@ function DiscoverPage() {
               </div>
               <div className="flex items-center justify-between pt-2">
                 <div className="flex gap-2">
-                  {tagsText.split(",").filter(Boolean).map((tag, i) => (
-                    <Badge key={i} variant="secondary" className="text-xs">
-                      #{tag.trim()}
-                    </Badge>
-                  ))}
+                  {tagsText
+                    .split(",")
+                    .filter(Boolean)
+                    .map((tag, i) => (
+                      <Badge key={i} variant="secondary" className="text-xs">
+                        #{tag.trim()}
+                      </Badge>
+                    ))}
                 </div>
                 <Button type="submit" variant="hero" disabled={busy || !body.trim()}>
                   {busy ? (
@@ -238,101 +346,181 @@ function DiscoverPage() {
 
         {/* Feed */}
         <div className="mt-6 space-y-4">
-          {isLoading ? (
+          {postsQ.isLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="size-8 animate-spin text-primary" />
             </div>
-          ) : (data ?? []).length === 0 ? (
+          ) : posts.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
                 <p className="text-muted-foreground">No posts yet. Be the first!</p>
               </CardContent>
             </Card>
           ) : (
-            (data ?? []).map((p) => (
-              <Card key={p.id} className="overflow-hidden hover:border-primary/30 transition-colors">
-                <CardContent className="p-5">
-                  {/* Post Header */}
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-                        <span className="text-sm font-semibold">
-                          {(p.authorName ?? "U").charAt(0).toUpperCase()}
-                        </span>
-                      </Avatar>
-                      <div>
-                        <p className="text-sm font-medium">{p.authorName ?? "User"}</p>
-                        <p className="text-xs text-muted-foreground flex items-center gap-1">
-                          <Clock className="size-3" />
-                          {new Date(p.createdAt).toLocaleString()}
-                        </p>
+            posts.map((p) => {
+              const showComments = !!expanded[p.id];
+              const commentsQ = useComments(p.id);
+              const comments = commentsQ.data ?? [];
+
+              return (
+                <Card key={p.id} className="overflow-hidden hover:border-primary/30 transition-colors">
+                  <CardContent className="p-5">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                          <span className="text-sm font-semibold">
+                            {(p.authorName ?? "U").charAt(0).toUpperCase()}
+                          </span>
+                        </Avatar>
+                        <div>
+                          <p className="text-sm font-medium">{p.authorName ?? "User"}</p>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Clock className="size-3" />
+                            {timeAgo(p.createdAt)}
+                          </p>
+                        </div>
                       </div>
+                      <Badge variant="outline" className="text-xs">
+                        {p.type.replace("_", " ")}
+                      </Badge>
                     </div>
-                    <Badge variant="outline" className="text-xs">
-                      {p.type.replace("_", " ")}
-                    </Badge>
-                  </div>
 
-                  {/* Post Content */}
-                  <div className="mt-3 space-y-3">
-                    {p.title && (
-                      <h3 className="font-display text-base font-semibold leading-tight">
-                        {p.title}
-                      </h3>
-                    )}
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      {p.body}
-                    </p>
-                    {p.imageUrl && (
-                      <img
-                        src={p.imageUrl}
-                        alt="Post image"
-                        className="mt-2 rounded-xl border border-border object-cover w-full h-auto max-h-96"
-                        loading="lazy"
-                      />
-                    )}
-                    {/* Tags */}
-                    {p.tags && p.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {p.tags.map((tag) => (
-                          <Badge key={tag} variant="secondary" className="text-xs">
-                            #{tag}
-                          </Badge>
-                        ))}
+                    <div className="mt-3 space-y-3">
+                      {p.title && (
+                        <h3 className="font-display text-base font-semibold leading-tight">{p.title}</h3>
+                      )}
+                      <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{p.body}</p>
+                      {p.imageUrl && (
+                        <img
+                          src={p.imageUrl}
+                          alt="Post image"
+                          className="mt-2 rounded-xl border border-border object-cover w-full max-h-96"
+                          loading="lazy"
+                        />
+                      )}
+                      {p.tags && p.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {p.tags.map((tag) => (
+                            <span
+                              key={tag}
+                              className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2 py-1 text-[11px] text-muted-foreground"
+                            >
+                              <Hash className="size-3" />#{tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mt-4 flex items-center gap-2 pt-3 border-t border-border">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className={cn("gap-2", p.isLiked && "text-red-500")}
+                        onClick={() => toggleLike(p)}
+                      >
+                        <ArrowBigUp className="size-4" />
+                        <span className="text-xs font-medium">{p.likesCount}</span>
+                        <ArrowBigDown className="size-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className={cn("gap-2", showComments && "text-primary")}
+                        onClick={() =>
+                          setExpanded((x) => ({ ...x, [p.id]: !x[p.id] }))
+                        }
+                      >
+                        <MessageSquare className="size-4" />
+                        <span className="text-xs font-medium">{p.commentsCount}</span>
+                        <ChevronDown
+                          className={cn("size-3 transition-transform", showComments && "rotate-180")}
+                        />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className={cn("gap-2", p.isBookmarked && "text-amber-600")}
+                        onClick={() => toggleBookmark(p)}
+                      >
+                        <Bookmark className="size-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gap-2"
+                        onClick={() => {
+                          const url = `${window.location.origin}/discover`;
+                          navigator.clipboard?.writeText(url).then(() => toast.success("Link copied"));
+                        }}
+                      >
+                        <Share2 className="size-4" />
+                      </Button>
+                    </div>
+
+                    {showComments && (
+                      <div className="mt-4 space-y-3">
+                        <div className="space-y-3">
+                          {comments.map((c) => (
+                            <div key={c.id} className="flex gap-3">
+                              <Avatar className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
+                                <span className="text-xs font-semibold">
+                                  {(c.authorName ?? "U").charAt(0).toUpperCase()}
+                                </span>
+                              </Avatar>
+                              <div className="flex-1 rounded-xl border border-border bg-background/60 p-3">
+                                <div className="flex items-center justify-between">
+                                  <p className="text-xs font-medium">{c.authorName ?? "User"}</p>
+                                  <p className="text-[10px] text-muted-foreground">{timeAgo(c.createdAt)}</p>
+                                </div>
+                                <p className="mt-1 text-sm text-foreground leading-relaxed">{c.body}</p>
+                              </div>
+                            </div>
+                          ))}
+                          {commentsQ.isLoading && (
+                            <p className="text-xs text-muted-foreground">Loading comments...</p>
+                          )}
+                          {!commentsQ.isLoading && comments.length === 0 && (
+                            <p className="text-xs text-muted-foreground">No comments yet.</p>
+                          )}
+                        </div>
+                        <form
+                          onSubmit={(e) => submitComment(e, p.id)}
+                          className="flex items-center gap-2"
+                        >
+                          <Input
+                            value={commentText[p.id] ?? ""}
+                            onChange={(e) =>
+                              setCommentText((x) => ({ ...x, [p.id]: e.target.value }))
+                            }
+                            placeholder="Add a comment..."
+                          />
+                          <Button
+                            type="submit"
+                            size="icon"
+                            variant="hero"
+                            disabled={!((commentText[p.id] ?? "").trim())}
+                          >
+                            <Send className="size-4" />
+                          </Button>
+                        </form>
                       </div>
                     )}
-                  </div>
-
-                  {/* Action Buttons (Reddit/Discord Inspired) */}
-                  <div className="mt-4 flex items-center gap-2 pt-3 border-t border-border">
-                    <Button variant="ghost" size="sm" className="text-muted-foreground gap-2">
-                      <Heart className="size-4" />
-                      <span className="text-xs">{p.likesCount}</span>
-                    </Button>
-                    <Button variant="ghost" size="sm" className="text-muted-foreground gap-2">
-                      <MessageSquare className="size-4" />
-                      <span className="text-xs">{p.commentsCount}</span>
-                    </Button>
-                    <Button variant="ghost" size="sm" className="text-muted-foreground gap-2">
-                      <Bookmark className="size-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" className="text-muted-foreground gap-2">
-                      <Share2 className="size-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+                  </CardContent>
+                </Card>
+              );
+            })
           )}
         </div>
 
-        {/* Communities Section (Discord Inspired) */}
-        <section className="mt-8">
-          <div className="flex items-center gap-2 mb-4">
-            <Hash className="size-5 text-primary" />
-            <h2 className="font-display text-lg font-semibold">Public Communities</h2>
+        {/* Public communities */}
+        <section className="mt-8 rounded-2xl border border-border bg-card p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="font-display text-lg font-semibold">Communities</h2>
+              <p className="text-xs text-muted-foreground">Public groups you can join.</p>
+            </div>
           </div>
-          <p className="text-xs text-muted-foreground mb-4">Public groups you can join.</p>
           <CommunityGrid />
         </section>
       </div>
@@ -340,7 +528,6 @@ function DiscoverPage() {
   );
 }
 
-/* Public community directory */
 function CommunityGrid() {
   const q = useQuery({ queryKey: ["public-communities"], queryFn: listPublicCommunities, staleTime: 60_000 });
   const joinMut = useMutation({
@@ -355,63 +542,31 @@ function CommunityGrid() {
   const items = q.data ?? [];
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {q.isLoading ? (
-        [1, 2, 3].map((i) => (
-          <div key={i} className="h-36 animate-pulse rounded-xl bg-muted/40" />
-        ))
+        [1, 2, 3].map((i) => <div key={i} className="h-28 animate-pulse rounded-xl bg-muted/40" />)
       ) : items.length === 0 ? (
-        <Card className="col-span-full">
-          <CardContent className="py-12 text-center">
-            <Globe className="size-12 mx-auto text-muted-foreground mb-3" />
-            <p className="text-sm text-muted-foreground">No public communities yet.</p>
-          </CardContent>
-        </Card>
+        <p className="text-sm text-muted-foreground">No public communities yet.</p>
       ) : (
         items.map((c) => (
-          <Card key={c.id} className="overflow-hidden hover:border-primary/30 transition-all">
-            <CardContent className="p-4 space-y-3">
-              <div className="flex items-start gap-3">
-                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Users className="size-5 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate">{c.name}</p>
-                  <p className="text-xs text-muted-foreground line-clamp-2">
-                    {c.description ?? ""}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {c.category && (
-                    <Badge variant="outline" className="text-xs">
-                      {c.category}
-                    </Badge>
-                  )}
-                  {c.region && (
-                    <span className="text-xs text-muted-foreground">{c.region}</span>
-                  )}
-                </div>
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Users className="size-3" />
-                  {c.memberCount}
-                </span>
-              </div>
-              <Button
-                size="sm"
-                variant="hero"
-                className="w-full"
-                disabled={joinMut.isPending}
-                onClick={() => joinMut.mutate(c.referralCode)}
-              >
-                {joinMut.isPending ? (
-                  <Loader2 className="size-4 animate-spin mr-2" />
-                ) : null}
-                Join Community
-              </Button>
-            </CardContent>
-          </Card>
+          <div key={c.id} className="rounded-xl border border-border bg-background p-4 space-y-2">
+            <div>
+              <p className="text-sm font-semibold">{c.name}</p>
+              <p className="text-xs text-muted-foreground line-clamp-2">{c.description ?? ""}</p>
+            </div>
+            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+              <span>{c.category ?? "General"}</span>
+              <span>{c.region ?? "—"} · {c.memberCount} members</span>
+            </div>
+            <Button
+              size="sm"
+              className="w-full"
+              disabled={joinMut.isPending}
+              onClick={() => joinMut.mutate(c.referralCode)}
+            >
+              Join
+            </Button>
+          </div>
         ))
       )}
     </div>

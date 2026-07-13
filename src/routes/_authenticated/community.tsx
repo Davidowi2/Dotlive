@@ -245,8 +245,8 @@ function CommunityPage() {
     setSelectedId(null);
   }
 
-  const code = referralCode ?? community.referralCode;
-  const joinUrl = `https://dotlive.cv/join/${code}`;
+  const code = referralCode ?? (community as any)?.referralCode;
+  const joinUrl = code ? `https://dotlive.cv/join/${code}` : "";
   const activeCount = members.filter((m) => m.status === "active").length;
   const withVantage = members.filter(
     (m) => (m.founder_profiles as { vantage_point?: number } | null)?.vantage_point,
