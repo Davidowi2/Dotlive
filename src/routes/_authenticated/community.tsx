@@ -81,19 +81,20 @@ function CommunityPage() {
   const [chatSending, setChatSending] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!selectedId && myCommunities.length > 0) {
-      setSelectedId(myCommunities[0].id);
-    }
-  }, [myCommunities, selectedId]);
-
-  // Load ALL communities the user is part of (led + member)
+  // Load ALL communities the user is part of (led + member) — MUST come before useEffect that depends on it
   const { data: myCommunities = [], isLoading } = useQuery({
     queryKey: ["my-communities"],
     queryFn: getMyAllCommunities,
     enabled: !!user,
     staleTime: 60_000,
   });
+
+  // Auto-select first community once data loads
+  useEffect(() => {
+    if (!selectedId && myCommunities.length > 0) {
+      setSelectedId(myCommunities[0].id);
+    }
+  }, [myCommunities, selectedId]);
 
   // Pick the selected community — default to first one (usually the one they lead)
   const community = myCommunities.find((c) => c.id === selectedId) ?? myCommunities[0] ?? null;
