@@ -1,15 +1,12 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import {
   CalendarDays,
-  CalendarClock,
-  CalendarX,
   Plus,
   Clock,
-  Users,
-  CheckCircle2,
   XCircle,
   Loader2,
+  ArrowRight,
 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
@@ -30,7 +27,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
 
 import {
-  type MeetingRow,
   listMeetings,
   listMySlots,
   requestMeeting,
@@ -38,6 +34,7 @@ import {
   declineMeeting,
   cancelMeeting,
 } from "@/lib/meetings.functions";
+import type { Meeting } from "@/api/meetings";
 
 export const Route = createFileRoute("/_authenticated/meetings")({
   head: () => ({
@@ -52,11 +49,12 @@ export const Route = createFileRoute("/_authenticated/meetings")({
 function MeetingsPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
+  const navigate = useNavigate();
 
   const meetingsQuery = useQuery({
     queryKey: ["meetings", user?.id],
     enabled: !!user,
-    queryFn: async () => (await listMeetings()) as MeetingRow[],
+    queryFn: async () => (await listMeetings()) as Meeting[],
   });
 
   const slotsQuery = useQuery({
@@ -230,13 +228,15 @@ function MeetingList({
   onDecline,
   onCancel,
 }: {
-  meetings: MeetingRow[];
+  meetings: Meeting[];
   loading: boolean;
   emptyText: string;
   onConfirm?: (id: string) => void;
   onDecline?: (id: string) => void;
   onCancel?: (id: string) => void;
 }) {
+  const navigate = useNavigate();
+
   if (loading) return <Loader2 className="mt-8 size-6 animate-spin text-primary" />;
   if (meetings.length === 0)
     return (
@@ -251,7 +251,11 @@ function MeetingList({
         const dt = new Date(m.scheduledAt);
         const status = m.status;
         return (
-          <div key={m.id} className="rounded-xl border border-border bg-card p-4">
+          <div
+            key={m.id}
+            className="rounded-xl border border-border bg-card p-4 hover:bg-accent/50 cursor-pointer transition-colors group"
+            onClick={() => navigate({ to: `/meetings/${m.id}` })}
+          >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <CalendarDays className="size-4 text-primary" />
@@ -278,22 +282,46 @@ function MeetingList({
             {m.description && (
               <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{m.description}</p>
             )}
-            <div className="mt-3 flex gap-2">
-              {status === "pending" && onConfirm && onDecline && (
-                <>
-                  <Button size="sm" variant="hero" onClick={() => onConfirm(m.id)}>
-                    Confirm
+            <div className="mt-3 flex items-center justify-between">
+              <div className="flex gap-2">
+                {status === "pending" && onConfirm && onDecline && (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="hero"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onConfirm(m.id);
+                      }}
+                    >
+                      Confirm
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDecline(m.id);
+                      }}
+                    >
+                      <XCircle className="size-4" />
+                    </Button>
+                  </>
+                )}
+                {status === "confirmed" && onCancel && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onCancel(m.id);
+                    }}
+                  >
+                    Cancel
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => onDecline(m.id)}>
-                    <XCircle className="size-4" />
-                  </Button>
-                </>
-              )}
-              {status === "confirmed" && onCancel && (
-                <Button size="sm" variant="outline" onClick={() => onCancel(m.id)}>
-                  Cancel
-                </Button>
-              )}
+                )}
+              </div>
+              <ArrowRight className="size-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
           </div>
         );

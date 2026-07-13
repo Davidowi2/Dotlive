@@ -1,12 +1,31 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { ImagePlus, Loader2 } from "lucide-react";
+import {
+  ImagePlus,
+  Loader2,
+  Heart,
+  MessageSquare,
+  Bookmark,
+  Share2,
+  Users,
+  Hash,
+  Globe,
+  Clock,
+} from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Avatar } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
@@ -126,114 +145,197 @@ function DiscoverPage() {
 
   return (
     <AppShell>
-      <h1 className="font-display text-3xl font-bold">Discover</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Share venture updates, gigs and announcements.
-      </p>
+      <div className="max-w-5xl mx-auto">
+        <h1 className="font-display text-3xl font-bold">Discover</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Share venture updates, gigs and announcements.
+        </p>
 
-      <form onSubmit={submit} className="mt-6 rounded-2xl border border-border bg-card p-5">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label className="text-xs">Type</Label>
-            <select
-              className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
-              value={type}
-              onChange={(e) => setType(e.target.value as typeof type)}
-            >
-              <option value="general">General</option>
-              <option value="venture_update">Venture Update</option>
-            </select>
-          </div>
-          <div className="space-y-2">
-            <Label className="text-xs">Title</Label>
-            <Input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="What's new?"
-            />
-          </div>
-        </div>
-        <div className="mt-4 space-y-2">
-          <Label className="text-xs">Body</Label>
-          <Textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            rows={3}
-            placeholder="Context, traction, ask..."
-          />
-        </div>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label className="text-xs">Image</Label>
-            <Input
-              type="file"
-              accept="image/*"
-              onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
-            />
-            {preview && (
-              <img
-                src={preview}
-                alt="Preview"
-                className="mt-2 h-32 w-full rounded-xl object-cover"
-              />
-            )}
-          </div>
-          <div className="space-y-2">
-            <Label className="text-xs">Tags</Label>
-            <Input
-              value={tagsText}
-              onChange={(e) => setTagsText(e.target.value)}
-              placeholder="founder, lagos, seed"
-            />
-          </div>
-        </div>
-        <div className="mt-4">
-          <Button type="submit" variant="hero" disabled={busy || !body.trim()}>
-            {busy ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
-            Publish post
-          </Button>
-        </div>
-      </form>
-
-      <div className="mt-6 space-y-3">
-        {isLoading ? (
-          <Loader2 className="size-5 animate-spin text-primary" />
-        ) : (
-          (data ?? []).map((p) => (
-            <div key={p.id} className="rounded-2xl border border-border bg-card p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-foreground">{p.authorName ?? "User"}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(p.createdAt).toLocaleString()}
-                  </p>
+        {/* Post Composer */}
+        <Card className="mt-6">
+          <CardContent className="p-5">
+            <form onSubmit={submit} className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Post Type</Label>
+                  <Select
+                    value={type}
+                    onValueChange={(value) => setType(value as typeof type)}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="general">📢 General</SelectItem>
+                      <SelectItem value="venture_update">🚀 Venture Update</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-                <span className="text-xs text-muted-foreground">{p.type}</span>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Title</Label>
+                  <Input
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="What's new?"
+                  />
+                </div>
               </div>
-              {p.title && <h3 className="mt-2 font-display text-base font-semibold">{p.title}</h3>}
-              <p className="mt-1 text-sm text-muted-foreground">{p.body}</p>
-              {p.imageUrl && (
-                <img src={p.imageUrl} alt="" className="mt-2 h-48 w-full rounded-xl object-cover" />
-              )}
-              <div className="mt-3 flex gap-2 text-xs text-muted-foreground">
-                <span>{p.likesCount} likes</span>
-                <span>{p.commentsCount} comments</span>
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Body</Label>
+                <Textarea
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  rows={4}
+                  placeholder="Context, traction, ask..."
+                />
               </div>
-            </div>
-          ))
-        )}
-      </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Image</Label>
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
+                  />
+                  {preview && (
+                    <img
+                      src={preview}
+                      alt="Preview"
+                      className="mt-2 h-32 w-full rounded-xl object-cover border border-border"
+                      loading="lazy"
+                    />
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Tags</Label>
+                  <Input
+                    value={tagsText}
+                    onChange={(e) => setTagsText(e.target.value)}
+                    placeholder="founder, lagos, seed"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center justify-between pt-2">
+                <div className="flex gap-2">
+                  {tagsText.split(",").filter(Boolean).map((tag, i) => (
+                    <Badge key={i} variant="secondary" className="text-xs">
+                      #{tag.trim()}
+                    </Badge>
+                  ))}
+                </div>
+                <Button type="submit" variant="hero" disabled={busy || !body.trim()}>
+                  {busy ? (
+                    <Loader2 className="size-4 animate-spin mr-2" />
+                  ) : (
+                    <ImagePlus className="size-4 mr-2" />
+                  )}
+                  Publish post
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
 
-      <section className="mt-8 rounded-2xl border border-border bg-card p-5">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="font-display text-lg font-semibold">Communities</h2>
-            <p className="text-xs text-muted-foreground">Public groups you can join.</p>
-          </div>
+        {/* Feed */}
+        <div className="mt-6 space-y-4">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="size-8 animate-spin text-primary" />
+            </div>
+          ) : (data ?? []).length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <p className="text-muted-foreground">No posts yet. Be the first!</p>
+              </CardContent>
+            </Card>
+          ) : (
+            (data ?? []).map((p) => (
+              <Card key={p.id} className="overflow-hidden hover:border-primary/30 transition-colors">
+                <CardContent className="p-5">
+                  {/* Post Header */}
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                        <span className="text-sm font-semibold">
+                          {(p.authorName ?? "U").charAt(0).toUpperCase()}
+                        </span>
+                      </Avatar>
+                      <div>
+                        <p className="text-sm font-medium">{p.authorName ?? "User"}</p>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Clock className="size-3" />
+                          {new Date(p.createdAt).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge variant="outline" className="text-xs">
+                      {p.type.replace("_", " ")}
+                    </Badge>
+                  </div>
+
+                  {/* Post Content */}
+                  <div className="mt-3 space-y-3">
+                    {p.title && (
+                      <h3 className="font-display text-base font-semibold leading-tight">
+                        {p.title}
+                      </h3>
+                    )}
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {p.body}
+                    </p>
+                    {p.imageUrl && (
+                      <img
+                        src={p.imageUrl}
+                        alt="Post image"
+                        className="mt-2 rounded-xl border border-border object-cover w-full h-auto max-h-96"
+                        loading="lazy"
+                      />
+                    )}
+                    {/* Tags */}
+                    {p.tags && p.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {p.tags.map((tag) => (
+                          <Badge key={tag} variant="secondary" className="text-xs">
+                            #{tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Action Buttons (Reddit/Discord Inspired) */}
+                  <div className="mt-4 flex items-center gap-2 pt-3 border-t border-border">
+                    <Button variant="ghost" size="sm" className="text-muted-foreground gap-2">
+                      <Heart className="size-4" />
+                      <span className="text-xs">{p.likesCount}</span>
+                    </Button>
+                    <Button variant="ghost" size="sm" className="text-muted-foreground gap-2">
+                      <MessageSquare className="size-4" />
+                      <span className="text-xs">{p.commentsCount}</span>
+                    </Button>
+                    <Button variant="ghost" size="sm" className="text-muted-foreground gap-2">
+                      <Bookmark className="size-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" className="text-muted-foreground gap-2">
+                      <Share2 className="size-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
         </div>
 
-        <CommunityGrid />
-      </section>
+        {/* Communities Section (Discord Inspired) */}
+        <section className="mt-8">
+          <div className="flex items-center gap-2 mb-4">
+            <Hash className="size-5 text-primary" />
+            <h2 className="font-display text-lg font-semibold">Public Communities</h2>
+          </div>
+          <p className="text-xs text-muted-foreground mb-4">Public groups you can join.</p>
+          <CommunityGrid />
+        </section>
+      </div>
     </AppShell>
   );
 }
@@ -253,31 +355,63 @@ function CommunityGrid() {
   const items = q.data ?? [];
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {q.isLoading ? (
-        [1, 2, 3].map((i) => <div key={i} className="h-28 animate-pulse rounded-xl bg-muted/40" />)
+        [1, 2, 3].map((i) => (
+          <div key={i} className="h-36 animate-pulse rounded-xl bg-muted/40" />
+        ))
       ) : items.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No public communities yet.</p>
+        <Card className="col-span-full">
+          <CardContent className="py-12 text-center">
+            <Globe className="size-12 mx-auto text-muted-foreground mb-3" />
+            <p className="text-sm text-muted-foreground">No public communities yet.</p>
+          </CardContent>
+        </Card>
       ) : (
         items.map((c) => (
-          <div key={c.id} className="rounded-xl border border-border bg-background p-4 space-y-2">
-            <div>
-              <p className="text-sm font-semibold">{c.name}</p>
-              <p className="text-xs text-muted-foreground line-clamp-2">{c.description ?? ""}</p>
-            </div>
-            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-              <span>{c.category ?? "General"}</span>
-              <span>{c.region ?? "—"} · {c.memberCount} members</span>
-            </div>
-            <Button
-              size="sm"
-              className="w-full"
-              disabled={joinMut.isPending}
-              onClick={() => joinMut.mutate(c.referralCode)}
-            >
-              Join
-            </Button>
-          </div>
+          <Card key={c.id} className="overflow-hidden hover:border-primary/30 transition-all">
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-start gap-3">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Users className="size-5 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate">{c.name}</p>
+                  <p className="text-xs text-muted-foreground line-clamp-2">
+                    {c.description ?? ""}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {c.category && (
+                    <Badge variant="outline" className="text-xs">
+                      {c.category}
+                    </Badge>
+                  )}
+                  {c.region && (
+                    <span className="text-xs text-muted-foreground">{c.region}</span>
+                  )}
+                </div>
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Users className="size-3" />
+                  {c.memberCount}
+                </span>
+              </div>
+              <Button
+                size="sm"
+                variant="hero"
+                className="w-full"
+                disabled={joinMut.isPending}
+                onClick={() => joinMut.mutate(c.referralCode)}
+              >
+                {joinMut.isPending ? (
+                  <Loader2 className="size-4 animate-spin mr-2" />
+                ) : null}
+                Join Community
+              </Button>
+            </CardContent>
+          </Card>
         ))
       )}
     </div>

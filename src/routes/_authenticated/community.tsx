@@ -1,6 +1,6 @@
-import { useEffect, useState, useNavigate } from "react";
+import { useEffect, useState, useNavigate, useRef } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Users, Loader2, Copy, Plus, Gauge, CheckCircle2, TrendingUp, Send, RefreshCw, MessageSquare, ArrowRight, Key } from "lucide-react";
+import { Users, Loader2, Copy, Plus, Gauge, CheckCircle2, TrendingUp, Send, RefreshCw, MessageSquare, ArrowRight, Key, ChevronLeft } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { BackButton } from "@/components/app/BackButton";
 import { PageHeader } from "@/components/app/PageHeader";
@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Avatar } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useDotAuth } from "@/contexts/DotAuthContext";
@@ -25,6 +26,8 @@ import {
   leaveCommunity,
   regenerateInviteCode,
   updateMemberStatus,
+  listCommunityChat,
+  sendCommunityChat,
   type CommunityMember,
 } from "@/api/community";
 import { dotApi } from "@/api/client";
@@ -122,6 +125,7 @@ function CommunityPage() {
     },
   });
 
+  const chatEndRef = useRef<HTMLDivElement>(null);
   const { data: communityChat } = useQuery({
     queryKey: ["community-chat", community?.id],
     enabled: !!community?.id,
@@ -129,6 +133,13 @@ function CommunityPage() {
       return listCommunityChat(community!.id, 50);
     },
   });
+
+  // Auto-scroll to bottom on new messages
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [communityChat]);
 
   async function createCommunity(e: React.FormEvent) {
     e.preventDefault();
@@ -154,7 +165,9 @@ function CommunityPage() {
   if (isLoading) {
     return (
       <AppShell>
-        <Loader2 className="size-6 animate-spin text-primary" />
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="size-8 animate-spin text-primary" />
+        </div>
       </AppShell>
     );
   }
@@ -342,40 +355,78 @@ function CommunityPage() {
       </div>
 
       {chatTab && (
-        <div className="mt-6 rounded-2xl border border-border bg-card p-5">
-          <h2 className="font-display text-lg font-semibold">Community chat</h2>
-          <div className="mt-4 max-h-[320px] space-y-3 overflow-y-auto">
-            {(communityChat ?? []).map((m) => (
-              <div key={m.id} className="flex items-start gap-3">
-                <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">
-                  {m.author_name ? m.author_name.charAt(0).toUpperCase() : "?"}
-                </div>
-                <div className="rounded-xl bg-muted/60 px-3 py-2">
-                  <p className="text-xs font-medium">
-                    {m.author_name ?? "User"} {m.author_id === user?.id ? "(you)" : ""}
-                  </p>
-                  <p className="text-sm">{m.body}</p>
-                  <p className="mt-1 text-[10px] text-muted-foreground">
-                    {new Date(m.created_at).toLocaleString()}
-                  </p>
-                </div>
+        <div className="mt-6 rounded-2xl border border-border bg-card overflow-hidden">
+          {/* Chat Header (WhatsApp-style) */}
+          <div className="px-5 py-4 border-b border-border flex items-center justify-between bg-gradient-to-r from-green-600 to-green-500 text-white">
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="icon" className="text-white hover:bg-green-700/50">
+                <ChevronLeft className="size-5" />
+              </Button>
+              <Avatar className="h-10 w-10 border-2 border-white/30">
+                <Users className="size-6 text-green-700" />
+              </Avatar>
+              <div>
+                <p className="font-semibold">{community.name}</p>
+                <p className="text-xs opacity-90">{members.length} members</p>
               </div>
-            ))}
+            </div>
           </div>
-          <form onSubmit={sendChat} className="mt-4 flex gap-2">
-            <Input
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              placeholder="Message the community"
-            />
-            <Button type="submit" variant="hero" disabled={chatSending}>
-              {chatSending ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Send className="size-4" />
-              )}
-            </Button>
-          </form>
+          {/* Chat Bubbles */}
+          <div className="p-4 max-h-[400px] overflow-y-auto space-y-3 bg-[#e5ddd5]">
+            {(communityChat ?? []).map((m) => {
+              const isSent = m.author_id === user?.id;
+              return (
+                <div key={m.id} className={`flex ${isSent ? "justify-end" : "justify-start"}`}>
+                  <div
+                    className={`max-w-[75%] rounded-xl px-4 py-2 shadow-sm ${
+                      isSent ? "bg-[#dcf8c6] rounded-tr-sm" : "bg-white rounded-tl-sm"
+                    }`}
+                  >
+                    {!isSent && (
+                      <p className="text-xs font-semibold text-green-700 mb-1">
+                        {m.author_name ?? "User"}
+                      </p>
+                    )}
+                    <p className="text-sm leading-relaxed">{m.body}</p>
+                    <div className="flex justify-end items-center gap-1 mt-1">
+                      <p className="text-[10px] text-muted-foreground">
+                        {new Date(m.created_at).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                      {isSent && (
+                        <CheckCircle2 className="size-3 text-blue-500" />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            <div ref={chatEndRef} />
+          </div>
+          {/* Chat Input */}
+          <div className="p-4 border-t border-border bg-background">
+            <form onSubmit={sendChat} className="flex items-center gap-2">
+              <Input
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder="Type a message..."
+                className="flex-1 rounded-full border-2 border-gray-200 focus:border-green-500 focus:ring-green-500"
+              />
+              <Button
+                type="submit"
+                className="rounded-full bg-green-600 hover:bg-green-700 text-white"
+                disabled={chatSending}
+              >
+                {chatSending ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Send className="size-4" />
+                )}
+              </Button>
+            </form>
+          </div>
         </div>
       )}
     </AppShell>

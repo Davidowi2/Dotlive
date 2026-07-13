@@ -761,7 +761,7 @@ export async function adminRoutes(app: FastifyInstance) {
   );
 
   app.get(
-    "/admin/queue",
+    "/queue",
     { preHandler: [app.authenticate, requireSuperAdmin] },
     async (_req, reply) => {
       const safeCount = async (q: any) => {

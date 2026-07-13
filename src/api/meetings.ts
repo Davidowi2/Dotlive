@@ -163,3 +163,22 @@ export async function updateMeetingCoordination(
 ): Promise<Meeting> {
   return dotApi.put<Meeting>(`/api/meetings/${id}/coordination`, data);
 }
+
+/**
+ * Get chat messages for a meeting
+ */
+export async function getMeetingMessages(
+  id: string
+): Promise<Array<{ id: string; meetingId: string; authorId: string; body: string; createdAt: string; authorName: string | null }>> {
+  return dotApi.get(`/api/meetings/${id}/chat`);
+}
+
+/**
+ * Send a chat message to a meeting
+ */
+export async function sendMeetingMessage(
+  id: string, 
+  data: { body: string }
+): Promise<{ id: string; meetingId: string; authorId: string; body: string; createdAt: string }> {
+  return dotApi.post(`/api/meetings/${id}/chat`, data);
+}

@@ -18,6 +18,7 @@ export interface AdminCourse {
   dotReward: number;
   vantageBoost: number;
   isPublished: boolean;
+  coverImageUrl?: string | null;
   createdAt: string;
   updatedAt?: string;
 }
@@ -37,6 +38,7 @@ export type CourseInput = Partial<{
   dotReward: number;
   vantageBoost: number;
   isPublished: boolean;
+  coverImageUrl?: string | null;
 }>;
 
 export async function createAdminCourse(input: CourseInput): Promise<AdminCourse> {

@@ -10,7 +10,7 @@ import { z } from "zod";
 import { eq, and, desc } from "drizzle-orm";
 
 import { db, sql } from "../db/client.js";
-import { events, eventRegistrations, pitchathons, pitchathonApplications, pitchathonScores } from "../db/schema.js";
+import { events, eventRegistrations, pitchathons, pitchathonApplications, pitchathonScores, users } from "../db/schema.js";
 import { debitWallet } from "../lib/dot.js";
 import { userHasRole } from "../lib/auth.js";
 
@@ -214,7 +214,7 @@ export async function pitchathonRoutes(app: FastifyInstance) {
   app.get<{ Params: { id: string } }>(
     "/pitchathons/:id/leaderboard",
     async (req, reply) => {
-      // Get all applications with their average score
+      // Get all applications with their average score and join with user name
       const apps = await db
         .select()
         .from(pitchathonApplications)
@@ -229,9 +229,21 @@ export async function pitchathonRoutes(app: FastifyInstance) {
         const avg = scores.length
           ? Math.round((scores.reduce((s, r) => s + r.score, 0) / scores.length) * 10) / 10
           : 0;
-        rows.push({ application: a, scoreCount: scores.length, avgScore: avg });
+        // Get user name for display
+        const userResults = await db
+          .select({ name: users.name })
+          .from(users)
+          .where(eq(users.id, a.founderId))
+          .limit(1);
+        const user = userResults[0];
+        rows.push({
+          id: a.id,
+          name: user?.name ?? "Anonymous",
+          avg: avg,
+          count: scores.length,
+        });
       }
-      rows.sort((x, y) => y.avgScore - x.avgScore);
+      rows.sort((x, y) => y.avg - x.avg);
       return reply.send({ leaderboard: rows });
     },
   );

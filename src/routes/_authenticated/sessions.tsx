@@ -93,6 +93,10 @@ function SessionsPage() {
     },
   });
   const registered = new Set<string>((registrationsQ.data ?? []).map((r) => r.eventId));
+  
+  // Split events into upcoming and past
+  const upcoming = events.filter(e => isUpcoming(e.eventDate));
+  const past = events.filter(e => !isUpcoming(e.eventDate));
 
   async function register(eventId: string, cost: number) {
     if (!user) return;
@@ -110,19 +114,6 @@ function SessionsPage() {
       toast.success(cost > 0 ? `Registered! ${formatDot(cost)} DOT spent.` : "You're registered!");
     } catch (err: any) {
       toast.error(err?.message ?? "Could not register");
-    }
-  }
-
-  async function openCheckout(e: any) {
-    try {
-      const checkout = await createCheckout({
-        productId: e.whop_product_id ?? e.whopUrl,
-        amountCents: e.price_usd_cents ?? e.dot_cost * 100,
-        metadata: { eventId: e.id, source: "event" },
-      });
-      window.open(checkout.url, "_blank", "noopener");
-    } catch {
-      if (e.whop_url) window.open(e.whop_url, "_blank", "noopener");
     }
   }
 

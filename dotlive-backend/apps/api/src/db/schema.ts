@@ -321,14 +321,15 @@ export const courseEnrollments = pgTable("course_enrollments", {
   id: uuid("id").primaryKey().defaultRandom(),
   courseId: uuid("course_id").notNull().references(() => courses.id, { onDelete: "cascade" }),
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  status: text("status").notNull().default("enrolled"),
+  status: text("status").notNull().default("active"),
   completedAt: timestamp("completed_at", { withTimezone: true }),
   rewardedAt: timestamp("rewarded_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 },
   (t) => ({
       course_enrollments_uniq: unique("course_enrollments_unique").on(t.courseId, t.userId),
-  }));
+  })
+);
 
 /* --------------------------- Events (Sessions) ----------------- */
 export const events = pgTable("events", {
@@ -1797,7 +1798,7 @@ export type NewMeeting = typeof meetings.$inferInsert;
 // Meeting messages — per-meeting chat thread, unlocked once both parties accept.
 export const meetingMessages = pgTable("meeting_messages", {
   id: uuid("id").primaryKey().defaultRandom(),
-  meetingId: text("meeting_id").notNull().references(() => meetings.id, { onDelete: "cascade" }),
+  meetingId: uuid("meeting_id").notNull().references(() => meetings.id, { onDelete: "cascade" }),
   authorId: text("author_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   body: text("body").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

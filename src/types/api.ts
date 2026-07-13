@@ -84,6 +84,7 @@ export interface Course {
   dotReward: number;
   vantageBoost: number;
   isPublished: boolean;
+  coverImageUrl?: string | null;
 }
 
 export interface CourseEnrollment {
@@ -93,6 +94,15 @@ export interface CourseEnrollment {
   status: string;
   completedAt: string | null;
   rewardedAt: string | null;
+  createdAt: string;
+  course?: {
+    id: string;
+    title: string;
+    description?: string | null;
+    whopUrl?: string | null;
+    moduleCount?: number;
+  };
+  progressPct?: number;
 }
 
 export interface AppEvent {

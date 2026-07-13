@@ -411,6 +411,8 @@ async function runBootstrapMigrations() {
     await neonSql`ALTER TABLE courses ADD COLUMN IF NOT EXISTS whop_product_id text`;
     await neonSql`ALTER TABLE courses ADD COLUMN IF NOT EXISTS whop_url text`;
     await neonSql`ALTER TABLE courses ADD COLUMN IF NOT EXISTS cover_image_url text`;
+    // Update any existing 'enrolled' statuses to 'active'
+    await neonSql`UPDATE course_enrollments SET status = 'active' WHERE status = 'enrolled'`;
 
     // builder_reviews table (for arena stats)
     await neonSql`
@@ -573,6 +575,11 @@ async function runBootstrapMigrations() {
         cancelled_at timestamptz,
         cancelled_reason text,
         completed_at timestamptz,
+        meeting_platform text,
+        meeting_link text,
+        coordination_notes text,
+        agenda jsonb,
+        reminder_sent_at timestamptz,
         created_at timestamptz NOT NULL DEFAULT now(),
         updated_at timestamptz NOT NULL DEFAULT now()
       )
@@ -587,14 +594,29 @@ async function runBootstrapMigrations() {
     await neonSql`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS cancelled_reason text`;
     await neonSql`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS completed_at timestamptz`;
     await neonSql`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now()`;
+    await neonSql`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS meeting_platform text`;
+    await neonSql`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS meeting_link text`;
+    await neonSql`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS coordination_notes text`;
+    await neonSql`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS agenda jsonb`;
+    await neonSql`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS reminder_sent_at timestamptz`;
     
     // Create indexes for meetings table
     await neonSql`CREATE INDEX IF NOT EXISTS meetings_slot_idx ON meetings(slot_id)`;
     await neonSql`CREATE INDEX IF NOT EXISTS meetings_host_idx ON meetings(host_id, scheduled_at)`;
     await neonSql`CREATE INDEX IF NOT EXISTS meetings_guest_idx ON meetings(guest_id, scheduled_at)`;
     await neonSql`CREATE INDEX IF NOT EXISTS meetings_status_idx ON meetings(status)`;
-    // Add meeting reminder column
-    await neonSql`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS reminder_sent_at timestamptz`;
+
+    // Create meeting messages table for chat
+    await neonSql`
+      CREATE TABLE IF NOT EXISTS meeting_messages (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        meeting_id uuid NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
+        author_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        body text NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now()
+      )
+    `;
+    await neonSql`CREATE INDEX IF NOT EXISTS meeting_messages_meeting_idx ON meeting_messages(meeting_id, created_at)`;
     await neonSql`
       CREATE TABLE IF NOT EXISTS page_views (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
