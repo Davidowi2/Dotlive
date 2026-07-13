@@ -574,4 +574,53 @@ export async function communityRoutes(app: FastifyInstance) {
     const [msg] = await db.insert(communityChatMessages).values({ communityId: id, authorId: sub, body: body.trim() }).returning();
     return reply.code(201).send({ message: msg });
   });
+
+  /** POST /api/communities/:id/leave — leave a community */
+  app.post("/communities/:id/leave", { preHandler: app.authenticate }, async (req, reply) => {
+    const { sub } = req.user as { sub: string };
+    const { id } = req.params as { id: string };
+    const [member] = await db.select().from(communityMembers).where(and(eq(communityMembers.communityId, id), eq(communityMembers.founderId, sub), eq(communityMembers.removedAt, null))).limit(1);
+    if (!member) return reply.code(404).send({ error: "Not a member" });
+    if (member.communityId === sub) return reply.code(400).send({ error: "Leader cannot leave; transfer leadership first" });
+    await db.update(communityMembers).set({ removedAt: new Date(), removedBy: sub } as any).where(eq(communityMembers.id, member.id));
+    return reply.send({ ok: true });
+  });
+
+  /** POST /api/communities/:id/kick — leader removes a member */
+  app.post<{ Params: { id: string }; Body: { memberId: string } }>("/communities/:id/kick", { preHandler: app.authenticate }, async (req, reply) => {
+    const { sub } = req.user as { sub: string };
+    const { id } = req.params as { id: string };
+    const { memberId } = (req.body ?? {}) as { memberId?: string };
+    if (!memberId) return reply.code(400).send({ error: "memberId required" });
+    const [comm] = await db.select({ leaderId: communities.leaderId }).from(communities).where(eq(communities.id, id)).limit(1);
+    if (!comm || comm.leaderId !== sub) return reply.code(403).send({ error: "Not authorized" });
+    await db.update(communityMembers).set({ removedAt: new Date(), removedBy: sub } as any).where(eq(communityMembers.id, memberId));
+    return reply.send({ ok: true });
+  });
+
+  /** PATCH /api/communities/:id/members/:memberId — toggle member role/status */
+  app.patch<{ Params: { id: string; memberId: string }; Body: { role?: string; status?: string } }>("/communities/:id/members/:memberId", { preHandler: app.authenticate }, async (req, reply) => {
+    const { sub } = req.user as { sub: string };
+    const { id, memberId } = req.params as { id: string; memberId: string };
+    const { role, status } = (req.body ?? {}) as { role?: string; status?: string };
+    const [comm] = await db.select({ leaderId: communities.leaderId }).from(communities).where(eq(communities.id, id)).limit(1);
+    if (!comm || comm.leaderId !== sub) return reply.code(403).send({ error: "Not authorized" });
+    const [member] = await db.select().from(communityMembers).where(and(eq(communityMembers.founderId, memberId), eq(communityMembers.communityId, id))).limit(1);
+    if (!member) return reply.code(404).send({ error: "Member not found" });
+    const update: Record<string, unknown> = {};
+    if (role && ["leader", "moderator", "member"].includes(role)) update.role = role;
+    if (status && ["active", "removed", "banned"].includes(status)) {
+      update.status = status;
+      if (status !== "active") update.removedAt = new Date();
+      else update.removedAt = null;
+    }
+    if (!Object.keys(update).length) return reply.code(400).send({ error: "No valid updates" });
+    await db.update(communityMembers).set(update as any).where(eq(communityMembers.founderId, memberId));
+    return reply.send({ ok: true, member: { ...member, ...update } as any });
+  });
+
+  // DEBUG: CLI dashboard removed; public hub list lives at /api/communities and /api/communities/:id
+  // DEBUG: communityOS debug listener removed
+
+  return app;
 }

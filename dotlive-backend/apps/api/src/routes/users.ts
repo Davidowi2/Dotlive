@@ -169,9 +169,37 @@ export async function userRoutes(app: FastifyInstance) {
           SET ${sql.raw(updates.join(", "))}
           WHERE id = ${sub}
         `);
+
         const user = await loadUserWithRoles(sub);
-                return reply.send({ user });
-              });
+
+    // Auto-create a default venture for founders so /ventures isn't empty
+    if (parsed.data.primaryRole === "founder") {
+      const existing = await db
+        .select()
+        .from(ventures)
+        .where(eq(ventures.userId, sub))
+        .limit(1);
+      if (!existing[0]) {
+        const name = (user?.name ?? "My Venture").trim();
+        await db.insert(ventures).values({
+          userId: sub,
+          name: name || "My Venture",
+          stage: "Assess",
+          industry: null,
+          country: null,
+          description: null,
+          website: null,
+          fundingGoal: "0",
+          logoUrl: null,
+          vantagePoint: 0,
+          fundability: 0,
+          investmentReadiness: 0,
+        });
+      }
+    }
+
+    return reply.send({ user });
+  });
 
           /** GET /api/users/:dotId — public profile lookup */
   app.get<{ Params: { dotId: string } }>("/users/:dotId", async (req, reply) => {
