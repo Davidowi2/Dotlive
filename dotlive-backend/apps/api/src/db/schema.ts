@@ -1876,5 +1876,26 @@ export const activityLog = pgTable(
   })
 );
 
+/* --------------------------- Moderation reports ------------------ */
+/* Community/submission reports for the admin moderation queue. */
+export const moderation_reports = pgTable("moderation_reports", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  communityId: uuid("community_id").notNull().references(() => communities.id, { onDelete: "cascade" }),
+  reporterId: text("reporter_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  targetType: text("target_type").notNull(), // 'post' | 'message' | 'community'
+  targetId: text("target_id").notNull(),
+  reason: text("reason").notNull().default(""),
+  status: text("status").notNull().default("open"), // open | resolved | dismissed
+  resolvedBy: text("resolved_by").references(() => users.id, { onDelete: "set null" }),
+  resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  modCommunityIdx: index("moderation_reports_community_idx").on(t.communityId, t.createdAt),
+  modStatusIdx: index("moderation_reports_status_idx").on(t.status),
+  modCreatedIdx: index("moderation_reports_created_idx").on(t.createdAt),
+}));
+
 export type PageView = typeof pageViews.$inferSelect;
 export type ActivityLogEntry = typeof activityLog.$inferSelect;
+export type ModerationReportEntry = typeof moderation_reports.$inferSelect;
