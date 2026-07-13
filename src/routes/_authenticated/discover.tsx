@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   ImagePlus,
   Loader2,
@@ -97,22 +97,6 @@ function useFeed(tab: "latest" | "popular" | "trending") {
       return r.posts ?? [];
     },
     staleTime: 30_000,
-  });
-}
-
-function useComments(postId: string) {
-  return useQuery({
-    queryKey: [`feed-comments`, postId],
-    queryFn: async () => {
-      try {
-        const r = await dotApi.get<{ comments: Comment[] }>(`/api/feed/${postId}/comments`);
-        return r.comments ?? [];
-      } catch {
-        return [];
-      }
-    },
-    staleTime: 15_000,
-    enabled: !!postId,
   });
 }
 
@@ -222,7 +206,46 @@ function DiscoverPage() {
     reader.readAsDataURL(f);
   }
 
-  const posts = postsQ.data ?? [];
+  const posts: Post[] = postsQ.data ?? [];
+  const [commentText, setCommentText] = useState<Record<string, string>>({});
+  const expandedRef = useRef<Record<string, boolean>>({});
+  const [expandedIds, setExpandedIds] = useState<string[]>([]);
+
+  const commentsQ = useQuery({
+    queryKey: expandedIds.length ? ["feed-comments", expandedIds.join(",")] : ["feed-comments-empty"],
+    queryFn: async () => {
+      const pending = posts
+        .filter(p => expandedRef.current[p.id])
+        .slice(0,10);
+      if (!pending.length) return {};
+      const out: Record<string, Comment[]> = {};
+      await Promise.all(
+        pending.map(async p => {
+          try {
+            const r = await dotApi.get<{ comments: Comment[] }>(`/api/feed/${p.id}/comments`);
+            out[p.id] = r.comments ?? [];
+          } catch {
+            out[p.id] = [];
+          }
+        })
+      );
+      return out;
+    },
+    enabled: expandedIds.length > 0,
+    staleTime: 15_000,
+  });
+
+  function toggleExpand(id: string) {
+    setExpandedIds(prev => {
+      const map: Record<string,boolean> = {};
+      prev.forEach(x => (map[x] = true));
+      map[id] = !map[id];
+      expandedRef.current = map;
+      return Object.keys(map).filter(k => map[k]);
+    });
+  }
+
+  const commentsMap: Record<string, Comment[]> = (commentsQ.data as any) ?? {};
 
   return (
     <AppShell>
@@ -358,9 +381,8 @@ function DiscoverPage() {
             </Card>
           ) : (
             posts.map((p) => {
-              const showComments = !!expanded[p.id];
-              const commentsQ = useComments(p.id);
-              const comments = commentsQ.data ?? [];
+              const showComments = !!expandedRef.current[p.id];
+              const comments = commentsMap[p.id] ?? [];
 
               return (
                 <Card key={p.id} className="overflow-hidden hover:border-primary/30 transition-colors">
@@ -427,9 +449,7 @@ function DiscoverPage() {
                         variant="ghost"
                         size="sm"
                         className={cn("gap-2", showComments && "text-primary")}
-                        onClick={() =>
-                          setExpanded((x) => ({ ...x, [p.id]: !x[p.id] }))
-                        }
+                        onClick={() => toggleExpand(p.id)}
                       >
                         <MessageSquare className="size-4" />
                         <span className="text-xs font-medium">{p.commentsCount}</span>
@@ -477,7 +497,7 @@ function DiscoverPage() {
                               </div>
                             </div>
                           ))}
-                          {commentsQ.isLoading && (
+                          {commentsQ.isFetching && (
                             <p className="text-xs text-muted-foreground">Loading comments...</p>
                           )}
                           {!commentsQ.isLoading && comments.length === 0 && (
