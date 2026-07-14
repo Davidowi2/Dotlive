@@ -18,6 +18,11 @@ import {
   ChevronDown,
   Send,
   X,
+  Megaphone,
+  Rocket,
+  Wrench,
+  BellRing,
+  Wallet,
 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
@@ -117,7 +122,20 @@ function DiscoverPage() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [commentText, setCommentText] = useState<Record<string, string>>({});
 
-  const postsQ = useFeed(tab);
+  const TYPE_OPTIONS = [
+  { value: "general", label: "General", icon: Megaphone, color: "text-red-500" },
+  { value: "venture_update", label: "Venture Update", icon: Rocket, color: "text-sky-400" },
+  { value: "gig", label: "Gig", icon: Wrench, color: "text-amber-400" },
+  { value: "announcement", label: "Announcement", icon: BellRing, color: "text-rose-500" },
+  { value: "funding", label: "Funding", icon: Wallet, color: "text-emerald-400" },
+] as const;
+
+function PostTypeIcon({ type, className }: { type: string; className?: string }) {
+  const opt = TYPE_OPTIONS.find(o => o.value === type);
+  const Icon = opt?.icon ?? Megaphone;
+  const color = opt?.color ?? "text-muted-foreground";
+  return <Icon className={cn("size-4", color, className)} />;
+}
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -291,14 +309,20 @@ function DiscoverPage() {
                   <Label className="text-xs text-muted-foreground">Post Type</Label>
                   <Select value={type} onValueChange={(v) => setType(v as typeof type)}>
                     <SelectTrigger className="h-9">
-                      <SelectValue placeholder="Select type" />
+                      <span className="flex items-center gap-2">
+                        <PostTypeIcon type={type} />
+                        <SelectValue placeholder="Select type" />
+                      </span>
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="general">📢 General</SelectItem>
-                      <SelectItem value="venture_update">🚀 Venture Update</SelectItem>
-                      <SelectItem value="gig">🛠️ Gig</SelectItem>
-                      <SelectItem value="announcement">📣 Announcement</SelectItem>
-                      <SelectItem value="funding">💰 Funding</SelectItem>
+                      {TYPE_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value} className="gap-2">
+                          <span className="flex items-center gap-2">
+                            <opt.icon className={cn("size-4", opt.color)} />
+                            {opt.label}
+                          </span>
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

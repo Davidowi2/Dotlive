@@ -206,8 +206,8 @@ function DashboardTab() {
     staleTime: 60_000,
   });
 
-  const successCount = payments.filter((p: any) => p.credited_at).length;
-  const totalRevenue = payments.reduce((acc: number, p: any) => acc + Number(p.naira_amount || 0), 0);
+  const successCount = payments.filter((p: any) => p.creditedAt).length;
+  const totalRevenue = payments.reduce((acc: number, p: any) => acc + Number(p.nairaAmount || 0), 0);
   const openReports = (reports as any)?.open ?? 0;
 
   return (
@@ -255,12 +255,12 @@ function DashboardTab() {
                 <div key={p.id} className="flex items-center justify-between p-4">
                   <div>
                     <p className="text-sm font-medium">{p.profile?.name ?? p.userId}</p>
-                    <p className="text-xs text-muted-foreground">{new Date(p.created_at).toLocaleDateString()}</p>
+                    <p className="text-xs text-muted-foreground">{new Date(p.createdAt).toLocaleDateString()}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-medium">{formatNaira(Number(p.naira_amount))}</p>
-                    <Badge variant={p.credited_at ? "default" : "secondary"} className="text-[10px]">
-                      {p.credited_at ? "credited" : p.status}
+                    <p className="text-sm font-medium">{formatNaira(Number(p.nairaAmount))}</p>
+                    <Badge variant={p.creditedAt ? "default" : "secondary"} className="text-[10px]">
+                      {p.creditedAt ? "credited" : p.status}
                     </Badge>
                   </div>
                 </div>
@@ -465,9 +465,9 @@ function FinanceTab() {
 
   const totals = payments.reduce(
     (acc, p) => {
-      if (p.credited_at) {
-        acc.dot += Number(p.dot_amount);
-        acc.naira += Number(p.naira_amount);
+      if (p.creditedAt) {
+        acc.dot += Number(p.dotAmount);
+        acc.naira += Number(p.nairaAmount);
         acc.count += 1;
       }
       return acc;
