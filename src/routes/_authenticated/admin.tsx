@@ -61,7 +61,9 @@ import {
   deleteAdminCourse,
 } from "@/api/adminAcademy";
 import { getPayments } from "@/api/payments";
+import { getTokenStats, getTokenOps, mintTokens, adminTransfer } from "@/api/admin-tools";
 import type { AdminCourse } from "@/api/admin";
+import type { TokenStats, TokenOperation } from "@/api/admin-tools";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({ meta: [{ title: "Admin — DOT" }] }),
@@ -1235,6 +1237,329 @@ function RolesTab() {
 }
 
 /* ------------------------------------------------------------------ *
+ *  MINT
+ * ------------------------------------------------------------------ */
+
+function MintTab() {
+  const qc = useQueryClient();
+
+  // Token stats query
+  const { data: stats, isLoading: statsLoading } = useQuery({
+    queryKey: ["admin-token-stats"],
+    queryFn: getTokenStats,
+    staleTime: 30_000,
+  });
+
+  // Token operations query
+  const { data: tokenOps, isLoading: opsLoading } = useQuery({
+    queryKey: ["admin-token-ops"],
+    queryFn: () => getTokenOps({ limit: 20 }),
+    staleTime: 30_000,
+  });
+
+  // Mint form state
+  const [mintAmount, setMintAmount] = useState<number>(0);
+  const [mintToDotId, setMintToDotId] = useState<string>("");
+  const [mintReason, setMintReason] = useState<string>("");
+  const [showMintConfirm, setShowMintConfirm] = useState<boolean>(false);
+  const [mintBusy, setMintBusy] = useState<boolean>(false);
+
+  // Transfer form state
+  const [transferAmount, setTransferAmount] = useState<number>(0);
+  const [transferFromDotId, setTransferFromDotId] = useState<string>("");
+  const [transferToDotId, setTransferToDotId] = useState<string>("");
+  const [transferReason, setTransferReason] = useState<string>("");
+  const [showTransferConfirm, setShowTransferConfirm] = useState<boolean>(false);
+  const [transferBusy, setTransferBusy] = useState<boolean>(false);
+
+  async function doMint() {
+    setMintBusy(true);
+    try {
+      await mintTokens({ toDotId: mintToDotId, amountDot: mintAmount, reason: mintReason });
+      toast.success(`Minted ${mintAmount} DOT to ${mintToDotId}`);
+      qc.invalidateQueries({ queryKey: ["admin-token-stats"] });
+      qc.invalidateQueries({ queryKey: ["admin-token-ops"] });
+      setMintAmount(0);
+      setMintToDotId("");
+      setMintReason("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to mint");
+    } finally {
+      setMintBusy(false);
+      setShowMintConfirm(false);
+    }
+  }
+
+  async function doTransfer() {
+    setTransferBusy(true);
+    try {
+      await adminTransfer({
+        fromDotId: transferFromDotId,
+        toDotId: transferToDotId,
+        amountDot: transferAmount,
+        reason: transferReason,
+      });
+      toast.success(`Transferred ${transferAmount} DOT: ${transferFromDotId} → ${transferToDotId}`);
+      qc.invalidateQueries({ queryKey: ["admin-token-stats"] });
+      qc.invalidateQueries({ queryKey: ["admin-token-ops"] });
+      setTransferAmount(0);
+      setTransferFromDotId("");
+      setTransferToDotId("");
+      setTransferReason("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to transfer");
+    } finally {
+      setTransferBusy(false);
+      setShowTransferConfirm(false);
+    }
+  }
+
+  if (statsLoading) {
+    return (
+      <div className="mt-6 p-8 text-center">
+        <Loader2 className="mx-auto size-5 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-6 space-y-6">
+      {/* Token stats grid */}
+      {stats && (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            title="Circulating supply"
+            value={`${formatDot(stats.circulatingSupplyDot)} DOT`}
+            sub={`of ${stats.display.maxSupply} max`}
+          />
+          <StatCard
+            title="Cap reached"
+            value={`${stats.display.capReachedPercent}%`}
+            sub={`${stats.display.remaining} DOT remaining`}
+          />
+          <StatCard
+            title="Total minted"
+            value={`${formatDot(stats.totalMintedDot)} DOT`}
+            sub="Lifetime"
+          />
+          <StatCard
+            title="Total burned"
+            value={`${formatDot(stats.totalBurnedDot)} DOT`}
+            sub="Lifetime"
+          />
+        </div>
+      )}
+
+      {/* Mint and Transfer action cards */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Mint DOT card */}
+        <div className="rounded-xl border border-border bg-card p-5">
+          <h3 className="font-display font-semibold mb-4 flex items-center gap-2">
+            <Coins className="size-4 text-primary" />
+            Mint DOT
+          </h3>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Amount (DOT)</Label>
+              <Input
+                type="number"
+                min="1"
+                step="1"
+                value={mintAmount}
+                onChange={(e) => setMintAmount(Number(e.target.value))}
+                className="rounded-lg"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Recipient DOT ID</Label>
+              <Input
+                type="text"
+                value={mintToDotId}
+                onChange={(e) => setMintToDotId(e.target.value)}
+                placeholder="e.g. DOT-A1B2C3"
+                className="rounded-lg"
+              />
+              <p className="text-xs text-muted-foreground">Recipient's DOT ID, e.g. DOT-A1B2C3</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Reason</Label>
+              <Input
+                type="text"
+                value={mintReason}
+                onChange={(e) => setMintReason(e.target.value)}
+                placeholder="min 5 characters"
+                className="rounded-lg"
+              />
+              <p className="text-xs text-muted-foreground">min 5 chars, audited</p>
+            </div>
+            <Button
+              variant="hero"
+              className="mt-2 w-full rounded-lg"
+              disabled={
+                mintBusy ||
+                mintAmount <= 0 ||
+                !mintToDotId ||
+                mintReason.trim().length < 5
+              }
+              onClick={() => setShowMintConfirm(true)}
+            >
+              {mintBusy ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
+              Mint DOT
+            </Button>
+          </div>
+        </div>
+
+        {/* Transfer DOT card */}
+        <div className="rounded-xl border border-border bg-card p-5">
+          <h3 className="font-display font-semibold mb-4 flex items-center gap-2">
+            <Wallet className="size-4 text-primary" />
+            Transfer DOT
+          </h3>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Amount (DOT)</Label>
+              <Input
+                type="number"
+                min="1"
+                step="1"
+                value={transferAmount}
+                onChange={(e) => setTransferAmount(Number(e.target.value))}
+                className="rounded-lg"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">From DOT ID</Label>
+              <Input
+                type="text"
+                value={transferFromDotId}
+                onChange={(e) => setTransferFromDotId(e.target.value)}
+                placeholder="e.g. DOT-A1B2C3"
+                className="rounded-lg"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">To DOT ID</Label>
+              <Input
+                type="text"
+                value={transferToDotId}
+                onChange={(e) => setTransferToDotId(e.target.value)}
+                placeholder="e.g. DOT-XYZ789"
+                className="rounded-lg"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Reason</Label>
+              <Input
+                type="text"
+                value={transferReason}
+                onChange={(e) => setTransferReason(e.target.value)}
+                placeholder="min 5 characters"
+                className="rounded-lg"
+              />
+              <p className="text-xs text-muted-foreground">min 5 chars, audited</p>
+            </div>
+            <Button
+              variant="hero"
+              className="mt-2 w-full rounded-lg"
+              disabled={
+                transferBusy ||
+                transferAmount <= 0 ||
+                !transferFromDotId ||
+                !transferToDotId ||
+                transferReason.trim().length < 5
+              }
+              onClick={() => setShowTransferConfirm(true)}
+            >
+              {transferBusy ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
+              Transfer DOT
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Token operations table */}
+      <div className="rounded-xl border border-border bg-card">
+        <div className="border-b border-border p-4">
+          <h3 className="font-display font-semibold">Recent token operations</h3>
+          <p className="text-xs text-muted-foreground">Audit trail of mint and transfer actions</p>
+        </div>
+        {opsLoading ? (
+          <div className="p-8 text-center">
+            <Loader2 className="mx-auto size-5 animate-spin text-primary" />
+          </div>
+        ) : tokenOps?.operations.length === 0 ? (
+          <EmptyState
+            icon={FileText}
+            title="No token operations yet"
+            description="Mint and transfer actions will appear here."
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
+                  <th className="p-4 font-medium">When</th>
+                  <th className="p-4 font-medium">Operation</th>
+                  <th className="p-4 font-medium">Amount</th>
+                  <th className="p-4 font-medium">From</th>
+                  <th className="p-4 font-medium">To</th>
+                  <th className="p-4 font-medium">Actor</th>
+                  <th className="p-4 font-medium">Reason</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {tokenOps?.operations.map((op: TokenOperation) => (
+                  <tr key={op.id} className="transition-colors hover:bg-muted/10">
+                    <td className="p-4 text-xs text-muted-foreground">
+                      {new Date(op.createdAt).toLocaleString()}
+                    </td>
+                    <td className="p-4">
+                      <Badge
+                        variant={op.operation === "mint" ? "default" : "secondary"}
+                      >
+                        {op.operation}
+                      </Badge>
+                    </td>
+                    <td className="p-4 font-mono">{formatDot(Number(op.amountDot))} DOT</td>
+                    <td className="p-4 text-muted-foreground">{op.fromUserId || "—"}</td>
+                    <td className="p-4 text-muted-foreground">{op.toUserId || "—"}</td>
+                    <td className="p-4 text-muted-foreground">{op.actorEmail || "—"}</td>
+                    <td className="p-4 text-xs text-muted-foreground truncate max-w-xs">
+                      {op.reason}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Confirmation dialogs */}
+      <ConfirmDialog
+        open={showMintConfirm}
+        onOpenChange={setShowMintConfirm}
+        title={`Mint ${mintAmount} DOT to ${mintToDotId}?`}
+        description="This action will mint new DOT tokens and credit them to the recipient's wallet. This is audited and cannot be undone."
+        onConfirm={doMint}
+        confirmLabel="Mint"
+        confirmVariant="default"
+      />
+
+      <ConfirmDialog
+        open={showTransferConfirm}
+        onOpenChange={setShowTransferConfirm}
+        title={`Transfer ${transferAmount} DOT: ${transferFromDotId} → ${transferToDotId}?`}
+        description="This action will transfer DOT from one wallet to another. This is audited and cannot be undone."
+        onConfirm={doTransfer}
+        confirmLabel="Transfer"
+        confirmVariant="default"
+      />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ *
  *  MAIN ADMIN PAGE
  * ------------------------------------------------------------------ */
 
@@ -1352,6 +1677,7 @@ function AdminPage() {
           <TabIcon icon={Wallet} value="finance" label="Finance" />
           <TabIcon icon={Globe} value="content" label="Content" />
           <TabIcon icon={Activity} value="moderation" label="Moderation" />
+          <TabIcon icon={Coins} value="mint" label="Mint" />
           {isSuperAdmin && <TabIcon icon={Shield} value="roles" label="Roles & Audit" requiresSuperAdmin />}
         </TabsList>
         <TabsContent value="dashboard"><DashboardTab /></TabsContent>
@@ -1359,6 +1685,7 @@ function AdminPage() {
         <TabsContent value="finance"><FinanceTab /></TabsContent>
         <TabsContent value="content"><ContentTab /></TabsContent>
         <TabsContent value="moderation"><ModerationTab /></TabsContent>
+        <TabsContent value="mint"><MintTab /></TabsContent>
         {isSuperAdmin && <TabsContent value="roles"><RolesTab /></TabsContent>}
       </Tabs>
     </AppShell>
