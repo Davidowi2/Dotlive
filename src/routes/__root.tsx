@@ -215,13 +215,11 @@ function WizardHost() {
   const [open, setOpen] = useState(false);
 
   // Show only for newly-signed-in users who haven't completed the wizard.
-  // The wizard endpoint records completion server-side.
-  // Wizard disabled because backend endpoint /api/wizard/state is not implemented yet.
-  // Re-enable after adding the wizard route in dotlive-backend.
+  // Backend: GET /api/wizard (not /api/wizard/state)
   const { data: state } = useQuery({
     queryKey: ["wizard-state"],
     queryFn: fetchWizardState,
-    enabled: false,
+    enabled: !!user,
     staleTime: 60_000,
   });
 
@@ -234,6 +232,5 @@ function WizardHost() {
   }, [state?.completed, state?.lastSeenAt]);
 
   if (!state) return null;
-  // return <WizardOverlay open={open} onClose={() => setOpen(false)} />;
-  return null;
+  return <WizardOverlay open={open} onClose={() => setOpen(false)} />;
 }
