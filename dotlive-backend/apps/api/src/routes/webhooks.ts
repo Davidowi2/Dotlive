@@ -13,7 +13,7 @@ import { z } from "zod";
 
 import { db, sql } from "../db/client.js";
 import { payments } from "../db/schema.js";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { creditWallet } from "../lib/dot.js";
 
 const STARTER_GRANT_DOT = 500; // unused here, mirrored from auth.ts for ref
@@ -159,24 +159,26 @@ export async function webhookRoutes(app: FastifyInstance) {
           .limit(1);
         if (matched.length > 0) {
           await db
-            .insert(courseEnrollments)
-            .values({ courseId: matched[0].id, userId, status: "enrolled" } as any)
-            .onConflictDoNothing();
+          .insert(courseEnrollments)
+          .values({ courseId: matched[0].id, userId, status: "enrolled" } as any)
+          .onConflictDoNothing({
+            target: [courseEnrollments.courseId, courseEnrollments.userId],
+          });
           // Auto-mint the "enrolled" certificate (dedup-safe).
           try {
-            const { mintCertificate } = await import("../lib/cert.js");
-            await mintCertificate(app, {
-              userId,
-              source: "course",
-              sourceId: matched[0].id,
-              title: `Enrolled: ${matched[0].title}`,
-              issuer: "DOT Academy",
-              level: "Foundations",
-              dotReward: matched[0].dotReward ?? 0,
-              meta: { courseId: matched[0].id },
-            });
+          const { mintCertificate } = await import("../lib/cert.js");
+          await mintCertificate(app, {
+            userId,
+            source: "course",
+            sourceId: matched[0].id,
+            title: `Enrolled: ${matched[0].title}`,
+            issuer: "DOT Academy",
+            level: "Foundations",
+            dotReward: matched[0].dotReward ?? 0,
+            meta: { courseId: matched[0].id },
+          });
           } catch {
-            // best effort
+          // best effort
           }
         }
       }
@@ -184,6 +186,125 @@ export async function webhookRoutes(app: FastifyInstance) {
       // best effort — courses may not exist yet
     }
     return reply.send({ ok: true });
+  });
+
+  /* ------------------------------------------------------------------ *
+   *  Whop completion webhook — user finished a course on Whop.
+   *  Marks DOT enrollment completed and credits dotReward.
+   * ------------------------------------------------------------------ */
+  app.post("/academy/whop/complete", async (req, reply) => {
+    const secret = process.env.WHOP_WEBHOOK_SECRET;
+    if (!secret) return reply.code(501).send({ error: "Whop webhook not configured" });
+
+    const raw = await req.body;
+    const signature = req.headers["x-whop-signature"] as string | undefined;
+    if (!signature) return reply.status(401).send("Missing signature");
+
+    const expected = crypto
+      .createHmac("sha256", secret)
+      .update(JSON.stringify(raw))
+      .digest("hex");
+    const sigBuf = Buffer.from(signature);
+    const expBuf = Buffer.from(expected);
+    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+      return reply.status(401).send("Invalid signature");
+    }
+
+    const event = raw as {
+      type?: string;
+      data?: {
+        product_id?: string;
+        customer?: { id?: string };
+        metadata?: Record<string, string>;
+      };
+    };
+
+    const isCompletion =
+      !!event.type?.includes("course.completed") ||
+      !!event.type?.includes("progress.completed") ||
+      !!event.type?.includes("access_granted.completed");
+    if (!isCompletion) return reply.status(200).send("Ignored");
+
+    const metaUserId = event.data?.metadata?.user_id ?? event.data?.customer?.id;
+    const productId = event.data?.product_id;
+    if (!metaUserId || !productId) return reply.status(200).send("Missing metadata/product_id");
+
+    const { courses, courseEnrollments } = await import("../db/schema.js");
+
+    const [course] = await db
+      .select()
+      .from(courses)
+      .where(eq(courses.whopProductId, productId))
+      .limit(1);
+    if (!course) return reply.status(200).send("Course not mapped");
+
+    try {
+      const [enrollment] = await db
+        .select()
+        .from(courseEnrollments)
+        .where(
+          and(
+            eq(courseEnrollments.courseId, course.id),
+            eq(courseEnrollments.userId, metaUserId),
+          ),
+        )
+        .limit(1);
+
+      if (enrollment && enrollment.rewardedAt) {
+        return reply.status(200).send({ enrollment, alreadyRewarded: true });
+      }
+
+      let updated: any = enrollment;
+      if (!enrollment) {
+        [updated] = await db
+          .insert(courseEnrollments)
+          .values({
+            courseId: course.id,
+            userId: metaUserId,
+            status: "completed",
+            completedAt: new Date(),
+            rewardedAt: new Date(),
+          } as any)
+          .returning();
+      } else {
+        [updated] = await db
+          .update(courseEnrollments)
+          .set({ status: "completed", completedAt: new Date(), rewardedAt: new Date() } as any)
+          .where(eq(courseEnrollments.id, enrollment.id))
+          .returning();
+      }
+
+      if (course.dotReward > 0) {
+        await creditWallet({
+          userId: metaUserId,
+          amount: course.dotReward,
+          type: "Course Reward",
+          description: `Completed: ${course.title}`,
+          reference: `academy:${course.id}:${metaUserId}`,
+        });
+      }
+
+      try {
+        const { mintCertificate } = await import("../lib/cert.js");
+        await mintCertificate(app, {
+          userId: metaUserId,
+          source: "course",
+          sourceId: course.id,
+          title: `Completed: ${course.title}`,
+          issuer: "DOT Academy",
+          level: "Foundations",
+          dotReward: course.dotReward ?? 0,
+          meta: { courseId: course.id },
+        });
+      } catch {
+        // best effort
+      }
+
+      return reply.send({ enrollment: updated, rewarded: true });
+    } catch (e) {
+      req.log.error(e, "academy/whop/complete failed");
+      return reply.status(200).send("Webhook handled with errors");
+    }
   });
 
   /* ------------------------------------------------------------------ *
