@@ -24,6 +24,11 @@ import {
   BarChart3,
   MessageSquare,
   FileText,
+  KeyRound,
+  RefreshCw,
+  Save,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
@@ -59,11 +64,15 @@ import {
   listAdminCourses,
   createAdminCourse,
   deleteAdminCourse,
+  getIntegrations,
+  setIntegration,
 } from "@/api/adminAcademy";
 import { getPayments } from "@/api/payments";
 import { getTokenStats, getTokenOps, mintTokens, adminTransfer } from "@/api/admin-tools";
+import { dotApi } from "@/api/client";
 import type { AdminCourse } from "@/api/admin";
 import type { TokenStats, TokenOperation } from "@/api/admin-tools";
+import type { Integrations } from "@/api/adminAcademy";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({ meta: [{ title: "Admin — DOT" }] }),
@@ -1560,6 +1569,231 @@ function MintTab() {
 }
 
 /* ------------------------------------------------------------------ *
+ *  INTEGRATIONS
+ * ------------------------------------------------------------------ */
+
+function IntegrationsTab() {
+  const qc = useQueryClient();
+  const { data: integrations, isLoading: integrationsLoading } = useQuery({
+    queryKey: ["admin-integrations"],
+    queryFn: getIntegrations,
+    staleTime: 30000,
+  });
+
+  // Whop Sync
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [showSyncConfirm, setShowSyncConfirm] = useState(false);
+  async function doSyncWhop() {
+    setSyncLoading(true);
+    try {
+      const res = await dotApi.post<{ ok: boolean; synced: number; courses: number; sessions: number; message: string }>("/api/admin/integrations/sync-whop", {});
+      toast.success(`${res.synced} products synced: ${res.courses} courses, ${res.sessions} sessions`);
+      qc.invalidateQueries({ queryKey: ["courses"] });
+      qc.invalidateQueries({ queryKey: ["events"] });
+      qc.invalidateQueries({ queryKey: ["admin-courses-management"] });
+      qc.invalidateQueries({ queryKey: ["admin-events-management"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Sync failed");
+    } finally {
+      setSyncLoading(false);
+      setShowSyncConfirm(false);
+    }
+  }
+
+  // Whop API Key
+  const [apiKey, setApiKey] = useState("");
+  const [apiKeyShow, setApiKeyShow] = useState(false);
+  const [apiKeySaving, setApiKeySaving] = useState(false);
+  async function doSaveApiKey(e: React.FormEvent) {
+    e.preventDefault();
+    if (!apiKey.trim()) return;
+    setApiKeySaving(true);
+    try {
+      await setIntegration("whop_api_key", apiKey.trim());
+      toast.success("Whop API key saved");
+      qc.invalidateQueries({ queryKey: ["admin-integrations"] });
+      setApiKey("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Save failed");
+    } finally {
+      setApiKeySaving(false);
+    }
+  }
+
+  // Whop Webhook Secret
+  const [webhookSecret, setWebhookSecret] = useState("");
+  const [webhookSecretShow, setWebhookSecretShow] = useState(false);
+  const [webhookSecretSaving, setWebhookSecretSaving] = useState(false);
+  async function doSaveWebhookSecret(e: React.FormEvent) {
+    e.preventDefault();
+    if (!webhookSecret.trim()) return;
+    setWebhookSecretSaving(true);
+    try {
+      await setIntegration("whop_webhook_secret", webhookSecret.trim());
+      toast.success("Webhook secret saved");
+      qc.invalidateQueries({ queryKey: ["admin-integrations"] });
+      setWebhookSecret("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Save failed");
+    } finally {
+      setWebhookSecretSaving(false);
+    }
+  }
+
+  const isConnected = integrations?.whop_api_key.set && integrations?.whop_webhook_secret.set;
+
+  if (integrationsLoading) {
+    return (
+      <div className="mt-6 p-8 text-center">
+        <Loader2 className="mx-auto size-5 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-6 space-y-6">
+      {/* Stat Card */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <StatCard
+          title="Whop"
+          value={isConnected ? "Connected" : "Missing keys"}
+          sub="API key + webhook secret"
+          accent={isConnected ? "default" : "destructive"}
+        />
+      </div>
+
+      {/* Action Cards */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Sync Whop */}
+        <div className="rounded-xl border border-border bg-card p-5">
+          <h3 className="font-display font-semibold mb-4 flex items-center gap-2">
+            <RefreshCw className="size-4 text-primary" />
+            Sync Whop catalog
+          </h3>
+          <p className="text-xs text-muted-foreground mb-4">
+            Pull the latest Whop products and update academy courses / session whopUrl fields.
+          </p>
+          <Button
+            variant="hero"
+            className="w-full rounded-lg"
+            disabled={syncLoading}
+            onClick={() => setShowSyncConfirm(true)}
+          >
+            {syncLoading ? <Loader2 className="size-4 animate-spin mr-2" /> : <RefreshCw className="size-4 mr-2" />}
+            Sync now
+          </Button>
+        </div>
+
+        {/* Whop API Key */}
+        <div className="rounded-xl border border-border bg-card p-5">
+          <h3 className="font-display font-semibold mb-4 flex items-center gap-2">
+            <KeyRound className="size-4 text-primary" />
+            Whop API key
+          </h3>
+          <p className="text-xs text-muted-foreground mb-4">
+            Whop company API key. Used to fetch product catalog during sync. Find it in your Whop dashboard → Settings → API.
+          </p>
+          <form id="whop-api-key-form" onSubmit={doSaveApiKey} className="space-y-2">
+            <input type="text" name="username" autoComplete="username" className="hidden" readOnly value="dotlive-operator" aria-hidden="true" tabIndex={-1} />
+            <div className="relative">
+              <Input
+                id="whop-api-key"
+                name="whop-api-key"
+                type={apiKeyShow ? "text" : "password"}
+                autoComplete={apiKeyShow ? "off" : "new-password"}
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder="whop_xxxxxxxxxxxxxxxxxxxxxxxx"
+                className="pr-10 font-mono text-xs rounded-lg"
+              />
+              <button
+                type="button"
+                onClick={() => setApiKeyShow((v) => !v)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+              >
+                {apiKeyShow ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </button>
+            </div>
+            {integrations?.whop_api_key.set && (
+              <div className="mt-2 rounded-md border border-border bg-muted/30 px-2 py-1 text-[10px] font-mono text-muted-foreground">
+                {integrations.whop_api_key.preview}
+                {integrations.whop_api_key.updatedAt ? ` · updated ${new Date(integrations.whop_api_key.updatedAt).toLocaleDateString()}` : ""}
+              </div>
+            )}
+            <Button
+              type="submit"
+              className="w-full rounded-lg"
+              disabled={apiKeySaving || !apiKey.trim()}
+            >
+              {apiKeySaving ? <Loader2 className="size-4 animate-spin mr-2" /> : <Save className="size-4 mr-2" />}
+              {integrations?.whop_api_key.set ? "Update" : "Save"}
+            </Button>
+          </form>
+        </div>
+
+        {/* Whop Webhook Secret */}
+        <div className="rounded-xl border border-border bg-card p-5">
+          <h3 className="font-display font-semibold mb-4 flex items-center gap-2">
+            <KeyRound className="size-4 text-primary" />
+            Whop webhook secret
+          </h3>
+          <p className="text-xs text-muted-foreground mb-4">
+            Signing secret for incoming Whop webhooks. Used to verify webhook authenticity.
+          </p>
+          <form id="whop-webhook-secret-form" onSubmit={doSaveWebhookSecret} className="space-y-2">
+            <input type="text" name="username" autoComplete="username" className="hidden" readOnly value="dotlive-operator" aria-hidden="true" tabIndex={-1} />
+            <div className="relative">
+              <Input
+                id="whop-webhook-secret"
+                name="whop-webhook-secret"
+                type={webhookSecretShow ? "text" : "password"}
+                autoComplete={webhookSecretShow ? "off" : "new-password"}
+                value={webhookSecret}
+                onChange={(e) => setWebhookSecret(e.target.value)}
+                placeholder="whsec_xxxxxxxxxxxxxxxxxxxxxxxx"
+                className="pr-10 font-mono text-xs rounded-lg"
+              />
+              <button
+                type="button"
+                onClick={() => setWebhookSecretShow((v) => !v)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+              >
+                {webhookSecretShow ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </button>
+            </div>
+            {integrations?.whop_webhook_secret.set && (
+              <div className="mt-2 rounded-md border border-border bg-muted/30 px-2 py-1 text-[10px] font-mono text-muted-foreground">
+                {integrations.whop_webhook_secret.preview}
+                {integrations.whop_webhook_secret.updatedAt ? ` · updated ${new Date(integrations.whop_webhook_secret.updatedAt).toLocaleDateString()}` : ""}
+              </div>
+            )}
+            <Button
+              type="submit"
+              className="w-full rounded-lg"
+              disabled={webhookSecretSaving || !webhookSecret.trim()}
+            >
+              {webhookSecretSaving ? <Loader2 className="size-4 animate-spin mr-2" /> : <Save className="size-4 mr-2" />}
+              {integrations?.whop_webhook_secret.set ? "Update" : "Save"}
+            </Button>
+          </form>
+        </div>
+      </div>
+
+      {/* Confirmation Dialogs */}
+      <ConfirmDialog
+        open={showSyncConfirm}
+        onOpenChange={setShowSyncConfirm}
+        title="Sync from Whop now?"
+        description="This overwrites academy course URLs."
+        onConfirm={doSyncWhop}
+        confirmLabel="Sync"
+        confirmVariant="default"
+      />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ *
  *  MAIN ADMIN PAGE
  * ------------------------------------------------------------------ */
 
@@ -1678,6 +1912,7 @@ function AdminPage() {
           <TabIcon icon={Globe} value="content" label="Content" />
           <TabIcon icon={Activity} value="moderation" label="Moderation" />
           <TabIcon icon={Coins} value="mint" label="Mint" />
+          <TabIcon icon={KeyRound} value="integrations" label="Integrations" />
           {isSuperAdmin && <TabIcon icon={Shield} value="roles" label="Roles & Audit" requiresSuperAdmin />}
         </TabsList>
         <TabsContent value="dashboard"><DashboardTab /></TabsContent>
@@ -1686,6 +1921,7 @@ function AdminPage() {
         <TabsContent value="content"><ContentTab /></TabsContent>
         <TabsContent value="moderation"><ModerationTab /></TabsContent>
         <TabsContent value="mint"><MintTab /></TabsContent>
+        <TabsContent value="integrations"><IntegrationsTab /></TabsContent>
         {isSuperAdmin && <TabsContent value="roles"><RolesTab /></TabsContent>}
       </Tabs>
     </AppShell>
