@@ -67,6 +67,7 @@ import {
   deleteAdminCourse,
   getIntegrations,
   setIntegration,
+  fireTestWebhook,
 } from "@/api/adminAcademy";
 import { getPayments } from "@/api/payments";
 import { getTokenStats, getTokenOps, mintTokens, adminTransfer } from "@/api/admin-tools";
@@ -1718,6 +1719,28 @@ function IntegrationsTab() {
     }
   }
 
+  // Test Webhook
+  const [testEventType, setTestEventType] = useState<string>("course.completed");
+  const [testUserId, setTestUserId] = useState<string>("");
+  const [testProductId, setTestProductId] = useState<string>("");
+  const [testLoading, setTestLoading] = useState(false);
+  const [showTestConfirm, setShowTestConfirm] = useState(false);
+  async function doTestWebhook() {
+    setTestLoading(true);
+    try {
+      const res = await fireTestWebhook({
+        userId: testUserId.trim() || undefined,
+        whopProductId: testProductId.trim() || null,
+      });
+      toast.success(`Webhook delivered (event ${res.eventId.slice(0, 8)}…)`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Webhook failed");
+    } finally {
+      setTestLoading(false);
+      setShowTestConfirm(false);
+    }
+  }
+
   // Whop API Key
   const [apiKey, setApiKey] = useState("");
   const [apiKeyShow, setApiKeyShow] = useState(false);
@@ -1895,6 +1918,61 @@ function IntegrationsTab() {
             </Button>
           </form>
         </div>
+
+        {/* Test Webhook */}
+        <div className="rounded-xl border border-border bg-card p-5">
+          <h3 className="font-display font-semibold mb-4 flex items-center gap-2">
+            <Activity className="size-4 text-primary" />
+            Test webhook
+          </h3>
+          <p className="text-xs text-muted-foreground mb-4">
+            Fire a synthetic Whop webhook to verify downstream handling. Use the optional User ID / Product ID fields to target a specific account.
+          </p>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Event type</Label>
+              <Select value={testEventType} onValueChange={setTestEventType}>
+                <SelectTrigger className="rounded-lg">
+                  <SelectValue placeholder="Select event" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="course.completed">course.completed</SelectItem>
+                  <SelectItem value="session.completed">session.completed</SelectItem>
+                  <SelectItem value="membership.activated">membership.activated</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">User ID (optional)</Label>
+              <Input
+                type="text"
+                value={testUserId}
+                onChange={(e) => setTestUserId(e.target.value)}
+                placeholder="uuid"
+                className="rounded-lg font-mono text-xs"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Product ID (optional)</Label>
+              <Input
+                type="text"
+                value={testProductId}
+                onChange={(e) => setTestProductId(e.target.value)}
+                placeholder="whop_xxxxxxxx"
+                className="rounded-lg font-mono text-xs"
+              />
+            </div>
+            <Button
+              variant="hero"
+              className="w-full rounded-lg"
+              disabled={testLoading}
+              onClick={() => setShowTestConfirm(true)}
+            >
+              {testLoading ? <Loader2 className="size-4 animate-spin mr-2" /> : <Activity className="size-4 mr-2" />}
+              Send test
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Confirmation Dialogs */}
@@ -1905,6 +1983,15 @@ function IntegrationsTab() {
         description="This overwrites academy course URLs."
         onConfirm={doSyncWhop}
         confirmLabel="Sync"
+        confirmVariant="default"
+      />
+      <ConfirmDialog
+        open={showTestConfirm}
+        onOpenChange={setShowTestConfirm}
+        title={`Send test ${testEventType} webhook?`}
+        description="This fires a synthetic webhook using the configured event type and any User / Product IDs you provided."
+        onConfirm={doTestWebhook}
+        confirmLabel="Send test"
         confirmVariant="default"
       />
     </div>
