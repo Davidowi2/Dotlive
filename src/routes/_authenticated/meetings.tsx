@@ -2,6 +2,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import {
   CalendarDays,
+  CalendarPlus,
+  Handshake,
   Plus,
   Clock,
   XCircle,
@@ -9,11 +11,14 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
+import { StatCard } from "@/components/app/StatCard";
+import { EmptyState } from "@/components/app/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -65,17 +70,20 @@ function MeetingsPage() {
 
   const list = meetingsQuery.data ?? [];
   const now = new Date();
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const upcoming = list.filter(
     (m) =>
       !["cancelled", "declined"].includes(m.status) &&
       new Date(m.scheduledAt).getTime() > now.getTime(),
   );
+  const pending = list.filter((m) => m.status === "pending");
   const past = list.filter(
     (m) =>
       ["completed"].includes(m.status) ||
       (new Date(m.scheduledAt).getTime() <= now.getTime() &&
         !["cancelled", "declined"].includes(m.status)),
   );
+  const pastSevenDays = past.filter((m) => new Date(m.scheduledAt) >= sevenDaysAgo);
   const cancelled = list.filter((m) => ["cancelled", "declined"].includes(m.status));
 
   const [requestOpen, setRequestOpen] = useState(false);
@@ -120,29 +128,70 @@ function MeetingsPage() {
 
   return (
     <AppShell>
-      <div className="flex items-center justify-between">
+      {/* Hero */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="font-display text-3xl font-bold">Meetings</h1>
+          <h1 className="font-display text-2xl font-bold">Meetings</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Manage slots and meeting requests with other founders.
+            Schedule, request, and manage your sessions.
           </p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => setSlotOpen(true)}>
-            <Plus className="mr-2 size-4" /> New slot
+          <Button onClick={() => setSlotOpen(true)} variant="hero">
+            <CalendarPlus className="mr-2 size-4" /> New slot
           </Button>
-          <Button variant="secondary" onClick={() => setRequestOpen(true)}>
-            Request meeting
+          <Button variant="outline" onClick={() => setRequestOpen(true)}>
+            <Handshake className="mr-2 size-4" /> Request meeting
           </Button>
         </div>
       </div>
 
+      {/* Stats */}
+      <div className="mt-6 grid gap-4 sm:grid-cols-3">
+        <StatCard
+          title="Upcoming"
+          value={String(upcoming.length)}
+          sub="Confirmed sessions"
+        />
+        <StatCard
+          title="Pending"
+          value={String(pending.length)}
+          sub="Requests awaiting action"
+        />
+        <StatCard
+          title="Past 7d"
+          value={String(pastSevenDays.length)}
+          sub="Completed sessions"
+        />
+      </div>
+
+      {/* Tabs */}
       <Tabs defaultValue="upcoming" className="mt-6">
-        <TabsList>
-          <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
-          <TabsTrigger value="past">Past</TabsTrigger>
-          <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
-          <TabsTrigger value="slots">My slots</TabsTrigger>
+        <TabsList className="gap-2 bg-transparent p-1">
+          <TabsTrigger
+            value="upcoming"
+            className="rounded-full data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
+          >
+            Upcoming
+          </TabsTrigger>
+          <TabsTrigger
+            value="pending"
+            className="rounded-full data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
+          >
+            Pending
+          </TabsTrigger>
+          <TabsTrigger
+            value="past"
+            className="rounded-full data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
+          >
+            Past
+          </TabsTrigger>
+          <TabsTrigger
+            value="slots"
+            className="rounded-full data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
+          >
+            My slots
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="upcoming">
           <MeetingList
@@ -154,6 +203,15 @@ function MeetingsPage() {
             onCancel={onCancel}
           />
         </TabsContent>
+        <TabsContent value="pending">
+          <MeetingList
+            meetings={pending}
+            loading={meetingsQuery.isLoading}
+            emptyText="No pending requests."
+            onConfirm={onConfirm}
+            onDecline={onDecline}
+          />
+        </TabsContent>
         <TabsContent value="past">
           <MeetingList
             meetings={past}
@@ -161,44 +219,43 @@ function MeetingsPage() {
             emptyText="No past meetings yet."
           />
         </TabsContent>
-        <TabsContent value="cancelled">
-          <MeetingList
-            meetings={cancelled}
-            loading={meetingsQuery.isLoading}
-            emptyText="No cancelled or declined meetings."
-          />
-        </TabsContent>
         <TabsContent value="slots">
           {slotsQuery.isLoading ? (
-            <Loader2 className="mt-8 size-6 animate-spin text-primary" />
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="size-6 animate-spin text-primary" />
+            </div>
           ) : (slotsQuery.data?.length ?? 0) === 0 ? (
-            <p className="mt-8 rounded-2xl border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground">
-              No slots yet.
-            </p>
+            <EmptyState
+              title="No slots yet"
+              description="Create a time slot for others to request meetings."
+              icon={CalendarPlus}
+            />
           ) : (
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {(slotsQuery.data ?? []).map((s: any) => (
-                <div key={s.id} className="rounded-xl border border-border bg-card p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-semibold">{s.title ?? "Available Slot"}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {s.date}, {s.startTime} - {s.endTime}
-                      </p>
+                <Card key={s.id}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-semibold">{s.title ?? "Available Slot"}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {s.date}, {s.startTime} - {s.endTime}
+                        </p>
+                      </div>
+                      <Badge
+                        variant={
+                          s.status === "available"
+                            ? "secondary"
+                            : s.status === "confirmed"
+                              ? "default"
+                              : "destructive"
+                        }
+                      >
+                        {s.status}
+                      </Badge>
                     </div>
-                    <Badge
-                      variant={
-                        s.status === "available"
-                          ? "secondary"
-                          : s.status === "confirmed"
-                            ? "default"
-                            : "destructive"
-                      }
-                    >
-                      {s.status}
-                    </Badge>
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
           )}
@@ -237,12 +294,14 @@ function MeetingList({
 }) {
   const navigate = useNavigate();
 
-  if (loading) return <Loader2 className="mt-8 size-6 animate-spin text-primary" />;
+  if (loading) return <div className="flex items-center justify-center py-12"><Loader2 className="size-6 animate-spin text-primary" /></div>;
   if (meetings.length === 0)
     return (
-      <p className="mt-8 rounded-2xl border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground">
-        {emptyText}
-      </p>
+      <EmptyState
+        title="Nothing here yet"
+        description={emptyText}
+        icon={CalendarDays}
+      />
     );
 
   return (
@@ -251,79 +310,81 @@ function MeetingList({
         const dt = new Date(m.scheduledAt);
         const status = m.status;
         return (
-          <div
+          <Card
             key={m.id}
-            className="rounded-xl border border-border bg-card p-4 hover:bg-accent/50 cursor-pointer transition-colors group"
+            className="hover:bg-accent/50 cursor-pointer transition-colors group overflow-hidden"
             onClick={() => navigate({ to: `/meetings/${m.id}` })}
           >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <CalendarDays className="size-4 text-primary" />
-                <span className="text-sm font-semibold">{m.title ?? "Meeting"}</span>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CalendarDays className="size-4 text-primary" />
+                  <span className="text-sm font-semibold">{m.title ?? "Meeting"}</span>
+                </div>
+                <Badge
+                  variant={
+                    status === "confirmed"
+                      ? "default"
+                      : status === "pending"
+                        ? "secondary"
+                        : status === "declined"
+                          ? "destructive"
+                          : "outline"
+                  }
+                >
+                  {status}
+                </Badge>
               </div>
-              <Badge
-                variant={
-                  status === "confirmed"
-                    ? "default"
-                    : status === "pending"
-                      ? "secondary"
-                      : status === "declined"
-                        ? "destructive"
-                        : "outline"
-                }
-              >
-                {status}
-              </Badge>
-            </div>
-            <p className="mt-2 text-xs text-muted-foreground">
-              <Clock className="mr-1 inline size-3" />
-              {dt.toLocaleString()}
-            </p>
-            {m.description && (
-              <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{m.description}</p>
-            )}
-            <div className="mt-3 flex items-center justify-between">
-              <div className="flex gap-2">
-                {status === "pending" && onConfirm && onDecline && (
-                  <>
-                    <Button
-                      size="sm"
-                      variant="hero"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onConfirm(m.id);
-                      }}
-                    >
-                      Confirm
-                    </Button>
+              <p className="mt-2 text-xs text-muted-foreground flex items-center gap-1">
+                <Clock className="size-3" />
+                {dt.toLocaleString()}
+              </p>
+              {m.description && (
+                <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{m.description}</p>
+              )}
+              <div className="mt-3 flex items-center justify-between">
+                <div className="flex gap-2">
+                  {status === "pending" && onConfirm && onDecline && (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="hero"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onConfirm(m.id);
+                        }}
+                      >
+                        Confirm
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDecline(m.id);
+                        }}
+                      >
+                        <XCircle className="size-4" />
+                      </Button>
+                    </>
+                  )}
+                  {status === "confirmed" && onCancel && (
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={(e) => {
                         e.stopPropagation();
-                        onDecline(m.id);
+                        onCancel(m.id);
                       }}
                     >
-                      <XCircle className="size-4" />
+                      Cancel
                     </Button>
-                  </>
-                )}
-                {status === "confirmed" && onCancel && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onCancel(m.id);
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                )}
+                  )}
+                </div>
+                <ArrowRight className="size-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
-              <ArrowRight className="size-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         );
       })}
     </div>
