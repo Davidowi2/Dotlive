@@ -813,6 +813,59 @@ export async function adminRoutes(app: FastifyInstance) {
     }
   );
 
+  /* ── MODERATION REPORT UPDATE — PATCH /api/admin/queue/reports/:id ───────── */
+
+  /** Update a moderation report's status (and optional note). Available to any admin. */
+  app.patch<{ Params: { id: string } }>(
+    "/admin/queue/reports/:id",
+    { preHandler: [app.authenticate, requireAdmin] },
+    async (req, reply) => {
+      const { id } = req.params;
+      const body = z
+        .object({
+          status: z.enum(["open", "in_review", "resolved", "dismissed"]),
+          note: z.string().max(2000).optional(),
+        })
+        .safeParse(req.body ?? {});
+      if (!body.success) return reply.code(400).send({ error: "bad_body", details: body.error.flatten() });
+      const { status, note } = body.data;
+
+      const existing = await db
+        .select()
+        .from(moderation_reports)
+        .where(eq(moderation_reports.id, id))
+        .limit(1);
+      if (!existing.length) return reply.code(404).send({ error: "Report not found" });
+
+      const updateSet: any = { status, updatedAt: new Date() };
+      if (status === "resolved" || status === "dismissed") {
+        updateSet.resolvedAt = new Date();
+        updateSet.resolvedBy = (req.user as { sub: string }).sub;
+      }
+
+      await db.update(moderation_reports).set(updateSet).where(eq(moderation_reports.id, id));
+
+      // Optional note: log to audit trail if a reason/note was supplied
+      if (note && note.trim().length > 0) {
+        try {
+          await db.execute(sql`
+            INSERT INTO audit_log (actor_id, action, target_id, target_type, metadata, created_at)
+            VALUES (${(req.user as { sub: string }).sub}, 'moderation_report.note', ${id}, 'moderation_report', ${sql.raw(`'${note.replace(/'/g, "''")}'::jsonb`)}, NOW())
+          `);
+        } catch {
+          // audit_log missing or write failed — non-fatal
+        }
+      }
+
+      const updated = await db
+        .select()
+        .from(moderation_reports)
+        .where(eq(moderation_reports.id, id))
+        .limit(1);
+      return reply.send({ ok: true, report: updated[0] });
+    }
+  );
+
   /* ============================== STATS ============================== */
 
   app.get(
@@ -1130,6 +1183,30 @@ export async function adminRoutes(app: FastifyInstance) {
     }
     await db.execute(sql`DELETE FROM feed_posts WHERE id = ${id}`);
     return reply.send({ ok: true });
+  });
+
+  /* ── HIDE FEED POST — PATCH /api/admin/feed-posts/:id ───────── */
+
+  /** Hide or unhide a feed post. Requires super_admin. */
+  app.patch<{ Params: { id: string } }>("/feed-posts/:id", { preHandler: app.authenticate }, async (req, reply) => {
+    const adminId = (req.user as { sub: string }).sub;
+    const roles = await getUserRoles(adminId);
+    if (!roles.includes("super_admin")) {
+      return reply.code(403).send({ error: "Super admin only" });
+    }
+    const { id } = req.params;
+    const body = z
+      .object({ hidden: z.boolean() })
+      .safeParse(req.body ?? {});
+    if (!body.success) return reply.code(400).send({ error: "bad_body", details: body.error.flatten() });
+    const { hidden } = body.data;
+
+    const post = await db.execute(sql`SELECT id FROM feed_posts WHERE id = ${id}`);
+    if (!(post as any).rows?.length && !(post as any).rowCount) {
+      return reply.code(404).send({ error: "Post not found" });
+    }
+    await db.execute(sql`UPDATE feed_posts SET is_hidden = ${hidden}, updated_at = NOW() WHERE id = ${id}`);
+    return reply.send({ ok: true, hidden });
   });
 
   /* ── BUILDER STATS — GET /api/admin/builders/:id/stats ───────────── */
