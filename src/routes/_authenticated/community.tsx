@@ -341,7 +341,7 @@ function CommunityPage() {
           <p className="mt-4 text-xs text-muted-foreground">Referral code</p>
           <div className="mt-1 flex items-center gap-2">
             <code className="flex-1 rounded-lg bg-muted px-3 py-2 text-sm font-medium">
-              {community.referral_code}
+              {(community as any).referralCode || (community as any).referral_code || "—"}
             </code>
             <Button asChild variant="hero" size="lg" className="mt-6">
               <Link to="/community/channels">
