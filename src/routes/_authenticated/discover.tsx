@@ -4,25 +4,16 @@ import { useState, useRef } from "react";
 import {
   ImagePlus,
   Loader2,
-  Heart,
   MessageSquare,
   Bookmark,
   Share2,
-  Users,
   Hash,
-  Globe,
   Clock,
   ArrowBigUp,
   ArrowBigDown,
-  MoreHorizontal,
   ChevronDown,
   Send,
   X,
-  Megaphone,
-  Rocket,
-  Wrench,
-  BellRing,
-  Wallet,
 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
@@ -106,6 +97,24 @@ function useFeed(tab: "latest" | "popular" | "trending") {
   });
 }
 
+const TYPE_OPTIONS = [
+  { value: "general", label: "General", dot: "bg-red-500" },
+  { value: "venture_update", label: "Venture Update", dot: "bg-sky-400" },
+  { value: "gig", label: "Gig", dot: "bg-amber-400" },
+  { value: "announcement", label: "Announcement", dot: "bg-rose-500" },
+  { value: "funding", label: "Funding", dot: "bg-emerald-400" },
+] as const;
+
+function PostTypePill({ value }: { value: string }) {
+  const opt = TYPE_OPTIONS.find(o => o.value === value);
+  return (
+    <span className="flex items-center gap-2">
+      <span className={cn("w-1.5 h-1.5 rounded-full", opt?.dot ?? "bg-muted-foreground")} />
+      <span>{opt?.label ?? value}</span>
+    </span>
+  );
+}
+
 function DiscoverPage() {
   const { user } = useDotAuth();
   const qc = useQueryClient();
@@ -119,23 +128,9 @@ function DiscoverPage() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [commentText, setCommentText] = useState<Record<string, string>>({});
 
-  const TYPE_OPTIONS = [
-  { value: "general", label: "General", icon: Megaphone, color: "text-red-500" },
-  { value: "venture_update", label: "Venture Update", icon: Rocket, color: "text-sky-400" },
-  { value: "gig", label: "Gig", icon: Wrench, color: "text-amber-400" },
-  { value: "announcement", label: "Announcement", icon: BellRing, color: "text-rose-500" },
-  { value: "funding", label: "Funding", icon: Wallet, color: "text-emerald-400" },
-] as const;
-
-function PostTypeIcon({ type, className }: { type: string; className?: string }) {
-  const opt = TYPE_OPTIONS.find(o => o.value === type);
-  const Icon = opt?.icon ?? Megaphone;
-  const color = opt?.color ?? "text-muted-foreground";
-  return <Icon className={cn("size-4", color, className)} />;
-}
+  const postsQ = useFeed(tab);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -309,16 +304,13 @@ function PostTypeIcon({ type, className }: { type: string; className?: string })
                   <Label className="text-xs text-muted-foreground">Post Type</Label>
                   <Select value={type} onValueChange={(v) => setType(v as typeof type)}>
                     <SelectTrigger className="h-9">
-                      <span className="flex items-center gap-2">
-                        <PostTypeIcon type={type} />
-                        <SelectValue placeholder="Select type" />
-                      </span>
+                      <PostTypePill value={type} />
                     </SelectTrigger>
                     <SelectContent>
                       {TYPE_OPTIONS.map((opt) => (
                         <SelectItem key={opt.value} value={opt.value} className="gap-2">
                           <span className="flex items-center gap-2">
-                            <opt.icon className={cn("size-4", opt.color)} />
+                            <span className={cn("w-1.5 h-1.5 rounded-full", opt.dot)} />
                             {opt.label}
                           </span>
                         </SelectItem>
