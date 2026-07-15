@@ -979,6 +979,7 @@ function PostsTable({ posts, postsLoading, qc }: { posts: any[]; postsLoading: b
  * ------------------------------------------------------------------ */
 
 function ModerationTab() {
+  const qc = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ["admin-moderation-queue"],
     queryFn: async () => (await dotApi.get("/api/admin/queue")) as Record<string, unknown>,
@@ -989,6 +990,43 @@ function ModerationTab() {
     queryFn: async () => (await dotApi.get("/api/admin/queue/reports")) as { reports: any[]; nextCursor: string | null },
     staleTime: 30_000,
   });
+
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [resolveTarget, setResolveTarget] = useState<{ id: string; note: string } | null>(null);
+  const [hideTarget, setHideTarget] = useState<string | null>(null);
+
+  const { user } = useAuth();
+  const isSuperAdmin = (user as any)?.isSuperAdmin || (user as any)?.is_super_admin || false;
+
+  async function doUpdateStatus(reportId: string, status: "in_review" | "resolved" | "dismissed", note?: string) {
+    setBusyId(reportId);
+    try {
+      await dotApi.patch(`/api/admin/queue/reports/${reportId}`, { status, note });
+      toast.success(`Report ${status.replace("_", " ")}`);
+      qc.invalidateQueries({ queryKey: ["admin-moderation-queue"] });
+      qc.invalidateQueries({ queryKey: ["admin-moderation-reports"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed");
+    } finally {
+      setBusyId(null);
+      setResolveTarget(null);
+    }
+  }
+
+  async function doHidePost(targetId: string) {
+    setBusyId(targetId);
+    try {
+      await dotApi.patch(`/api/admin/feed-posts/${targetId}`, { hidden: true });
+      toast.success("Post hidden");
+      qc.invalidateQueries({ queryKey: ["admin-moderation-queue"] });
+      qc.invalidateQueries({ queryKey: ["admin-moderation-reports"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed");
+    } finally {
+      setBusyId(null);
+      setHideTarget(null);
+    }
+  }
 
   return (
     <div className="mt-6 space-y-6">
@@ -1016,6 +1054,7 @@ function ModerationTab() {
                   <th className="p-4 font-medium">Target</th>
                   <th className="p-4 font-medium">Reason</th>
                   <th className="p-4 font-medium">Status</th>
+                  <th className="p-4 font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -1031,6 +1070,44 @@ function ModerationTab() {
                       <Badge variant={r.status === "open" ? "destructive" : r.status === "resolved" ? "default" : "secondary"}>
                         {r.status}
                       </Badge>
+                      {(r.status === "resolved" || r.status === "dismissed") && r.resolvedAt && (
+                        <div className="text-[10px] text-muted-foreground mt-1">
+                          {new Date(r.resolvedAt).toLocaleString()}
+                        </div>
+                      )}
+                    </td>
+                    <td className="p-4">
+                      {r.status === "open" && (
+                        <div className="flex flex-wrap gap-1">
+                          <Button size="sm" variant="outline" className="h-7 text-xs" disabled={busyId === r.id} onClick={() => doUpdateStatus(r.id, "in_review")}>
+                            {busyId === r.id ? <Loader2 className="size-3 animate-spin" /> : "In review"}
+                          </Button>
+                          <Button size="sm" variant="default" className="h-7 text-xs" disabled={busyId === r.id} onClick={() => setResolveTarget({ id: r.id, note: "" })}>
+                            {busyId === r.id ? <Loader2 className="size-3 animate-spin" /> : "Resolve"}
+                          </Button>
+                          <Button size="sm" variant="outline" className="h-7 text-xs" disabled={busyId === r.id} onClick={() => doUpdateStatus(r.id, "dismissed")}>
+                            {busyId === r.id ? <Loader2 className="size-3 animate-spin" /> : "Dismiss"}
+                          </Button>
+                          {r.targetType === "post" && isSuperAdmin && (
+                            <Button size="sm" variant="outline" className="h-7 text-xs" disabled={busyId === r.targetId} onClick={() => setHideTarget(r.targetId)}>
+                              {busyId === r.targetId ? <Loader2 className="size-3 animate-spin" /> : "Hide post"}
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                      {r.status === "in_review" && (
+                        <div className="flex flex-wrap gap-1">
+                          <Button size="sm" variant="default" className="h-7 text-xs" disabled={busyId === r.id} onClick={() => setResolveTarget({ id: r.id, note: "" })}>
+                            {busyId === r.id ? <Loader2 className="size-3 animate-spin" /> : "Resolve"}
+                          </Button>
+                          <Button size="sm" variant="outline" className="h-7 text-xs" disabled={busyId === r.id} onClick={() => doUpdateStatus(r.id, "dismissed")}>
+                            {busyId === r.id ? <Loader2 className="size-3 animate-spin" /> : "Dismiss"}
+                          </Button>
+                        </div>
+                      )}
+                      {(r.status === "resolved" || r.status === "dismissed") && (
+                        <span className="text-xs text-muted-foreground">Closed</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -1039,6 +1116,44 @@ function ModerationTab() {
           </div>
         )}
       </div>
+
+      <Dialog open={!!resolveTarget} onOpenChange={(o) => !o && setResolveTarget(null)}>
+        <DialogContent className="rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="size-5 text-primary" />
+              Resolve report
+            </DialogTitle>
+            <DialogDescription>Add an optional resolution note (visible in audit log).</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label className="text-xs">Note (optional)</Label>
+            <Textarea
+              value={resolveTarget?.note ?? ""}
+              onChange={(e) => setResolveTarget((prev) => prev ? { ...prev, note: e.target.value } : prev)}
+              placeholder="What was done?"
+              className="rounded-lg"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResolveTarget(null)}>Cancel</Button>
+            <Button onClick={() => resolveTarget && doUpdateStatus(resolveTarget.id, "resolved", resolveTarget.note)} disabled={!!busyId}>
+              {busyId && <Loader2 className="size-4 animate-spin" />}
+              Resolve
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDialog
+        open={!!hideTarget}
+        onOpenChange={(o) => !o && setHideTarget(null)}
+        title="Hide post?"
+        description="This will hide the post from public feeds. You can unhide it later."
+        onConfirm={() => hideTarget && doHidePost(hideTarget)}
+        confirmLabel="Hide post"
+        confirmVariant="default"
+      />
     </div>
   );
 }
