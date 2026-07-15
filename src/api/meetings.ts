@@ -129,6 +129,16 @@ export async function getMyMeetings(status?: "upcoming" | "past"): Promise<Meeti
 }
 
 /**
+ * List all meetings (admin only)
+ */
+export async function listMeetings(opts: { status?: "pending" | "upcoming" | "past" | "all" } = {}): Promise<Meeting[]> {
+  const params = opts.status ? `?status=${opts.status}` : "";
+  // Normalize at the API boundary — see getAvailableSlots() above.
+  const data = await dotApi.get<unknown>(`/api/meetings${params}`);
+  return asArray<Meeting>(data);
+}
+
+/**
  * Confirm a meeting (host only)
  */
 export async function confirmMeeting(id: string): Promise<Meeting> {

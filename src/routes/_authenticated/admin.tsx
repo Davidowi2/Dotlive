@@ -10,6 +10,7 @@ import {
   Plus,
   BookOpen,
   CalendarCheck,
+  CalendarClock,
   Trophy,
   History,
   Settings2,
@@ -69,10 +70,12 @@ import {
 } from "@/api/adminAcademy";
 import { getPayments } from "@/api/payments";
 import { getTokenStats, getTokenOps, mintTokens, adminTransfer } from "@/api/admin-tools";
+import { listMeetings } from "@/api/meetings";
 import { dotApi } from "@/api/client";
 import type { AdminCourse } from "@/api/admin";
 import type { TokenStats, TokenOperation } from "@/api/admin-tools";
 import type { Integrations } from "@/api/adminAcademy";
+import type { Meeting } from "@/api/meetings";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({ meta: [{ title: "Admin — DOT" }] }),
@@ -1794,6 +1797,278 @@ function IntegrationsTab() {
 }
 
 /* ------------------------------------------------------------------ *
+ *  MEETINGS ADMIN
+ * ------------------------------------------------------------------ */
+
+function MeetingsAdminTab() {
+  const qc = useQueryClient();
+  const [activeSubTab, setActiveSubTab] = useState<"pending" | "upcoming" | "past">("pending");
+  const [showExpireConfirm, setShowExpireConfirm] = useState(false);
+  const [expireLoading, setExpireLoading] = useState(false);
+
+  // Query pending, upcoming, past
+  const { data: pendingMeetings = [], isLoading: pendingLoading } = useQuery({
+    queryKey: ["admin-meetings-pending"],
+    queryFn: async () => await listMeetings({ status: "pending" }),
+    staleTime: 30000,
+  });
+  const { data: upcomingMeetings = [], isLoading: upcomingLoading } = useQuery({
+    queryKey: ["admin-meetings-upcoming"],
+    queryFn: async () => await listMeetings({ status: "upcoming" }),
+    staleTime: 30000,
+  });
+  const { data: pastMeetings = [], isLoading: pastLoading } = useQuery({
+    queryKey: ["admin-meetings-past"],
+    queryFn: async () => await listMeetings({ status: "past" }),
+    staleTime: 30000,
+  });
+
+  // Derive past 7 days from pastMeetings
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const pastWeekMeetings = pastMeetings.filter((m) => {
+    const meetingDate = new Date(m.createdAt || m.scheduledAt);
+    return meetingDate >= sevenDaysAgo;
+  });
+
+  async function handleExpire() {
+    setExpireLoading(true);
+    try {
+      const res = await dotApi.post<{ ok: boolean; expired: number }>("/api/admin/meetings/expire-pending", {});
+      toast.success(`${res.expired} pending request(s) expired`);
+      qc.invalidateQueries({ queryKey: ["admin-meetings-pending"] });
+      qc.invalidateQueries({ queryKey: ["admin-meetings-upcoming"] });
+      qc.invalidateQueries({ queryKey: ["admin-meetings-past"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to expire requests");
+    } finally {
+      setExpireLoading(false);
+      setShowExpireConfirm(false);
+    }
+  }
+
+  return (
+    <div className="mt-6 space-y-6">
+      {/* Stats row */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <StatCard
+          title="Pending"
+          value={String(pendingMeetings.length)}
+          sub="Awaiting response"
+        />
+        <StatCard
+          title="Upcoming"
+          value={String(upcomingMeetings.length)}
+          sub="Confirmed"
+        />
+        <StatCard
+          title="Past 7d"
+          value={String(pastWeekMeetings.length)}
+          sub="Completed"
+        />
+      </div>
+
+      {/* Action card - expire pending */}
+      <div className="rounded-xl border border-border bg-card p-5">
+        <h3 className="font-display font-semibold mb-4 flex items-center gap-2">
+          <CalendarClock className="size-4 text-primary" />
+          Expire stale pending requests
+        </h3>
+        <p className="text-xs text-muted-foreground mb-4">
+          Marks pending meeting requests older than 72h as expired. Required for the auto-complete flow.
+        </p>
+        <Button
+          variant="hero"
+          className="w-full rounded-lg"
+          disabled={expireLoading}
+          onClick={() => setShowExpireConfirm(true)}
+        >
+          {expireLoading ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
+          Run expire-pending
+        </Button>
+      </div>
+
+      {/* Sub-tabs: pending, upcoming, past */}
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="flex items-center gap-1 border-b border-border p-1 bg-muted/30">
+          {[
+            { key: "pending" as const, label: "Pending" },
+            { key: "upcoming" as const, label: "Upcoming" },
+            { key: "past" as const, label: "Past" },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveSubTab(tab.key)}
+              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm transition-all ${
+                activeSubTab === tab.key ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Sub-tab content: pending */}
+        {activeSubTab === "pending" && (
+          <div className="p-4">
+            {pendingLoading ? (
+              <div className="p-8 text-center">
+                <Loader2 className="mx-auto size-5 animate-spin text-primary" />
+              </div>
+            ) : pendingMeetings.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground">
+                No meetings yet.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
+                      <th className="p-4 font-medium">Requested at</th>
+                      <th className="p-4 font-medium">Requester</th>
+                      <th className="p-4 font-medium">Host</th>
+                      <th className="p-4 font-medium">Message</th>
+                      <th className="p-4 font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {pendingMeetings.map((m) => (
+                      <tr key={m.id} className="transition-colors hover:bg-muted/10">
+                        <td className="p-4 text-xs text-muted-foreground">
+                          {new Date(m.createdAt).toLocaleString()}
+                        </td>
+                        <td className="p-4 text-xs font-mono text-muted-foreground">
+                          {m.guestId}
+                        </td>
+                        <td className="p-4 text-xs font-mono text-muted-foreground">
+                          {m.hostId}
+                        </td>
+                        <td className="p-4 text-xs text-muted-foreground truncate max-w-xs">
+                          {m.meetingReason || m.description || "—"}
+                        </td>
+                        <td className="p-4">
+                          <Badge variant="secondary">{m.status}</Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Sub-tab content: upcoming */}
+        {activeSubTab === "upcoming" && (
+          <div className="p-4">
+            {upcomingLoading ? (
+              <div className="p-8 text-center">
+                <Loader2 className="mx-auto size-5 animate-spin text-primary" />
+              </div>
+            ) : upcomingMeetings.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground">
+                No meetings yet.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
+                      <th className="p-4 font-medium">Confirmed at</th>
+                      <th className="p-4 font-medium">Requester</th>
+                      <th className="p-4 font-medium">Host</th>
+                      <th className="p-4 font-medium">Slot</th>
+                      <th className="p-4 font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {upcomingMeetings.map((m) => (
+                      <tr key={m.id} className="transition-colors hover:bg-muted/10">
+                        <td className="p-4 text-xs text-muted-foreground">
+                          {m.confirmedAt ? new Date(m.confirmedAt).toLocaleString() : "—"}
+                        </td>
+                        <td className="p-4 text-xs font-mono text-muted-foreground">
+                          {m.guestId}
+                        </td>
+                        <td className="p-4 text-xs font-mono text-muted-foreground">
+                          {m.hostId}
+                        </td>
+                        <td className="p-4 text-xs text-muted-foreground">
+                          {m.slotId}
+                        </td>
+                        <td className="p-4">
+                          <Badge variant="default">{m.status}</Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Sub-tab content: past */}
+        {activeSubTab === "past" && (
+          <div className="p-4">
+            {pastLoading ? (
+              <div className="p-8 text-center">
+                <Loader2 className="mx-auto size-5 animate-spin text-primary" />
+              </div>
+            ) : pastMeetings.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground">
+                No meetings yet.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
+                      <th className="p-4 font-medium">Date</th>
+                      <th className="p-4 font-medium">Requester</th>
+                      <th className="p-4 font-medium">Host</th>
+                      <th className="p-4 font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {pastMeetings.map((m) => (
+                      <tr key={m.id} className="transition-colors hover:bg-muted/10">
+                        <td className="p-4 text-xs text-muted-foreground">
+                          {new Date(m.scheduledAt).toLocaleString()}
+                        </td>
+                        <td className="p-4 text-xs font-mono text-muted-foreground">
+                          {m.guestId}
+                        </td>
+                        <td className="p-4 text-xs font-mono text-muted-foreground">
+                          {m.hostId}
+                        </td>
+                        <td className="p-4">
+                          <Badge variant="secondary">{m.status}</Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Confirm dialog for expire */}
+      <ConfirmDialog
+        open={showExpireConfirm}
+        onOpenChange={setShowExpireConfirm}
+        title="Expire stale pending requests?"
+        description="This will close pending meeting requests older than 72h."
+        onConfirm={handleExpire}
+        confirmLabel="Expire"
+        confirmVariant="default"
+      />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ *
  *  MAIN ADMIN PAGE
  * ------------------------------------------------------------------ */
 
@@ -1913,6 +2188,7 @@ function AdminPage() {
           <TabIcon icon={Activity} value="moderation" label="Moderation" />
           <TabIcon icon={Coins} value="mint" label="Mint" />
           <TabIcon icon={KeyRound} value="integrations" label="Integrations" />
+          <TabIcon icon={CalendarCheck} value="meetings" label="Meetings" />
           {isSuperAdmin && <TabIcon icon={Shield} value="roles" label="Roles & Audit" requiresSuperAdmin />}
         </TabsList>
         <TabsContent value="dashboard"><DashboardTab /></TabsContent>
@@ -1922,6 +2198,7 @@ function AdminPage() {
         <TabsContent value="moderation"><ModerationTab /></TabsContent>
         <TabsContent value="mint"><MintTab /></TabsContent>
         <TabsContent value="integrations"><IntegrationsTab /></TabsContent>
+        <TabsContent value="meetings"><MeetingsAdminTab /></TabsContent>
         {isSuperAdmin && <TabsContent value="roles"><RolesTab /></TabsContent>}
       </Tabs>
     </AppShell>
