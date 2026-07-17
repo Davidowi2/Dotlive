@@ -22,6 +22,11 @@ export async function enrollInCourse(courseId: string): Promise<CourseEnrollment
   return res.enrollment;
 }
 
+export async function getCourse(courseId: string): Promise<Course> {
+  const res = await dotApi.get<{ course: Course }>(`/api/academy/courses/${courseId}`);
+  return res.course;
+}
+
 export async function createCheckout(input: {
   productId?: string;
   amountCents: number;

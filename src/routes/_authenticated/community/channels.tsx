@@ -221,14 +221,14 @@ function ChannelsPage() {
               const Icon = CHANNEL_ICONS[c.name] ?? Hash;
               const active = c.id === activeChannelId;
               return (
-                <button
+                <Button
                   key={c.id}
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setActiveChannelId(c.id)}
                   className={cn(
-                    "group flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors",
-                    active
-                      ? "bg-primary/10 font-medium text-foreground"
-                      : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                    "flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors",
+                    active ? "bg-primary/10 font-medium text-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
                   )}
                 >
                   <Icon className={cn("h-3.5 w-3.5 shrink-0", active ? "text-primary" : "text-muted-foreground/60")} />
@@ -236,7 +236,7 @@ function ChannelsPage() {
                   {c.recentCount > 0 && active && (
                     <span className="ml-auto inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
                   )}
-                </button>
+                </Button>
               );
             })}
           </nav>

@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import {
   CalendarDays,
   CalendarPlus,
@@ -28,7 +28,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/use-auth";
+import { useDotAuth } from "@/contexts/DotAuthContext";
 import { toast } from "sonner";
 
 import {
@@ -38,6 +38,12 @@ import {
   confirmMeeting,
   declineMeeting,
   cancelMeeting,
+  rescheduleMeeting,
+  completeMeeting,
+  updateMeetingCoordination,
+  getMeetingMessages,
+  sendMeetingMessage,
+  createSlot,
 } from "@/lib/meetings.functions";
 import type { Meeting } from "@/api/meetings";
 
@@ -51,10 +57,85 @@ export const Route = createFileRoute("/_authenticated/meetings")({
   component: MeetingsPage,
 });
 
+type ActionKind = "confirm" | "decline" | "cancel";
+
+function ActionDialog({
+  open,
+  kind,
+  busy,
+  text,
+  onTextChange,
+  onConfirm,
+  onOpenChange,
+}: {
+  open: boolean;
+  kind: ActionKind;
+  busy: boolean;
+  text: string;
+  onTextChange: (v: string) => void;
+  onConfirm: () => void;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const title =
+    kind === "confirm"
+      ? "Confirm meeting"
+      : kind === "decline"
+        ? "Decline meeting"
+        : "Cancel meeting";
+
+  const description =
+    kind === "cancel"
+      ? "This will cancel the meeting. You can add a note."
+      : kind === "decline"
+        ? "Optionally add a reason for declining."
+        : "Are you sure you want to confirm this meeting?";
+
+  const canSubmit =
+    kind === "confirm" ? !busy : text.trim().length > 0 || kind === "confirm";
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
+        {kind !== "confirm" && (
+          <Textarea
+            value={text}
+            onChange={(e) => onTextChange(e.target.value)}
+            placeholder={
+              kind === "decline"
+                ? "Decline reason (optional)"
+                : "Cancel reason (optional)"
+            }
+            className="mt-2"
+          />
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Back
+          </Button>
+          <Button
+            variant={kind === "cancel" ? "destructive" : "hero"}
+            onClick={() => {
+              onConfirm();
+            }}
+            disabled={!canSubmit || busy}
+          >
+            {busy && <Loader2 className="mr-2 size-4 animate-spin" />}
+            {kind === "confirm" ? "Confirm" : kind === "decline" ? "Decline" : "Cancel"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function MeetingsPage() {
-  const { user } = useAuth();
-  const qc = useQueryClient();
+  const { user } = useDotAuth();
   const navigate = useNavigate();
+  const qc = useQueryClient();
 
   const meetingsQuery = useQuery({
     queryKey: ["meetings", user?.id],
@@ -90,6 +171,68 @@ function MeetingsPage() {
   const [slotOpen, setSlotOpen] = useState(false);
   const [reason, setReason] = useState("");
 
+  const [actionKind, setActionKind] = useState<ActionKind>("confirm");
+  const [actionId, setActionId] = useState<string | null>(null);
+  const [actionText, setActionText] = useState("");
+  const [actionBusy, setActionBusy] = useState(false);
+
+  async function runAction() {
+    if (!actionId) return;
+    const id = actionId;
+    setActionBusy(true);
+    try {
+      if (actionKind === "confirm") {
+        await confirmMeeting({ id });
+        toast.success("Meeting confirmed");
+      } else if (actionKind === "decline") {
+        await declineMeeting({ id, reason: actionText || null });
+        toast.success("Meeting declined");
+      } else {
+        await cancelMeeting({ id, reason: actionText || null });
+        toast.success("Meeting cancelled");
+      }
+      qc.invalidateQueries({ queryKey: ["meetings", user?.id] });
+    } finally {
+      setActionBusy(false);
+      setActionId(null);
+      setActionText("");
+    }
+  }
+
+  async function onConfirm(id: string) {
+    setActionKind("confirm");
+    setActionId(id);
+    setActionText("");
+  }
+
+  async function onDecline(id: string) {
+    setActionKind("decline");
+    setActionId(id);
+    setActionText("");
+  }
+
+  async function onCancel(id: string) {
+    setActionKind("cancel");
+    setActionId(id);
+    setActionText("");
+  }
+
+  async function onReschedule(id: string) {
+    setActionKind("decline");
+    setActionId(id);
+    setActionText("");
+  }
+
+  async function onComplete(id: string) {
+    await completeMeeting({ id });
+    toast.success("Marked complete");
+    qc.invalidateQueries({ queryKey: ["meetings", user?.id] });
+  }
+
+  async function openChat(id: string) {
+    navigate({ to: `/meetings/${id}` });
+  }
+
   async function onRequest(slotId: string, title: string, description: string) {
     await requestMeeting({
       slotId,
@@ -104,26 +247,18 @@ function MeetingsPage() {
     qc.invalidateQueries({ queryKey: ["meeting-slots", user?.id] });
   }
 
-  async function onConfirm(id: string) {
-    if (!confirm("Confirm this meeting?")) return;
-    await confirmMeeting({ id });
-    toast.success("Meeting confirmed");
-    qc.invalidateQueries({ queryKey: ["meetings", user?.id] });
-  }
-
-  async function onDecline(id: string) {
-    const text = prompt("Decline reason (optional)") ?? "";
-    await declineMeeting({ id, reason: text || null });
-    toast.success("Meeting declined");
-    qc.invalidateQueries({ queryKey: ["meetings", user?.id] });
-  }
-
-  async function onCancel(id: string) {
-    if (!confirm("Cancel this confirmed meeting?")) return;
-    const text = prompt("Cancel reason (optional)") ?? "";
-    await cancelMeeting({ id, reason: text || null });
-    toast.success("Meeting cancelled");
-    qc.invalidateQueries({ queryKey: ["meetings", user?.id] });
+  async function saveCoordination(id: string) {
+    const cur = (coordinationRef.current ?? {})[id] ?? {};
+    try {
+      await updateMeetingCoordination(id, {
+        meetingPlatform: cur.platform,
+        meetingLink: cur.link,
+        coordinationNotes: cur.notes,
+      });
+      toast.success("Coordination saved");
+    } catch {
+      toast.error("Could not save coordination");
+    }
   }
 
   return (
@@ -193,6 +328,7 @@ function MeetingsPage() {
             My slots
           </TabsTrigger>
         </TabsList>
+
         <TabsContent value="upcoming">
           <MeetingList
             meetings={upcoming}
@@ -201,6 +337,8 @@ function MeetingsPage() {
             onConfirm={onConfirm}
             onDecline={onDecline}
             onCancel={onCancel}
+            onComplete={onComplete}
+            onOpenChat={openChat}
           />
         </TabsContent>
         <TabsContent value="pending">
@@ -262,6 +400,21 @@ function MeetingsPage() {
         </TabsContent>
       </Tabs>
 
+      <ActionDialog
+        open={!!actionId}
+        kind={actionKind}
+        busy={actionBusy}
+        text={actionText}
+        onTextChange={setActionText}
+        onConfirm={runAction}
+        onOpenChange={(v) => {
+          if (!v) {
+            setActionId(null);
+            setActionText("");
+          }
+        }}
+      />
+
       <RequestDialog
         open={requestOpen}
         onOpenChange={setRequestOpen}
@@ -284,6 +437,8 @@ function MeetingList({
   onConfirm,
   onDecline,
   onCancel,
+  onComplete,
+  onOpenChat,
 }: {
   meetings: Meeting[];
   loading: boolean;
@@ -291,10 +446,15 @@ function MeetingList({
   onConfirm?: (id: string) => void;
   onDecline?: (id: string) => void;
   onCancel?: (id: string) => void;
+  onComplete?: (id: string) => void;
+  onOpenChat?: (id: string) => void;
 }) {
-  const navigate = useNavigate();
-
-  if (loading) return <div className="flex items-center justify-center py-12"><Loader2 className="size-6 animate-spin text-primary" /></div>;
+  if (loading)
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="size-6 animate-spin text-primary" />
+      </div>
+    );
   if (meetings.length === 0)
     return (
       <EmptyState
@@ -312,8 +472,7 @@ function MeetingList({
         return (
           <Card
             key={m.id}
-            className="hover:bg-accent/50 cursor-pointer transition-colors group overflow-hidden"
-            onClick={() => navigate({ to: `/meetings/${m.id}` })}
+            className="hover:bg-accent/50 transition-colors overflow-hidden"
           >
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -342,8 +501,8 @@ function MeetingList({
               {m.description && (
                 <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{m.description}</p>
               )}
-              <div className="mt-3 flex items-center justify-between">
-                <div className="flex gap-2">
+              <div className="mt-3 flex flex-col gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   {status === "pending" && onConfirm && onDecline && (
                     <>
                       <Button
@@ -368,20 +527,23 @@ function MeetingList({
                       </Button>
                     </>
                   )}
-                  {status === "confirmed" && onCancel && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onCancel(m.id);
-                      }}
-                    >
-                      Cancel
-                    </Button>
+                  {status === "confirmed" && (
+                    <>
+                      {onCancel ? (
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onCancel(m.id);
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      ) : null}
+                    </>
                   )}
                 </div>
-                <ArrowRight className="size-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
             </CardContent>
           </Card>
@@ -404,15 +566,20 @@ function RequestDialog({
 }) {
   const [title, setTitle] = useState("");
   const [desc, setDesc] = useState("");
+  const [slotId, setSlotId] = useState<string>("");
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    const slot = slots[0];
-    if (!slot) return toast.error("No available slot selected");
-    await onRequest(slot.id, title, desc);
+    if (!slotId) return toast.error("Pick an available slot");
+    await onRequest(slotId, title, desc);
     setTitle("");
     setDesc("");
+    setSlotId("");
   }
+
+  useEffect(() => {
+    if (open) setSlotId((slots[0]?.id as string) ?? "");
+  }, [open, slots]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -424,7 +591,34 @@ function RequestDialog({
         <form onSubmit={submit} className="mt-2 space-y-3">
           <div className="space-y-1.5">
             <label className="text-xs text-muted-foreground">Slot</label>
-            <Input value={slots[0] ? `${slots[0].date} ${slots[0].startTime}` : ""} readOnly />
+            <Textarea
+              value={
+                slotId
+                  ? (slots.find((s) => s.id === slotId) ? `${(slots.find((s) => s.id === slotId) as any)?.date} ${(slots.find((s) => s.id === slotId) as any)?.startTime}` : "")
+                  : ""
+              }
+              readOnly
+              className="h-16"
+            />
+            {slots.length > 1 ? (
+              <div className="flex flex-wrap gap-2">
+                {slots.map((s) => (
+                  <Button
+                    key={s.id}
+                    type="button"
+                    size="sm"
+                    variant={slotId === s.id ? "hero" : "outline"}
+                    onClick={() => setSlotId(s.id)}
+                  >
+                    {s.date} {s.startTime}
+                  </Button>
+                ))}
+              </div>
+            ) : (
+              slots.length === 0 && (
+                <p className="text-xs text-destructive">No slots available. Create one first.</p>
+              )
+            )}
           </div>
           <div className="space-y-1.5">
             <label className="text-xs text-muted-foreground">Title</label>
@@ -444,7 +638,7 @@ function RequestDialog({
             />
           </div>
           <DialogFooter>
-            <Button type="submit" disabled={!title}>
+            <Button type="submit" disabled={!slotId || !title}>
               Request
             </Button>
           </DialogFooter>
@@ -469,14 +663,11 @@ function SlotDialog({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    const token = (await import("@/api/client")).getToken();
-    await fetch(`/api/meetings/slots`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({ title: "Available Slot", date, startTime: start, endTime: end }),
+    await createSlot({
+      title: "Available Slot",
+      date,
+      startTime: start,
+      endTime: end,
     });
     onCreated();
     onOpenChange(false);
@@ -510,6 +701,65 @@ function SlotDialog({
             </Button>
           </DialogFooter>
         </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CoordinationDialog({
+  open,
+  onOpenChange,
+  meeting,
+  value,
+  onChange,
+  onSave,
+  saving,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  meeting: Meeting | null;
+  value: Record<string, { platform?: string; link?: string; notes?: string }>;
+  onChange: (id: string, patch: Record<string, string | undefined>) => void;
+  onSave: (id: string) => void;
+  saving: boolean;
+}) {
+  if (!meeting) return null;
+  const cur = value[meeting.id] ?? {};
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit coordination</DialogTitle>
+          <DialogDescription>Platform, link, and notes for this meeting.</DialogDescription>
+        </DialogHeader>
+        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+          <Input
+            placeholder="Platform"
+            value={cur.platform ?? ""}
+            onChange={(e) => onChange(meeting!.id, { platform: e.target.value })}
+          />
+          <Input
+            placeholder="Link"
+            value={cur.link ?? ""}
+            onChange={(e) => onChange(meeting!.id, { link: e.target.value })}
+          />
+          <Textarea
+            placeholder="Agenda / notes"
+            className="sm:col-span-2"
+            value={cur.notes ?? ""}
+            onChange={(e) => onChange(meeting!.id, { notes: e.target.value })}
+          />
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
+          <Button variant="hero" onClick={() => onSave(meeting.id)} disabled={saving}>
+            {saving && <Loader2 className="mr-2 size-4 animate-spin" />}
+            Save
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

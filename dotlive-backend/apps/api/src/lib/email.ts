@@ -472,4 +472,85 @@ export const emailTemplates = {
     }),
     text: `We received your venture "${args.ventureName}". A reviewer will look at it within 48 hours.\n\nView status: ${args.statusUrl}`,
   }),
+
+  /* ── Shared transactional weave helper ── */
+  weaveHtml: ({ preview, headline, body }: { preview: string; headline: string; body: string }) =>
+    layout({ preview, body: `<div style="padding:24px 24px 8px"><p style="margin:0 0 6px;font-size:11px;color:${E.accent};letter-spacing:0.12em;text-transform:uppercase;font-weight:600">Notification</p><h1 style="margin:0;font-size:22px;font-weight:600;color:${E.text}">${headline}</h1></div><div style="padding:12px 24px 24px">${body}</div>`, appUrl: "https://dotlive.cv" }),
+
+  /* ── Meeting requested ── */
+  meetingRequested: (args: { name: string; slotLabel: string; meetingTitle: string; requestUrl: string }) => ({
+    subject: `Meeting requested: ${args.meetingTitle}`,
+    html: emailTemplates.weaveHtml({
+      preview: `Meeting request: ${args.meetingTitle}`,
+      headline: "Meeting requested",
+      body: `<p style="margin:0 0 12px;font-size:14px;color:${E.muted};line-height:1.6">Hey ${args.name?.split(" ")[0] ?? "founder"} — someone requested <strong style="color:${E.text}">${args.meetingTitle}</strong> on ${args.slotLabel}.</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td align="center"><a href="${args.requestUrl}" style="display:inline-block;background:${E.accent};color:${E.bg};padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px">Open request →</a></td></tr></table>`,
+    }),
+    text: `Meeting request: ${args.meetingTitle} on ${args.slotLabel}\n\nOpen: ${args.requestUrl}`,
+  }),
+
+  /* ── Meeting confirmed ── */
+  meetingConfirmed: (args: { name: string; meetingTitle: string; scheduledAt: string; sessionUrl?: string | null }) => ({
+    subject: `Confirmed: ${args.meetingTitle}`,
+    html: emailTemplates.weaveHtml({
+      preview: `Meeting confirmed: ${args.meetingTitle}`,
+      headline: "Meeting confirmed",
+      body: `<p style="margin:0 0 8px;font-size:14px;color:${E.muted};line-height:1.6">Hey ${args.name?.split(" ")[0] ?? "founder"} — <strong style="color:${E.text}">${args.meetingTitle}</strong> is confirmed.</p><p style="margin:0 0 6px;font-size:12px;color:${E.faint}">${args.scheduledAt}${args.sessionUrl ? `<br/><a href="${args.sessionUrl}" style="color:${E.muted};text-decoration:underline">Join session →</a>` : ""}</p>`,
+    }),
+    text: `Confirmed: ${args.meetingTitle}\n${args.scheduledAt}\n${args.sessionUrl ?? ""}`,
+  }),
+
+  /* ── Transaction receipt ── */
+  transactionReceipt: (args: { name: string; type: string; amount: string; balance: string; txUrl?: string | null }) => ({
+    subject: `${args.type === "credit" ? "Credit" : "Debit"} receipt — ${args.amount} DOT`,
+    html: emailTemplates.weaveHtml({
+      preview: `${args.type} ${args.amount} DOT`,
+      headline: args.type === "credit" ? "DOT credited" : "DOT debited",
+      body: `<p style="margin:0 0 10px;font-size:14px;color:${E.muted};line-height:1.6">${args.type === "credit" ? "You received" : "You sent"} <span style="font-family:${E.fontMono};color:${E.text};font-weight:600">${args.amount} DOT</span>.</p><p style="margin:0 0 6px;font-size:12px;color:${E.faint}">Wallet balance: ${args.balance} DOT${args.txUrl ? ` · <a href="${args.txUrl}" style="color:${E.muted};text-decoration:underline">View transaction</a>` : ""}</p>`,
+    }),
+    text: `${args.type === "credit" ? "Received" : "Sent"} ${args.amount} DOT\nWallet balance: ${args.balance} DOT\n${args.txUrl ?? ""}`,
+  }),
+
+  /* ── Investor update ── */
+  investorUpdate: (args: { name: string; headline: string; body: string; ctaLabel?: string; ctaUrl?: string | null }) => ({
+    subject: args.headline,
+    html: emailTemplates.weaveHtml({
+      preview: args.headline,
+      headline: args.headline,
+      body: `<p style="margin:0 0 16px;font-size:14px;color:${E.muted};line-height:1.6">${args.body}</p>${args.ctaUrl ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td align="center"><a href="${args.ctaUrl}" style="display:inline-block;background:${E.accent};color:${E.bg};padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px">${args.ctaLabel ?? "Open"}</a></td></tr></table>` : ""}`,
+    }),
+    text: `${args.headline}\n\n${args.body}\n${args.ctaUrl ?? ""}`,
+  }),
+
+  /* ── Academy enrollment ── */
+  academyEnrollment: (args: { name: string; courseTitle: string; learnUrl: string }) => ({
+    subject: `Enrolled: ${args.courseTitle}`,
+    html: emailTemplates.weaveHtml({
+      preview: `You're enrolled in ${args.courseTitle}`,
+      headline: "New enrollment",
+      body: `<p style="margin:0 0 12px;font-size:14px;color:${E.muted};line-height:1.6">Hey ${args.name?.split(" ")[0] ?? "founder"} — you're enrolled in <strong style="color:${E.text}">${args.courseTitle}</strong>. Start whenever you're ready.</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td align="center"><a href="${args.learnUrl}" style="display:inline-block;background:${E.accent};color:${E.bg};padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px">Open course →</a></td></tr></table>`,
+    }),
+    text: `Enrolled: ${args.courseTitle}\n\nContinue: ${args.learnUrl}`,
+  }),
+
+  /* ── Payout status ── */
+  payoutStatus: (args: { name: string; amount: string; status: string; note?: string | null; supportUrl: string }) => ({
+    subject: `Payout ${args.status}: ${args.amount} DOT`,
+    html: emailTemplates.weaveHtml({
+      preview: `Payout ${args.status}`,
+      headline: `Payout ${args.status}`,
+      body: `<p style="margin:0 0 8px;font-size:14px;color:${E.muted};line-height:1.6">Hey ${args.name?.split(" ")[0] ?? "founder"} — your payout of <span style="font-family:${E.fontMono};color:${E.text};font-weight:600">${args.amount} DOT</span> was marked <strong style="color:${E.text}">${args.status}</strong>.</p>${args.note ? `<p style="margin:0 0 10px;font-size:13px;color:${E.muted}">Note: ${args.note}</p>` : ""}<p style="margin:0;font-size:12px;color:${E.faint}">Need help? <a href="${args.supportUrl}" style="color:${E.muted};text-decoration:underline">Contact support</a></p>`,
+    }),
+    text: `Payout ${args.status}: ${args.amount} DOT\n${args.note ?? ""}\nSupport: ${args.supportUrl}`,
+  }),
+
+  /* ── KYC status ── */
+  kycStatus: (args: { name: string; status: string; reason?: string | null; retryUrl: string }) => ({
+    subject: `KYC ${args.status}`,
+    html: emailTemplates.weaveHtml({
+      preview: `KYC updated: ${args.status}`,
+      headline: `KYC ${args.status}`,
+      body: `<p style="margin:0 0 10px;font-size:14px;color:${E.muted};line-height:1.6">Hey ${args.name?.split(" ")[0] ?? "founder"} — your KYC submission was updated to <strong style="color:${E.text}">${args.status}</strong>.</p>${args.reason ? `<p style="margin:0 0 12px;font-size:13px;color:${E.muted}">${args.reason}</p>` : ""}<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td align="center"><a href="${args.retryUrl}" style="display:inline-block;background:${E.accent};color:${E.bg};padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px">Open KYC →</a></td></tr></table>`,
+    }),
+    text: `KYC status: ${args.status}\n${args.reason ?? ""}\nOpen KYC: ${args.retryUrl}`,
+  }),
 };

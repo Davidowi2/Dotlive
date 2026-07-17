@@ -29,7 +29,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/use-auth";
+import { useDotAuth as useAuth } from "@/contexts/DotAuthContext";
 import { toast } from "sonner";
 import {
   getMyMeetings,
