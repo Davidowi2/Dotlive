@@ -333,7 +333,8 @@ app.setErrorHandler((err, req, reply) => {
  */
 async function runBootstrapMigrations() {
   try {
-    const { sql: neonSql } = await import("./db/client.js");
+    const { neon } = await import("@neondatabase/serverless");
+    const neonSql = neon(process.env.DATABASE_URL || "");
 
     // integration_secrets — required by /api/admin/integrations
     await neonSql`
@@ -458,11 +459,15 @@ async function runBootstrapMigrations() {
     console.log("[startup] Bootstrap migrations complete");
   } catch (err) {
     console.error("[startup] Bootstrap migration error:", err);
+    // Return early - if we can't connect to DB, don't try more migrations
+    return;
   }
 
     // 0013 — runtime fixes (missing tables/columns causing 500s)
   try {
-    const { sql: neonSql } = await import("./db/client.js");
+    // Reuse the neon connection
+    const { neon } = await import("@neondatabase/serverless");
+    const neonSql = neon(process.env.DATABASE_URL || "");
     await neonSql`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS is_archived boolean NOT NULL DEFAULT false`;
     await neonSql`ALTER TABLE users ADD COLUMN IF NOT EXISTS headline text`;
     await neonSql`ALTER TABLE users ADD COLUMN IF NOT EXISTS location text`;
