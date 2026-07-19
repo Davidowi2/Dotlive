@@ -1,7 +1,3 @@
-/**
- * Upload API — wraps the Fastify /api/upload/* endpoints.
- * Uses Cloudinary for all media storage.
- */
 import { getToken } from "./client";
 import { ApiError } from "@/types/api";
 
@@ -24,7 +20,7 @@ export async function uploadImage(file: File, folder = "avatars"): Promise<strin
       method: "POST",
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       body: formData,
-    }
+    },
   );
 
   if (!res.ok) {
@@ -54,7 +50,7 @@ export async function uploadDocument(file: File, folder = "documents"): Promise<
       method: "POST",
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       body: formData,
-    }
+    },
   );
 
   if (!res.ok) {
@@ -67,4 +63,8 @@ export async function uploadDocument(file: File, folder = "documents"): Promise<
 
   const data = (await res.json()) as { url: string };
   return data.url;
+}
+
+export async function uploadPitchDeck(file: File): Promise<string> {
+  return uploadDocument(file, "pitch-decks");
 }

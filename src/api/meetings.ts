@@ -159,6 +159,22 @@ export async function cancelMeeting(id: string, reason?: string): Promise<Meetin
   return dotApi.post<Meeting & { warning?: string }>(`/api/meetings/${id}/cancel`, { reason });
 }
 
+export async function rescheduleMeeting(data: { id: string; reason?: string }): Promise<Meeting> {
+  return dotApi.post<Meeting>(`/api/meetings/${data.id}/reschedule`, { reason: data.reason ?? null });
+}
+
+export async function completeMeeting({ id }: { id: string }): Promise<Meeting & { autoCompleted?: boolean }> {
+  return dotApi.post<Meeting & { autoCompleted?: boolean }>(`/api/meetings/${id}/complete`);
+}
+
+export async function getMeetingMessages(id: string): Promise<Array<{ id: string; meetingId: string; authorId: string; body: string; createdAt: string; authorName: string | null }>> {
+  return dotApi.get(`/api/meetings/${id}/chat`);
+}
+
+export async function sendMeetingMessage(id: string, data: { body: string }): Promise<{ id: string; meetingId: string; authorId: string; body: string; createdAt: string }> {
+  return dotApi.post(`/api/meetings/${id}/chat`, data);
+}
+
 /**
  * Update meeting coordination details (host or guest)
  */
@@ -174,21 +190,4 @@ export async function updateMeetingCoordination(
   return dotApi.put<Meeting>(`/api/meetings/${id}/coordination`, data);
 }
 
-/**
- * Get chat messages for a meeting
- */
-export async function getMeetingMessages(
-  id: string
-): Promise<Array<{ id: string; meetingId: string; authorId: string; body: string; createdAt: string; authorName: string | null }>> {
-  return dotApi.get(`/api/meetings/${id}/chat`);
-}
 
-/**
- * Send a chat message to a meeting
- */
-export async function sendMeetingMessage(
-  id: string, 
-  data: { body: string }
-): Promise<{ id: string; meetingId: string; authorId: string; body: string; createdAt: string }> {
-  return dotApi.post(`/api/meetings/${id}/chat`, data);
-}

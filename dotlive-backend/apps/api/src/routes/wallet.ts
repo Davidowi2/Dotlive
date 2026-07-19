@@ -7,8 +7,8 @@ import { z } from "zod";
 import { eq, desc } from "drizzle-orm";
 
 import { db } from "../db/client.js";
-import { wallets, transactions } from "../db/schema.js";
-import { transferDot, debitWallet } from "../lib/dot.js";
+import { wallets, transactions, userRoles, roleRequirements } from "../db/schema.js";
+import { transferDot, debitWallet, creditWallet } from "../lib/dot.js";
 
 const transferSchema = z.object({
   toDotId: z.string().min(3),
@@ -97,7 +97,7 @@ export async function walletRoutes(app: FastifyInstance) {
           userId: recipient[0].id,
           type: "transfer_received",
           title: `You received ${amountStr}`,
-          body: `From ${parsed.data.toDotId !== parsed.data.toDotId ? "another DOT user" : "another DOT user"}${parsed.data.description ? ` — "${parsed.data.description}"` : ""}. Your wallet has been credited.`,
+          body: `From another DOT user${parsed.data.description ? ` — "${parsed.data.description}"` : ""}. Your wallet has been credited.`,
           link: "/wallet",
           icon: "Wallet",
           sendEmail: true,
@@ -113,10 +113,8 @@ export async function walletRoutes(app: FastifyInstance) {
       return reply.code(500).send({ error: msg });
     }
   });
-  /** POST /api/wallet/spend — generic DOT debit (e.g. session registration).
-   * Mirrors the `spend_dot` Postgres RPC that the previous Supabase schema
-   * exposed: balance check + insert transaction row + decrement balance,
-   * all atomic. */
+
+  /** POST /api/wallet/spend — generic DOT debit */
   app.post("/wallet/spend", { preHandler: app.authenticate, config: { rateLimit: { max: 30, timeWindow: "1 minute" } } }, async (req, reply) => {
     const { sub } = req.user as { sub: string };
     const schema = z.object({
@@ -142,5 +140,41 @@ export async function walletRoutes(app: FastifyInstance) {
     }
   });
 
+  /** GET /api/wallet/role-upgrade-options */
+  app.get("/wallet/role-upgrade-options", { preHandler: app.authenticate }, async (req, reply) => {
+    const { sub } = req.user as { sub: string };
+
+    const [walletRow] = await db.select().from(wallets).where(eq(wallets.userId, sub)).limit(1);
+    const balance = Number(walletRow?.balance ?? 0);
+
+    const requirements = await db.select().from(roleRequirements).where(eq(roleRequirements.isActive, true));
+    const owned = await db.select().from(userRoles).where(eq(userRoles.userId, sub));
+
+    const ownedRoles = new Set(owned.map((r) => r.role));
+    const options = requirements.map((req) => ({
+      role: req.role,
+      title: req.title,
+      cost: Number(req.dotCost ?? 0),
+      canAfford: balance >= Number(req.dotCost ?? 0),
+      hasRole: ownedRoles.has(req.role),
+    }));
+
+    return reply.send({ options });
+  });
+
+  /** GET /api/wallet/role-renewal-status */
+  app.get("/wallet/role-renewal-status", { preHandler: app.authenticate }, async (req, reply) => {
+    const { sub } = req.user as { sub: string };
+
+    const owned = await db.select().from(userRoles).where(eq(userRoles.userId, sub));
+    const statuses = owned.map((r) => ({
+      role: r.role,
+      hasRenewalTracking: false,
+    }));
+
+    return reply.send({ statuses });
+  });
+
 }
+
 // @ts-nocheck

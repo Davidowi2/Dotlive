@@ -1,20 +1,38 @@
 /**
- * /admin/integrations — Save the Whop API key + webhook secret.
+ * /admin/integrations — integration health + config.
+ *
+ * Cards per provider:
+ *  - Paystack
+ *  - Whop
+ *  - Cloudinary
+ *  - Resend
+ *
+ * Each card shows: name, status, last sync, config preview, test/reconnect actions.
  */
+
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  KeyRound, Save, Eye, EyeOff, Loader2,
-  ShieldCheck, RefreshCw, Check, Package, AlertCircle,
+  RefreshCw, CheckCircle2, AlertTriangle, Eye, EyeOff, Loader2,
+  ShieldCheck, ExternalLink, Save, Server,
 } from "lucide-react";
 import { PageHeader } from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { getIntegrations, setIntegration } from "@/api/adminAcademy";
 import { dotApi } from "@/api/client";
+
+type IntegrationHealth = {
+  provider: string;
+  name: string;
+  description: string;
+  status: "ok" | "degraded" | "down" | "unknown";
+  lastSync: string | null;
+  configPreview: string | null;
+};
 
 export const Route = createFileRoute("/_authenticated/admin/integrations")({
   head: () => ({ meta: [{ title: "Integrations — Admin — DOT" }] }),
@@ -23,254 +41,199 @@ export const Route = createFileRoute("/_authenticated/admin/integrations")({
 
 function AdminIntegrationsPage() {
   const qc = useQueryClient();
-  const q = useQuery({
-    queryKey: ["admin-integrations"],
-    queryFn: getIntegrations,
-    retry: 1,
+
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ["admin-integrations-health"],
+    queryFn: async () => {
+      const res = await dotApi.get<{ paystack: any; whop: any; cloudinary: any; resend: any }>("/api/admin/integrations/status");
+      const map = (provider: string, name: string, description: string) => {
+        const raw = (res as any)[provider] ?? {};
+        return {
+          provider,
+          name,
+          description,
+          status: raw.status ?? "unknown",
+          lastSync: raw.lastSync ?? null,
+          configPreview: raw.configured ? "configured" : null,
+        } satisfies IntegrationHealth;
+      };
+      return [
+        map("paystack", "Paystack", "Naira deposits → DOT credit"),
+        map("whop", "Whop", "Academy/webhook provider"),
+        map("cloudinary", "Cloudinary", "Media uploads"),
+        map("resend", "Resend", "Transactional email"),
+      ];
+    },
+    staleTime: 15_000,
   });
 
-  const isErr = q.isError || (q.data === undefined && !q.isLoading);
+  const providers: IntegrationHealth[] = data ?? [];
+  const testMut = useMutation({
+    mutationFn: async (provider: string) =>
+      dotApi.post(`/api/admin/integrations/${provider}/test`, {}),
+    onSuccess: (res, provider) => {
+      toast.success(`${provider} test succeeded`);
+      refetch();
+    },
+    onError: (e: any, _vars: string) => toast.error(e?.message ?? "Test failed"),
+  });
+
+  const reconnectMut = useMutation({
+    mutationFn: async (provider: string) =>
+      dotApi.post(`/api/admin/integrations/${provider}/reconnect`, {}),
+    onSuccess: (_, provider) => {
+      toast.success(`${provider} reconnect initiated`);
+      refetch();
+    },
+    onError: (e: any, _vars: string) => toast.error(e?.message ?? "Reconnect failed"),
+  });
 
   return (
     <div>
       <PageHeader
-        eyebrow="Whop"
+        eyebrow="Ops"
         title="Integrations"
-        subtitle="Save your Whop API key and webhook signing secret."
+        subtitle="Provider health, config previews, test and reconnect actions."
+        action={
+          <Button variant="outline" onClick={() => refetch()} disabled={isLoading}>
+            <RefreshCw className={`size-4 ${isLoading ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+        }
       />
 
-      {/* Error banner */}
-      {isErr && !q.isLoading && (
-        <div className="mt-4 flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
-          <AlertCircle className="size-4 shrink-0" />
-          <span>Could not load integration status — the table may not exist yet on this server. Save a value to create it.</span>
+      {isError && (
+        <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
+          Could not load integration health.
         </div>
       )}
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
-        <IntegrationCard
-          title="Whop API key"
-          description="Required to pull product lists from Whop. Get it at whop.com → Settings → API."
-          preview={q.data?.whop_api_key}
-          loading={q.isLoading}
-          onSave={async (val) => {
-            await setIntegration("whop_api_key", val);
-            toast.success("Whop API key saved");
-            qc.invalidateQueries({ queryKey: ["admin-integrations"] });
-          }}
-          placeholder="whop_xxxxxxxxxxxxxxxxxxxxxxxx"
-          fieldName="whop-api-key"
-        />
-        <IntegrationCard
-          title="Whop webhook signing secret"
-          description="Generated when you create a webhook in Whop → /api/webhooks/whop. Verifies HMAC-SHA256."
-          preview={q.data?.whop_webhook_secret}
-          loading={q.isLoading}
-          onSave={async (val) => {
-            await setIntegration("whop_webhook_secret", val);
-            toast.success("Webhook secret saved");
-            qc.invalidateQueries({ queryKey: ["admin-integrations"] });
-          }}
-          placeholder="whsec_xxxxxxxxxxxxxxxxxxxxxxxx"
-          fieldName="whop-webhook-secret"
-        />
-      </div>
-
-      <section className="mt-6 rounded-2xl border border-border bg-card p-6">
-        <div className="flex items-start gap-3">
-          <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <ShieldCheck className="size-4" />
-          </span>
-          <div className="text-sm">
-            <h2 className="font-display text-base font-semibold mb-2">How to wire Whop → DOT</h2>
-            <ol className="list-decimal space-y-1.5 pl-5 text-muted-foreground">
-              <li>Go to <a href="https://whop.com/dashboard" target="_blank" rel="noreferrer" className="text-primary hover:underline">whop.com/dashboard</a> → Settings → API → copy your API key → paste above</li>
-              <li>Create a webhook in Whop → Settings → Webhooks → endpoint:
-                <code className="block mt-1 rounded bg-muted px-2 py-1 text-xs">https://dotlive-api.onrender.com/api/webhooks/whop</code>
-              </li>
-              <li>Subscribe to <code className="rounded bg-muted px-1 py-0.5">checkout.completed</code> events → copy signing secret → paste above</li>
-              <li>Click <strong>Sync from Whop</strong> below to auto-import your products as courses</li>
-              <li>Test end-to-end at <a href="/admin/test-webhook" className="text-primary hover:underline">/admin/test-webhook</a></li>
-            </ol>
-          </div>
-        </div>
-      </section>
-
-      <SyncFromWhop />
-    </div>
-  );
-}
-
-function IntegrationCard({
-  title,
-  description,
-  preview,
-  loading,
-  onSave,
-  placeholder,
-  fieldName,
-}: {
-  title: string;
-  description: string;
-  preview?: { set: boolean; preview: string; updatedAt: string | null } | null;
-  loading: boolean;
-  onSave: (value: string) => Promise<void>;
-  placeholder: string;
-  fieldName: string;
-}) {
-  const [value, setValue] = useState("");
-  const [show, setShow] = useState(false);
-  const [saving, setSaving] = useState(false);
-
-  const isSet = preview?.set === true;
-  const previewText = isSet ? (preview?.preview ?? "") : "";
-  const updatedAt = isSet && preview?.updatedAt
-    ? new Date(preview.updatedAt).toLocaleDateString()
-    : null;
-
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault();
-    if (!value.trim()) return;
-    setSaving(true);
-    try {
-      await onSave(value.trim());
-      setValue("");
-    } catch (err: any) {
-      toast.error(err?.message ?? "Save failed");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div className="rounded-2xl border border-border bg-card p-5">
-      <div className="flex items-center justify-between gap-2 mb-1">
-        <h3 className="font-display text-sm font-semibold">{title}</h3>
-        {loading ? (
-          <Loader2 className="size-4 animate-spin text-muted-foreground" />
-        ) : isSet ? (
-          <Badge variant="default">Set</Badge>
-        ) : (
-          <Badge variant="secondary">Not set</Badge>
-        )}
-      </div>
-      <p className="text-xs text-muted-foreground">{description}</p>
-
-      {isSet && (
-        <div className="mt-2 rounded-md border border-border bg-muted/30 px-2 py-1 text-[10px] font-mono text-muted-foreground">
-          {previewText}{updatedAt ? ` · updated ${updatedAt}` : ""}
-        </div>
-      )}
-
-      {/* Wrap in form to satisfy browser accessibility and fix DOM warning */}
-      <form id={`integration-form-${fieldName}`} onSubmit={handleSave} className="mt-3 space-y-2">
-        {/* Hidden username field satisfies browser password manager expectations */}
-        <input type="text" name="username" autoComplete="username" className="hidden" readOnly value="dotlive-operator" aria-hidden="true" tabIndex={-1} />
-        <div className="relative">
-          <Input
-            id={fieldName}
-            name={fieldName}
-            type={show ? "text" : "password"}
-            autoComplete={show ? "off" : "new-password"}
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            placeholder={placeholder}
-            className="pr-10 font-mono text-xs"
-            aria-label={title}
+        {providers.map((p) => (
+          <ProviderCard
+            key={p.provider}
+            provider={p}
+            onTest={() => testMut.mutate(p.provider)}
+            onReconnect={() => reconnectMut.mutate(p.provider)}
+            testing={testMut.isPending}
+            reconnecting={reconnectMut.isPending}
           />
-          <button
-            type="button"
-            onClick={() => setShow((v) => !v)}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
-            aria-label={show ? "Hide" : "Show"}
-          >
-            {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-          </button>
-        </div>
-        <Button
-          type="submit"
-          size="sm"
-          className="w-full"
-          disabled={saving || !value.trim()}
-        >
-          {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-          {isSet ? "Update" : "Save"}
-        </Button>
-      </form>
+        ))}
+      </div>
     </div>
   );
 }
 
-function SyncFromWhop() {
-  const qc = useQueryClient();
-  const [result, setResult] = useState<{ created: number; skipped: number; products: any[] } | null>(null);
+function ProviderCard({
+  provider,
+  onTest,
+  onReconnect,
+  testing,
+  reconnecting,
+}: {
+  provider: IntegrationHealth;
+  onTest: () => void;
+  onReconnect: () => void;
+  testing: boolean;
+  reconnecting: boolean;
+}) {
+  const [showConfig, setShowConfig] = useState(false);
 
-  const syncMut = useMutation({
-    mutationFn: async () =>
-      dotApi.post<{ created: number; skipped: number; products: any[] }>(
-        "/api/admin/integrations/sync-whop", {}
-      ),
-    onSuccess: (data) => {
-      setResult(data);
-      qc.invalidateQueries({ queryKey: ["admin-courses"] });
-      qc.invalidateQueries({ queryKey: ["academy-courses"] });
-      toast.success(`Synced — ${data.created} new, ${data.skipped} already existed`);
-    },
-    onError: (e: any) => {
-      const msg = e?.message ?? "Sync failed";
-      toast.error(msg.includes("apik_") || msg.includes("API key")
-        ? "Check your Whop API key — use a Company API key from whop.com/developer (starts with apik_)"
-        : msg
-      );
-    },
-  });
+  const accent =
+    provider.status === "ok"
+      ? "border-emerald-500/30 bg-emerald-500/5"
+      : provider.status === "degraded"
+      ? "border-amber-500/30 bg-amber-500/5"
+      : provider.status === "down"
+      ? "border-red-500/30 bg-red-500/5"
+      : "border-border";
 
   return (
-    <section className="mt-4 rounded-2xl border border-primary/20 bg-primary/5 p-6">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <RefreshCw className="size-4 text-primary" />
-            <h2 className="font-display text-base font-semibold">Sync from Whop</h2>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Pull all your Whop products and create them as courses in DOT Academy.
-            Products already imported are skipped.
-          </p>
-        </div>
-        <Button onClick={() => syncMut.mutate()} disabled={syncMut.isPending} variant="hero">
-          {syncMut.isPending
-            ? <><Loader2 className="size-4 animate-spin" /> Syncing…</>
-            : <><RefreshCw className="size-4" /> Sync now</>}
-        </Button>
-      </div>
-
-      {result && (
-        <div className="mt-4 space-y-2">
-          <div className="flex gap-3 text-sm">
-            <span className="flex items-center gap-1.5 text-primary font-medium">
-              <Check className="size-3.5" /> {result.created} imported
+    <Card className={`rounded-2xl border ${accent}`}>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <Server className="size-4" />
             </span>
-            <span className="text-muted-foreground">{result.skipped} already existed</span>
-          </div>
-          {result.products.length > 0 && (
-            <div className="rounded-xl border border-border bg-card divide-y divide-border">
-              {result.products.map((p: any) => (
-                <div key={p.id} className="flex items-center gap-3 px-4 py-3 text-sm">
-                  <Package className="size-4 text-muted-foreground shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium truncate">{p.name}</p>
-                    <p className="text-xs text-muted-foreground font-mono">{p.id}</p>
-                  </div>
-                  <Badge variant={p.isNew ? "default" : "secondary"}>
-                    {p.isNew ? "Imported" : "Skipped"}
-                  </Badge>
-                </div>
-              ))}
+            <div>
+              <CardTitle className="text-sm font-semibold">{provider.name}</CardTitle>
+              <p className="text-xs text-muted-foreground">{provider.description}</p>
             </div>
-          )}
+          </div>
+          <StatusBadge status={provider.status} />
         </div>
-      )}
-    </section>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+          <span>Last sync: {provider.lastSync ? new Date(provider.lastSync).toLocaleString() : "Never"}</span>
+        </div>
+
+        {provider.configPreview && (
+          <div className="mt-3 rounded-lg border border-border bg-muted/30 px-2 py-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] uppercase tracking-widest text-muted-foreground">Config preview</span>
+              <button
+                type="button"
+                onClick={() => setShowConfig((v) => !v)}
+                className="text-[10px] text-primary hover:underline"
+              >
+                {showConfig ? "Hide" : "Show"}
+              </button>
+            </div>
+            {showConfig && (
+              <pre className="mt-2 overflow-x-auto rounded-md bg-muted/50 px-2 py-2 text-[11px] font-mono">
+                {provider.configPreview}
+              </pre>
+            )}
+          </div>
+        )}
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button size="sm" variant="secondary" onClick={onTest} disabled={testing}>
+            {testing ? <Loader2 className="size-3.5 animate-spin" /> : <ShieldCheck className="size-3.5" />}
+            Test
+          </Button>
+          <Button size="sm" variant="outline" onClick={onReconnect} disabled={reconnecting}>
+            {reconnecting ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
+            Reconnect
+          </Button>
+          <Button size="sm" variant="ghost" asChild>
+            <a href="/admin/test-webhook">
+              External <ExternalLink className="size-3.5" />
+            </a>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function StatusBadge({ status }: { status: IntegrationHealth["status"] }) {
+  if (status === "ok") {
+    return (
+      <Badge variant="default" className="gap-1 text-[10px]">
+        <CheckCircle2 className="size-3" /> Operational
+      </Badge>
+    );
+  }
+  if (status === "down") {
+    return (
+      <Badge variant="destructive" className="gap-1 text-[10px]">
+        <AlertTriangle className="size-3" /> Down
+      </Badge>
+    );
+  }
+  if (status === "degraded") {
+    return (
+      <Badge className="gap-1 border-amber-500/40 bg-amber-500/10 text-[10px] text-amber-700 dark:text-amber-300">
+        <AlertTriangle className="size-3" /> Degraded
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="secondary" className="gap-1 text-[10px]">
+      <Server className="size-3" /> Unknown
+    </Badge>
   );
 }

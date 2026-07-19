@@ -65,6 +65,31 @@ import {
 
 const REASON_MIN = 8;
 
+/**
+ * 2FA check for admin routes - admin/super_admin roles require 2FA enabled
+ */
+async function require2FAForAdmin(req: any, reply: any) {
+  const sub = (req as any).user?.sub;
+  if (!sub) return;
+  
+  const roles = await getUserRoles(sub);
+  const isAdminRole = roles.includes("admin") || roles.includes("super_admin");
+  if (!isAdminRole) return; // Only enforce for admin roles
+  
+  const [row] = await db
+    .select({ twoFactorEnabled: users.twoFactorEnabled })
+    .from(users)
+    .where(eq(users.id, sub))
+    .limit(1);
+  
+  if (!row?.twoFactorEnabled) {
+    return reply.code(403).send({ 
+      error: "2FA required for admin accounts", 
+      code: "2FA_REQUIRED" 
+    });
+  }
+}
+
 function reasonSchema() {
   return z.string().min(REASON_MIN).max(500);
 }
@@ -82,7 +107,7 @@ export async function adminRoutes(app: FastifyInstance) {
 
   app.get(
     "/me",
-    { preHandler: [app.authenticate, requireAdmin] },
+    { preHandler: [app.authenticate, requireAdmin, require2FAForAdmin] },
     async (req, reply) => {
       const sub = (req as any).user.sub;
       const u = await db
@@ -128,7 +153,7 @@ export async function adminRoutes(app: FastifyInstance) {
   app.post(
     "/confirm",
     {
-      preHandler: [app.authenticate, requireAdmin],
+      preHandler: [app.authenticate, requireAdmin, require2FAForAdmin],
     },
     async (req, reply) => {
       const parsed = confirmBodySchema.safeParse(req.body);
@@ -158,7 +183,7 @@ export async function adminRoutes(app: FastifyInstance) {
 
   app.get(
     "/users",
-    { preHandler: [app.authenticate, requireAdmin] },
+    { preHandler: [app.authenticate, requireAdmin, require2FAForAdmin] },
     async (req, reply) => {
       const q = z
         .object({
@@ -273,7 +298,7 @@ export async function adminRoutes(app: FastifyInstance) {
 
   app.get(
     "/users/:id",
-    { preHandler: [app.authenticate, requireAdmin] },
+    { preHandler: [app.authenticate, requireAdmin, require2FAForAdmin] },
     async (req, reply) => {
       const { id } = req.params as { id: string };
       const u = await db.select().from(users).where(eq(users.id, id)).limit(1);
@@ -534,7 +559,7 @@ export async function adminRoutes(app: FastifyInstance) {
 
   app.get(
     "/ventures",
-    { preHandler: [app.authenticate, requireAdmin] },
+    { preHandler: [app.authenticate, requireAdmin, require2FAForAdmin] },
     async (req, reply) => {
       const q = z
         .object({
@@ -596,7 +621,7 @@ export async function adminRoutes(app: FastifyInstance) {
 
   app.get(
     "/payments",
-    { preHandler: [app.authenticate, requireAdmin] },
+    { preHandler: [app.authenticate, requireAdmin, require2FAForAdmin] },
     async (req, reply) => {
       const q = z
         .object({
@@ -661,7 +686,7 @@ export async function adminRoutes(app: FastifyInstance) {
 
   app.get(
     "/feature-flags",
-    { preHandler: [app.authenticate, requireAdmin] },
+    { preHandler: [app.authenticate, requireAdmin, require2FAForAdmin] },
     async (_req, reply) => {
       const rows = await db.select().from(featureFlags).orderBy(asc(featureFlags.key));
       return reply.send({ flags: rows });
@@ -730,7 +755,7 @@ export async function adminRoutes(app: FastifyInstance) {
 
   app.get(
     "/audit",
-    { preHandler: [app.authenticate, requireAdmin] },
+    { preHandler: [app.authenticate, requireAdmin, require2FAForAdmin] },
     async (req, reply) => {
       const q = z
         .object({
@@ -818,7 +843,7 @@ export async function adminRoutes(app: FastifyInstance) {
   /** Update a moderation report's status (and optional note). Available to any admin. */
   app.patch<{ Params: { id: string } }>(
     "/admin/queue/reports/:id",
-    { preHandler: [app.authenticate, requireAdmin] },
+    { preHandler: [app.authenticate, requireAdmin, require2FAForAdmin] },
     async (req, reply) => {
       const { id } = req.params;
       const body = z
@@ -870,7 +895,7 @@ export async function adminRoutes(app: FastifyInstance) {
 
   app.get(
     "/stats",
-    { preHandler: [app.authenticate, requireAdmin] },
+    { preHandler: [app.authenticate, requireAdmin, require2FAForAdmin] },
     async (_req, reply) => {
       const safeCount = async (q: any) => {
         try { const r: any = await db.execute(q); const row = Array.isArray(r) ? r[0] : (r?.rows?.[0]); return Number(row?.n ?? 0); }

@@ -264,7 +264,8 @@ export async function userRoutes(app: FastifyInstance) {
       await db.execute(sql`
         INSERT INTO founder_profiles (
           user_id, venture_name, industry, stage, country,
-          bio, website, funding_goal, logo_url,
+          bio, pitch_deck_url, website, whatsapp_link, email_link, telegram_link, discord_link,
+          funding_goal, logo_url,
           vantage_point, fundability, investment_readiness,
           headcount, annual_revenue_dot, founded_year, total_raised_dot,
           share_price_kobo, shares_available,
@@ -277,7 +278,12 @@ export async function userRoutes(app: FastifyInstance) {
           ${(body.stage as string) ?? "Assess"},
           ${(body.country as string) ?? null},
           ${(body.bio as string) ?? null},
+          ${(body.pitchDeckUrl as string) ?? null},
           ${(body.website as string) ?? null},
+          ${(body.whatsappLink as string) ?? null},
+          ${(body.emailLink as string) ?? null},
+          ${(body.telegramLink as string) ?? null},
+          ${(body.discordLink as string) ?? null},
           ${(body.fundingGoal as string) ?? "0"},
           ${(body.logoUrl as string) ?? null},
           ${Number(body.vantagePoint ?? 0)},
@@ -297,7 +303,12 @@ export async function userRoutes(app: FastifyInstance) {
           stage = EXCLUDED.stage,
           country = EXCLUDED.country,
           bio = EXCLUDED.bio,
+          pitch_deck_url = EXCLUDED.pitch_deck_url,
           website = EXCLUDED.website,
+          whatsapp_link = EXCLUDED.whatsapp_link,
+          email_link = EXCLUDED.email_link,
+          telegram_link = EXCLUDED.telegram_link,
+          discord_link = EXCLUDED.discord_link,
           funding_goal = EXCLUDED.funding_goal,
           logo_url = EXCLUDED.logo_url,
           vantage_point = EXCLUDED.vantage_point,
@@ -314,7 +325,82 @@ export async function userRoutes(app: FastifyInstance) {
       return reply.send({ ok: true });
     });
 
-  /* ── Builder profile (builder_profiles table) ──────────────── */
+  /* ── Investor profile (investor_profiles table) ──────────────── */
+  /** GET /api/users/me/investor-profile */
+  app.get("/users/me/investor-profile", { preHandler: app.authenticate }, async (req, reply) => {
+    const { sub } = req.user as { sub: string };
+    const rows = await db.execute(sql`
+      SELECT * FROM investor_profiles WHERE user_id = ${sub} LIMIT 1
+    `);
+    const profile = (rows as any).rows?.[0] ?? null;
+    return reply.send({ profile });
+  });
+
+  /** POST /api/users/me/investor-profile */
+  app.post("/users/me/investor-profile", { preHandler: app.authenticate }, async (req, reply) => {
+    const { sub } = req.user as { sub: string };
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    await db.execute(sql`
+      INSERT INTO investor_profiles (
+        user_id, capital_type, check_size, focus_areas, track_record, created_at, updated_at
+      ) VALUES (
+        ${sub},
+        ${(body.capitalType as string) ?? null},
+        ${(body.checkSize as string) ?? null},
+        ${Array.isArray(body.focusAreas) ? (body.focusAreas as string[]) : []},
+        ${(body.trackRecord as string) ?? null},
+        NOW(), NOW()
+      )
+      ON CONFLICT (user_id) DO UPDATE SET
+        capital_type = EXCLUDED.capital_type,
+        check_size = EXCLUDED.check_size,
+        focus_areas = EXCLUDED.focus_areas,
+        track_record = EXCLUDED.track_record,
+        updated_at = NOW()
+    `);
+    return reply.send({ ok: true });
+  });
+
+  /* ── Capital Partner profile (capital_partner_profiles table) ── */
+  /** GET /api/users/me/capital-partner-profile */
+  app.get("/users/me/capital-partner-profile", { preHandler: app.authenticate }, async (req, reply) => {
+    const { sub } = req.user as { sub: string };
+    const rows = await db.execute(sql`
+      SELECT * FROM capital_partner_profiles WHERE user_id = ${sub} LIMIT 1
+    `);
+    const profile = (rows as any).rows?.[0] ?? null;
+    return reply.send({ profile });
+  });
+
+  /** POST /api/users/me/capital-partner-profile */
+  app.post("/users/me/capital-partner-profile", { preHandler: app.authenticate }, async (req, reply) => {
+    const { sub } = req.user as { sub: string };
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    await db.execute(sql`
+      INSERT INTO capital_partner_profiles (
+        user_id, institution_name, aum, focus_areas, fund_thesis,
+        decision_maker_contact, track_record, created_at, updated_at
+      ) VALUES (
+        ${sub},
+        ${(body.institutionName as string) ?? null},
+        ${(body.aum as string) ?? null},
+        ${Array.isArray(body.focusAreas) ? (body.focusAreas as string[]) : []},
+        ${(body.fundThesis as string) ?? null},
+        ${(body.decisionMakerContact as string) ?? null},
+        ${(body.trackRecord as string) ?? null},
+        NOW(), NOW()
+      )
+      ON CONFLICT (user_id) DO UPDATE SET
+        institution_name = EXCLUDED.institution_name,
+        aum = EXCLUDED.aum,
+        focus_areas = EXCLUDED.focus_areas,
+        fund_thesis = EXCLUDED.fund_thesis,
+        decision_maker_contact = EXCLUDED.decision_maker_contact,
+        track_record = EXCLUDED.track_record,
+        updated_at = NOW()
+    `);
+    return reply.send({ ok: true });
+  });
   /** GET /api/users/me/builder-profile */
   app.get("/users/me/builder-profile", { preHandler: app.authenticate }, async (req, reply) => {
     const { sub } = req.user as { sub: string };
@@ -421,6 +507,56 @@ export async function userRoutes(app: FastifyInstance) {
       },
     });
   });
+
+  /** GET /api/admin/users/lookup?q=... — admin/user lookup for B8.6.
+   * Returns richer fields than public lookup because it requires auth. */
+  app.get<{ Querystring: { q?: string } }>(
+    "/admin/users/lookup",
+    { preHandler: app.authenticate },
+    async (req, reply) => {
+      const { userHasRole } = await import("../lib/auth.js");
+      const ok =
+        (await userHasRole((req.user as any).sub, "admin")) ||
+        (await userHasRole((req.user as any).sub, "super_admin"));
+      if (!ok) return reply.code(403).send({ error: "Admin only" });
+
+      const q = (req.query.q ?? "").trim();
+      if (!q) return reply.code(400).send({ error: "q required" });
+
+      const like = `%${q.replace(/%/g, "\\%")}%`;
+      const rows = await db
+        .select({
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          dotId: users.dotId,
+          balance,
+          createdAt: users.createdAt,
+        })
+        .from(users)
+        .where(
+          sql`
+            ${users.name} ILIKE ${like}
+            OR ${users.email} ILIKE ${like}
+            OR ${users.dotId} ILIKE ${like}
+          `,
+        )
+        .limit(20);
+
+      const balances: Record<string, number> = {};
+      for (const r of (rows as any)) {
+        const b = await db.select().from(wallets).where(eq(wallets.userId, (r as any).id)).limit(1);
+        balances[(r as any).id] = Number(b[0]?.balance ?? 0);
+      }
+
+      return reply.send({
+        users: (rows as any).map((r: any) => ({
+          ...r,
+          balance: balances[r.id] ?? 0,
+        })),
+      });
+    },
+  );
 
   /** GET /api/founder-profiles — list all founder profiles (showcase).
    * Returns the snake_case fields the legacy frontend expects

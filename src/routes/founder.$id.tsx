@@ -1,10 +1,12 @@
 import { useState, useEffect, useMemo } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
+  Mail, Send,
   Building2, MapPin, Globe, Gauge, TrendingUp, Target, BookOpen, Trophy,
     Loader2, Shield, ArrowLeft, ArrowUpRight, Wallet, Heart, Users,
-    Briefcase, ExternalLink, Sparkles, Vote, ShoppingCart, ShieldCheck,
+    Briefcase, ExternalLink, Sparkles, Vote, ShoppingCart, ShieldCheck, MessageSquare, UserPlus,
 } from "lucide-react";
+
 import { VouchButton, VouchDisplay, VouchList } from "@/components/vouch";
 
 import { SiteHeader } from "@/components/site/SiteHeader";
@@ -20,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { dotApi } from "@/api/client";
+import { ConnectModal } from "@/components/app/ConnectModal";
 
 /**
  * Public Founder Profile — shareable URL.
@@ -54,6 +57,10 @@ type FounderData = {
       country: string;
       bio: string;
       website: string;
+      whatsappLink: string;
+      emailLink: string;
+      telegramLink: string;
+      discordLink: string;
       fundingGoal: number;
       logoUrl: string;
       vantagePoint: number;
@@ -61,12 +68,12 @@ type FounderData = {
       investmentReadiness: number;
       // Tier 3 — share offer
       sharePriceKobo?: number;
-    sharesAvailable?: number;
-    totalRaisedDot?: string;
-    headcount?: number;
-    annualRevenueDot?: string;
-    foundedYear?: number;
-  } | null;
+      sharesAvailable?: number;
+      totalRaisedDot?: string;
+      headcount?: number;
+      annualRevenueDot?: string;
+      foundedYear?: number;
+    } | null;
   stats: {
     totalVotes: number;
     voteCount: number;
@@ -93,6 +100,8 @@ function PublicFounderProfile() {
   const [data, setData] = useState<FounderData | null>(null);
   const [loading, setLoading] = useState(true);
   const [buyOpen, setBuyOpen] = useState(false);
+  const [connectOpen, setConnectOpen] = useState(false);
+  const [connectTarget, setConnectTarget] = useState<{ userId: string; userName: string; role: string; vantage: number } | null>(null);
   const { user } = useDotAuth();
   const investorsQ = useQuery({
     queryKey: ["venture-investors", data?.founder?.id],
@@ -189,6 +198,26 @@ function PublicFounderProfile() {
                   <Globe className="size-3.5" /> {profile.website.replace(/^https?:\/\//, "")} <ExternalLink className="size-3" />
                 </a>
               )}
+              {profile?.whatsappLink && (
+                <a href={profile.whatsappLink} target="_blank" rel="noopener" className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-1 text-emerald-700 hover:underline">
+                  <Wallet className="size-3.5" /> WhatsApp
+                </a>
+              )}
+              {profile?.emailLink && (
+                <a href={profile.emailLink} target="_blank" rel="noopener" className="flex items-center gap-1 text-primary hover:underline">
+                  <Mail className="size-3.5" /> Contact
+                </a>
+              )}
+              {profile?.telegramLink && (
+                <a href={profile.telegramLink} target="_blank" rel="noopener" className="flex items-center gap-1 text-primary hover:underline">
+                  <Send className="size-3.5" /> Telegram
+                </a>
+              )}
+              {profile?.discordLink && (
+                <a href={profile.discordLink} target="_blank" rel="noopener" className="flex items-center gap-1 text-primary hover:underline">
+                  <Users className="size-3.5" /> Discord
+                </a>
+              )}
             </div>
           </div>
           <div className="flex flex-col items-end gap-2">
@@ -199,7 +228,25 @@ function PublicFounderProfile() {
                           <Link to="/auth" search={{ mode: "signup" }}>Join DOT to invest</Link>
                         </Button>
                       ) : null}
-                      <Button variant="outline" asChild>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          if (!user) {
+                            window.location.href = `/auth?mode=signin&next=${encodeURIComponent(typeof window !== "undefined" ? window.location.pathname : "/")}`;
+                            return;
+                          }
+                          setConnectTarget({
+                            userId: founder.id,
+                            userName: founder.name ?? profile?.ventureName ?? "Founder",
+                            role: "founder",
+                            vantage: Number(profile?.vantagePoint ?? 0),
+                          });
+                          setConnectOpen(true);
+                        }}
+                      >
+                        Connect
+                      </Button>
+                      <Button variant="ghost" asChild>
                         <Link to="/discover">Find more founders</Link>
                       </Button>
                     </div>
@@ -352,6 +399,19 @@ function PublicFounderProfile() {
             sharePriceKobo: Number(profile.sharePriceKobo ?? 0),
             sharesAvailable: Number(profile.sharesAvailable ?? 0),
           }}
+        />
+      )}
+
+      {/* Connect Modal */}
+      {connectTarget && (
+        <ConnectModal
+          open={connectOpen}
+          onOpenChange={setConnectOpen}
+          targetUserId={connectTarget.userId}
+          targetUserName={connectTarget.userName}
+          targetUserRole={connectTarget.role}
+          targetUserVantage={connectTarget.vantage}
+          context={profile?.ventureName}
         />
       )}
 

@@ -314,7 +314,7 @@ function SigninForm({
         email,
         purpose: "signin",
       });
-      if (res.devCode) {
+      if (res.devCode && import.meta.env.DEV) {
         toast.success(`Dev mode: code is ${res.devCode}`);
       } else {
         toast.success(res.message);

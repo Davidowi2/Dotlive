@@ -1,15 +1,14 @@
 /**
- * /stakes — Stake DOT to earn 12% APY with a 14-day cooldown.
+ * /stakes — Stake DOT to unlock tier benefits.
  *
  * Reads the live /api/stakes endpoint. No mock data.
- * Earned rewards come from `rewardAccrued` (server-computed).
- * Claim button is disabled until the 14-day lock has elapsed.
+ * Stakes unlock premium features by tier: Bronze, Silver, Gold, Platinum.
  */
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Lock, Plus, Unlock, Sparkles, Clock, AlertCircle, Loader2 } from "lucide-react";
+import { Lock, Plus, Unlock, AlertCircle, Loader2, Check } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
 import { PageIntent } from "@/components/app/PageIntent";
@@ -19,21 +18,28 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { useDotAuth } from "@/contexts/DotAuthContext";
 import {
   getStakes,
   createStake,
   unstake,
-  claimRewards,
   type StakePosition,
+  type StakerTier,
 } from "@/api/stakes";
 import { useWallet } from "@/hooks/use-dot-data";
 import { formatDot } from "@/lib/constants";
 import { toast } from "sonner";
 
 const COOLDOWN_DAYS = 14;
-const APY_PCT = 12;
 const MIN_STAKE_DOT = 100;
+
+const TIERS: { name: string; min: number; color: string }[] = [
+  { name: "Bronze", min: 100, color: "text-orange-700" },
+  { name: "Silver", min: 1000, color: "text-slate-500" },
+  { name: "Gold", min: 10000, color: "text-yellow-600" },
+  { name: "Platinum", min: 100000, color: "text-indigo-600" },
+];
 
 export const Route = createFileRoute("/_authenticated/stakes")({
   head: () => ({ meta: [{ title: "Stakes — DOT" }] }),
@@ -55,18 +61,32 @@ function daysUntil(iso: string | null): number {
   return Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)));
 }
 
+function tierProgress(totalStaked: number, tier: StakerTier | undefined) {
+  const current = TIERS.find((t) => t.name === tier?.name) ?? null;
+  const next = current ? TIERS[TIERS.indexOf(current) + 1] : TIERS[0];
+  if (!next) return { label: "Max tier reached", remaining: 0, nextName: current?.name ?? "Platinum" };
+  const remaining = Math.max(0, next.min - totalStaked);
+  return { label: `${formatDot(remaining)} more DOT to reach ${next.name}`, remaining, nextName: next.name };
+}
+
 function StakesPage() {
   const { user } = useDotAuth();
   const qc = useQueryClient();
   const { data: balance } = useWallet();
 
-  const stakesQ = useQuery({
+  const stakesQ = useQuery<StakesResponse>({
     queryKey: ["stakes", "list", user?.id],
     enabled: !!user,
     queryFn: getStakes,
   });
 
-  const [amount, setAmount] = useState<string>("500");
+  const stakes: StakePosition[] = stakesQ.data?.stakes ?? [];
+  const tier = stakesQ.data?.tier;
+
+  const activeStakes = stakes.filter((s) => s.status === "active" || s.status === "unstaking");
+  const totalStaked = activeStakes.reduce((acc, s) => acc + Number(s.amount), 0);
+  const activeCount = stakes.filter((s) => s.status === "active").length;
+  const progress = tierProgress(totalStaked, tier);
 
   const createMut = useMutation({
     mutationFn: (n: number) => createStake({ amount: n }),
@@ -82,26 +102,13 @@ function StakesPage() {
   const unstakeMut = useMutation({
     mutationFn: (id: string) => unstake(id),
     onSuccess: () => {
-      toast.success("Unstake started — 14-day cooldown begins");
+      toast.success("Unstake started — cooldown begins");
       qc.invalidateQueries({ queryKey: ["stakes"] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Could not unstake"),
   });
 
-  const claimMut = useMutation({
-    mutationFn: (id: string) => claimRewards(id),
-    onSuccess: (res: any) => {
-      const claimed = Number(res?.claimed ?? 0);
-      toast.success(
-        claimed > 0
-          ? `Claimed ${formatDot(claimed)} DOT in rewards`
-          : "Nothing to claim yet"
-      );
-      qc.invalidateQueries({ queryKey: ["stakes"] });
-      qc.invalidateQueries({ queryKey: ["wallet", user?.id] });
-    },
-    onError: (e: any) => toast.error(e?.message ?? "Could not claim"),
-  });
+  const [amount, setAmount] = useState("500");
 
   if (stakesQ.isLoading) {
     return (
@@ -131,29 +138,54 @@ function StakesPage() {
     );
   }
 
-  const stakes: StakePosition[] = stakesQ.data ?? [];
-  const totalStaked = stakes
-    .filter((s) => s.status === "active" || s.status === "unstaking")
-    .reduce((acc, s) => acc + Number(s.amount), 0);
-  const totalRewards = stakes.reduce(
-    (acc, s) => acc + Number(s.rewardClaimed) + Number(s.rewardAccrued),
-    0
-  );
-  const activeCount = stakes.filter((s) => s.status === "active").length;
-
   return (
     <AppShell>
       <PageHeader
         eyebrow="Stakes"
         title="Stake DOT"
-        subtitle={`Earn ${APY_PCT}% APY with a ${COOLDOWN_DAYS}-day cooldown. Skin in the game is the only credibility that can't be faked.`}
+        subtitle="Stake DOT to unlock tier benefits. A cooldown applies when unstaking."
       />
 
       <PageIntent
         icon={<Lock className="size-5" />}
-        intent="How much DOT have you put on the line for your venture?"
-        context="Active stakes, accrued rewards, and the cooldown timer on every position."
+        intent="How much DOT have you committed to your reputation on DOT?"
+        context="Each stake contributes to your tier. Higher tiers unlock platform benefits."
       />
+
+      {/* Tier banner */}
+      {tier && (
+        <section className="mt-6 rounded-2xl border border-border bg-card p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Current tier</p>
+              <p className="font-display text-xl font-light">{tier.name}</p>
+            </div>
+            <Badge variant="secondary">Level {tier.level}</Badge>
+          </div>
+
+          <div className="mt-4">
+            <p className="text-sm font-medium tabular-nums">{progress.label}</p>
+            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full bg-primary transition-all"
+                style={{
+                  width: `${Math.min(100, (totalStaked / Math.max(1, progress.remaining + totalStaked)) * 100)}%`,
+                }}
+              />
+            </div>
+          </div>
+
+          {tier.benefits.length > 0 && (
+            <ul className="mt-4 grid grid-cols-1 gap-2 text-xs text-muted-foreground sm:grid-cols-2">
+              {tier.benefits.map((b) => (
+                <li key={b} className="flex items-center gap-2 text-foreground/80">
+                  <Check className="size-3.5 text-teal" /> {b}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
 
       {/* Summary cards */}
       <section className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -166,13 +198,13 @@ function StakesPage() {
         <SummaryCard
           label="Active positions"
           value={String(activeCount)}
-          icon={Sparkles}
+          icon={Unlock}
           accent="teal"
         />
         <SummaryCard
-          label="Lifetime rewards"
-          value={`${formatDot(totalRewards)} DOT`}
-          icon={Clock}
+          label="Next tier"
+          value={progress.nextName}
+          sub={progress.label}
           accent="gold"
         />
       </section>
@@ -223,9 +255,7 @@ function StakesPage() {
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            Rewards are calculated against the locked principal and become
-            claimable after the {COOLDOWN_DAYS}-day cooldown ends. Claim
-            manually — no auto-payout.
+            Staked DOT contributes to your tier. Unstaking starts a cooldown before funds return to your wallet.
           </p>
         </CardContent>
       </Card>
@@ -237,7 +267,7 @@ function StakesPage() {
           <EmptyState
             icon={Lock}
             title="No active stakes"
-            description={`Start a stake above to earn ${APY_PCT}% APY. ${COOLDOWN_DAYS}-day cooldown applies to all positions.`}
+            description={`Start a stake above to unlock premium features. ${COOLDOWN_DAYS}-day cooldown applies to all positions.`}
           />
         ) : (
           <ul className="mt-4 space-y-3">
@@ -245,11 +275,8 @@ function StakesPage() {
               <StakeRow
                 key={s.id}
                 stake={s}
-                busy={
-                  unstakeMut.isPending || claimMut.isPending
-                }
+                busy={unstakeMut.isPending}
                 onUnstake={() => unstakeMut.mutate(s.id)}
-                onClaim={() => claimMut.mutate(s.id)}
               />
             ))}
           </ul>
@@ -268,11 +295,13 @@ function StakesPage() {
 function SummaryCard({
   label,
   value,
+  sub,
   icon: Icon,
   accent,
 }: {
   label: string;
   value: string;
+  sub?: string;
   icon: typeof Lock;
   accent: "primary" | "teal" | "gold";
 }) {
@@ -300,6 +329,7 @@ function SummaryCard({
           {label}
         </p>
         <p className="font-display text-lg font-light tabular-nums">{value}</p>
+        {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
       </div>
     </div>
   );
@@ -309,19 +339,15 @@ function StakeRow({
   stake,
   busy,
   onUnstake,
-  onClaim,
 }: {
-  stake: StakePosition & { lockEndsAt?: string; apyPct?: number };
+  stake: StakePosition;
   busy: boolean;
   onUnstake: () => void;
-  onClaim: () => void;
 }) {
   const isActive = stake.status === "active";
   const isUnstaking = stake.status === "unstaking";
-  const days = daysUntil((stake as any).lockEndsAt ?? (stake as any).unbondedAt);
+  const days = daysUntil(stake.unbondedAt);
   const canUnstake = isActive && days === 0;
-  const claimable = Number(stake.rewardAccrued) > 0;
-  const canClaim = isActive && days === 0 && claimable;
 
   const statusLabel: Record<string, string> = {
     active: "Active",
@@ -334,7 +360,7 @@ function StakeRow({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
           <p className="font-display text-lg font-light">
-            {formatDot(Number(stake.amount))} DOT · {(stake as any).apyPct ?? 12}% APY
+            {formatDot(Number(stake.amount))} DOT
           </p>
           <p className="text-xs text-muted-foreground">
             {statusLabel[stake.status]} · started {formatDate(stake.createdAt)}
@@ -344,11 +370,6 @@ function StakeRow({
               </span>
             ) : null}
           </p>
-          {Number(stake.rewardAccrued) > 0 ? (
-            <p className="text-xs text-gold">
-              Accrued: {formatDot(Number(stake.rewardAccrued))} DOT
-            </p>
-          ) : null}
         </div>
         <div className="flex gap-2">
           {isActive ? (
@@ -361,20 +382,11 @@ function StakeRow({
               <Unlock className="size-4" /> Unstake
             </Button>
           ) : null}
-          {isActive ? (
-            <Button
-              size="sm"
-              disabled={!canClaim || busy}
-              onClick={onClaim}
-            >
-              <Sparkles className="size-4" /> Claim
-            </Button>
-          ) : null}
         </div>
       </div>
       {isUnstaking ? (
         <p className="mt-3 text-xs text-muted-foreground">
-          Funds return to your available balance on {formatDate((stake as any).lockEndsAt ?? (stake as any).unbondedAt)}.
+          Funds return to your available balance on {formatDate(stake.unbondedAt)}.
         </p>
       ) : null}
     </li>

@@ -43,7 +43,6 @@ import { Route as AuthenticatedPitchDeckRouteImport } from './routes/_authentica
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
 import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
 import { Route as AuthenticatedMeetingsRouteImport } from './routes/_authenticated/meetings'
-import { Route as AuthenticatedMarketplaceRouteImport } from './routes/_authenticated/marketplace'
 import { Route as AuthenticatedLoansRouteImport } from './routes/_authenticated/loans'
 import { Route as AuthenticatedLeaderboardRouteImport } from './routes/_authenticated/leaderboard'
 import { Route as AuthenticatedKycRouteImport } from './routes/_authenticated/kyc'
@@ -54,17 +53,21 @@ import { Route as AuthenticatedEnrollmentsRouteImport } from './routes/_authenti
 import { Route as AuthenticatedDiscoverRouteImport } from './routes/_authenticated/discover'
 import { Route as AuthenticatedDemoRouteImport } from './routes/_authenticated/demo'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedConnectRouteImport } from './routes/_authenticated/connect'
 import { Route as AuthenticatedCommunityRouteImport } from './routes/_authenticated/community'
 import { Route as AuthenticatedCertificatesRouteImport } from './routes/_authenticated/certificates'
-import { Route as AuthenticatedBuilderRouteImport } from './routes/_authenticated/builder'
 import { Route as AuthenticatedAnalyticsRouteImport } from './routes/_authenticated/analytics'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedAcademyRouteImport } from './routes/_authenticated/academy'
 import { Route as AuthenticatedMessagesIndexRouteImport } from './routes/_authenticated/messages/index'
 import { Route as AuthenticatedCapitalIndexRouteImport } from './routes/_authenticated/capital/index'
+import { Route as AuthenticatedVantageResultsRouteImport } from './routes/_authenticated/vantage/results'
+import { Route as AuthenticatedSettingsSecurityRouteImport } from './routes/_authenticated/settings/security'
+import { Route as AuthenticatedSettingsIntegrationsRouteImport } from './routes/_authenticated/settings/integrations'
 import { Route as AuthenticatedOnboardingBuilderRouteImport } from './routes/_authenticated/onboarding/builder'
 import { Route as AuthenticatedMessagesIdRouteImport } from './routes/_authenticated/messages/$id'
 import { Route as AuthenticatedMeetingsIdRouteImport } from './routes/_authenticated/meetings/$id'
+import { Route as AuthenticatedLoansApplyRouteImport } from './routes/_authenticated/loans/apply'
 import { Route as AuthenticatedJoinCodeRouteImport } from './routes/_authenticated/join.$code'
 import { Route as AuthenticatedDemoIdRouteImport } from './routes/_authenticated/demo.$id'
 import { Route as AuthenticatedDealsIdRouteImport } from './routes/_authenticated/deals.$id'
@@ -80,8 +83,13 @@ import { Route as AuthenticatedAdminSessionsRouteImport } from './routes/_authen
 import { Route as AuthenticatedAdminRolesRouteImport } from './routes/_authenticated/admin/roles'
 import { Route as AuthenticatedAdminPermissionsRouteImport } from './routes/_authenticated/admin/permissions'
 import { Route as AuthenticatedAdminMembersRouteImport } from './routes/_authenticated/admin/members'
+import { Route as AuthenticatedAdminLoansRouteImport } from './routes/_authenticated/admin/loans'
 import { Route as AuthenticatedAdminIntegrationsRouteImport } from './routes/_authenticated/admin/integrations'
 import { Route as AuthenticatedAdminCoursesRouteImport } from './routes/_authenticated/admin/courses'
+import { Route as AuthenticatedAdminAuditRouteImport } from './routes/_authenticated/admin/audit'
+import { Route as AuthenticatedWorkContractIdRouteImport } from './routes/_authenticated/work/contract/$id'
+import { Route as AuthenticatedAcademyCourseIdRouteImport } from './routes/_authenticated/academy/course/$id'
+import { Route as AuthenticatedAcademyIdLearnRouteImport } from './routes/_authenticated/academy/$id/learn'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
@@ -254,12 +262,6 @@ const AuthenticatedMeetingsRoute = AuthenticatedMeetingsRouteImport.update({
   path: '/meetings',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedMarketplaceRoute =
-  AuthenticatedMarketplaceRouteImport.update({
-    id: '/marketplace',
-    path: '/marketplace',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 const AuthenticatedLoansRoute = AuthenticatedLoansRouteImport.update({
   id: '/loans',
   path: '/loans',
@@ -312,6 +314,11 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedConnectRoute = AuthenticatedConnectRouteImport.update({
+  id: '/connect',
+  path: '/connect',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedCommunityRoute = AuthenticatedCommunityRouteImport.update({
   id: '/community',
   path: '/community',
@@ -323,11 +330,6 @@ const AuthenticatedCertificatesRoute =
     path: '/certificates',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedBuilderRoute = AuthenticatedBuilderRouteImport.update({
-  id: '/builder',
-  path: '/builder',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedAnalyticsRoute = AuthenticatedAnalyticsRouteImport.update({
   id: '/analytics',
   path: '/analytics',
@@ -355,6 +357,24 @@ const AuthenticatedCapitalIndexRoute =
     path: '/capital/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedVantageResultsRoute =
+  AuthenticatedVantageResultsRouteImport.update({
+    id: '/results',
+    path: '/results',
+    getParentRoute: () => AuthenticatedVantageRoute,
+  } as any)
+const AuthenticatedSettingsSecurityRoute =
+  AuthenticatedSettingsSecurityRouteImport.update({
+    id: '/security',
+    path: '/security',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsIntegrationsRoute =
+  AuthenticatedSettingsIntegrationsRouteImport.update({
+    id: '/integrations',
+    path: '/integrations',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
 const AuthenticatedOnboardingBuilderRoute =
   AuthenticatedOnboardingBuilderRouteImport.update({
     id: '/builder',
@@ -370,6 +390,11 @@ const AuthenticatedMeetingsIdRoute = AuthenticatedMeetingsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
   getParentRoute: () => AuthenticatedMeetingsRoute,
+} as any)
+const AuthenticatedLoansApplyRoute = AuthenticatedLoansApplyRouteImport.update({
+  id: '/apply',
+  path: '/apply',
+  getParentRoute: () => AuthenticatedLoansRoute,
 } as any)
 const AuthenticatedJoinCodeRoute = AuthenticatedJoinCodeRouteImport.update({
   id: '/join/$code',
@@ -410,9 +435,9 @@ const AuthenticatedCIdRoute = AuthenticatedCIdRouteImport.update({
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedBuilderIdRoute = AuthenticatedBuilderIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => AuthenticatedBuilderRoute,
+  id: '/builder/$id',
+  path: '/builder/$id',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedAdminWalletsRoute =
   AuthenticatedAdminWalletsRouteImport.update({
@@ -455,6 +480,11 @@ const AuthenticatedAdminMembersRoute =
     path: '/members',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminLoansRoute = AuthenticatedAdminLoansRouteImport.update({
+  id: '/loans',
+  path: '/loans',
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
 const AuthenticatedAdminIntegrationsRoute =
   AuthenticatedAdminIntegrationsRouteImport.update({
     id: '/integrations',
@@ -466,6 +496,29 @@ const AuthenticatedAdminCoursesRoute =
     id: '/courses',
     path: '/courses',
     getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminAuditRoute = AuthenticatedAdminAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
+const AuthenticatedWorkContractIdRoute =
+  AuthenticatedWorkContractIdRouteImport.update({
+    id: '/contract/$id',
+    path: '/contract/$id',
+    getParentRoute: () => AuthenticatedWorkRoute,
+  } as any)
+const AuthenticatedAcademyCourseIdRoute =
+  AuthenticatedAcademyCourseIdRouteImport.update({
+    id: '/course/$id',
+    path: '/course/$id',
+    getParentRoute: () => AuthenticatedAcademyRoute,
+  } as any)
+const AuthenticatedAcademyIdLearnRoute =
+  AuthenticatedAcademyIdLearnRouteImport.update({
+    id: '/$id/learn',
+    path: '/$id/learn',
+    getParentRoute: () => AuthenticatedAcademyRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -483,12 +536,12 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
-  '/academy': typeof AuthenticatedAcademyRoute
+  '/academy': typeof AuthenticatedAcademyRouteWithChildren
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/analytics': typeof AuthenticatedAnalyticsRoute
-  '/builder': typeof AuthenticatedBuilderRouteWithChildren
   '/certificates': typeof AuthenticatedCertificatesRoute
   '/community': typeof AuthenticatedCommunityRouteWithChildren
+  '/connect': typeof AuthenticatedConnectRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/demo': typeof AuthenticatedDemoRouteWithChildren
   '/discover': typeof AuthenticatedDiscoverRoute
@@ -498,8 +551,7 @@ export interface FileRoutesByFullPath {
   '/judge': typeof AuthenticatedJudgeRoute
   '/kyc': typeof AuthenticatedKycRoute
   '/leaderboard': typeof AuthenticatedLeaderboardRoute
-  '/loans': typeof AuthenticatedLoansRoute
-  '/marketplace': typeof AuthenticatedMarketplaceRoute
+  '/loans': typeof AuthenticatedLoansRouteWithChildren
   '/meetings': typeof AuthenticatedMeetingsRouteWithChildren
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/onboarding': typeof AuthenticatedOnboardingRouteWithChildren
@@ -510,17 +562,19 @@ export interface FileRoutesByFullPath {
   '/referrals': typeof AuthenticatedReferralsRoute
   '/search': typeof AuthenticatedSearchRoute
   '/sessions': typeof AuthenticatedSessionsRoute
-  '/settings': typeof AuthenticatedSettingsRoute
+  '/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/stakes': typeof AuthenticatedStakesRoute
-  '/vantage': typeof AuthenticatedVantageRoute
+  '/vantage': typeof AuthenticatedVantageRouteWithChildren
   '/ventures': typeof AuthenticatedVenturesRoute
   '/wallet': typeof AuthenticatedWalletRoute
-  '/work': typeof AuthenticatedWorkRoute
+  '/work': typeof AuthenticatedWorkRouteWithChildren
   '/events/$slug': typeof EventsSlugRoute
   '/founder/$id': typeof FounderIdRoute
   '/events/': typeof EventsIndexRoute
+  '/admin/audit': typeof AuthenticatedAdminAuditRoute
   '/admin/courses': typeof AuthenticatedAdminCoursesRoute
   '/admin/integrations': typeof AuthenticatedAdminIntegrationsRoute
+  '/admin/loans': typeof AuthenticatedAdminLoansRoute
   '/admin/members': typeof AuthenticatedAdminMembersRoute
   '/admin/permissions': typeof AuthenticatedAdminPermissionsRoute
   '/admin/roles': typeof AuthenticatedAdminRolesRoute
@@ -536,11 +590,18 @@ export interface FileRoutesByFullPath {
   '/deals/$id': typeof AuthenticatedDealsIdRoute
   '/demo/$id': typeof AuthenticatedDemoIdRoute
   '/join/$code': typeof AuthenticatedJoinCodeRoute
+  '/loans/apply': typeof AuthenticatedLoansApplyRoute
   '/meetings/$id': typeof AuthenticatedMeetingsIdRoute
   '/messages/$id': typeof AuthenticatedMessagesIdRoute
   '/onboarding/builder': typeof AuthenticatedOnboardingBuilderRoute
+  '/settings/integrations': typeof AuthenticatedSettingsIntegrationsRoute
+  '/settings/security': typeof AuthenticatedSettingsSecurityRoute
+  '/vantage/results': typeof AuthenticatedVantageResultsRoute
   '/capital/': typeof AuthenticatedCapitalIndexRoute
   '/messages/': typeof AuthenticatedMessagesIndexRoute
+  '/academy/$id/learn': typeof AuthenticatedAcademyIdLearnRoute
+  '/academy/course/$id': typeof AuthenticatedAcademyCourseIdRoute
+  '/work/contract/$id': typeof AuthenticatedWorkContractIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -557,12 +618,12 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
-  '/academy': typeof AuthenticatedAcademyRoute
+  '/academy': typeof AuthenticatedAcademyRouteWithChildren
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/analytics': typeof AuthenticatedAnalyticsRoute
-  '/builder': typeof AuthenticatedBuilderRouteWithChildren
   '/certificates': typeof AuthenticatedCertificatesRoute
   '/community': typeof AuthenticatedCommunityRouteWithChildren
+  '/connect': typeof AuthenticatedConnectRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/demo': typeof AuthenticatedDemoRouteWithChildren
   '/discover': typeof AuthenticatedDiscoverRoute
@@ -572,8 +633,7 @@ export interface FileRoutesByTo {
   '/judge': typeof AuthenticatedJudgeRoute
   '/kyc': typeof AuthenticatedKycRoute
   '/leaderboard': typeof AuthenticatedLeaderboardRoute
-  '/loans': typeof AuthenticatedLoansRoute
-  '/marketplace': typeof AuthenticatedMarketplaceRoute
+  '/loans': typeof AuthenticatedLoansRouteWithChildren
   '/meetings': typeof AuthenticatedMeetingsRouteWithChildren
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/onboarding': typeof AuthenticatedOnboardingRouteWithChildren
@@ -584,17 +644,19 @@ export interface FileRoutesByTo {
   '/referrals': typeof AuthenticatedReferralsRoute
   '/search': typeof AuthenticatedSearchRoute
   '/sessions': typeof AuthenticatedSessionsRoute
-  '/settings': typeof AuthenticatedSettingsRoute
+  '/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/stakes': typeof AuthenticatedStakesRoute
-  '/vantage': typeof AuthenticatedVantageRoute
+  '/vantage': typeof AuthenticatedVantageRouteWithChildren
   '/ventures': typeof AuthenticatedVenturesRoute
   '/wallet': typeof AuthenticatedWalletRoute
-  '/work': typeof AuthenticatedWorkRoute
+  '/work': typeof AuthenticatedWorkRouteWithChildren
   '/events/$slug': typeof EventsSlugRoute
   '/founder/$id': typeof FounderIdRoute
   '/events': typeof EventsIndexRoute
+  '/admin/audit': typeof AuthenticatedAdminAuditRoute
   '/admin/courses': typeof AuthenticatedAdminCoursesRoute
   '/admin/integrations': typeof AuthenticatedAdminIntegrationsRoute
+  '/admin/loans': typeof AuthenticatedAdminLoansRoute
   '/admin/members': typeof AuthenticatedAdminMembersRoute
   '/admin/permissions': typeof AuthenticatedAdminPermissionsRoute
   '/admin/roles': typeof AuthenticatedAdminRolesRoute
@@ -610,11 +672,18 @@ export interface FileRoutesByTo {
   '/deals/$id': typeof AuthenticatedDealsIdRoute
   '/demo/$id': typeof AuthenticatedDemoIdRoute
   '/join/$code': typeof AuthenticatedJoinCodeRoute
+  '/loans/apply': typeof AuthenticatedLoansApplyRoute
   '/meetings/$id': typeof AuthenticatedMeetingsIdRoute
   '/messages/$id': typeof AuthenticatedMessagesIdRoute
   '/onboarding/builder': typeof AuthenticatedOnboardingBuilderRoute
+  '/settings/integrations': typeof AuthenticatedSettingsIntegrationsRoute
+  '/settings/security': typeof AuthenticatedSettingsSecurityRoute
+  '/vantage/results': typeof AuthenticatedVantageResultsRoute
   '/capital': typeof AuthenticatedCapitalIndexRoute
   '/messages': typeof AuthenticatedMessagesIndexRoute
+  '/academy/$id/learn': typeof AuthenticatedAcademyIdLearnRoute
+  '/academy/course/$id': typeof AuthenticatedAcademyCourseIdRoute
+  '/work/contract/$id': typeof AuthenticatedWorkContractIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -633,12 +702,12 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
-  '/_authenticated/academy': typeof AuthenticatedAcademyRoute
+  '/_authenticated/academy': typeof AuthenticatedAcademyRouteWithChildren
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/_authenticated/analytics': typeof AuthenticatedAnalyticsRoute
-  '/_authenticated/builder': typeof AuthenticatedBuilderRouteWithChildren
   '/_authenticated/certificates': typeof AuthenticatedCertificatesRoute
   '/_authenticated/community': typeof AuthenticatedCommunityRouteWithChildren
+  '/_authenticated/connect': typeof AuthenticatedConnectRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/demo': typeof AuthenticatedDemoRouteWithChildren
   '/_authenticated/discover': typeof AuthenticatedDiscoverRoute
@@ -648,8 +717,7 @@ export interface FileRoutesById {
   '/_authenticated/judge': typeof AuthenticatedJudgeRoute
   '/_authenticated/kyc': typeof AuthenticatedKycRoute
   '/_authenticated/leaderboard': typeof AuthenticatedLeaderboardRoute
-  '/_authenticated/loans': typeof AuthenticatedLoansRoute
-  '/_authenticated/marketplace': typeof AuthenticatedMarketplaceRoute
+  '/_authenticated/loans': typeof AuthenticatedLoansRouteWithChildren
   '/_authenticated/meetings': typeof AuthenticatedMeetingsRouteWithChildren
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRouteWithChildren
@@ -660,17 +728,19 @@ export interface FileRoutesById {
   '/_authenticated/referrals': typeof AuthenticatedReferralsRoute
   '/_authenticated/search': typeof AuthenticatedSearchRoute
   '/_authenticated/sessions': typeof AuthenticatedSessionsRoute
-  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/_authenticated/stakes': typeof AuthenticatedStakesRoute
-  '/_authenticated/vantage': typeof AuthenticatedVantageRoute
+  '/_authenticated/vantage': typeof AuthenticatedVantageRouteWithChildren
   '/_authenticated/ventures': typeof AuthenticatedVenturesRoute
   '/_authenticated/wallet': typeof AuthenticatedWalletRoute
-  '/_authenticated/work': typeof AuthenticatedWorkRoute
+  '/_authenticated/work': typeof AuthenticatedWorkRouteWithChildren
   '/events/$slug': typeof EventsSlugRoute
   '/founder/$id': typeof FounderIdRoute
   '/events/': typeof EventsIndexRoute
+  '/_authenticated/admin/audit': typeof AuthenticatedAdminAuditRoute
   '/_authenticated/admin/courses': typeof AuthenticatedAdminCoursesRoute
   '/_authenticated/admin/integrations': typeof AuthenticatedAdminIntegrationsRoute
+  '/_authenticated/admin/loans': typeof AuthenticatedAdminLoansRoute
   '/_authenticated/admin/members': typeof AuthenticatedAdminMembersRoute
   '/_authenticated/admin/permissions': typeof AuthenticatedAdminPermissionsRoute
   '/_authenticated/admin/roles': typeof AuthenticatedAdminRolesRoute
@@ -686,11 +756,18 @@ export interface FileRoutesById {
   '/_authenticated/deals/$id': typeof AuthenticatedDealsIdRoute
   '/_authenticated/demo/$id': typeof AuthenticatedDemoIdRoute
   '/_authenticated/join/$code': typeof AuthenticatedJoinCodeRoute
+  '/_authenticated/loans/apply': typeof AuthenticatedLoansApplyRoute
   '/_authenticated/meetings/$id': typeof AuthenticatedMeetingsIdRoute
   '/_authenticated/messages/$id': typeof AuthenticatedMessagesIdRoute
   '/_authenticated/onboarding/builder': typeof AuthenticatedOnboardingBuilderRoute
+  '/_authenticated/settings/integrations': typeof AuthenticatedSettingsIntegrationsRoute
+  '/_authenticated/settings/security': typeof AuthenticatedSettingsSecurityRoute
+  '/_authenticated/vantage/results': typeof AuthenticatedVantageResultsRoute
   '/_authenticated/capital/': typeof AuthenticatedCapitalIndexRoute
   '/_authenticated/messages/': typeof AuthenticatedMessagesIndexRoute
+  '/_authenticated/academy/$id/learn': typeof AuthenticatedAcademyIdLearnRoute
+  '/_authenticated/academy/course/$id': typeof AuthenticatedAcademyCourseIdRoute
+  '/_authenticated/work/contract/$id': typeof AuthenticatedWorkContractIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -712,9 +789,9 @@ export interface FileRouteTypes {
     | '/academy'
     | '/admin'
     | '/analytics'
-    | '/builder'
     | '/certificates'
     | '/community'
+    | '/connect'
     | '/dashboard'
     | '/demo'
     | '/discover'
@@ -725,7 +802,6 @@ export interface FileRouteTypes {
     | '/kyc'
     | '/leaderboard'
     | '/loans'
-    | '/marketplace'
     | '/meetings'
     | '/notifications'
     | '/onboarding'
@@ -745,8 +821,10 @@ export interface FileRouteTypes {
     | '/events/$slug'
     | '/founder/$id'
     | '/events/'
+    | '/admin/audit'
     | '/admin/courses'
     | '/admin/integrations'
+    | '/admin/loans'
     | '/admin/members'
     | '/admin/permissions'
     | '/admin/roles'
@@ -762,11 +840,18 @@ export interface FileRouteTypes {
     | '/deals/$id'
     | '/demo/$id'
     | '/join/$code'
+    | '/loans/apply'
     | '/meetings/$id'
     | '/messages/$id'
     | '/onboarding/builder'
+    | '/settings/integrations'
+    | '/settings/security'
+    | '/vantage/results'
     | '/capital/'
     | '/messages/'
+    | '/academy/$id/learn'
+    | '/academy/course/$id'
+    | '/work/contract/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -786,9 +871,9 @@ export interface FileRouteTypes {
     | '/academy'
     | '/admin'
     | '/analytics'
-    | '/builder'
     | '/certificates'
     | '/community'
+    | '/connect'
     | '/dashboard'
     | '/demo'
     | '/discover'
@@ -799,7 +884,6 @@ export interface FileRouteTypes {
     | '/kyc'
     | '/leaderboard'
     | '/loans'
-    | '/marketplace'
     | '/meetings'
     | '/notifications'
     | '/onboarding'
@@ -819,8 +903,10 @@ export interface FileRouteTypes {
     | '/events/$slug'
     | '/founder/$id'
     | '/events'
+    | '/admin/audit'
     | '/admin/courses'
     | '/admin/integrations'
+    | '/admin/loans'
     | '/admin/members'
     | '/admin/permissions'
     | '/admin/roles'
@@ -836,11 +922,18 @@ export interface FileRouteTypes {
     | '/deals/$id'
     | '/demo/$id'
     | '/join/$code'
+    | '/loans/apply'
     | '/meetings/$id'
     | '/messages/$id'
     | '/onboarding/builder'
+    | '/settings/integrations'
+    | '/settings/security'
+    | '/vantage/results'
     | '/capital'
     | '/messages'
+    | '/academy/$id/learn'
+    | '/academy/course/$id'
+    | '/work/contract/$id'
   id:
     | '__root__'
     | '/'
@@ -861,9 +954,9 @@ export interface FileRouteTypes {
     | '/_authenticated/academy'
     | '/_authenticated/admin'
     | '/_authenticated/analytics'
-    | '/_authenticated/builder'
     | '/_authenticated/certificates'
     | '/_authenticated/community'
+    | '/_authenticated/connect'
     | '/_authenticated/dashboard'
     | '/_authenticated/demo'
     | '/_authenticated/discover'
@@ -874,7 +967,6 @@ export interface FileRouteTypes {
     | '/_authenticated/kyc'
     | '/_authenticated/leaderboard'
     | '/_authenticated/loans'
-    | '/_authenticated/marketplace'
     | '/_authenticated/meetings'
     | '/_authenticated/notifications'
     | '/_authenticated/onboarding'
@@ -894,8 +986,10 @@ export interface FileRouteTypes {
     | '/events/$slug'
     | '/founder/$id'
     | '/events/'
+    | '/_authenticated/admin/audit'
     | '/_authenticated/admin/courses'
     | '/_authenticated/admin/integrations'
+    | '/_authenticated/admin/loans'
     | '/_authenticated/admin/members'
     | '/_authenticated/admin/permissions'
     | '/_authenticated/admin/roles'
@@ -911,11 +1005,18 @@ export interface FileRouteTypes {
     | '/_authenticated/deals/$id'
     | '/_authenticated/demo/$id'
     | '/_authenticated/join/$code'
+    | '/_authenticated/loans/apply'
     | '/_authenticated/meetings/$id'
     | '/_authenticated/messages/$id'
     | '/_authenticated/onboarding/builder'
+    | '/_authenticated/settings/integrations'
+    | '/_authenticated/settings/security'
+    | '/_authenticated/vantage/results'
     | '/_authenticated/capital/'
     | '/_authenticated/messages/'
+    | '/_authenticated/academy/$id/learn'
+    | '/_authenticated/academy/course/$id'
+    | '/_authenticated/work/contract/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1179,13 +1280,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMeetingsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/marketplace': {
-      id: '/_authenticated/marketplace'
-      path: '/marketplace'
-      fullPath: '/marketplace'
-      preLoaderRoute: typeof AuthenticatedMarketplaceRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/loans': {
       id: '/_authenticated/loans'
       path: '/loans'
@@ -1256,6 +1350,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/connect': {
+      id: '/_authenticated/connect'
+      path: '/connect'
+      fullPath: '/connect'
+      preLoaderRoute: typeof AuthenticatedConnectRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/community': {
       id: '/_authenticated/community'
       path: '/community'
@@ -1268,13 +1369,6 @@ declare module '@tanstack/react-router' {
       path: '/certificates'
       fullPath: '/certificates'
       preLoaderRoute: typeof AuthenticatedCertificatesRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/builder': {
-      id: '/_authenticated/builder'
-      path: '/builder'
-      fullPath: '/builder'
-      preLoaderRoute: typeof AuthenticatedBuilderRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/analytics': {
@@ -1312,6 +1406,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCapitalIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/vantage/results': {
+      id: '/_authenticated/vantage/results'
+      path: '/results'
+      fullPath: '/vantage/results'
+      preLoaderRoute: typeof AuthenticatedVantageResultsRouteImport
+      parentRoute: typeof AuthenticatedVantageRoute
+    }
+    '/_authenticated/settings/security': {
+      id: '/_authenticated/settings/security'
+      path: '/security'
+      fullPath: '/settings/security'
+      preLoaderRoute: typeof AuthenticatedSettingsSecurityRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/integrations': {
+      id: '/_authenticated/settings/integrations'
+      path: '/integrations'
+      fullPath: '/settings/integrations'
+      preLoaderRoute: typeof AuthenticatedSettingsIntegrationsRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
     '/_authenticated/onboarding/builder': {
       id: '/_authenticated/onboarding/builder'
       path: '/builder'
@@ -1332,6 +1447,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/meetings/$id'
       preLoaderRoute: typeof AuthenticatedMeetingsIdRouteImport
       parentRoute: typeof AuthenticatedMeetingsRoute
+    }
+    '/_authenticated/loans/apply': {
+      id: '/_authenticated/loans/apply'
+      path: '/apply'
+      fullPath: '/loans/apply'
+      preLoaderRoute: typeof AuthenticatedLoansApplyRouteImport
+      parentRoute: typeof AuthenticatedLoansRoute
     }
     '/_authenticated/join/$code': {
       id: '/_authenticated/join/$code'
@@ -1384,10 +1506,10 @@ declare module '@tanstack/react-router' {
     }
     '/_authenticated/builder/$id': {
       id: '/_authenticated/builder/$id'
-      path: '/$id'
+      path: '/builder/$id'
       fullPath: '/builder/$id'
       preLoaderRoute: typeof AuthenticatedBuilderIdRouteImport
-      parentRoute: typeof AuthenticatedBuilderRoute
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/admin/wallets': {
       id: '/_authenticated/admin/wallets'
@@ -1438,6 +1560,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminMembersRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/loans': {
+      id: '/_authenticated/admin/loans'
+      path: '/loans'
+      fullPath: '/admin/loans'
+      preLoaderRoute: typeof AuthenticatedAdminLoansRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/integrations': {
       id: '/_authenticated/admin/integrations'
       path: '/integrations'
@@ -1452,12 +1581,55 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminCoursesRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/audit': {
+      id: '/_authenticated/admin/audit'
+      path: '/audit'
+      fullPath: '/admin/audit'
+      preLoaderRoute: typeof AuthenticatedAdminAuditRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/work/contract/$id': {
+      id: '/_authenticated/work/contract/$id'
+      path: '/contract/$id'
+      fullPath: '/work/contract/$id'
+      preLoaderRoute: typeof AuthenticatedWorkContractIdRouteImport
+      parentRoute: typeof AuthenticatedWorkRoute
+    }
+    '/_authenticated/academy/course/$id': {
+      id: '/_authenticated/academy/course/$id'
+      path: '/course/$id'
+      fullPath: '/academy/course/$id'
+      preLoaderRoute: typeof AuthenticatedAcademyCourseIdRouteImport
+      parentRoute: typeof AuthenticatedAcademyRoute
+    }
+    '/_authenticated/academy/$id/learn': {
+      id: '/_authenticated/academy/$id/learn'
+      path: '/$id/learn'
+      fullPath: '/academy/$id/learn'
+      preLoaderRoute: typeof AuthenticatedAcademyIdLearnRouteImport
+      parentRoute: typeof AuthenticatedAcademyRoute
+    }
   }
 }
 
+interface AuthenticatedAcademyRouteChildren {
+  AuthenticatedAcademyIdLearnRoute: typeof AuthenticatedAcademyIdLearnRoute
+  AuthenticatedAcademyCourseIdRoute: typeof AuthenticatedAcademyCourseIdRoute
+}
+
+const AuthenticatedAcademyRouteChildren: AuthenticatedAcademyRouteChildren = {
+  AuthenticatedAcademyIdLearnRoute: AuthenticatedAcademyIdLearnRoute,
+  AuthenticatedAcademyCourseIdRoute: AuthenticatedAcademyCourseIdRoute,
+}
+
+const AuthenticatedAcademyRouteWithChildren =
+  AuthenticatedAcademyRoute._addFileChildren(AuthenticatedAcademyRouteChildren)
+
 interface AuthenticatedAdminRouteChildren {
+  AuthenticatedAdminAuditRoute: typeof AuthenticatedAdminAuditRoute
   AuthenticatedAdminCoursesRoute: typeof AuthenticatedAdminCoursesRoute
   AuthenticatedAdminIntegrationsRoute: typeof AuthenticatedAdminIntegrationsRoute
+  AuthenticatedAdminLoansRoute: typeof AuthenticatedAdminLoansRoute
   AuthenticatedAdminMembersRoute: typeof AuthenticatedAdminMembersRoute
   AuthenticatedAdminPermissionsRoute: typeof AuthenticatedAdminPermissionsRoute
   AuthenticatedAdminRolesRoute: typeof AuthenticatedAdminRolesRoute
@@ -1468,8 +1640,10 @@ interface AuthenticatedAdminRouteChildren {
 }
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
+  AuthenticatedAdminAuditRoute: AuthenticatedAdminAuditRoute,
   AuthenticatedAdminCoursesRoute: AuthenticatedAdminCoursesRoute,
   AuthenticatedAdminIntegrationsRoute: AuthenticatedAdminIntegrationsRoute,
+  AuthenticatedAdminLoansRoute: AuthenticatedAdminLoansRoute,
   AuthenticatedAdminMembersRoute: AuthenticatedAdminMembersRoute,
   AuthenticatedAdminPermissionsRoute: AuthenticatedAdminPermissionsRoute,
   AuthenticatedAdminRolesRoute: AuthenticatedAdminRolesRoute,
@@ -1481,17 +1655,6 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
 
 const AuthenticatedAdminRouteWithChildren =
   AuthenticatedAdminRoute._addFileChildren(AuthenticatedAdminRouteChildren)
-
-interface AuthenticatedBuilderRouteChildren {
-  AuthenticatedBuilderIdRoute: typeof AuthenticatedBuilderIdRoute
-}
-
-const AuthenticatedBuilderRouteChildren: AuthenticatedBuilderRouteChildren = {
-  AuthenticatedBuilderIdRoute: AuthenticatedBuilderIdRoute,
-}
-
-const AuthenticatedBuilderRouteWithChildren =
-  AuthenticatedBuilderRoute._addFileChildren(AuthenticatedBuilderRouteChildren)
 
 interface AuthenticatedCommunityRouteChildren {
   AuthenticatedCommunityChallengesRoute: typeof AuthenticatedCommunityChallengesRoute
@@ -1521,6 +1684,17 @@ const AuthenticatedDemoRouteChildren: AuthenticatedDemoRouteChildren = {
 const AuthenticatedDemoRouteWithChildren =
   AuthenticatedDemoRoute._addFileChildren(AuthenticatedDemoRouteChildren)
 
+interface AuthenticatedLoansRouteChildren {
+  AuthenticatedLoansApplyRoute: typeof AuthenticatedLoansApplyRoute
+}
+
+const AuthenticatedLoansRouteChildren: AuthenticatedLoansRouteChildren = {
+  AuthenticatedLoansApplyRoute: AuthenticatedLoansApplyRoute,
+}
+
+const AuthenticatedLoansRouteWithChildren =
+  AuthenticatedLoansRoute._addFileChildren(AuthenticatedLoansRouteChildren)
+
 interface AuthenticatedMeetingsRouteChildren {
   AuthenticatedMeetingsIdRoute: typeof AuthenticatedMeetingsIdRoute
 }
@@ -1548,13 +1722,51 @@ const AuthenticatedOnboardingRouteWithChildren =
     AuthenticatedOnboardingRouteChildren,
   )
 
+interface AuthenticatedSettingsRouteChildren {
+  AuthenticatedSettingsIntegrationsRoute: typeof AuthenticatedSettingsIntegrationsRoute
+  AuthenticatedSettingsSecurityRoute: typeof AuthenticatedSettingsSecurityRoute
+}
+
+const AuthenticatedSettingsRouteChildren: AuthenticatedSettingsRouteChildren = {
+  AuthenticatedSettingsIntegrationsRoute:
+    AuthenticatedSettingsIntegrationsRoute,
+  AuthenticatedSettingsSecurityRoute: AuthenticatedSettingsSecurityRoute,
+}
+
+const AuthenticatedSettingsRouteWithChildren =
+  AuthenticatedSettingsRoute._addFileChildren(
+    AuthenticatedSettingsRouteChildren,
+  )
+
+interface AuthenticatedVantageRouteChildren {
+  AuthenticatedVantageResultsRoute: typeof AuthenticatedVantageResultsRoute
+}
+
+const AuthenticatedVantageRouteChildren: AuthenticatedVantageRouteChildren = {
+  AuthenticatedVantageResultsRoute: AuthenticatedVantageResultsRoute,
+}
+
+const AuthenticatedVantageRouteWithChildren =
+  AuthenticatedVantageRoute._addFileChildren(AuthenticatedVantageRouteChildren)
+
+interface AuthenticatedWorkRouteChildren {
+  AuthenticatedWorkContractIdRoute: typeof AuthenticatedWorkContractIdRoute
+}
+
+const AuthenticatedWorkRouteChildren: AuthenticatedWorkRouteChildren = {
+  AuthenticatedWorkContractIdRoute: AuthenticatedWorkContractIdRoute,
+}
+
+const AuthenticatedWorkRouteWithChildren =
+  AuthenticatedWorkRoute._addFileChildren(AuthenticatedWorkRouteChildren)
+
 interface AuthenticatedRouteRouteChildren {
-  AuthenticatedAcademyRoute: typeof AuthenticatedAcademyRoute
+  AuthenticatedAcademyRoute: typeof AuthenticatedAcademyRouteWithChildren
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRouteWithChildren
   AuthenticatedAnalyticsRoute: typeof AuthenticatedAnalyticsRoute
-  AuthenticatedBuilderRoute: typeof AuthenticatedBuilderRouteWithChildren
   AuthenticatedCertificatesRoute: typeof AuthenticatedCertificatesRoute
   AuthenticatedCommunityRoute: typeof AuthenticatedCommunityRouteWithChildren
+  AuthenticatedConnectRoute: typeof AuthenticatedConnectRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDemoRoute: typeof AuthenticatedDemoRouteWithChildren
   AuthenticatedDiscoverRoute: typeof AuthenticatedDiscoverRoute
@@ -1564,8 +1776,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedJudgeRoute: typeof AuthenticatedJudgeRoute
   AuthenticatedKycRoute: typeof AuthenticatedKycRoute
   AuthenticatedLeaderboardRoute: typeof AuthenticatedLeaderboardRoute
-  AuthenticatedLoansRoute: typeof AuthenticatedLoansRoute
-  AuthenticatedMarketplaceRoute: typeof AuthenticatedMarketplaceRoute
+  AuthenticatedLoansRoute: typeof AuthenticatedLoansRouteWithChildren
   AuthenticatedMeetingsRoute: typeof AuthenticatedMeetingsRouteWithChildren
   AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRouteWithChildren
@@ -1576,12 +1787,13 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedReferralsRoute: typeof AuthenticatedReferralsRoute
   AuthenticatedSearchRoute: typeof AuthenticatedSearchRoute
   AuthenticatedSessionsRoute: typeof AuthenticatedSessionsRoute
-  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRouteWithChildren
   AuthenticatedStakesRoute: typeof AuthenticatedStakesRoute
-  AuthenticatedVantageRoute: typeof AuthenticatedVantageRoute
+  AuthenticatedVantageRoute: typeof AuthenticatedVantageRouteWithChildren
   AuthenticatedVenturesRoute: typeof AuthenticatedVenturesRoute
   AuthenticatedWalletRoute: typeof AuthenticatedWalletRoute
-  AuthenticatedWorkRoute: typeof AuthenticatedWorkRoute
+  AuthenticatedWorkRoute: typeof AuthenticatedWorkRouteWithChildren
+  AuthenticatedBuilderIdRoute: typeof AuthenticatedBuilderIdRoute
   AuthenticatedCIdRoute: typeof AuthenticatedCIdRoute
   AuthenticatedCapitalPortfolioRoute: typeof AuthenticatedCapitalPortfolioRoute
   AuthenticatedDealsIdRoute: typeof AuthenticatedDealsIdRoute
@@ -1592,12 +1804,12 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
-  AuthenticatedAcademyRoute: AuthenticatedAcademyRoute,
+  AuthenticatedAcademyRoute: AuthenticatedAcademyRouteWithChildren,
   AuthenticatedAdminRoute: AuthenticatedAdminRouteWithChildren,
   AuthenticatedAnalyticsRoute: AuthenticatedAnalyticsRoute,
-  AuthenticatedBuilderRoute: AuthenticatedBuilderRouteWithChildren,
   AuthenticatedCertificatesRoute: AuthenticatedCertificatesRoute,
   AuthenticatedCommunityRoute: AuthenticatedCommunityRouteWithChildren,
+  AuthenticatedConnectRoute: AuthenticatedConnectRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDemoRoute: AuthenticatedDemoRouteWithChildren,
   AuthenticatedDiscoverRoute: AuthenticatedDiscoverRoute,
@@ -1607,8 +1819,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedJudgeRoute: AuthenticatedJudgeRoute,
   AuthenticatedKycRoute: AuthenticatedKycRoute,
   AuthenticatedLeaderboardRoute: AuthenticatedLeaderboardRoute,
-  AuthenticatedLoansRoute: AuthenticatedLoansRoute,
-  AuthenticatedMarketplaceRoute: AuthenticatedMarketplaceRoute,
+  AuthenticatedLoansRoute: AuthenticatedLoansRouteWithChildren,
   AuthenticatedMeetingsRoute: AuthenticatedMeetingsRouteWithChildren,
   AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRouteWithChildren,
@@ -1619,12 +1830,13 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedReferralsRoute: AuthenticatedReferralsRoute,
   AuthenticatedSearchRoute: AuthenticatedSearchRoute,
   AuthenticatedSessionsRoute: AuthenticatedSessionsRoute,
-  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRouteWithChildren,
   AuthenticatedStakesRoute: AuthenticatedStakesRoute,
-  AuthenticatedVantageRoute: AuthenticatedVantageRoute,
+  AuthenticatedVantageRoute: AuthenticatedVantageRouteWithChildren,
   AuthenticatedVenturesRoute: AuthenticatedVenturesRoute,
   AuthenticatedWalletRoute: AuthenticatedWalletRoute,
-  AuthenticatedWorkRoute: AuthenticatedWorkRoute,
+  AuthenticatedWorkRoute: AuthenticatedWorkRouteWithChildren,
+  AuthenticatedBuilderIdRoute: AuthenticatedBuilderIdRoute,
   AuthenticatedCIdRoute: AuthenticatedCIdRoute,
   AuthenticatedCapitalPortfolioRoute: AuthenticatedCapitalPortfolioRoute,
   AuthenticatedDealsIdRoute: AuthenticatedDealsIdRoute,

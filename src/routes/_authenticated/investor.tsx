@@ -3,6 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Filter, Bookmark, Search, Heart, ArrowUpRight, Gauge, TrendingUp, Vote, MapPin, Briefcase, Loader2 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
+import { ConnectModal } from "@/components/app/ConnectModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +15,7 @@ import { Slider } from "@/components/ui/slider";
 import { dotApi } from "@/api/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDotAuth } from "@/contexts/DotAuthContext";
-import { INDUSTRIES, JOURNEY_STAGES } from "@/lib/constants";
+import { INDUSTRIES, JOURNEY_STAGES, AFRICAN_COUNTRIES } from "@/lib/constants";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -50,20 +51,29 @@ function InvestorPage() {
   const [query, setQuery] = useState("");
   const [industry, setIndustry] = useState("all");
   const [stage, setStage] = useState("all");
+  const [country, setCountry] = useState("all");
   const [minVantage, setMinVantage] = useState(0);
+  const [minFundability, setMinFundability] = useState(0);
+  const [sort, setSort] = useState("newest");
   const [savedOnly, setSavedOnly] = useState(false);
+  const [connectFounder, setConnectFounder] = useState<{ id: string; name: string | null; role?: string } | null>(null);
 
   const isCapitalPartner = roles.includes("capital_partner");
 
   // Use the new /api/ventures endpoint for live discovery
-  const filters = useMemo(() => ({
-    search: query || undefined,
-    industry: industry !== "all" ? industry : undefined,
-    stage: stage !== "all" ? stage : undefined,
-    minVantage: minVantage > 0 ? minVantage : undefined,
-    sort: minVantage > 0 ? "vantage_desc" : "newest",
-    limit: 50,
-  }), [query, industry, stage, minVantage]);
+  const filters = useMemo(() => {
+    const params: Record<string, string | number | undefined> = {
+      search: query || undefined,
+      industry: industry !== "all" ? industry : undefined,
+      stage: stage !== "all" ? stage : undefined,
+      country: country !== "all" ? country : undefined,
+      minVantage: minVantage > 0 ? minVantage : undefined,
+      minFundability: minFundability > 0 ? minFundability : undefined,
+      sort,
+      limit: 50,
+    };
+    return params;
+  }, [query, industry, stage, country, minVantage, minFundability, sort]);
 
   const { data: venturesData, isLoading } = useQuery({
     queryKey: ["investor", "ventures", filters],
@@ -128,10 +138,11 @@ function InvestorPage() {
     staleTime: 60_000,
   });
 
-  // Apply savedOnly filter (we don't filter on the backend)
+  // Apply savedOnly filter (client-side)
   const filtered = useMemo(() => {
-    if (!savedOnly) return ventures;
-    return ventures.filter((v: any) => saved.has(v.userId));
+    let result = ventures;
+    if (savedOnly) result = result.filter((v: any) => saved.has(v.userId));
+    return result;
   }, [ventures, savedOnly, saved]);
 
   async function toggleSave(founderId: string) {
@@ -200,6 +211,15 @@ function InvestorPage() {
               {STAGES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
             </SelectContent>
           </Select>
+          <Select value={country} onValueChange={setCountry}>
+            <SelectTrigger className="w-full sm:w-40">
+              <SelectValue placeholder="Country" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All countries</SelectItem>
+              {AFRICAN_COUNTRIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="flex flex-wrap items-center gap-4">
@@ -214,6 +234,28 @@ function InvestorPage() {
               className="max-w-md"
             />
           </div>
+          <div className="flex flex-1 min-w-[200px] items-center gap-3">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">Min fundability: <strong className="text-foreground tabular-nums">{minFundability}%</strong></span>
+            <Slider
+              min={0}
+              max={100}
+              step={5}
+              value={[minFundability]}
+              onValueChange={(v) => setMinFundability(v[0])}
+              className="max-w-md"
+            />
+          </div>
+          <Select value={sort} onValueChange={setSort}>
+            <SelectTrigger className="w-full sm:w-44">
+              <SelectValue placeholder="Sort" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="newest">Newest</SelectItem>
+              <SelectItem value="vantage_desc">Highest Vantage</SelectItem>
+              <SelectItem value="fundability_desc">Highest Fundability</SelectItem>
+              <SelectItem value="alpha">Alphabetical</SelectItem>
+            </SelectContent>
+          </Select>
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
@@ -320,6 +362,11 @@ function InvestorPage() {
                           <span className="font-medium tabular-nums">{Number(v.fundingGoal).toLocaleString()} DOT</span>
                         </div>
                       )}
+                      <div className="mt-3 flex justify-end">
+                        <Button size="sm" variant="outline" onClick={() => setConnectFounder({ id: v.userId, name: founder?.name ?? v.name, role: "founder" })}>
+                          Meet Founder
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 );
@@ -328,6 +375,16 @@ function InvestorPage() {
           </>
         )}
       </div>
+
+      <ConnectModal
+        open={!!connectFounder}
+        onOpenChange={(open) => { if (!open) setConnectFounder(null); }}
+        targetUserId={connectFounder?.id ?? ""}
+        targetUserName={connectFounder?.name ?? ""}
+        targetUserRole={connectFounder?.role ?? "founder"}
+        targetUserVantage={0}
+        context="Investor portal"
+      />
     </AppShell>
   );
 }

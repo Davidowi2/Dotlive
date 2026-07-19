@@ -10,6 +10,7 @@ export interface Payment {
   paidAt?: string;
   creditedAt?: string;
   createdAt: string;
+  channel?: string;
 }
 
 /**

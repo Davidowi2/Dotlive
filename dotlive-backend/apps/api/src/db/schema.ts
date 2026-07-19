@@ -43,6 +43,12 @@ export const users = pgTable("users", {
     onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
     privacyAcceptedAt: timestamp("privacy_accepted_at", { withTimezone: true }),
     termsAcceptedAt: timestamp("terms_accepted_at", { withTimezone: true }),
+    vantageTestPromptedAt: timestamp("vantage_test_prompted_at", { withTimezone: true }),
+    lastVantageTakenAt: timestamp("last_vantage_taken_at", { withTimezone: true }),
+    loanApplicationBlocked: boolean("loan_application_blocked").notNull().default(false),
+    twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
+    twoFactorSecret: text("two_factor_secret"),
+    backupCodes: jsonb("backup_codes").notNull().default(sql`'[]'::jsonb`),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -76,10 +82,14 @@ export const userRoles = pgTable("user_roles", {
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   role: text("role").notNull(),
   grantedAt: timestamp("granted_at", { withTimezone: true }).notNull().defaultNow(),
+  purchasedAt: timestamp("purchased_at", { withTimezone: true }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  graceUntil: timestamp("grace_until", { withTimezone: true }),
+  renewalStatus: text("renewal_status").default("active"),
 },
   (t) => ({
-      x: primaryKey({ columns: [t.userId, t.role] }),
-      user_roles_role_check_chk: check("user_roles_role_check", sql`${t.role} IN ('builder', 'founder', 'investor', 'community_leader', 'admin', 'super_admin', 'vendor', 'capital_partner', 'moderator', 'support', 'finance')`),
+    x: primaryKey({ columns: [t.userId, t.role] }),
+    user_roles_role_check_chk: check("user_roles_role_check", sql`${t.role} IN ('builder', 'founder', 'investor', 'community_leader', 'admin', 'super_admin', 'vendor', 'capital_partner', 'moderator', 'support', 'finance')`),
   }));
 
 /* --------------------------- Wallets --------------------------- */
@@ -181,7 +191,12 @@ export const founderProfiles = pgTable("founder_profiles", {
   country: text("country"),
   communityId: text("community_id"),
   bio: text("bio"),
+  pitchDeckUrl: text("pitch_deck_url"),
   website: text("website"),
+  whatsappLink: text("whatsapp_link"),
+  emailLink: text("email_link"),
+  telegramLink: text("telegram_link"),
+  discordLink: text("discord_link"),
   fundingGoal: text("funding_goal"),
   logoUrl: text("logo_url"),
   vantagePoint: integer("vantage_point").default(0),
@@ -341,6 +356,7 @@ export const events = pgTable("events", {
   dotCost: integer("dot_cost").notNull().default(0),
   capacity: integer("capacity").notNull().default(100),
   whopUrl: text("whop_url"),
+  status: text("status").notNull().default("scheduled"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -513,6 +529,8 @@ export const serviceOrders = pgTable("service_orders", {
   requirements: text("requirements"),
   deliveryNote: text("delivery_note"),
   status: text("status").notNull().default("in_progress"),
+  escrowStatus: text("escrow_status").notNull().default("funded"),
+  deliveredAt: timestamp("delivered_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   completedAt: timestamp("completed_at", { withTimezone: true }),
@@ -523,7 +541,7 @@ export const serviceOrders = pgTable("service_orders", {
       service_orders_client_idx: index("service_orders_client_idx").on(t.clientId),
       service_orders_builder_idx: index("service_orders_builder_idx").on(t.builderId),
       service_orders_status_idx: index("service_orders_status_idx").on(t.status),
-  }));
+    }));
 
 /* --------------------------- Service reviews ------------------- */
 export const serviceReviews = pgTable("service_reviews", {
@@ -681,6 +699,14 @@ export const adminAuditLog = pgTable(
     actionIdx: index("audit_action_idx").on(t.action, t.createdAt),
   })
 );
+
+/** Platform-wide configuration key/value store for admin-editable settings. */
+export const platformConfig = pgTable("platform_config", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").notNull(),
+  updatedBy: text("updated_by").references(() => users.id),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 /**
  * admin_confirm_tokens — short-lived (5 min) single-use tokens
@@ -1639,6 +1665,57 @@ export const loans = pgTable("loans", {
 
 export type Loan = typeof loans.$inferSelect;
 export type NewLoan = typeof loans.$inferInsert;
+
+/* --------------------------- Loan Applications ---------------- */
+export const loanApplications = pgTable("loan_applications", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: text("user_id").notNull().references(() => users.id),
+  legalName: text("legal_name").notNull(),
+  countryOfResidence: text("country_of_residence").notNull(),
+  phoneNumber: text("phone_number").notNull(),
+  nationalId: text("national_id").notNull(),
+  dateOfBirth: timestamp("date_of_birth", { withTimezone: true }).notNull(),
+  sourceOfIncome: text("source_of_income").notNull(),
+  ventureName: text("venture_name").notNull(),
+  businessRegNumber: text("business_reg_number").notNull(),
+  countryOfRegistration: text("country_of_registration").notNull(),
+  monthlyRevenue: numeric("monthly_revenue", { precision: 20, scale: 2 }).notNull(),
+  monthlyExpenses: numeric("monthly_expenses", { precision: 20, scale: 2 }).notNull(),
+  outstandingDebts: text("outstanding_debts").notNull(),
+  amountRequested: numeric("amount_requested", { precision: 20, scale: 2 }).notNull(),
+  purpose: text("purpose").notNull(),
+  repaymentPeriodMonths: integer("repayment_period_months").notNull(),
+  collateral: text("collateral"),
+  revenueProofUrl: text("revenue_proof_url"),
+  expenseProofUrl: text("expense_proof_url"),
+  termsAccepted: boolean("terms_accepted").notNull().default(false),
+  fraudAcknowledged: boolean("fraud_acknowledged").notNull().default(false),
+  verificationAuthorized: boolean("verification_authorized").notNull().default(false),
+  status: text("status").notNull().default("pending"), // pending | approved | declined | more_info_needed
+  reviewedBy: text("reviewed_by").references(() => users.id),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  adminNotes: text("admin_notes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  laUserIdx: index("loan_applications_user_idx").on(t.userId),
+  laStatusIdx: index("loan_applications_status_idx").on(t.status),
+}));
+
+export const loanRepayments = pgTable("loan_repayments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  loanApplicationId: uuid("loan_application_id").notNull().references(() => loanApplications.id),
+  dueDate: timestamp("due_date", { withTimezone: true }).notNull(),
+  amountDot: numeric("amount_dot", { precision: 20, scale: 2 }).notNull(),
+  status: text("status").notNull().default("pending"), // pending | paid | overdue
+  paidAt: timestamp("paid_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type LoanApplication = typeof loanApplications.$inferSelect;
+export type NewLoanApplication = typeof loanApplications.$inferInsert;
+export type LoanRepayment = typeof loanRepayments.$inferSelect;
+export type NewLoanRepayment = typeof loanRepayments.$inferInsert;
 
 /* --------------------------- Dividends ------------------------ */
 /**

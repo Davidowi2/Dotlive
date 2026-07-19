@@ -158,6 +158,34 @@ function IconChip({
  *     action={<Button variant="hero" onClick={start}>Start now</Button>}
  *   />
  */
+
+/**
+ * ErrorState - A variant of EmptyState for error conditions
+ */
+export function ErrorState({
+  icon,
+  title,
+  description,
+  action,
+  className,
+}: {
+  icon?: LucideIcon;
+  title: string;
+  description?: string;
+  action?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <EmptyState
+      icon={icon}
+      title={title}
+      description={description}
+      action={action}
+      className={className}
+    />
+  );
+}
+
 export function EmptyState({
   icon,
   illustration,

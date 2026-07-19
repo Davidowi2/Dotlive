@@ -9,7 +9,6 @@
  * ────────────────────────────────────────────────────────────────── */
 
 import type { SVGProps } from "react";
-import { VercelIcon } from "./ToolIcons";
 
 type IconProps = SVGProps<SVGSVGElement> & { size?: number };
 

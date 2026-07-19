@@ -16,7 +16,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Plus, Save, Trash2, Loader2, X, Video, Calendar,
-  Users, Coins, Radio, Clock, ExternalLink, Edit3,
+  Users, Coins, Radio, Clock, ExternalLink, Edit3, Check,
 } from "lucide-react";
 import { PageHeader } from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -79,6 +79,26 @@ function AdminSessionsPage() {
       qc.invalidateQueries({ queryKey: ["events"] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Delete failed"),
+  });
+
+  const cancelMut = useMutation({
+    mutationFn: async (id: string) => dotApi.patch(`/api/admin/events/${id}/status`, { status: "cancelled" }),
+    onSuccess: () => {
+      toast.success("Session cancelled");
+      qc.invalidateQueries({ queryKey: ["admin-events"] });
+      qc.invalidateQueries({ queryKey: ["events"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Cancel failed"),
+  });
+
+  const completeMut = useMutation({
+    mutationFn: async (id: string) => dotApi.patch(`/api/admin/events/${id}/status`, { status: "completed" }),
+    onSuccess: () => {
+      toast.success("Session marked completed");
+      qc.invalidateQueries({ queryKey: ["admin-events"] });
+      qc.invalidateQueries({ queryKey: ["events"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Complete failed"),
   });
 
   const upcoming = events.filter(e => isUpcoming(e.eventDate) || isLiveNow(e.eventDate));
@@ -146,6 +166,8 @@ function AdminSessionsPage() {
                 onDelete={() => {
                   if (confirm(`Delete "${ev.title}"?`)) deleteMut.mutate(ev.id);
                 }}
+                onCancel={() => cancelMut.mutate(ev.id)}
+                onComplete={() => completeMut.mutate(ev.id)}
               />
             ))}
           </div>
@@ -167,6 +189,8 @@ function AdminSessionsPage() {
                 onDelete={() => {
                   if (confirm(`Delete "${ev.title}"?`)) deleteMut.mutate(ev.id);
                 }}
+                onCancel={() => cancelMut.mutate(ev.id)}
+                onComplete={() => completeMut.mutate(ev.id)}
                 isPast
               />
             ))}
@@ -191,10 +215,12 @@ function AdminSessionsPage() {
 }
 
 /* ── Session Row ── */
-function SessionRow({ ev, onEdit, onDelete, isPast = false }: {
+function SessionRow({ ev, onEdit, onDelete, onCancel, onComplete, isPast = false }: {
   ev: SessionEvent;
   onEdit: () => void;
   onDelete: () => void;
+  onCancel: () => void;
+  onComplete: () => void;
   isPast?: boolean;
 }) {
   const live = isLiveNow(ev.eventDate);
@@ -259,6 +285,16 @@ function SessionRow({ ev, onEdit, onDelete, isPast = false }: {
           <Button size="sm" variant="outline" onClick={onEdit}>
             <Edit3 className="size-3.5" />
           </Button>
+          {!isPast && (
+            <>
+              <Button size="sm" variant="secondary" onClick={onComplete}>
+                <Check className="size-3.5" />
+              </Button>
+              <Button size="sm" variant="destructive" onClick={onCancel}>
+                <X className="size-3.5" />
+              </Button>
+            </>
+          )}
           <Button size="sm" variant="ghost" onClick={onDelete} className="text-destructive hover:text-destructive">
             <Trash2 className="size-3.5" />
           </Button>

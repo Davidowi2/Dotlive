@@ -4,7 +4,7 @@ import { createFileRoute, useParams, useNavigate, Link } from "@tanstack/react-r
 import { Users, Loader2, CheckCircle2 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/hooks/use-auth";
+import { useDotAuth as useAuth } from "@/contexts/DotAuthContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 

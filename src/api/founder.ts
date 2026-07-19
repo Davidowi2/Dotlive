@@ -17,6 +17,10 @@ export interface FounderProfile {
   communityId: string | null;
   bio: string | null;
   website: string | null;
+  whatsappLink: string | null;
+  emailLink: string | null;
+  telegramLink: string | null;
+  discordLink: string | null;
   fundingGoal: string | null;
   logoUrl: string | null;
   vantagePoint: number | null;
@@ -38,6 +42,10 @@ export interface FounderProfileInput {
   country?: string;
   bio?: string;
   website?: string;
+  whatsappLink?: string;
+  emailLink?: string;
+  telegramLink?: string;
+  discordLink?: string;
   fundingGoal?: string;
   logoUrl?: string;
   headcount?: number;

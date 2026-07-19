@@ -49,7 +49,7 @@ export interface Venture {
   userId: string;
   name: string;
   industry: string | null;
-  stage: string;
+  stage: string | null;
   country: string | null;
   description: string | null;
   website: string | null;
@@ -80,6 +80,8 @@ export interface Course {
   title: string;
   description: string | null;
   category: string | null;
+  level?: string;
+  durationMinutes?: number;
   whopUrl: string | null;
   dotReward: number;
   vantageBoost: number;

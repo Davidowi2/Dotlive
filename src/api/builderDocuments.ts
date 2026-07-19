@@ -4,7 +4,45 @@
  */
 
 import { dotApi } from "./client";
-import type { BuilderDocument, BuilderCertification, BuilderVouch } from "@shared/types";
+
+/* ──────────────────── Types ──────────────────── */
+export interface BuilderDocument {
+  id: string;
+  builderId: string;
+  type: "cv" | "certificate" | "project" | "sample";
+  title: string;
+  description?: string;
+  fileUrl: string;
+  fileName?: string;
+  fileSize?: number;
+  displayOrder?: number;
+  isVerified?: boolean;
+  createdAt: string;
+}
+
+export interface BuilderCertification {
+  id: string;
+  builderId: string;
+  name: string;
+  issuer: string;
+  issuedDate?: string;
+  expiresDate?: string;
+  credentialUrl?: string;
+  credentialId?: string;
+  badgeUrl?: string;
+  isVerified?: boolean;
+  createdAt: string;
+}
+
+export interface BuilderVouch {
+  id: string;
+  builderId: string;
+  voucheeId: string;
+  skill: string;
+  comment?: string;
+  isEndorsed: boolean;
+  createdAt: string;
+}
 
 /* ──────────────────── Documents ──────────────────── */
 

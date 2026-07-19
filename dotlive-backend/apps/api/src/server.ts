@@ -30,7 +30,7 @@ import { ventureRoutes }    from "./routes/ventures.js";
 import { vantageRoutes }    from "./routes/vantage.js";
 import { academyRoutes }    from "./routes/academy.js";
 import { pitchathonRoutes } from "./routes/pitchathons.js";
-import { marketplaceRoutes} from "./routes/marketplace.js";
+import { servicesRoutes } from "./routes/services.js";
 import { communityRoutes }  from "./routes/community.js";
 import { challengeRoutes }  from "./routes/challenges.js";
 import { connectionRoutes } from "./routes/connections.js";
@@ -53,16 +53,20 @@ import { otpRoutes } from "./routes/otp.js";
 import { paymentsRoutes } from "./routes/payments.js";
 import { magicLinkRoutes } from "./routes/magic-link.js";
 import { vouchesRoutes } from "./routes/vouches.js";
+import { loanApplicationsRoutes, adminLoanRoutes } from "./routes/loan-applications.js";
+import { peopleRoutes } from "./routes/people.js";
 import { notificationsRoutes } from "./routes/notifications.js";
 import { certificatesRoutes } from "./routes/certificates.js";
 import { wizardRoutes } from "./routes/wizard.js";
 import { feedRoutes } from "./routes/feed.js";
+import { searchRoutes } from "./routes/search.js";
 import { referralRoutes } from "./routes/referrals.js";
 import { loansRoutes } from "./routes/loans.js";
 import { pitchRoutes } from "./routes/pitch.js";
 import { dividendsRoutes } from "./routes/dividends.js";
 import { meetingsRoutes } from "./routes/meetings.js";
 import { analyticsRoutes } from "./routes/analytics.js";
+import { wsRoutes } from "./routes/ws.js";
 
 /* ── Env validation ─────────────────────────────────────────── */
 
@@ -266,7 +270,7 @@ await app.register(ventureRoutes,     { prefix: "/api" });
 await app.register(vantageRoutes,     { prefix: "/api" });
 await app.register(academyRoutes,     { prefix: "/api" });
 await app.register(pitchathonRoutes,  { prefix: "/api" });
-await app.register(marketplaceRoutes, { prefix: "/api" });
+await app.register(servicesRoutes, { prefix: "/api" });
 await app.register(communityRoutes,   { prefix: "/api" });
 await app.register(challengeRoutes,   { prefix: "/api/community" });
 await app.register(connectionRoutes,  { prefix: "/api" });
@@ -294,13 +298,18 @@ await app.register(withdrawalRoutes,    { prefix: "/api" });
     await app.register(stakesRoutes,                       { prefix: "/api" });
       await app.register(certificatesRoutes,             { prefix: "/api" });
     await app.register(wizardRoutes,                    { prefix: "/api" });
+    await app.register(searchRoutes,                    { prefix: "/api" });
     await app.register(feedRoutes,                       { prefix: "/api" });
     await app.register(pitchRoutes,                    { prefix: "/api" });
     await app.register(analyticsRoutes,                { prefix: "/api" });
+    await app.register(wsRoutes,                        { prefix: "/ws" });
     await app.register(loansRoutes,                       { prefix: "/api" });
+    await app.register(loanApplicationsRoutes,             { prefix: "/api" });
+    await app.register(adminLoanRoutes,                    { prefix: "/api" });
     await app.register(dividendsRoutes,                   { prefix: "/api" });
     await app.register(meetingsRoutes,                    { prefix: "/api" });
     await app.register(vouchesRoutes,                     { prefix: "/api" });
+    await app.register(peopleRoutes,                      { prefix: "/api" });
 
 /* ── Error handler ───────────────────────────────────────────── */
 
@@ -406,6 +415,7 @@ async function runBootstrapMigrations() {
 
     // events: whop_url column
     await neonSql`ALTER TABLE events ADD COLUMN IF NOT EXISTS whop_url text`;
+    await neonSql`ALTER TABLE events ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'scheduled'`;
 
     // courses: ensure whop columns + cover image exist
     await neonSql`ALTER TABLE courses ADD COLUMN IF NOT EXISTS whop_product_id text`;

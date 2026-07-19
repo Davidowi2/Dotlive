@@ -3,24 +3,20 @@
  *
  * POST /api/vantage/submit     Submit answers + computed score.
  * GET  /api/vantage/history    Past assessments for the user.
- *
- * Scoring is a stub — the real algorithm lives in the frontend
- * for now and we trust the values sent in. Production would
- * recompute server-side for tamper resistance.
+ * GET  /api/vantage/can-retake Re-take eligibility.
+ * GET  /api/vantage/status     7-day prompt status.
  */
 
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 
 import { db } from "../db/client.js";
-import { assessments } from "../db/schema.js";
-import { sql } from "drizzle-orm";
+import { assessments, users } from "../db/schema.js";
 
 const submitSchema = z.object({
   answers: z.record(z.string(), z.unknown()),
   categoryScores: z.record(z.string(), z.number()),
-  score: z.number().int().min(0).max(100),
   vantagePoint: z.number().int().min(0),
   fundability: z.number().int().min(0),
   investmentReadiness: z.number().int().min(0),
@@ -49,11 +45,6 @@ export async function vantageRoutes(app: FastifyInstance) {
       } as any)
       .returning();
 
-    // Also keep the founder_profiles snapshot in sync so the dashboard,
-    // /profile, and /vantage all read the same vantagePoint / fundability
-    // value. Without this sync, the dashboard's "founder.vantagePoint"
-    // can drift behind the latest assessment and contradict the Vantage
-    // page's headline score.
     try {
       await db.execute(sql`
         INSERT INTO founder_profiles
@@ -68,8 +59,16 @@ export async function vantageRoutes(app: FastifyInstance) {
           updated_at = NOW()
       `);
     } catch (err) {
-      // Non-fatal — the assessment was saved, the profile sync is best-effort.
       app.log?.warn?.({ err }, "founder profile sync after vantage submit failed");
+    }
+
+    try {
+      await db
+        .update(users)
+        .set({ lastVantageTakenAt: new Date() } as any)
+        .where(eq(users.id, sub));
+    } catch (err) {
+      app.log?.warn?.({ err }, "failed to update lastVantageTakenAt");
     }
 
     return reply.send({ assessment: inserted[0] });
@@ -85,29 +84,41 @@ export async function vantageRoutes(app: FastifyInstance) {
       .limit(20);
     return reply.send({ assessments: rows });
   });
-  /** GET /api/vantage/me — current user's vantage snapshot.
-   * Returns latest assessment score + deltas. */
-  app.get("/vantage/me", { preHandler: app.authenticate }, async (req, reply) => {
+
+  app.get("/vantage/can-retake", { preHandler: app.authenticate }, async (req, reply) => {
     const { sub } = req.user as { sub: string };
     const rows = await db
-      .select()
-      .from(assessments)
-      .where(eq(assessments.userId, sub))
-      .orderBy(desc(assessments.createdAt))
+      .select({ lastVantageTakenAt: users.lastVantageTakenAt })
+      .from(users)
+      .where(eq(users.id, sub))
       .limit(1);
-    if (rows.length === 0) return reply.send({ vantage: null });
-    const a = rows[0];
+    const last = rows[0]?.lastVantageTakenAt ? new Date(rows[0].lastVantageTakenAt).getTime() : null;
+    const now = Date.now();
+    const canRetake = !last || now - last >= 30 * 24 * 60 * 60 * 1000;
     return reply.send({
-      vantage: {
-        score: Number(a.score ?? 0),
-        vantagePoint: Number(a.vantagePoint ?? 0),
-        fundability: Number(a.fundability ?? 0),
-        investmentReadiness: Number(a.investmentReadiness ?? 0),
-        stage: a.stage,
-        createdAt: a.createdAt,
-      },
+      canRetake,
+      nextRetakeAt: last ? new Date(last + 30 * 24 * 60 * 60 * 1000).toISOString() : null,
     });
   });
 
+  app.get("/vantage/status", { preHandler: app.authenticate }, async (req, reply) => {
+    const { sub } = req.user as { sub: string };
+    const [userRow, assessmentRow] = await Promise.all([
+      db.select({ createdAt: users.createdAt, lastVantageTakenAt: users.lastVantageTakenAt }).from(users).where(eq(users.id, sub)).limit(1),
+      db.select().from(assessments).where(eq(assessments.userId, sub)).orderBy(desc(assessments.createdAt)).limit(1),
+    ]);
+    const user = userRow[0];
+    if (!user) return reply.code(404).send({ error: "User not found" });
+    const createdAt = user.createdAt ? new Date(user.createdAt).getTime() : now();
+    const daysSinceSignup = Math.floor((Date.now() - createdAt) / (24 * 60 * 60 * 1000));
+    const hasTakenTest = !!assessmentRow.length;
+    const isOverdue = !hasTakenTest && daysSinceSignup >= 7;
+    return reply.send({ hasTakenTest, daysSinceSignup, isOverdue });
+  });
 }
+
+function now() {
+  return Date.now();
+}
+
 // @ts-nocheck

@@ -12,7 +12,7 @@ import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import {
   Bell, Shield, Palette, Globe, Trash2, LogOut, Mail,
   User as UserIcon, Save, Loader2, Check, ExternalLink, Hammer,
-  Upload,
+  Upload, Eye, Link as LinkIcon, CreditCard, AlertTriangle,
 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
@@ -310,14 +310,19 @@ function SettingsPage() {
       />
 
       <Tabs value={tab} onValueChange={setTab} className="mt-6">
-        <TabsList>
+        <TabsList className="flex-wrap">
           <TabsTrigger value="account"><UserIcon className="size-3.5" /> Account</TabsTrigger>
+          <TabsTrigger value="privacy"><Eye className="size-3.5" /> Privacy</TabsTrigger>
           {roles.includes("builder") && (
             <TabsTrigger value="builder"><Hammer className="size-3.5" /> Builder</TabsTrigger>
           )}
           <TabsTrigger value="notifications"><Bell className="size-3.5" /> Notifications</TabsTrigger>
           <TabsTrigger value="appearance"><Palette className="size-3.5" /> Appearance</TabsTrigger>
           <TabsTrigger value="security"><Shield className="size-3.5" /> Security</TabsTrigger>
+          <TabsTrigger value="integrations"><LinkIcon className="size-3.5" /> Integrations</TabsTrigger>
+          <TabsTrigger value="connected"><LinkIcon className="size-3.5" /> Connected</TabsTrigger>
+          <TabsTrigger value="billing"><CreditCard className="size-3.5" /> Billing</TabsTrigger>
+          <TabsTrigger value="danger"><AlertTriangle className="size-3.5" /> Danger Zone</TabsTrigger>
         </TabsList>
 
         {/* ── Account ───────────────────────────────────────── */}
@@ -658,6 +663,89 @@ function SettingsPage() {
               to start the process.
             </p>
           </div>
+        </TabsContent>
+
+        {/* ── Privacy ────────────────────────────────────────── */}
+        <TabsContent value="privacy" className="space-y-6">
+          <Section icon={Eye} title="Privacy" description="Control what others see and how your activity is shared.">
+            <Row label="Public profile" sub="Show your profile to other DOT users">
+              <Switch checked={true} onCheckedChange={() => {}} />
+            </Row>
+            <Row label="Show DOT balance" sub="Visible on your public profile">
+              <Switch checked={true} onCheckedChange={() => {}} />
+            </Row>
+            <Row label="Show Vantage score" sub="Visible to investors and founders">
+              <Switch checked={true} onCheckedChange={() => {}} />
+            </Row>
+            <Row label="Allow DMs" sub="Let investors and founders message you directly">
+              <Switch checked={true} onCheckedChange={() => {}} />
+            </Row>
+          </Section>
+        </TabsContent>
+
+        <TabsContent value="connected" className="space-y-6">
+          <Section icon={LinkIcon} title="Connected accounts" description="Manage OAuth and third-party connections.">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
+                <div>
+                  <p className="text-sm font-medium">Google</p>
+                  <p className="text-xs text-muted-foreground">Not connected</p>
+                </div>
+                <Button variant="outline" size="sm" disabled>Connect</Button>
+              </div>
+              <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
+                <div>
+                  <p className="text-sm font-medium">Paystack</p>
+                  <p className="text-xs text-muted-foreground">Deposits and withdrawals</p>
+                </div>
+                <Button variant="outline" size="sm" disabled>Manage</Button>
+              </div>
+              <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
+                <div>
+                  <p className="text-sm font-medium">Whop</p>
+                  <p className="text-xs text-muted-foreground">Academy access and webhooks</p>
+                </div>
+                <Button asChild variant="outline" size="sm">
+                  <Link to="/settings/integrations">Manage</Link>
+                </Button>
+              </div>
+            </div>
+          </Section>
+        </TabsContent>
+
+        {/* ── Billing ────────────────────────────────────────── */}
+        <TabsContent value="billing" className="space-y-6">
+          <Section icon={CreditCard} title="Billing" description="Invoices, payment methods and billing history.">
+            <div className="rounded-xl border border-dashed border-border bg-card/40 p-6 text-center">
+              <CreditCard className="mx-auto size-8 text-muted-foreground/40" />
+              <h3 className="mt-3 font-display text-base font-semibold">No payment method on file</h3>
+              <p className="mt-1 text-xs text-muted-foreground">Add a card or bank account to pay for premium features, events, and Academy modules.</p>
+              <Button className="mt-4" size="sm" disabled>Add payment method</Button>
+            </div>
+          </Section>
+        </TabsContent>
+
+        {/* ── Danger Zone ────────────────────────────────────── */}
+        <TabsContent value="danger" className="space-y-6">
+          <Section icon={AlertTriangle} title="Danger zone" description="Irreversible account actions.">
+            <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-destructive">Delete account</p>
+                  <p className="text-xs text-muted-foreground">Remove all data, DOT balances, certificates and history.</p>
+                </div>
+              </div>
+              <a
+                href="mailto:support@dot.africa?subject=DOT%20account%20deletion%20request"
+                className="inline-flex w-full items-center justify-start gap-2 rounded-md border border-destructive/40 bg-card px-3 py-2 text-sm text-destructive hover:bg-destructive/10"
+              >
+                <Mail className="size-4" /> Request account deletion
+              </a>
+              <p className="text-[11px] text-muted-foreground">
+                Deletion is processed within 30 days. This cannot be undone.
+              </p>
+            </div>
+          </Section>
         </TabsContent>
       </Tabs>
     </AppShell>

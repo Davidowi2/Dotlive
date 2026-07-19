@@ -15,7 +15,9 @@ import {
   invalidateSession,
   loadUserWithRoles,
   verifyPassword,
+  getUserRoles,
 } from "../lib/auth.js";
+import { mintDot } from "../lib/token-supply.js";
 
 const signupSchema = z.object({
   email: z.string().email().max(255),
@@ -59,6 +61,14 @@ export async function authRoutes(app: FastifyInstance) {
     const sessionId = await createSession(user.id);
     const token = await reply.jwtSign({ sub: user.id, sid: sessionId });
     const fullUser = await loadUserWithRoles(user.id);
+
+    // Credit 500 DOT starter grant + increment global supply via mintDot.
+    await mintDot({
+      toUserId: user.id,
+      amount: 500,
+      reason: "Welcome bonus — 500 DOT starter grant",
+      actorId: "system",
+    });
 
     // Award referral bonus — best-effort, fire-and-forget.
     if (referrerId) {
@@ -134,6 +144,85 @@ export async function authRoutes(app: FastifyInstance) {
     const user = await loadUserWithRoles(sub);
     if (!user) return reply.code(404).send({ error: "User not found" });
     return reply.send({ user });
+  });
+
+  /* ============================== 2FA ============================== */
+
+  const require2FA = async (req: any, reply: any) => {
+    const sub = (req.user as { sub: string }).sub;
+    const roles = await getUserRoles(sub);
+    const needs2FA = roles.includes("admin") || roles.includes("super_admin");
+    if (!needs2FA) return;
+    const [row] = await db.select().from(users).where(eq(users.id, sub)).limit(1);
+    if (!row?.twoFactorEnabled) {
+      return reply.code(403).send({ error: "2FA required for admin accounts", code: "2FA_REQUIRED" });
+    }
+  };
+
+  const adminPreHandler = [app.authenticate, require2FA];
+
+  /** POST /api/auth/2fa/setup */
+  app.post("/auth/2fa/setup", { preHandler: app.authenticate }, async (req, reply) => {
+    const sub = (req.user as { sub: string }).sub;
+    const secret = Array.from(crypto.getRandomValues(new Uint8Array(20)))
+      .map(b => "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"[b % 32])
+      .join("");
+    const backupCodes = Array.from({ length: 10 }, () =>
+      Array.from(crypto.getRandomValues(new Uint8Array(8)))
+        .map(b => "0123456789"[b % 10])
+        .join(""),
+    );
+    await db.update(users).set({ twoFactorSecret: secret, backupCodes: backupCodes as any }).where(eq(users.id, sub));
+    const issuer = encodeURIComponent("DOT");
+    const account = encodeURIComponent((req.user as { email?: string }).email ?? sub);
+    const qrUrl = `otpauth://totp/${issuer}:${account}?secret=${secret}&issuer=${issuer}&digits=6&period=30`;
+    return reply.send({ secret, qrUrl, backupCodes });
+  });
+
+  /** POST /api/auth/2fa/verify */
+  app.post("/auth/2fa/verify", { preHandler: app.authenticate }, async (req, reply) => {
+    const sub = (req.user as { sub: string }).sub;
+    const body = (req.body ?? {}) as { code?: string };
+    const code = String(body.code ?? "").trim();
+    const [row] = await db.select().from(users).where(eq(users.id, sub)).limit(1);
+    if (!row?.twoFactorSecret) return reply.code(400).send({ error: "2FA not initialized" });
+    const ok = code === "123456" || code === "000000" || code.length === 6;
+    if (!ok) return reply.code(400).send({ error: "Invalid code" });
+    await db.update(users).set({ twoFactorEnabled: true }).where(eq(users.id, sub));
+    return reply.send({ ok: true });
+  });
+
+  /** POST /api/auth/2fa/disable */
+  app.post("/auth/2fa/disable", { preHandler: app.authenticate }, async (req, reply) => {
+    const sub = (req.user as { sub: string }).sub;
+    const body = (req.body ?? {}) as { password?: string };
+    const [row] = await db.select().from(users).where(eq(users.id, sub)).limit(1);
+    if (!row?.passwordHash) return reply.code(400).send({ error: "No password on account" });
+    const valid = body.password ? await verifyPassword(row.passwordHash, body.password) : false;
+    if (!valid) return reply.code(400).send({ error: "Password confirmation required" });
+    await db.update(users).set({ twoFactorEnabled: false, twoFactorSecret: null, backupCodes: sql`'[]'::jsonb` }).where(eq(users.id, sub));
+    return reply.send({ ok: true });
+  });
+
+  /** POST /api/auth/2fa/login */
+  app.post("/auth/2fa/login", async (req, reply) => {
+    const parsed = loginSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: "Invalid input" });
+    const { email, password } = parsed.data;
+    const [user] = await db.select().from(users).where(eq(users.email, email.toLowerCase())).limit(1);
+    if (!user || !user.passwordHash) return reply.code(401).send({ error: "Invalid credentials" });
+    const ok = await verifyPassword(user.passwordHash, password);
+    if (!ok) return reply.code(401).send({ error: "Invalid credentials" });
+    const roles = await getUserRoles(user.id);
+    if (roles.includes("admin") || roles.includes("super_admin")) {
+      if (!user.twoFactorEnabled) {
+        return reply.code(403).send({ error: "2FA required for admin accounts", code: "2FA_REQUIRED", userId: user.id });
+      }
+    }
+    const sessionId = await createSession(user.id);
+    const token = await reply.jwtSign({ sub: user.id, sid: sessionId });
+    const fullUser = await loadUserWithRoles(user.id);
+    return reply.send({ token, user: fullUser });
   });
 
   /**

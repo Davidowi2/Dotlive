@@ -22,7 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDotAuth } from "@/contexts/DotAuthContext";
-import { listMyServices, listOrders } from "@/api/marketplace";
+import { listMyServices, listOrders } from "@/api/work";
 import { dotApi } from "@/api/client";
 import { formatDot } from "@/lib/constants";
 import { cn } from "@/lib/utils";

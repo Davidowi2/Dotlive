@@ -84,7 +84,7 @@ function AdminCoursesPage() {
         )}
         {coursesQ.data && coursesQ.data.length === 0 && !coursesQ.isError && (
           <EmptyState
-            icon={<BookOpen className="size-7" />}
+            icon={BookOpen}
             title="No courses yet"
             description="Create one to surface it on /academy."
           />

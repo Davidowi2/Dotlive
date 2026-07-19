@@ -91,19 +91,18 @@ export async function otpRoutes(app: FastifyInstance) {
     // never leak the code.
     const devCode = sendResult?.delivered === false ? code : null;
 
-    return reply.send({
+    const response: any = {
       ok: true,
       message: purpose === "signup"
         ? "We sent a code to your email. Enter it to create your account."
         : purpose === "2fa"
           ? "We sent your 2FA code to your email."
           : "If an account exists for that email, we've sent a code.",
-      // Dev convenience: if the email was NOT actually delivered (no Resend
-      // key configured, or send failed), expose the code so the user can
-      // complete the flow. Safe: in production with Resend enabled, this
-      // is always null.
-      ...(devCode && { devCode }),
-    });
+    };
+    if (process.env.NODE_ENV !== "production" && devCode) {
+      response.devCode = devCode;
+    }
+    return reply.send(response);
   });
 
   /**

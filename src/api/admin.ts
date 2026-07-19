@@ -18,6 +18,7 @@ export interface AdminUser {
   roles?: string[];
   balance?: number;
   bannedAt?: string | null;
+  banned?: boolean;
   isAdmin?: boolean;
   isSuperAdmin?: boolean;
   isLastSuperAdmin?: boolean;
@@ -77,6 +78,16 @@ export async function listAdminUsers(params?: {
 
 export async function getAdminUser(id: string): Promise<AdminUserDetail> {
   const res = await dotApi.get<AdminUserDetail>(`/api/admin/users/${id}`);
+  return res;
+}
+
+export interface UserRolesInfo {
+  user: { id: string; email: string; name: string | null; roles: string[] };
+  roles: string[];
+}
+
+export async function getUserRolesInfo(userId: string): Promise<UserRolesInfo> {
+  const res = await dotApi.get<{ user: { id: string; email: string; name: string | null; roles: string[] }; roles: string[] }>(`/api/admin/users/${userId}/roles`);
   return res;
 }
 

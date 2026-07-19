@@ -112,7 +112,7 @@ function ChallengesPage() {
           </div>
         ) : open.length === 0 ? (
           <EmptyState
-            icon={<Inbox className="size-7" />}
+            icon={Inbox}
             title="No open challenges"
             description={
               isLeader
@@ -362,7 +362,7 @@ function ChallengeDetailModal({
     queryKey: ["challenge", challengeId],
     queryFn: () => getChallenge(challengeId),
   });
-  const submitMut = useMutation({ mutationFn: () => submitBody });
+  const submitMut = useMutation({ mutationFn: submitBody });
   const awardMut = useMutation({ mutationFn: (winners: string[]) => awardChallenge(challengeId, winners) });
   const cancelMut = useMutation({ mutationFn: () => cancelChallenge(challengeId) });
 

@@ -18,7 +18,7 @@ import { z } from "zod";
 import { sql } from "drizzle-orm";
 import crypto from "node:crypto";
 import { db } from "../db/client.js";
-import { users, userRoles } from "../db/schema.js";
+import { users, userRoles, ventures, feedPosts } from "../db/schema.js";
 import { eq } from "drizzle-orm";
 import { publicCache, cached, k, invalidatePrefix } from "../lib/cache.js";
 
@@ -45,26 +45,41 @@ export async function feedRoutes(app: FastifyInstance) {
 
   /* ── GET /api/feed ─────────────────────────────────────────── */
   app.get("/feed", async (req, reply) => {
-    const q = (req.query ?? {}) as { tab?: string; page?: string; limit?: string };
+    const q = (req.query ?? {}) as { tab?: string; page?: string; limit?: string; audience?: string };
     const tab = q.tab ?? "latest";
     const limit = Math.min(50, Math.max(1, parseInt(q.limit ?? "20", 10) || 20));
     const offset = Math.max(0, (parseInt(q.page ?? "1", 10) - 1) * limit);
+    const audience = q.audience ?? undefined;
 
-    // Cache key includes caller id (auth changes isLiked / isBookmarked).
+    // Cache key includes caller id + audience role priority changes ordering.
     let callerId: string | null = null;
     try {
       await app.authenticate(req as any, reply);
       callerId = (req as any).user?.sub ?? null;
     } catch {}
 
-    const cacheKey = k("feed", tab, limit, offset, callerId ?? "anon");
+    const cacheKey = k("feed", tab, limit, offset, callerId ?? "anon", audience ?? "default");
 
     const payload = await cached(publicCache, cacheKey, FEED_TTL_MS, async () => {
-      // Build ORDER BY based on tab
-      const orderBy =
-        tab === "popular"  ? sql`likes_count DESC, created_at DESC`  :
-        tab === "trending" ? sql`(likes_count * 2 + comments_count) DESC, created_at DESC` :
-                            sql`created_at DESC`;
+      // Priority ordering: heavier weight for audience-specific types.
+      let orderBy = sql`created_at DESC`;
+      if (audience) {
+        const roleOrder: Record<string, string[]> = {
+          founder: ["venture_update", "funding", "gig", "announcement", "general"],
+          builder: ["gig", "venture_update", "funding", "announcement", "general"],
+          investor: ["funding", "venture_update", "gig", "announcement", "general"],
+          capital_partner: ["funding", "venture_update", "gig", "announcement", "general"],
+          admin: ["announcement", "funding", "venture_update", "gig", "general"],
+          super_admin: ["announcement", "funding", "venture_update", "gig", "general"],
+        };
+        const types = roleOrder[audience] ?? roleOrder.builder;
+        const clauses = types.map((t, idx) => sql`WHEN ${sql.raw(`'${t}'`)} THEN ${idx}`).reduce((acc, cur) => acc.sql` ${cur}`, sql`CASE type`);
+        orderBy = sql`${clauses} END, created_at DESC`;
+      } else if (tab === "popular") {
+        orderBy = sql`likes_count DESC, created_at DESC`;
+      } else if (tab === "trending") {
+        orderBy = sql`(likes_count * 2 + comments_count) DESC, created_at DESC`;
+      }
 
       const rows = await db.execute(sql`
         SELECT

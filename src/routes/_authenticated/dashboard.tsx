@@ -28,6 +28,8 @@ import { PageHeader } from "@/components/app/PageHeader";
 import { PageIntent } from "@/components/app/PageIntent";
 import { StatCard } from "@/components/app/StatCard";
 import { PageSkeleton } from "@/components/app/PageSkeleton";
+import { RoleGate } from "@/components/app/RoleGate";
+import { dashboardWidgets } from "@/lib/dashboard-widgets";
 import { Button } from "@/components/ui/button";
 import { useDotAuth } from "@/contexts/DotAuthContext";
 import { useQuery } from "@tanstack/react-query";
@@ -47,6 +49,7 @@ import {
 import { JOURNEY_STAGES, dotToNaira, formatDot, formatNaira } from "@/lib/constants";
 import { computeNetWorth } from "@/lib/netWorth";
 import type { WalletBalance } from "@/api/wallet";
+import type { StakePosition } from "@/api/stakes";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -191,7 +194,7 @@ function Dashboard() {
     : undefined;
 
   const subtitleParts = [
-    isFounder ? `Founder · Stage: ${stage}` : primaryRole,
+    roles.join(" · "),
     founder?.ventureName,
     membership?.community ? membership.community.name : null,
   ].filter(Boolean).join(" · ");
@@ -200,24 +203,17 @@ function Dashboard() {
     <AppShell>
       <PageHeader
         eyebrow="Welcome back,"
-        title={profile?.name || (isBuilderOnly ? "Builder" : "Founder")}
+        title={profile?.name || "Builder"}
         subtitle={subtitleParts || undefined}
         action={
-          isFounder ? (
+          <RoleGate roles={["founder"]}>
             <Button variant="hero" asChild>
               <Link to="/vantage">
                 <Sparkles className="size-4" />
                 {latest ? "Update Vantage" : "Take Vantage"}
               </Link>
             </Button>
-          ) : (
-            <Button variant="gold" asChild>
-              <Link to="/wallet">
-                <WalletMinimal className="size-4" />
-                Top up wallet
-              </Link>
-            </Button>
-          )
+          </RoleGate>
         }
       />
 
@@ -252,7 +248,13 @@ function Dashboard() {
             </div>
             <span className="inline-flex items-center gap-1 rounded-full border border-gold/40 bg-gold/10 px-2.5 py-1 text-[10px] tracking-widest uppercase font-semibold text-gold">
               <Crown className="size-3" />
-              Capital
+              {roles.includes("investor") || roles.includes("capital_partner")
+                ? "Investment Capital"
+                : roles.includes("founder")
+                  ? "Venture Capital"
+                  : roles.includes("builder")
+                    ? "Earned DOT"
+                    : "Capital"}
             </span>
           </div>
 
@@ -570,19 +572,19 @@ function Dashboard() {
                   link="/settings"
                 />
                 <ProfileStep
-                  completed={!!(builderProfile.hourlyRate && Number(builderProfile.hourlyRate) > 0)}
+                  completed={!!(builderProfile.hourlyRateDot && Number(builderProfile.hourlyRateDot) > 0)}
                   label="Set your hourly rate"
                   desc="Show what you charge"
                   link="/settings"
                 />
                 <ProfileStep
-                  completed={!!(builderProfile.headline && builderProfile.headline.length > 10)}
+                  completed={!!((builderProfile as any).headline && (builderProfile as any).headline.length > 10)}
                   label="Write a professional headline"
                   desc="30-60 characters that sell your expertise"
                   link="/settings"
                 />
                 <ProfileStep
-                  completed={!!(builderProfile.portfolio && builderProfile.portfolio.length > 0)}
+                  completed={!!(builderProfile.portfolioUrl && builderProfile.portfolioUrl.length > 0)}
                   label="Add portfolio samples"
                   desc="Show your best work"
                   link="/settings"
@@ -611,7 +613,7 @@ function Dashboard() {
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               {[
                 { label: "Browse gigs", desc: "Find work and earn DOT", to: "/work", icon: Store, cta: "Go to Gigs", accent: "text-primary border-primary/30" },
-                { label: "Marketplace", desc: "See open service listings", to: "/marketplace", icon: Briefcase, cta: "Browse listings", accent: "text-gold border-gold/30" },
+                { label: "Marketplace", desc: "Services, jobs, proposals, and contracts", to: "/work", icon: Briefcase, cta: "Open DOT Work", accent: "text-gold border-gold/30" },
                 { label: "Sell your skills", desc: "List a service or gig", to: "/work", icon: Hammer, cta: "Start selling", accent: "text-primary border-primary/30" },
                 { label: "Academy", desc: "Learn and earn DOT rewards", to: "/academy", icon: BookOpen, cta: "Start learning", accent: "text-primary border-primary/30" },
               ].map((q) => {

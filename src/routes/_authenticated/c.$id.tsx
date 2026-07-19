@@ -6,7 +6,7 @@
  */
 
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Users, ArrowRight } from "lucide-react";
+import { Users, ArrowRight, Sparkles } from "lucide-react";
 import { PageHeader } from "@/components/app/PageHeader";
 import { dotApi } from "@/api/client";
 import { useQuery } from "@tanstack/react-query";

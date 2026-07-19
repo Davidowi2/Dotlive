@@ -16,7 +16,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   MapPin, Globe, Linkedin, Twitter, Github, Briefcase,
-  Trophy, Star, Edit3, Check, X, MessageSquare,
+  Trophy, Star, Edit3, Check, X, MessageSquare, UserPlus,
 } from "lucide-react";
 
 import { AppShell } from "@/components/app/AppShell";
@@ -36,6 +36,7 @@ import {
   type BuilderReview,
 } from "@/api/builders";
 import { updateMyBuilderProfile } from "@/api/users";
+import { ConnectModal } from "@/components/app/ConnectModal";
 
 export const Route = createFileRoute("/_authenticated/builder/$id")({
   head: () => ({ meta: [{ title: "Builder · DOT Arena" }] }),
@@ -46,6 +47,8 @@ function BuilderProfilePage() {
   const { id } = Route.useParams();
   const { user } = useDotAuth();
   const qc = useQueryClient();
+  const [connectOpen, setConnectOpen] = useState(false);
+  const [connectTarget, setConnectTarget] = useState<{ userId: string; userName: string; role: string; vantage: number } | null>(null);
 
   const { data: builder, isLoading } = useQuery({
     queryKey: ["builder-arena", id],
@@ -85,18 +88,29 @@ function BuilderProfilePage() {
                 <Edit3 className="size-3" /> Edit in DOT Work
               </Link>
             ) : (
-              <Button asChild size="sm">
-                <Link
-                  to="/discover/people"
-                  search={{ message: builder.id }}
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    if (!user) {
+                      window.location.href = `/auth?mode=signin&next=${encodeURIComponent(typeof window !== "undefined" ? window.location.pathname : "/")}`;
+                      return;
+                    }
+                    setConnectTarget({
+                      userId: builder.id,
+                      userName: builder.name ?? "Builder",
+                      role: "builder",
+                      vantage: 0,
+                    });
+                    setConnectOpen(true);
+                  }}
                 >
-                  <MessageSquare className="mr-1.5 size-3.5" /> Request meeting
-                </Link>
-              </Button>
+                  <UserPlus className="mr-1.5 size-3.5" /> Connect
+                </Button>
+              </div>
             )
           }
         />
-
         {/* Header card */}
         <Card className="mt-6">
           <CardContent className="flex flex-col gap-6 p-6 sm:flex-row sm:items-start">
@@ -212,6 +226,18 @@ function BuilderProfilePage() {
             </ul>
           )}
         </section>
+
+        {/* Connect Modal */}
+        {connectTarget && (
+          <ConnectModal
+            open={connectOpen}
+            onOpenChange={setConnectOpen}
+            targetUserId={connectTarget.userId}
+            targetUserName={connectTarget.userName}
+            targetUserRole={connectTarget.role}
+            targetUserVantage={connectTarget.vantage}
+          />
+        )}
       </div>
     </AppShell>
   );

@@ -181,6 +181,13 @@ function AboutPage() {
           </div>
         </section>
 
+        {/* Legal */}
+        <div className="flex flex-wrap gap-3 text-sm">
+          <Link to="/privacy" className="text-primary hover:underline underline-offset-4">Privacy Policy</Link>
+          <span className="text-muted-foreground">·</span>
+          <Link to="/terms" className="text-primary hover:underline underline-offset-4">Terms of Service</Link>
+        </div>
+
         {/* CTA */}
         <div className="rounded-2xl border border-border [background-image:var(--gradient-primary)] p-8 text-center sm:p-12">
           <h2 className="font-display text-2xl font-bold text-primary-foreground sm:text-3xl">Join the pilot</h2>

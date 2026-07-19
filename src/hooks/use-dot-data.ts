@@ -218,7 +218,7 @@ export function useVantage() {
     queryFn: async () => {
       try {
         const res = await dotApi.get<{ vouches: VouchLike[] }>(
-          `/api/vouches/received/${user.id}`,
+          `/api/vouches/received/${user!.id}`,
         );
         return res.vouches ?? [];
       } catch {

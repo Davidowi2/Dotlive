@@ -20,13 +20,18 @@ import {
   Settings,
   User,
   MenuIcon,
+  Search,
+  X,
+  type LucideIcon,
 } from "lucide-react";
 import { Logo } from "@/components/site/Logo";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { NotificationBell } from "@/components/app/NotificationBell";
+import { SearchModal } from "@/components/app/SearchModal";
 import { useDotAuth } from "@/contexts/DotAuthContext";
 import { cn } from "@/lib/utils";
 import { ROLE_LABELS, type AppRole } from "@/lib/constants";
+import { Button } from "@/components/ui/button";
 
 interface NavItem {
   label: string;
@@ -70,6 +75,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
     if (!isLoading && user && roles.length === 0) {
@@ -126,6 +132,15 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="flex items-center gap-2 sm:gap-3">
             <NotificationBell />
             <ThemeToggle />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSearchOpen(true)}
+              aria-label="Search"
+              className="hidden sm:flex"
+            >
+              <Search className="size-4" />
+            </Button>
             {primaryRole && (
               <span className="hidden text-[10px] tracking-widest uppercase font-semibold text-primary sm:inline-flex sm:items-center sm:gap-1.5">
                 <span className="size-1.5 rounded-full bg-primary" />
@@ -300,6 +315,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
       )}
+
+      <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
     </div>
   );
 }

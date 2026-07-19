@@ -27,7 +27,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/use-auth";
+import { useDotAuth as useAuth } from "@/contexts/DotAuthContext";
 import {
   listNotifications,
   markReadNotification,

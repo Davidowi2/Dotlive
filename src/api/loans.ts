@@ -57,7 +57,7 @@ export async function getLoanRequests(status?: string): Promise<{ requests: Loan
 }
 
 export async function getLoanRequest(id: string): Promise<LoanRequestWithVotes> {
-  const res = await dotApi.get(`/api/loans/requests/${id}`);
+  const res = await dotApi.get<LoanRequestWithVotes>(`/api/loans/requests/${id}`);
   return res;
 }
 

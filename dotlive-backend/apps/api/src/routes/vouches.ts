@@ -179,6 +179,34 @@ export async function vouchesRoutes(app: FastifyInstance) {
     },
   );
 
+  /** GET /api/vouches/stats/:userId — aggregated stats */
+  app.get<{ Params: { userId: string } }>(
+    "/vouches/stats/:userId",
+    async (req, reply) => {
+      const { userId } = req.params;
+      const [received] = await db
+        .select({ count: count() })
+        .from(userVouches)
+        .where(eq(userVouches.voucheeId, userId));
+      const [given] = await db
+        .select({ count: count() })
+        .from(userVouches)
+        .where(eq(userVouches.voucherId, userId));
+      const [totalScore] = await db
+        .select({ score: sql`COALESCE(SUM(${userVouches.score}),0)` })
+        .from(userVouches)
+        .where(eq(userVouches.voucheeId, userId));
+
+      return reply.send({
+        userId,
+        receivedCount: Number(received?.count ?? 0),
+        givenCount: Number(given?.count ?? 0),
+        totalScore: Number(totalScore?.score ?? 0),
+        decayedScore: Number(totalScore?.score ?? 0), // client applies 1%/30d
+      });
+    },
+  );
+
   /** DELETE /api/vouches/:id — only the original voucher can revoke. */
   app.delete<{ Params: { id: string } }>(
     "/vouches/:id",

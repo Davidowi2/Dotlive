@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import type { CourseEnrollment } from "@/types/api";
 
 const completeInput = z.object({ courseId: z.string().uuid() });
 
@@ -31,5 +32,5 @@ export const completeCourse = createServerFn({ method: "POST" })
       throw new Error((body as { error?: string }).error ?? "Complete failed");
     }
 
-    return (await res.json()) as { enrollment: unknown; reward: number; alreadyRewarded?: boolean };
+    return (await res.json()) as { enrollment: CourseEnrollment; reward: number; alreadyRewarded?: boolean };
   });

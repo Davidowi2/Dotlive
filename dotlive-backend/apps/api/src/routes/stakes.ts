@@ -15,7 +15,6 @@ import crypto from "node:crypto";
 import { db } from "../db/client.js";
 import { dotStakePositions, dotStakeHistory, wallets } from "../db/schema.js";
 
-const APY_PERCENT = 0.12; // 12% APY
 const COOLDOWN_DAYS = 14;
 const COOLDOWN_MS = COOLDOWN_DAYS * 24 * 60 * 60 * 1000;
 
@@ -41,7 +40,11 @@ export async function stakesRoutes(app: FastifyInstance) {
       return { ...s, rewardAccrued };
     });
 
-    return reply.send(enriched);
+    const totalActive = enriched
+      .filter((s) => s.status === "active" || s.status === "unstaking")
+      .reduce((acc, s) => acc + Number(s.amount), 0);
+
+    return reply.send({ stakes: enriched, tier: getStakerTier(totalActive) });
   });
 
   /** POST /api/stakes — create a new DOT stake */
@@ -226,9 +229,10 @@ export async function stakesRoutes(app: FastifyInstance) {
 
 /**
  * Compute accrued rewards based on stake amount, days staked, and status.
- * 12% APY compounded daily.
+ * Rewards are paused while unstaking; no yield/APY is applied.
  *
- * If unstaking, stop accruing from unbondedAt date.
+ * NOTE: 12% APY yield farming was removed in B1.10. This function now
+ * returns 0; the platform gates benefits via staker tiers instead.
  */
 function computeAccruedReward(
   amount: number,
@@ -237,12 +241,44 @@ function computeAccruedReward(
 ): number {
   if (amount <= 0 || daysStaked <= 0) return 0;
   if (status === "withdrawn") return 0;
+  if (status === "unstaking") return 0;
+  return 0;
+}
 
-  // Daily compound: (1 + r/365)^days - 1
-  // r = 0.12 (12% APY)
-  const dailyRate = APY_PERCENT / 365;
-  const multiplier = Math.pow(1 + dailyRate, daysStaked);
-  const earned = amount * (multiplier - 1);
+export type StakerTier = {
+  name: string;
+  level: number;
+  benefits: string[];
+};
 
-  return Math.max(0, earned);
+export function getStakerTier(totalStaked: number): StakerTier {
+  if (totalStaked >= 100_000) {
+    return {
+      name: "Platinum",
+      level: 4,
+      benefits: ["Dispute resolution priority", "Direct admin line"],
+    };
+  }
+  if (totalStaked >= 10_000) {
+    return {
+      name: "Gold",
+      level: 3,
+      benefits: ["Judge eligibility", "Voting weight"],
+    };
+  }
+  if (totalStaked >= 1_000) {
+    return {
+      name: "Silver",
+      level: 2,
+      benefits: ["Analytics dashboard", "Advanced search filters"],
+    };
+  }
+  if (totalStaked >= 100) {
+    return {
+      name: "Bronze",
+      level: 1,
+      benefits: ["Premium Academy courses", "Priority support"],
+    };
+  }
+  return { name: "None", level: 0, benefits: [] };
 }

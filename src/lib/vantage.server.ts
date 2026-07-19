@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { computeVantage, VANTAGE_CATEGORIES, type VantageAnswers } from "./vantage";
+import type { Assessment } from "@/api/vantage";
 
 const VALID_IDS = new Set(
   VANTAGE_CATEGORIES.flatMap((c) => c.questions.map((q) => q.id)),
@@ -8,7 +9,7 @@ const VALID_IDS = new Set(
 
 const submitInput = z.object({
   answers: z
-    .record(z.string(), z.number().int().min(1).max(5)))
+    .record(z.string(), z.number().int().min(1).max(5))
     .refine(
       (a) => Object.keys(a).every((k) => VALID_IDS.has(k)),
       { message: "Answer contains unknown question ID" },
@@ -47,5 +48,5 @@ export const submitVantageAssessment = createServerFn({ method: "POST" })
       throw new Error((body as { error?: string }).error ?? "Submit failed");
     }
 
-    return (await res.json()) as unknown;
+    return (await res.json()) as { assessment: Assessment };
   });

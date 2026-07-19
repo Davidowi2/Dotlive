@@ -20,6 +20,8 @@ import {
   ShieldCheck,
   TrendingUp,
   Clock,
+  Camera,
+  Upload,
 } from "lucide-react";
 import { VouchButton } from "@/components/vouch/VouchButton";
 import { AppShell } from "@/components/app/AppShell";
@@ -30,9 +32,10 @@ import { Badge } from "@/components/ui/badge";
 import { useDotAuth } from "@/contexts/DotAuthContext";
 import { ROLE_LABELS, type AppRole } from "@/lib/constants";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { uploadImageToCloudinary } from "@/lib/upload";
 import { BuilderProfileSection } from "@/components/profile/BuilderProfileSection";
 import { VouchDisplay } from "@/components/vouch/VouchDisplay";
 import { VouchList } from "@/components/vouch/VouchList";
@@ -57,6 +60,8 @@ export const Route = createFileRoute("/_authenticated/profile")({
 function PublicProfilePage() {
   const { user, roles, primaryRole } = useDotAuth();
   const [copied, setCopied] = useState(false);
+  const qc = useQueryClient();
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const { data: walletBalance = 0 } = useWallet();
   const { data: vantageData } = useQuery({
     queryKey: ["vantage", "latest", user?.id],
@@ -98,6 +103,30 @@ function PublicProfilePage() {
   const initial = (user.name || user.email || "?").charAt(0).toUpperCase();
   const dotId = user.dotId ?? "—";
   const profileUrl = `https://dotlive-lake.vercel.app/founder/${dotId}`;
+
+  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Image files only");
+      return;
+    }
+    setAvatarUploading(true);
+    try {
+      const up = await uploadImageToCloudinary(file, "avatars", user.id);
+      const res = await dotApi.patch<{ ok: boolean; user: { id: string } }>("/api/users/me", {
+        avatarUrl: up.url,
+      });
+      toast.success("Avatar updated");
+      qc.invalidateQueries({ queryKey: ["user"] });
+      qc.invalidateQueries({ queryKey: ["admin-users-management"] });
+      e.target.value = "";
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setAvatarUploading(false);
+    }
+  }
 
   function handleCopy() {
     void navigator.clipboard.writeText(profileUrl).then(() => {
@@ -153,7 +182,7 @@ function PublicProfilePage() {
         <div className="px-6 pb-6 sm:px-8">
           <div className="-mt-10 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
             <div className="flex items-end gap-4">
-              <div className="flex size-20 shrink-0 items-center justify-center rounded-2xl border-4 border-card bg-[oklch(0.32_0.10_155)] font-display text-3xl font-bold text-primary-foreground shadow-soft">
+              <div className="relative flex size-20 shrink-0 items-center justify-center rounded-2xl border-4 border-card bg-[oklch(0.32_0.10_155)] font-display text-3xl font-bold text-primary-foreground shadow-soft overflow-hidden">
                 {user.avatarUrl ? (
                   <img
                     src={user.avatarUrl}
@@ -161,8 +190,11 @@ function PublicProfilePage() {
                     className="size-full rounded-2xl object-cover"
                   />
                 ) : (
-                  initial
+                  <span className="text-3xl font-bold text-primary-foreground">{initial}</span>
                 )}
+                <label className="absolute inset-0 flex cursor-pointer items-center justify-center rounded-2xl bg-black/40 opacity-0 transition-opacity hover:opacity-100" htmlFor="profile-avatar-upload">
+                  <Camera className="size-6 text-white" />
+                </label>
               </div>
               <div className="pb-1">
                 <h2 className="font-display text-2xl font-light tracking-tight">
@@ -306,6 +338,23 @@ function PublicProfilePage() {
             </div>
           </dl>
         </div>
+      </section>
+
+      {/* ─── Bio / about section ──────────────────────────────────── */}
+      <section className="mt-6 rounded-2xl border border-border bg-card p-6">
+        <div className="mb-3 flex items-center gap-2 border-b border-border pb-3">
+          <UserIcon className="size-4 text-primary" />
+          <h3 className="font-display text-base font-semibold tracking-tight">
+            Bio
+          </h3>
+        </div>
+        <p className="text-sm font-light leading-relaxed text-foreground/80">
+          {(user as any).bio?.trim() ? (user as any).bio : (
+            <span className="text-muted-foreground">
+              Add a short bio in Settings so others know what you’re building.
+            </span>
+          )}
+        </p>
       </section>
 
       {/* ─── Section divider ──────────────────────────────────────── */}

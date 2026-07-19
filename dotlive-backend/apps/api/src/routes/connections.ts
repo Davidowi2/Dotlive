@@ -56,9 +56,32 @@ export async function connectionRoutes(app: FastifyInstance) {
   /* -------------------- LIST my threads -------------------- */
   app.get("/connections", { preHandler: app.authenticate }, async (req, reply) => {
     const userId = getUserId(req);
+    const status = (req.query as any)?.status as string | undefined;
     const rows = await db
-      .select()
+      .select({
+        id: connections.id,
+        userAId: connections.userAId,
+        userBId: connections.userBId,
+        status: connections.status,
+        meetingId: connections.meetingId,
+        initiatedBy: connections.initiatedBy,
+        createdAt: connections.createdAt,
+        closedAt: connections.closedAt,
+        otherName: sql<string>`COALESCE(ua.name, ub.name)`,
+        otherDotId: sql<string>`COALESCE(ua.dot_id, ub.dot_id)`,
+        otherAvatar: sql<string>`COALESCE(ua.avatar_url, ub.avatar_url)`,
+        lastMessage: sql<string>`(SELECT body FROM connection_messages WHERE connection_id = ${connections.id} ORDER BY created_at DESC LIMIT 1)`,
+        lastMessageAt: sql<string>`(SELECT created_at FROM connection_messages WHERE connection_id = ${connections.id} ORDER BY created_at DESC LIMIT 1)`,
+        unreadCount: sql<string>`(
+          SELECT COUNT(*) FROM connection_messages
+          WHERE connection_id = ${connections.id}
+            AND sender_id != ${userId}
+            AND read_at IS NULL
+        )`,
+      })
       .from(connections)
+      .leftJoin(users as ua, sql`${connections.userAId} = ${ua.id}`)
+      .leftJoin(users as ub, sql`${connections.userBId} = ${ub.id}`)
       .where(or(eq(connections.userAId, userId), eq(connections.userBId, userId)))
       .orderBy(asc(connections.createdAt));
     return reply.send({ connections: rows });
@@ -131,7 +154,7 @@ export async function connectionRoutes(app: FastifyInstance) {
           type: "message_received",
           title: "New message",
           body: parsed.data.body.slice(0, 80) + (parsed.data.body.length > 80 ? "…" : ""),
-          link: `/messages/${thread.id}`,
+          link: `/connect?thread=${thread.id}`,
           icon: "MessageSquare",
         });
       } catch { /* best-effort */ }

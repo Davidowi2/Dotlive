@@ -17,7 +17,7 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import {
   Users, Search, Shield, ShieldOff, UserCheck, UserX, AlertCircle,
-  ChevronRight, RefreshCw, Loader2, Sparkles, X, Check,
+  ChevronRight, RefreshCw, Loader2, Sparkles, X, Check, Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -172,6 +172,42 @@ function AdminMembersPage() {
     onError: (e: any) => toast.error(e?.message ?? "Could not unban"),
   });
 
+  const impersonateMut = useMutation({
+    mutationFn: async (userId: string) =>
+      dotApi.post<{ accessToken: string }>(`/api/admin/users/${userId}/impersonate`, {}),
+    onSuccess: (res) => {
+      if (res?.accessToken) {
+        localStorage.setItem("impersonation_token", res.accessToken);
+        toast.success("Impersonation token copied/managed");
+      }
+      qc.invalidateQueries({ queryKey: ["admin", "members"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Could not impersonate"),
+  });
+
+  const adjustWallet = async (member: MemberRow) => {
+    const amount = prompt(`Adjust wallet for ${member.email}\nEnter DOT amount (positive = credit, negative = debit):`);
+    if (amount === null) return;
+    const delta = Number(amount);
+    if (!Number.isFinite(delta) || delta === 0) {
+      toast.error("Enter a valid non-zero DOT amount");
+      return;
+    }
+    const reason = prompt("Reason (min 5 chars):");
+    if (reason === null) return;
+    if (reason.trim().length < 5) {
+      toast.error("Reason must be at least 5 chars");
+      return;
+    }
+    try {
+      await dotApi.post(`/api/admin/users/${member.id}/adjust-wallet`, { amountDot: delta, reason: reason.trim() });
+      toast.success(`Wallet adjusted by ${delta} DOT`);
+      qc.invalidateQueries({ queryKey: ["admin", "members"] });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Could not adjust wallet");
+    }
+  };
+
   return (
     <>
       <PageHeader
@@ -237,11 +273,14 @@ function AdminMembersPage() {
                 onBan={() => banMut.mutate(m.id)}
                 onUnban={() => unbanMut.mutate(m.id)}
                 onManageRoles={() => setManageRolesFor(m)}
+                onImpersonate={() => impersonateMut.mutate(m.id)}
+                onAdjustWallet={adjustWallet}
                 busy={
                   promoteMut.isPending ||
                   demoteMut.isPending ||
                   banMut.isPending ||
-                  unbanMut.isPending
+                  unbanMut.isPending ||
+                  impersonateMut.isPending
                 }
               />
             ))}
@@ -267,6 +306,8 @@ function MemberCard({
   onBan,
   onUnban,
   onManageRoles,
+  onImpersonate,
+  onAdjustWallet,
   busy,
 }: {
   member: MemberRow;
@@ -275,6 +316,8 @@ function MemberCard({
   onBan: () => void;
   onUnban: () => void;
   onManageRoles: () => void;
+  onImpersonate: () => void;
+  onAdjustWallet: (member: MemberRow) => void;
   busy: boolean;
 }) {
   return (
@@ -351,7 +394,27 @@ function MemberCard({
             disabled={busy || member.isSuperAdmin}
           >
             <Sparkles className="size-3.5" />
-            Manage roles
+            Roles
+          </Button>
+          {member.isSuperAdmin && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onImpersonate}
+              disabled={busy}
+            >
+              <Shield className="size-3.5" />
+              Impersonate
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onAdjustWallet(member)}
+            disabled={busy}
+          >
+            <Wallet className="size-3.5" />
+            Wallet
           </Button>
           {!member.isAdmin && !member.isSuperAdmin && (
             <Button size="sm" variant="outline" onClick={onPromote} disabled={busy}>

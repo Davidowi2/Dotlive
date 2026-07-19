@@ -25,11 +25,37 @@ export interface VantageSubmitInput {
 }
 
 export async function submitAssessment(input: VantageSubmitInput): Promise<Assessment> {
-  const res = await dotApi.post<VantageSubmitResult>("/api/vantage/submit", input);
+  const payload = {
+    answers: input.answers,
+    categoryScores: input.categoryScores,
+    vantagePoint: input.vantagePoint,
+    fundability: input.fundability,
+    investmentReadiness: input.investmentReadiness,
+    stage: input.stage,
+    report: input.report,
+  };
+  const res = await dotApi.post<VantageSubmitResult>("/api/vantage/submit", payload);
   return res.assessment;
 }
 
 export async function getVantageHistory(): Promise<Assessment[]> {
   const res = await dotApi.get<{ assessments: Assessment[] }>("/api/vantage/history");
   return res.assessments ?? [];
+}
+
+export interface CanRetake {
+  canRetake: boolean;
+  nextRetakeAt: string | null;
+}
+export async function canRetakeVantage(): Promise<CanRetake> {
+  return dotApi.get<CanRetake>("/api/vantage/can-retake");
+}
+
+export interface VantageStatus {
+  hasTakenTest: boolean;
+  daysSinceSignup: number;
+  isOverdue: boolean;
+}
+export async function getVantageStatus(): Promise<VantageStatus> {
+  return dotApi.get<VantageStatus>("/api/vantage/status");
 }

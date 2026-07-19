@@ -54,13 +54,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/use-auth";
+import { useDotAuth as useAuth } from "@/contexts/DotAuthContext";
 import { formatDot, formatNaira, ROLE_LABELS, type AppRole } from "@/lib/constants";
-import { elevateUser, revokeAdmin } from "@/lib/admin.functions";
 import { toast } from "sonner";
 import {
   listAdminUsers,
   getAdminUser,
+  getUserRolesInfo,
   adjustBalance,
   banUser,
   unbanUser,
@@ -68,6 +68,7 @@ import {
   listFeedPosts,
   deleteFeedPost,
 } from "@/api/admin";
+import { elevateUser, revokeAdmin } from "@/lib/admin.functions";
 import {
   listAdminCourses,
   createAdminCourse,
@@ -75,17 +76,17 @@ import {
   getIntegrations,
   setIntegration,
   fireTestWebhook,
+  type AdminCourse,
 } from "@/api/adminAcademy";
 import { getPayments } from "@/api/payments";
 import { getTokenStats, getTokenOps, mintTokens, adminTransfer } from "@/api/admin-tools";
 import { listMeetings } from "@/api/meetings";
 import { dotApi } from "@/api/client";
-import type { AdminCourse } from "@/api/admin";
 import type { TokenStats, TokenOperation } from "@/api/admin-tools";
 import type { Integrations } from "@/api/adminAcademy";
 import type { Meeting } from "@/api/meetings";
 
-export const Route = createFileRoute("/_authenticated/admin")({
+export const Route = /* Removed duplicate route owner for /admin to avoid route conflict with admin/route.tsx */({
   head: () => ({ meta: [{ title: "Admin — DOT" }] }),
   component: AdminPage,
 });
@@ -129,7 +130,7 @@ function ActionButton({
   size = "sm",
   className = "",
   ...props
-}: React.ComponentProps<"button">) {
+}: React.ComponentProps<typeof Button>) {
   return (
     <Button
       variant={variant}
@@ -351,10 +352,10 @@ function MembersTab() {
   return (
     <div className="mt-6 space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Total members" value={String(members.length)} sub={`${members.filter((m) => m.banned).length} banned`} />
+        <StatCard title="Total members" value={String(members.length)} sub={`${members.filter((m) => m.bannedAt).length} banned`} />
         <StatCard title="Admin+" value={String(members.filter((m) => m.isAdmin || m.isSuperAdmin).length)} sub="Admins & super admins" accent="secondary" />
         <StatCard title="Total wallet" value={formatDot(members.reduce((a, m) => a + (Number(m.balance) || 0), 0))} sub="Combined DOT balance" />
-        <StatCard title="New today" value="—" sub="Coming soon" accent="outline" />
+        <StatCard title="New today" value="0" sub="No new users yet today" accent="outline" />
       </div>
 
       <div className="overflow-hidden rounded-xl border border-border bg-card">
@@ -391,7 +392,7 @@ function MembersTab() {
                       >
                         <Coins className="size-4" />
                       </ActionButton>
-                      {m.banned ? (
+                      {m.bannedAt ? (
                         <ActionButton
                           size="icon"
                           variant="ghost"
@@ -539,25 +540,25 @@ function FinanceTab() {
                     <div className="font-medium">{p.profile?.name ?? "—"}</div>
                     <div className="text-xs text-muted-foreground">{p.profile?.email}</div>
                   </td>
-                  <td className="p-4">{formatDot(Number(p.dot_amount))}</td>
-                  <td className="p-4">{formatNaira(Number(p.naira_amount))}</td>
+                  <td className="p-4">{formatDot(Number(p.dotAmount))}</td>
+                  <td className="p-4">{formatNaira(Number(p.nairaAmount))}</td>
                   <td className="p-4">
                     <Badge
                       variant={
-                        p.credited_at
+                        p.creditedAt
                           ? "default"
                           : p.status === "pending"
                             ? "secondary"
                             : "destructive"
                       }
                     >
-                      {p.credited_at ? "credited" : p.status}
+                      {p.creditedAt ? "credited" : p.status}
                     </Badge>
                   </td>
                   <td className="p-4 text-muted-foreground">{p.channel ?? "—"}</td>
                   <td className="p-4 font-mono text-xs text-muted-foreground">{p.reference}</td>
                   <td className="p-4 text-muted-foreground">
-                    {new Date(p.created_at).toLocaleString()}
+                    {new Date(p.createdAt).toLocaleString()}
                   </td>
                 </tr>
               ))}
@@ -995,7 +996,10 @@ function ModerationTab() {
   });
   const { data: reports = [], isLoading: reportsLoading } = useQuery({
     queryKey: ["admin-moderation-reports"],
-    queryFn: async () => (await dotApi.get("/api/admin/queue/reports")) as { reports: any[]; nextCursor: string | null },
+    queryFn: async () => {
+      const res = (await dotApi.get("/api/admin/queue/reports")) as { reports: any[]; nextCursor: string | null };
+      return res.reports ?? [];
+    },
     staleTime: 30_000,
   });
 
@@ -1179,17 +1183,18 @@ function RolesTab() {
 
   const { data: members = [], isLoading } = useQuery({
     queryKey: ["admin-roles-members"],
-    queryFn: async () => {
+    queryFn: async (): Promise<Array<{ id: string; name: string | null; email: string; roles: string[]; banned?: boolean }>> => {
       const res = await listAdminUsers({ limit: 200 });
       const roles = await Promise.all(res.users.map(u => getUserRolesInfo(u.id)));
       const roleMap = new Map(roles.map(r => [r.user.id, r.roles]));
-      return res.users.map(u => ({ ...u, roles: roleMap.get(u.id) ?? [] }));
+      return res.users.map(u => ({ id: u.id, name: u.name, email: u.email, roles: roleMap.get(u.id) ?? [], banned: !!u.bannedAt }));
     },
   });
 
   const { data: audit = [] } = useQuery({
     queryKey: ["role-audit-log"],
-    queryFn: async () => (await getAuditLog(200)) as unknown[],
+    queryFn: async (): Promise<Array<{ id: string; action: string; new_role: string; previous_role: string | null; created_at: string }>> =>
+      (await getAuditLog(200)) as Array<{ id: string; action: string; new_role: string; previous_role: string | null; created_at: string }>,
   });
 
   async function doElevate(id: string, role: AppRole) {
@@ -1197,7 +1202,6 @@ function RolesTab() {
     try {
       await elevate({ data: { targetUserId: id, newRole: role } });
       toast.success(`Granted ${ROLE_LABELS[role]}`);
-      await refresh?.();
       qc.invalidateQueries({ queryKey: ["admin-roles-members"] });
       qc.invalidateQueries({ queryKey: ["role-audit-log"] });
     } catch (err) {
@@ -1212,7 +1216,6 @@ function RolesTab() {
     try {
       await revoke({ data: { targetUserId: id, role } });
       toast.success(`Revoked ${ROLE_LABELS[role]}`);
-      await refresh?.();
       qc.invalidateQueries({ queryKey: ["admin-roles-members"] });
       qc.invalidateQueries({ queryKey: ["role-audit-log"] });
     } catch (err) {
@@ -1282,7 +1285,7 @@ function RolesTab() {
                       <div className="flex flex-wrap gap-1">
                         {m.roles.length === 0 && <span className="text-xs text-muted-foreground">—</span>}
                         {m.roles.map((r) => (
-                          <Badge key={r} variant={r === "super_admin" ? "default" : "secondary"}>{ROLE_LABELS[r] ?? r}</Badge>
+                          <Badge key={r} variant={r === "super_admin" ? "default" : "secondary"}>{(ROLE_LABELS as Record<string, string>)[r] ?? r}</Badge>
                         ))}
                       </div>
                     </td>

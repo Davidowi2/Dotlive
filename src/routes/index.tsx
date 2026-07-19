@@ -755,6 +755,7 @@ function BuilderValueSection() {
           <p className="mt-4 text-muted-foreground">
             Free to start. No credit card. 500 DOT in your wallet on signup. Earn your way to Founder.
           </p>
+
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">
@@ -1102,7 +1103,11 @@ function FinalCtaSection() {
             </Link>
           </div>
           <p className="mt-8 text-[10px] tracking-widest uppercase text-muted-foreground/50">
-            Free to start. No credit card. 500 DOT on signup.
+            Free to start. No credit card. 500 DOT in your wallet on signup. Earn your way to Founder.
+
+          </p>
+          <p className="mt-6 inline-flex items-center rounded-full border border-muted-foreground/20 px-3 py-1 text-[10px] tracking-widest uppercase text-muted-foreground/60">
+            Powered by LEGACYLM
           </p>
         </div>
       </div>

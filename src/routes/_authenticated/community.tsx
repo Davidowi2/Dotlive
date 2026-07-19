@@ -267,7 +267,7 @@ function CommunityPage() {
               </CardHeader>
               <CardContent className="p-4 pt-0">
                 <p className="text-xs text-muted-foreground">
-                  Coming soon! Check back for trending communities and challenges.
+                  Discover communities to join from the Discover page.
                 </p>
               </CardContent>
             </Card>

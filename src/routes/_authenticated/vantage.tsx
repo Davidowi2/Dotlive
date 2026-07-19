@@ -47,8 +47,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { submitAssessment, getVantageHistory } from "@/api/vantage";
 import {
   VANTAGE_CATEGORIES,
-  TOTAL_QUESTIONS,
-  categoryScores,
+  categoryScores as genericCategoryScores,
   vantagePointFromScores,
   fundabilityFromScores,
   investmentReadinessFromScores,
@@ -57,6 +56,21 @@ import {
   type VantageAnswerValue,
   scoreQuestion,
 } from "@/lib/vantage";
+import {
+  FOUNDER_QUESTIONS,
+  FOUNDER_SECTIONS,
+  scoreFounderAssessment,
+} from "@/lib/vantage-founder";
+import {
+  BUILDER_QUESTIONS,
+  BUILDER_SECTIONS,
+  scoreBuilderAssessment,
+} from "@/lib/vantage-builder";
+import {
+  INVESTOR_QUESTIONS,
+  INVESTOR_SECTIONS,
+  scoreInvestorAssessment,
+} from "@/lib/vantage-investor";
 import { formatDot } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -79,9 +93,24 @@ const SCALE = [
   { v: 5, label: "Very high" },
 ];
 
-const FLAT_QUESTIONS = VANTAGE_CATEGORIES.flatMap((c) =>
-  c.questions.map((q) => ({ ...q, category: c.label, categoryKey: c.key, categoryDescription: c.description })),
-);
+function effectiveRole(user: any): string {
+  const raw = user?.roles ?? user?.role;
+  if (Array.isArray(raw)) return raw[0] ?? "founder";
+  if (typeof raw === "string") return raw;
+  return "founder";
+}
+
+function roleScores(role: string, answers: Record<string, VantageAnswerValue | undefined>) {
+  if (role === "builder") return scoreBuilderAssessment(answers as any);
+  if (role === "investor") return scoreInvestorAssessment(answers as any);
+  return scoreFounderAssessment(answers as any);
+}
+
+function roleSections(role: string) {
+  if (role === "builder") return BUILDER_SECTIONS;
+  if (role === "investor") return INVESTOR_SECTIONS;
+  return FOUNDER_SECTIONS;
+}
 
 // ─── Hero "5 pillars" rollup ─────────────────────────────────────
 // Maps the 9 underlying Vantage categories into 5 investor-facing pillars.
@@ -214,6 +243,22 @@ function VantagePage() {
     const [submittedNow, setSubmittedNow] = useState<any>(null);
     const [stage, setStage] = useState<"intro" | "taking" | "results">("intro");
 
+    const role = effectiveRole(user);
+
+    const BANK = {
+      bank: roleSections(role).flatMap((s) => s.questions),
+      sections: roleSections(role),
+      label: role === "builder" ? "Builder Vantage" : role === "investor" ? "Investor Vantage" : "Founder Vantage",
+    };
+    const ACTIVE_QUESTIONS = BANK.bank.map((q) => ({
+      ...q,
+      category: BANK.sections.find((s) => s.questions.some((x) => x.id === q.id))?.label ?? "Assessment",
+      categoryKey: BANK.sections.find((s) => s.questions.some((x) => x.id === q.id))?.key ?? q.id,
+      categoryDescription: "",
+    }));
+    const TOTAL_QUESTIONS = ACTIVE_QUESTIONS.length;
+    const FLAT_QUESTIONS = ACTIVE_QUESTIONS;
+
   // Backend returns newest-first (desc createdAt), so the LATEST assessment
     // is index 0, not the last element. Without this, the page shows stale data.
     const latest = assessments[0];
@@ -250,175 +295,45 @@ function VantagePage() {
     if (!user || !answeredAll) return;
     setBusy(true);
     try {
-      // Compute per-category scores (each answer is 1-5, scaled to 0-100)
-      // keyed by lowercase category key (e.g. "founder", "traction").
-      const catScores = categoryScores(answers);
+      // Compute per-category scores for the active role-specific assessment.
+      const role = effectiveRole(user);
+      const { totalScore, sectionScores, badge } = roleScores(role, answers);
+      const vantagePoint = Math.min(1000, Math.round(totalScore));
+      const sections = roleSections(role);
 
-      // Composite scores — vantagePoint is the user-facing 0-1000.
-      const vantagePoint = vantagePointFromScores(catScores);
-      const fundability = fundabilityFromScores(catScores);
-      const investmentReadiness = investmentReadinessFromScores(catScores);
-
-      // score (0-100) is the simple average for backwards compatibility.
-      const scoreValues = Object.values(catScores);
-      const score = scoreValues.length > 0
-        ? Math.round(scoreValues.reduce((a, b) => a + b, 0) / scoreValues.length)
-        : 0;
-
-      const stage = vantageStageFromScore(vantagePoint);
-
-      // Per-category upgrade playbooks — what to actually do when a
-      // category is weak. Each weakness is one specific question that's
-      // the drag on the category. The advice is concrete and actionable,
-      // not generic ("work harder on traction").
-      const UPGRADE_ADVICE: Record<string, { low: string; mid: string }> = {
-              // Founder
-              founder_conviction: {
-                low: "Make the leap to full-time within the next 60 days. Investors back committed operators — side projects signal optionality, not conviction.",
-                mid: "Document a concrete full-time transition plan: savings runway, key milestones, deadline. Show you can focus.",
-              },
-              founder_commitment_status: {
-                low: "Quit the day job. You cannot run a venture full-time + hold another job. The juggling shows.",
-                mid: "Move to part-time at the venture with a deadline to be full-time within 90 days.",
-              },
-              founder_experience_years: {
-                low: "Hire a domain-experienced advisor (5% equity, monthly cadence) to plug the experience gap on your cap table.",
-                mid: "Publish 2 case studies or thought-leadership posts in your industry to demonstrate depth.",
-              },
-              // Traction
-              traction_paying_users: {
-                low: "You have under 10 paying customers. Get out of the building: 20 customer-discovery calls in the next 30 days, convert 3 to paid.",
-                mid: "Convert free users to paid with a clear value moment. If retention is broken, fix that BEFORE acquiring more.",
-              },
-              traction_mrr_dot: {
-                low: "You have under ₦100K/month MRR. Land your first 3 paying customers — even at a discount. Revenue, however small, validates the model.",
-                mid: "Move from one-off sales to a recurring or subscription structure. Track MRR, not just total revenue.",
-              },
-              traction_mom_growth_pct: {
-                low: "Growth under 5% MoM means the product isn't resonating. Find out why — measure activation + retention + NPS.",
-                mid: "Identify the single channel that's working (paid, content, partnership) and double down on it. Stop spreading thin.",
-              },
-              traction_retention_90d_pct: {
-                low: "Retention under 30% at 90 days is a product problem. Talk to the people who churned.",
-                mid: "Set up cohort tracking: what % of users from January are still active in March? Improve that number monthly.",
-              },
-              // Capital
-              capital_runway_months: {
-                low: "Raise a bridge round now — friends, angels, or a SAFE. <3 months runway kills companies.",
-                mid: "Cut burn by 20% before raising. Investors want capital efficiency as much as growth.",
-              },
-              capital_total_raised_dot: {
-                low: "Apply to 3 angel networks or pitchathons to build your first raise track record. Start small.",
-                mid: "Publish a 'capital strategy' doc: who you'd target at each stage (pre-seed → seed → Series A).",
-              },
-              capital_burn_dot: {
-                low: "Burn is too high relative to your runway. Identify the 2 line items to cut this week — server, marketing.",
-                mid: "Set a monthly burn cap. If you exceed it, every team member sees the breakdown. Forced discipline.",
-              },
-              // Market
-              market_size_bucket: {
-                low: "Re-write your TAM/SAM/SOM. 'Big market' isn't enough — investors need numbers from your beachhead.",
-                mid: "Document 3 reference customers who represent your SOM. Show the segments you'll expand into.",
-              },
-              market_timing: {
-                low: "Identify a single external tailwind (regulation change, technology shift, behaviour change) that creates urgency now.",
-                mid: "Cite 2-3 concrete data points that show the market is moving in your favour right now.",
-              },
-              market_moat: {
-                low: "Write the moat paragraph NOW. 'Network effects', 'switching costs', 'data flywheel' — pick one and justify it with numbers.",
-                mid: "Map the top 5 competitors on a 2x2 (price vs. feature). Identify your wedge clearly.",
-              },
-              // Team
-              team_cofounder_count: {
-                low: "Solo founder = red flag. Bring on a co-founder with the skill you lack (technical, sales, ops).",
-                mid: "Formalise your team's commitments: vesting schedules, equity splits, role definitions in a one-pager.",
-              },
-              team_track_record: {
-                low: "Add the prior wins. Investors want proof the team can execute, not just enthusiasm.",
-                mid: "Link a public artifact: GitHub commits, shipped products, customer testimonials.",
-              },
-              // Opportunity
-              opportunity_clarity: {
-                low: "You don't know your ICP yet. Run 20 customer interviews this month — no product building, just listen.",
-                mid: "Narrow from 'everyone' to 1 specific persona. Write a 1-paragraph ICP description and circulate.",
-              },
-              opportunity_pmf_evidence: {
-                low: "No evidence? Get one customer in the next 30 days and ask them why they paid. Quote it on the profile.",
-                mid: "Add another data point. Two paying customers + 2 quotes is stronger than 1.",
-              },
-      };
-
-      function buildPerQuestionAdvice(
-        answers: Record<string, VantageAnswerValue>,
-      ): string[] {
-        const advice: string[] = [];
-        // Per-question advice: any answer scoring <25 (out of 100) is a red flag.
-        for (const cat of VANTAGE_CATEGORIES) {
-          for (const q of cat.questions) {
-            const v = answers[q.id];
-            if (v === undefined) continue;
-            const score = scoreQuestion(q, v);
-            const a = UPGRADE_ADVICE[q.id];
-            if (!a) continue;
-            if (score < 25) advice.push(a.low);
-            else if (score < 60) advice.push(a.mid);
-          }
-        }
-        return advice.slice(0, 6);
+      function sectionLabel(key: string) {
+        return sections.find((s) => s.key === key)?.label ?? key;
       }
 
-      // Build a venture report — strengths / weaknesses / nextActions.
-      const sortedCats = Object.entries(catScores)
-        .map(([key, value]) => {
-          const cat = VANTAGE_CATEGORIES.find((c) => c.key === key);
-          return { key, label: cat?.label ?? key, score: value };
-        })
+      const sorted = Object.entries(sectionScores)
+        .map(([key, value]) => ({
+          key,
+          label: sectionLabel(key),
+          score: value,
+          max: sections.find((s) => s.key === key)?.maxScore ?? 100,
+        }))
         .sort((a, b) => b.score - a.score);
 
-      const strengths = sortedCats.filter((c) => c.score >= 75).slice(0, 3);
-      const weaknesses = sortedCats.filter((c) => c.score < 50).slice(0, 3);
-      const perQuestionAdvice = buildPerQuestionAdvice(answers as Record<string, VantageAnswerValue>);
-
+      const strengths = sorted.filter((c) => c.score >= Math.round(c.max * 0.75)).slice(0, 3).map((c) => ({ label: c.label, score: Math.round((c.score / c.max) * 100) }));
+      const weaknesses = sorted.filter((c) => c.score < Math.round(c.max * 0.5)).slice(0, 3).map((c) => ({ label: c.label, score: Math.round((c.score / c.max) * 100) }));
       const nextActions: string[] = [];
+      weaknesses.slice(0, 3).forEach((c) => nextActions.push(`Improve ${c.label} — currently ${c.score}% of max`));
+      if (vantagePoint < 400) nextActions.push("Focus on core assessment areas with the lowest scores.");
+      else if (vantagePoint < 700) nextActions.push("Strengthen mid-tier sections to reach the next badge.");
+      else nextActions.push("Maintain momentum and retake after 30 days.");
+      if (strengths.length && nextActions.length < 6) nextActions.push("Lean into your strength: " + strengths[0].label + " (" + strengths[0].score + "%).");
 
-      // 1. The most-specific upgrades come from low individual question scores.
-      // These are the highest-leverage actions a founder can take.
-      nextActions.push(...perQuestionAdvice);
-
-            // 2. If we have room, add a strategic next step tied to overall stage.
-            if (vantagePoint < 400) {
-              nextActions.push(
-                "Recruit at least one co-founder or key advisor with relevant industry experience.",
-              );
-            } else if (vantagePoint < 550) {
-              nextActions.push(
-                "Run a structured customer-discovery round (10+ interviews) to validate demand before pitching.",
-              );
-            } else if (vantagePoint < 700) {
-              nextActions.push(
-                "Define a clear 12-month revenue plan with milestone-based projections.",
-              );
-            } else {
-              nextActions.push(
-                "Apply to DOT Demo or pitch your strongest capital partner — you're investor-ready.",
-              );
-            }
-            // 3. Lean into strongest area.
-            if (strengths.length > 0 && nextActions.length < 6) {
-              nextActions.push(
-                "Lean into your strength: " + strengths[0].label + " (" + strengths[0].score + "%). Use it as the headline of your next pitch.",
-              );
-            }
-            const report = { strengths, weaknesses, nextActions, stage };
+      const report = { strengths, weaknesses, nextActions, stage: badge };
+      const fundability = Math.round(Object.values(sectionScores).reduce((a, b) => a + b, 0) / (sections.length * Math.max(...sections.map((s) => s.maxScore))) * 100);
+      const investmentReadiness = fundability;
 
       const result = await submitAssessment({
-        answers: answers as Record<string, VantageAnswerValue>,
-        categoryScores: catScores,
-        score,
+        answers: answers as Record<string, number | string>,
+        categoryScores: sectionScores,
         vantagePoint,
         fundability,
         investmentReadiness,
-        stage,
+        stage: badge,
         report,
       });
       toast.success("Vantage updated. Score: " + vantagePoint + ".");

@@ -83,6 +83,7 @@ function DemoPage() {
   const [stage, setStage] = useState("");
   const [industry, setIndustry] = useState("");
   const [minVantage, setMinVantage] = useState("");
+  const [sort, setSort] = useState<"newest" | "vantage" | "funding">("vantage");
   const [meetModal, setMeetModal] = useState<FounderShowcase | null>(null);
 
   const { data: ventures = [], isLoading } = useQuery({
@@ -105,7 +106,7 @@ function DemoPage() {
   const saved = new Set(saves.map((s) => s.founderId));
 
   const filtered = useMemo(() => {
-    return ventures.filter((v) => {
+    const out = ventures.filter((v) => {
       if (stage && v.stage !== stage) return false;
       if (industry && v.industry !== industry) return false;
       if (minVantage && (v.vantage_point ?? 0) < Number(minVantage)) return false;
@@ -117,7 +118,11 @@ function DemoPage() {
       }
       return true;
     });
-  }, [ventures, stage, industry, minVantage, search]);
+    if (sort === "vantage") out.sort((a, b) => (b.vantage_point ?? 0) - (a.vantage_point ?? 0));
+    else if (sort === "newest") out.sort((a, b) => ((b.dot_id ?? b.user_id) > (a.dot_id ?? a.user_id) ? 1 : -1));
+    else if (sort === "funding") out.sort((a, b) => (b.funding_goal ?? 0) - (a.funding_goal ?? 0));
+    return out;
+  }, [ventures, stage, industry, minVantage, search, sort]);
 
   const totalSeeking = ventures.reduce((s, v) => s + (v.funding_goal ?? 0), 0);
   const topVantage = ventures.length ? Math.max(...ventures.map((v) => v.vantage_point ?? 0)) : 0;
@@ -215,6 +220,14 @@ function DemoPage() {
               <span className="text-xs text-muted-foreground whitespace-nowrap">Min Vantage:</span>
               <Input type="number" value={minVantage} onChange={(e) => setMinVantage(e.target.value)} placeholder="0" className="h-9 w-20 text-xs" />
             </div>
+            <Select value={sort} onValueChange={(v) => setSort(v as any)}>
+              <SelectTrigger className="w-36"><SelectValue placeholder="Sort" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="vantage">Highest Vantage</SelectItem>
+                <SelectItem value="newest">Newest</SelectItem>
+                <SelectItem value="funding">Highest funding</SelectItem>
+              </SelectContent>
+            </Select>
             {hasActiveFilters && (
               <Button variant="ghost" size="sm" onClick={() => { setSearch(""); setStage(""); setIndustry(""); setMinVantage(""); }}>
                 <X className="size-3 mr-1" /> Clear

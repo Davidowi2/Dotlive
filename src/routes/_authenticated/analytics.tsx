@@ -69,36 +69,36 @@ function AnalyticsPage() {
               label="Profile Views"
               value={overview?.totalViews?.toLocaleString() || "0"}
               icon={Eye}
-              trend={{ label: `+${totalViewsInPeriod} this period`, value: "neutral" }}
-              variant="primary"
+              trend={{ label: `+${totalViewsInPeriod} this period`, value: `${totalViewsInPeriod}`, direction: "neutral" }}
+              accent="primary"
             />
             <StatCard
               label="Vouches Received"
               value={overview?.totalVouches?.toLocaleString() || "0"}
               icon={Heart}
-              trend={{ label: `${overview?.totalVouches || 0 > 0 ? "+" : ""}${overview?.totalVouches || 0}`, value: "positive" }}
-              variant="secondary"
+              trend={{ label: `${overview?.totalVouches || 0 > 0 ? "+" : ""}${overview?.totalVouches || 0}`, value: `${overview?.totalVouches || 0}`, direction: (overview?.totalVouches || 0) > 0 ? "up" : "neutral" }}
+              accent="primary"
             />
             <StatCard
               label="Investment Interest"
               value={overview?.totalInvestments?.toLocaleString() || "0"}
               icon={TrendingUp}
-              trend={{ label: "interest signals", value: "neutral" }}
-              variant="tertiary"
+              trend={{ label: "interest signals", value: `${overview?.totalInvestments || 0}`, direction: "neutral" }}
+              accent="primary"
             />
             <StatCard
               label="Wallet Balance"
-              value={formatDot(overview?.walletBalance || "0")}
+              value={formatDot(Number(overview?.walletBalance ?? 0))}
               icon={Wallet}
-              trend={{ label: "available DOT", value: "neutral" }}
-              variant="accent"
+              trend={{ label: "available DOT", value: "", direction: "neutral" }}
+              accent="primary"
             />
             <StatCard
               label="Ventures"
               value={overview?.venturesCount?.toString() || "0"}
               icon={Briefcase}
-              trend={{ label: "active ventures", value: "neutral" }}
-              variant="primary"
+              trend={{ label: "active ventures", value: `${overview?.venturesCount || 0}`, direction: "neutral" }}
+              accent="primary"
             />
           </div>
 
