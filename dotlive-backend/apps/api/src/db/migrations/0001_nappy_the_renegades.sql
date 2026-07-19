@@ -198,9 +198,9 @@ CREATE TABLE IF NOT EXISTS "user_bans" (
 	CONSTRAINT "user_bans_user_id_unique" UNIQUE("user_id")
 );
 --> statement-breakpoint
-ALTER TABLE "users" ADD COLUMN "onboarding_intent" text;--> statement-breakpoint
-ALTER TABLE "users" ADD COLUMN "invited_by" text;--> statement-breakpoint
-ALTER TABLE "users" ADD COLUMN "onboarded_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "onboarding_intent" text;--> statement-breakpoint
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "invited_by" text;--> statement-breakpoint
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "onboarded_at" timestamp with time zone;--> statement-breakpoint
 DO $$ BEGIN
  ALTER TABLE "builder_profiles" ADD CONSTRAINT "builder_profiles_id_users_id_fk" FOREIGN KEY ("id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION

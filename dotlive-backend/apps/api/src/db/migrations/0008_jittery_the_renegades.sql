@@ -210,36 +210,36 @@ CREATE TABLE IF NOT EXISTS "wizard_state" (
 	"started_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-ALTER TABLE "builder_profiles" ADD COLUMN "hourly_dot" numeric(20, 2);--> statement-breakpoint
-ALTER TABLE "builder_profiles" ADD COLUMN "portfolio_url" text;--> statement-breakpoint
-ALTER TABLE "builder_profiles" ADD COLUMN "linkedin_url" text;--> statement-breakpoint
-ALTER TABLE "builder_profiles" ADD COLUMN "twitter_url" text;--> statement-breakpoint
-ALTER TABLE "builder_profiles" ADD COLUMN "github_url" text;--> statement-breakpoint
-ALTER TABLE "builder_profiles" ADD COLUMN "location" text;--> statement-breakpoint
-ALTER TABLE "builder_profiles" ADD COLUMN "total_earned_dot" numeric(20, 2) DEFAULT '0' NOT NULL;--> statement-breakpoint
-ALTER TABLE "builder_profiles" ADD COLUMN "total_completed_orders" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
-ALTER TABLE "builder_profiles" ADD COLUMN "avg_rating" numeric(3, 2) DEFAULT '0' NOT NULL;--> statement-breakpoint
-ALTER TABLE "builder_profiles" ADD COLUMN "review_count" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
-ALTER TABLE "builder_profiles" ADD COLUMN "last_active_at" timestamp with time zone;--> statement-breakpoint
-ALTER TABLE "courses" ADD COLUMN "whop_product_id" text;--> statement-breakpoint
-ALTER TABLE "founder_profiles" ADD COLUMN "headcount" integer DEFAULT 0;--> statement-breakpoint
-ALTER TABLE "founder_profiles" ADD COLUMN "annual_revenue_dot" text DEFAULT '0';--> statement-breakpoint
-ALTER TABLE "founder_profiles" ADD COLUMN "founded_year" integer;--> statement-breakpoint
-ALTER TABLE "founder_profiles" ADD COLUMN "total_raised_dot" text DEFAULT '0';--> statement-breakpoint
-ALTER TABLE "founder_profiles" ADD COLUMN "share_price_kobo" integer DEFAULT 0;--> statement-breakpoint
-ALTER TABLE "founder_profiles" ADD COLUMN "shares_available" integer DEFAULT 0;--> statement-breakpoint
-ALTER TABLE "service_orders" ADD COLUMN "dispute_reason" text;--> statement-breakpoint
-ALTER TABLE "service_orders" ADD COLUMN "disputed_at" timestamp with time zone;--> statement-breakpoint
-ALTER TABLE "users" ADD COLUMN "referral_code" text;--> statement-breakpoint
-ALTER TABLE "users" ADD COLUMN "referred_by" text;--> statement-breakpoint
-ALTER TABLE "users" ADD COLUMN "referral_count" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
-ALTER TABLE "users" ADD COLUMN "referral_earnings_dot" numeric(20, 2) DEFAULT '0' NOT NULL;--> statement-breakpoint
-ALTER TABLE "wallets" ADD COLUMN "staked_balance" numeric(20, 2) DEFAULT '0' NOT NULL;--> statement-breakpoint
-ALTER TABLE "wallets" ADD COLUMN "locked_balance" numeric(20, 2) DEFAULT '0' NOT NULL;--> statement-breakpoint
-ALTER TABLE "wallets" ADD COLUMN "earned_lifetime" numeric(20, 2) DEFAULT '0' NOT NULL;--> statement-breakpoint
-ALTER TABLE "wallets" ADD COLUMN "burned_lifetime" numeric(20, 2) DEFAULT '0' NOT NULL;--> statement-breakpoint
-ALTER TABLE "wallets" ADD COLUMN "staked_lifetime" numeric(20, 2) DEFAULT '0' NOT NULL;--> statement-breakpoint
-ALTER TABLE "wallets" ADD COLUMN "redeemed_lifetime" numeric(20, 2) DEFAULT '0' NOT NULL;--> statement-breakpoint
+ALTER TABLE "builder_profiles" ADD COLUMN IF NOT EXISTS "hourly_dot" numeric(20, 2);--> statement-breakpoint
+ALTER TABLE "builder_profiles" ADD COLUMN IF NOT EXISTS "portfolio_url" text;--> statement-breakpoint
+ALTER TABLE "builder_profiles" ADD COLUMN IF NOT EXISTS "linkedin_url" text;--> statement-breakpoint
+ALTER TABLE "builder_profiles" ADD COLUMN IF NOT EXISTS "twitter_url" text;--> statement-breakpoint
+ALTER TABLE "builder_profiles" ADD COLUMN IF NOT EXISTS "github_url" text;--> statement-breakpoint
+ALTER TABLE "builder_profiles" ADD COLUMN IF NOT EXISTS "location" text;--> statement-breakpoint
+ALTER TABLE "builder_profiles" ADD COLUMN IF NOT EXISTS "total_earned_dot" numeric(20, 2) DEFAULT '0' NOT NULL;--> statement-breakpoint
+ALTER TABLE "builder_profiles" ADD COLUMN IF NOT EXISTS "total_completed_orders" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "builder_profiles" ADD COLUMN IF NOT EXISTS "avg_rating" numeric(3, 2) DEFAULT '0' NOT NULL;--> statement-breakpoint
+ALTER TABLE "builder_profiles" ADD COLUMN IF NOT EXISTS "review_count" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "builder_profiles" ADD COLUMN IF NOT EXISTS "last_active_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "courses" ADD COLUMN IF NOT EXISTS "whop_product_id" text;--> statement-breakpoint
+ALTER TABLE "founder_profiles" ADD COLUMN IF NOT EXISTS "headcount" integer DEFAULT 0;--> statement-breakpoint
+ALTER TABLE "founder_profiles" ADD COLUMN IF NOT EXISTS "annual_revenue_dot" text DEFAULT '0';--> statement-breakpoint
+ALTER TABLE "founder_profiles" ADD COLUMN IF NOT EXISTS "founded_year" integer;--> statement-breakpoint
+ALTER TABLE "founder_profiles" ADD COLUMN IF NOT EXISTS "total_raised_dot" text DEFAULT '0';--> statement-breakpoint
+ALTER TABLE "founder_profiles" ADD COLUMN IF NOT EXISTS "share_price_kobo" integer DEFAULT 0;--> statement-breakpoint
+ALTER TABLE "founder_profiles" ADD COLUMN IF NOT EXISTS "shares_available" integer DEFAULT 0;--> statement-breakpoint
+ALTER TABLE "service_orders" ADD COLUMN IF NOT EXISTS "dispute_reason" text;--> statement-breakpoint
+ALTER TABLE "service_orders" ADD COLUMN IF NOT EXISTS "disputed_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "referral_code" text;--> statement-breakpoint
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "referred_by" text;--> statement-breakpoint
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "referral_count" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "referral_earnings_dot" numeric(20, 2) DEFAULT '0' NOT NULL;--> statement-breakpoint
+ALTER TABLE "wallets" ADD COLUMN IF NOT EXISTS "staked_balance" numeric(20, 2) DEFAULT '0' NOT NULL;--> statement-breakpoint
+ALTER TABLE "wallets" ADD COLUMN IF NOT EXISTS "locked_balance" numeric(20, 2) DEFAULT '0' NOT NULL;--> statement-breakpoint
+ALTER TABLE "wallets" ADD COLUMN IF NOT EXISTS "earned_lifetime" numeric(20, 2) DEFAULT '0' NOT NULL;--> statement-breakpoint
+ALTER TABLE "wallets" ADD COLUMN IF NOT EXISTS "burned_lifetime" numeric(20, 2) DEFAULT '0' NOT NULL;--> statement-breakpoint
+ALTER TABLE "wallets" ADD COLUMN IF NOT EXISTS "staked_lifetime" numeric(20, 2) DEFAULT '0' NOT NULL;--> statement-breakpoint
+ALTER TABLE "wallets" ADD COLUMN IF NOT EXISTS "redeemed_lifetime" numeric(20, 2) DEFAULT '0' NOT NULL;--> statement-breakpoint
 DO $$ BEGIN
  ALTER TABLE "builder_reviews" ADD CONSTRAINT "builder_reviews_builder_id_users_id_fk" FOREIGN KEY ("builder_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
@@ -430,4 +430,4 @@ CREATE INDEX IF NOT EXISTS "venture_team_members_venture_idx" ON "venture_team_m
 CREATE INDEX IF NOT EXISTS "builder_profiles_available_idx" ON "builder_profiles" USING btree ("available");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "builder_profiles_earned_idx" ON "builder_profiles" USING btree ("total_earned_dot");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "builder_profiles_completed_idx" ON "builder_profiles" USING btree ("total_completed_orders");--> statement-breakpoint
-ALTER TABLE "users" ADD CONSTRAINT "users_referral_code_unique" UNIQUE("referral_code");
+ALTER TABLE "users" ADD CONSTRAINT IF NOT EXISTS "users_referral_code_unique" UNIQUE("referral_code");

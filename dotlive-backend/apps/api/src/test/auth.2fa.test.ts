@@ -10,7 +10,7 @@
  * - Login flow with 2FA required
  */
 
-import { describe, it, expect, vi, beforeEach, spyOn } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock dependencies
 const mockUsers: any[] = [];

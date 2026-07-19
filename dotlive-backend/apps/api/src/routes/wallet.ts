@@ -153,7 +153,6 @@ export async function walletRoutes(app: FastifyInstance) {
     const ownedRoles = new Set(owned.map((r) => r.role));
     const options = requirements.map((req) => ({
       role: req.role,
-      title: req.title,
       cost: Number(req.dotCost ?? 0),
       canAfford: balance >= Number(req.dotCost ?? 0),
       hasRole: ownedRoles.has(req.role),
@@ -167,7 +166,7 @@ export async function walletRoutes(app: FastifyInstance) {
     const { sub } = req.user as { sub: string };
 
     const owned = await db.select().from(userRoles).where(eq(userRoles.userId, sub));
-    const statuses = owned.map((r) => ({
+      const statuses = owned.map((r) => ({
       role: r.role,
       hasRenewalTracking: false,
     }));

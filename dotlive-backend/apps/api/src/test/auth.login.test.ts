@@ -7,9 +7,12 @@ vi.mock("../lib/auth.js", () => ({
   validateSession: async (sessionId: string) => {
     validateSessionCalls.push(sessionId);
     if (sessionId === "valid-session") {
-      return { userId: "user-1", expiresAt: new Date(Date.now() + 86400000) };
+      return { 
+        user: { id: "user-1" }, 
+        session: { id: "valid-session", expiresAt: new Date(Date.now() + 86400000) }
+      };
     }
-    return null;
+    return { user: null, session: null };
   },
   createSession: async (userId: string) => {
     createSessionCalls.push(userId);
@@ -95,7 +98,7 @@ describe("Auth login: session creation", () => {
     const result = await validateSession("valid-session");
 
     expect(result).not.toBeNull();
-    expect(result?.userId).toBe("user-1");
+    expect(result?.user?.id).toBe("user-1");
     expect(validateSessionCalls).toContain("valid-session");
   });
 
@@ -104,6 +107,7 @@ describe("Auth login: session creation", () => {
 
     const result = await validateSession("invalid-session");
 
-    expect(result).toBeNull();
+    expect(result.user).toBeNull();
+    expect(result.session).toBeNull();
   });
 });

@@ -36,7 +36,6 @@ export async function vantageRoutes(app: FastifyInstance) {
         userId: sub,
         answers: parsed.data.answers,
         categoryScores: parsed.data.categoryScores,
-        score: parsed.data.score,
         vantagePoint: parsed.data.vantagePoint,
         fundability: parsed.data.fundability,
         investmentReadiness: parsed.data.investmentReadiness,

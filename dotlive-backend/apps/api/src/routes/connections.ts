@@ -57,6 +57,7 @@ export async function connectionRoutes(app: FastifyInstance) {
   app.get("/connections", { preHandler: app.authenticate }, async (req, reply) => {
     const userId = getUserId(req);
     const status = (req.query as any)?.status as string | undefined;
+    
     const rows = await db
       .select({
         id: connections.id,
@@ -67,9 +68,9 @@ export async function connectionRoutes(app: FastifyInstance) {
         initiatedBy: connections.initiatedBy,
         createdAt: connections.createdAt,
         closedAt: connections.closedAt,
-        otherName: sql<string>`COALESCE(ua.name, ub.name)`,
-        otherDotId: sql<string>`COALESCE(ua.dot_id, ub.dot_id)`,
-        otherAvatar: sql<string>`COALESCE(ua.avatar_url, ub.avatar_url)`,
+        otherName: sql<string>`COALESCE(user_a.name, user_b.name)`,
+        otherDotId: sql<string>`COALESCE(user_a.dot_id, user_b.dot_id)`,
+        otherAvatar: sql<string>`COALESCE(user_a.avatar_url, user_b.avatar_url)`,
         lastMessage: sql<string>`(SELECT body FROM connection_messages WHERE connection_id = ${connections.id} ORDER BY created_at DESC LIMIT 1)`,
         lastMessageAt: sql<string>`(SELECT created_at FROM connection_messages WHERE connection_id = ${connections.id} ORDER BY created_at DESC LIMIT 1)`,
         unreadCount: sql<string>`(
@@ -80,8 +81,8 @@ export async function connectionRoutes(app: FastifyInstance) {
         )`,
       })
       .from(connections)
-      .leftJoin(users as ua, sql`${connections.userAId} = ${ua.id}`)
-      .leftJoin(users as ub, sql`${connections.userBId} = ${ub.id}`)
+      .leftJoin(sql.raw(`users AS user_a ON connections.user_a_id = user_a.id`), sql.raw(`TRUE`))
+      .leftJoin(sql.raw(`users AS user_b ON connections.user_b_id = user_b.id`), sql.raw(`TRUE`))
       .where(or(eq(connections.userAId, userId), eq(connections.userBId, userId)))
       .orderBy(asc(connections.createdAt));
     return reply.send({ connections: rows });

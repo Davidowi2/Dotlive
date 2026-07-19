@@ -233,16 +233,15 @@ export async function analyticsRoutes(app: FastifyInstance) {
   /**
    * POST /api/analytics/page-view
    * Record a page view event.
-   * Body: { viewerId?, pageType, referrer? }
+   * Body: { userId, viewerId?, pageType, referrer? }
    */
   app.post(
     "/analytics/page-view",
     async (req, reply) => {
-      const { sub: userId } = req.user as { sub: string } | undefined;
-
       const parsed = z
         .object({
-          viewerId: z.string().optional(), // optional; for frontend-driven tracking
+          userId: z.string(), // required: the profile being viewed
+          viewerId: z.string().optional(), // optional; the viewer
           pageType: z.enum(["venture", "founder", "builder", "investor"]),
           referrer: z.string().optional(),
         })
@@ -253,18 +252,14 @@ export async function analyticsRoutes(app: FastifyInstance) {
       }
 
       try {
-        const viewerId = parsed.data.viewerId || userId;
-
-        if (userId && viewerId) {
-          await db
-            .insert(pageViews)
-            .values({
-              userId: userId,
-              viewerId: viewerId,
-              pageType: parsed.data.pageType,
-              referrer: parsed.data.referrer || null,
-            } as any);
-        }
+        await db
+          .insert(pageViews)
+          .values({
+            userId: parsed.data.userId,
+            viewerId: parsed.data.viewerId || null,
+            pageType: parsed.data.pageType,
+            referrer: parsed.data.referrer || null,
+          } as any);
 
         return reply.code(201).send({ success: true });
       } catch (err) {

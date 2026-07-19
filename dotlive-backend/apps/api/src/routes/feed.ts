@@ -73,8 +73,8 @@ export async function feedRoutes(app: FastifyInstance) {
           super_admin: ["announcement", "funding", "venture_update", "gig", "general"],
         };
         const types = roleOrder[audience] ?? roleOrder.builder;
-        const clauses = types.map((t, idx) => sql`WHEN ${sql.raw(`'${t}'`)} THEN ${idx}`).reduce((acc, cur) => acc.sql` ${cur}`, sql`CASE type`);
-        orderBy = sql`${clauses} END, created_at DESC`;
+        const clauses = types.map((t, idx) => `WHEN '${t}' THEN ${idx}`).join(' ');
+        orderBy = sql.raw(`CASE type ${clauses} END, created_at DESC`);
       } else if (tab === "popular") {
         orderBy = sql`likes_count DESC, created_at DESC`;
       } else if (tab === "trending") {

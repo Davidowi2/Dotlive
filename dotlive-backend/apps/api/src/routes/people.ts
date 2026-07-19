@@ -120,8 +120,8 @@ export async function peopleRoutes(app: FastifyInstance) {
       .groupBy(
         users.id,
         builderProfiles.id,
-        founderProfiles.id,
-        investorProfiles.id
+        founderProfiles.userId,
+        investorProfiles.userId
       );
 
     // Sorting

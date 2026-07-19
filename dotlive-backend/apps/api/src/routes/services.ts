@@ -7,7 +7,7 @@ import { z } from "zod";
 import { eq, and, desc, sql } from "drizzle-orm";
 
 import { db } from "../db/client.js";
-import { services, jobListings, serviceOrders, serviceReviews } from "../db/schema.js";
+import { services, jobListings, serviceOrders, serviceReviews, wallets } from "../db/schema.js";
 import { transferDot, dotToNaira, creditWallet, debitWallet } from "../lib/dot.js";
 import { userHasRole } from "../lib/auth.js";
 import { awardReputation } from "../lib/os-engine.js";
@@ -228,7 +228,10 @@ export async function marketplaceRoutes(app: FastifyInstance) {
       await db.transaction(async (tx) => {
         await tx
           .update(wallets)
-          .set({ balance: sql`balance - ${amount}`, lockedBalance: sql`lockedBalance + ${amount}` })
+          .set({ 
+            balance: sql`balance - ${amount}`, 
+            lockedBalance: sql`locked_balance + ${amount}` 
+          } as any)
           .where(eq(wallets.userId, sub));
       });
     } catch (e: any) {
@@ -304,15 +307,15 @@ export async function marketplaceRoutes(app: FastifyInstance) {
       await db.transaction(async (tx) => {
         await tx
           .update(wallets)
-          .set({ lockedBalance: sql`lockedBalance - ${o[0].amountDot}` })
+          .set({ lockedBalance: sql`locked_balance - ${o[0].amountDot}` } as any)
           .where(eq(wallets.userId, sub));
 
         await tx
           .update(wallets)
           .set({
             balance: sql`balance + ${o[0].amountDot}`,
-            earnedLifetime: sql`earnedLifetime + ${o[0].amountDot}`,
-          })
+            earnedLifetime: sql`earned_lifetime + ${o[0].amountDot}`,
+          } as any)
           .where(eq(wallets.userId, o[0].builderId));
       });
     } catch (e: any) {

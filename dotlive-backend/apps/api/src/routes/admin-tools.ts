@@ -454,7 +454,7 @@ export async function adminToolsRoutes(app: FastifyInstance) {
         return reply.code(400).send({ error: "Cannot impersonate the last super_admin" });
       }
 
-      const token = await consumeConfirmToken((req as any).user.sub, "user.impersonate");
+      const token = await consumeConfirmToken((req as any).confirmToken || "", (req as any).user.sub, "user.impersonate");
       const accessToken = app.jwt.sign(
         { sub: target.id, email: target.email, roles: await getUserRoles(target.id), impersonating: true, impersonatedBy: actorId },
         { expiresIn: "1h" },

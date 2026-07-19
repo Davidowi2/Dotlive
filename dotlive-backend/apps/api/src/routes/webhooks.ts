@@ -98,7 +98,7 @@ export async function webhookRoutes(app: FastifyInstance) {
     try {
       const dbRows = await sql`
         SELECT value FROM integration_secrets WHERE key = 'whop_webhook_secret' LIMIT 1
-      `;
+      ` as any[];
       const dbVal = Array.isArray(dbRows) && dbRows[0]?.value
         ? String(dbRows[0].value)
         : undefined;
@@ -429,16 +429,16 @@ export async function webhookRoutes(app: FastifyInstance) {
         SELECT key, value, updated_at AS "updatedAt"
         FROM integration_secrets
         WHERE key IN ('whop_api_key', 'whop_webhook_secret')
-      `;
+      ` as any[];
       // Neon sql tag returns array directly
       const arr = Array.isArray(rows) ? rows : [];
       const safe: Record<string, { set: boolean; preview: string; updatedAt: string | null }> = {};
       for (const r of arr) {
-        const v = String(r.value ?? "");
-        safe[r.key] = {
+        const v = String((r as any).value ?? "");
+        safe[(r as any).key] = {
           set: true,
           preview: v.length > 6 ? `${v.slice(0, 4)}…${v.slice(-2)}` : "•••",
-          updatedAt: r.updatedAt ?? null,
+          updatedAt: (r as any).updatedAt ?? null,
         };
       }
       return reply.send({
@@ -504,7 +504,7 @@ export async function webhookRoutes(app: FastifyInstance) {
       // Table is created in server.ts bootstrap migration
       const keyRows = await sql`
         SELECT value FROM integration_secrets WHERE key = 'whop_api_key'
-      `;
+      ` as any[];
       const apiKey = Array.isArray(keyRows) && keyRows[0]?.value
         ? String(keyRows[0].value)
         : undefined;

@@ -72,12 +72,12 @@ CREATE TABLE IF NOT EXISTS "withdrawal_requests" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-ALTER TABLE "communities" ADD COLUMN "tier" text DEFAULT 'free' NOT NULL;--> statement-breakpoint
-ALTER TABLE "communities" ADD COLUMN "annual_renewal_at" timestamp with time zone;--> statement-breakpoint
-ALTER TABLE "communities" ADD COLUMN "subscription_status" text DEFAULT 'active' NOT NULL;--> statement-breakpoint
-ALTER TABLE "communities" ADD COLUMN "paid_through_at" timestamp with time zone;--> statement-breakpoint
-ALTER TABLE "communities" ADD COLUMN "verified_at" timestamp with time zone;--> statement-breakpoint
-ALTER TABLE "communities" ADD COLUMN "member_count" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "communities" ADD COLUMN IF NOT EXISTS "tier" text DEFAULT 'free' NOT NULL;--> statement-breakpoint
+ALTER TABLE "communities" ADD COLUMN IF NOT EXISTS "annual_renewal_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "communities" ADD COLUMN IF NOT EXISTS "subscription_status" text DEFAULT 'active' NOT NULL;--> statement-breakpoint
+ALTER TABLE "communities" ADD COLUMN IF NOT EXISTS "paid_through_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "communities" ADD COLUMN IF NOT EXISTS "verified_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "communities" ADD COLUMN IF NOT EXISTS "member_count" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
 DO $$ BEGIN
  ALTER TABLE "kyc_submissions" ADD CONSTRAINT "kyc_submissions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION

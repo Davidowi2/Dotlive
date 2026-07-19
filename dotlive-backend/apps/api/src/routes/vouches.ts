@@ -25,7 +25,7 @@
 
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, count } from "drizzle-orm";
 import { db } from "../db/client.js";
 import { userVouches, users, userRoles, assessments } from "../db/schema.js";
 import { sql } from "drizzle-orm";
@@ -185,11 +185,11 @@ export async function vouchesRoutes(app: FastifyInstance) {
     async (req, reply) => {
       const { userId } = req.params;
       const [received] = await db
-        .select({ count: count() })
+        .select({ total: count() })
         .from(userVouches)
         .where(eq(userVouches.voucheeId, userId));
       const [given] = await db
-        .select({ count: count() })
+        .select({ total: count() })
         .from(userVouches)
         .where(eq(userVouches.voucherId, userId));
       const [totalScore] = await db
@@ -199,8 +199,8 @@ export async function vouchesRoutes(app: FastifyInstance) {
 
       return reply.send({
         userId,
-        receivedCount: Number(received?.count ?? 0),
-        givenCount: Number(given?.count ?? 0),
+        receivedCount: Number(received?.total ?? 0),
+        givenCount: Number(given?.total ?? 0),
         totalScore: Number(totalScore?.score ?? 0),
         decayedScore: Number(totalScore?.score ?? 0), // client applies 1%/30d
       });

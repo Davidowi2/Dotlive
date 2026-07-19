@@ -34,7 +34,7 @@ function broadcastToThread(threadId: string, senderId: string, message: unknown)
 async function markMessagesRead(threadId: string, userId: string, messageIds: string[]) {
   await db
     .update(connectionMessages)
-    .set({ readAt: new Date() })
+    .set({ readAt: new Date() } as any)
     .where(
       and(
         eq(connectionMessages.connectionId, threadId),
@@ -70,7 +70,7 @@ export async function wsRoutes(app: FastifyInstance) {
       };
       clients.set(connection.socket, meta);
 
-      connection.socket.on("message", (msg: any) => {
+      connection.socket.on("message", async (msg: any) => {
         try {
           msg = JSON.parse(String(msg));
         } catch {

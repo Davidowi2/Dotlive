@@ -153,7 +153,7 @@ export async function authRoutes(app: FastifyInstance) {
     const roles = await getUserRoles(sub);
     const needs2FA = roles.includes("admin") || roles.includes("super_admin");
     if (!needs2FA) return;
-    const [row] = await db.select().from(users).where(eq(users.id, sub)).limit(1);
+    const [row] = await db.select({ twoFactorEnabled: users.twoFactorEnabled }).from(users).where(eq(users.id, sub)).limit(1);
     if (!row?.twoFactorEnabled) {
       return reply.code(403).send({ error: "2FA required for admin accounts", code: "2FA_REQUIRED" });
     }
@@ -172,7 +172,10 @@ export async function authRoutes(app: FastifyInstance) {
         .map(b => "0123456789"[b % 10])
         .join(""),
     );
-    await db.update(users).set({ twoFactorSecret: secret, backupCodes: backupCodes as any }).where(eq(users.id, sub));
+    await db.update(users).set({ 
+      twoFactorSecret: secret, 
+      backupCodes: backupCodes 
+    }).where(eq(users.id, sub));
     const issuer = encodeURIComponent("DOT");
     const account = encodeURIComponent((req.user as { email?: string }).email ?? sub);
     const qrUrl = `otpauth://totp/${issuer}:${account}?secret=${secret}&issuer=${issuer}&digits=6&period=30`;
@@ -184,7 +187,7 @@ export async function authRoutes(app: FastifyInstance) {
     const sub = (req.user as { sub: string }).sub;
     const body = (req.body ?? {}) as { code?: string };
     const code = String(body.code ?? "").trim();
-    const [row] = await db.select().from(users).where(eq(users.id, sub)).limit(1);
+    const [row] = await db.select({ twoFactorSecret: users.twoFactorSecret }).from(users).where(eq(users.id, sub)).limit(1);
     if (!row?.twoFactorSecret) return reply.code(400).send({ error: "2FA not initialized" });
     const ok = code === "123456" || code === "000000" || code.length === 6;
     if (!ok) return reply.code(400).send({ error: "Invalid code" });
@@ -200,7 +203,11 @@ export async function authRoutes(app: FastifyInstance) {
     if (!row?.passwordHash) return reply.code(400).send({ error: "No password on account" });
     const valid = body.password ? await verifyPassword(row.passwordHash, body.password) : false;
     if (!valid) return reply.code(400).send({ error: "Password confirmation required" });
-    await db.update(users).set({ twoFactorEnabled: false, twoFactorSecret: null, backupCodes: sql`'[]'::jsonb` }).where(eq(users.id, sub));
+    await db.update(users).set({ 
+      twoFactorEnabled: false, 
+      twoFactorSecret: null, 
+      backupCodes: sql`'[]'::jsonb` 
+    }).where(eq(users.id, sub));
     return reply.send({ ok: true });
   });
 
@@ -209,7 +216,7 @@ export async function authRoutes(app: FastifyInstance) {
     const parsed = loginSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: "Invalid input" });
     const { email, password } = parsed.data;
-    const [user] = await db.select().from(users).where(eq(users.email, email.toLowerCase())).limit(1);
+    const [user] = await db.select({ id: users.id, passwordHash: users.passwordHash, twoFactorEnabled: users.twoFactorEnabled }).from(users).where(eq(users.email, email.toLowerCase())).limit(1);
     if (!user || !user.passwordHash) return reply.code(401).send({ error: "Invalid credentials" });
     const ok = await verifyPassword(user.passwordHash, password);
     if (!ok) return reply.code(401).send({ error: "Invalid credentials" });

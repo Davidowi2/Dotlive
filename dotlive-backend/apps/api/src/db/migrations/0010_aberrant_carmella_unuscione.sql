@@ -261,7 +261,7 @@ CREATE TABLE IF NOT EXISTS "user_vouches" (
 	CONSTRAINT "user_vouches_pair_unique" UNIQUE("voucher_id","vouchee_id")
 );
 --> statement-breakpoint
-ALTER TABLE "notifications" ADD COLUMN "is_archived" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "notifications" ADD COLUMN IF NOT EXISTS "is_archived" boolean DEFAULT false NOT NULL;--> statement-breakpoint
 DO $$ BEGIN
  ALTER TABLE "activity_log" ADD CONSTRAINT "activity_log_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION

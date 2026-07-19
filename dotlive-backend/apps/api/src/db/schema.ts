@@ -215,6 +215,20 @@ export const founderProfiles = pgTable("founder_profiles", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/* --------------------------- Investor profile ------------------- */
+export const investorProfiles = pgTable("investor_profiles", {
+  userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  capitalType: text("capital_type"),
+  checkSize: text("check_size"),
+  focusAreas: text("focus_areas").array().default([]),
+  bio: text("bio"),
+  linkedinUrl: text("linkedin_url"),
+  twitterUrl: text("twitter_url"),
+  websiteUrl: text("website_url"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 /* --------------------------- Builder profile ------------------- *
  * Supabase had this table; the Neon schema didn't. Added so the
  * /api/users/me/builder-profile endpoint can read/write to it.

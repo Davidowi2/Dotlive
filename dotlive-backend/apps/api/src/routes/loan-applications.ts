@@ -55,10 +55,13 @@ const createApplicationSchema = z.object({
   verificationAuthorized: z.boolean().refine((v) => v === true),
 });
 
-function requireAdmin(req: any, reply: any) {
-  return userHasRole(req, ["admin", "super_admin"]).then((ok) => {
-    if (!ok) return reply.code(403).send({ error: "Admin only" });
-  });
+async function requireAdmin(req: any, reply: any) {
+  const userId = (req.user as { sub: string }).sub;
+  const roles = await getUserRoles(userId);
+  const isAdmin = roles.includes("admin") || roles.includes("super_admin");
+  if (!isAdmin) {
+    return reply.code(403).send({ error: "Admin only" });
+  }
 }
 
 async function checkLoanEligibility(userId: string) {
@@ -97,8 +100,8 @@ async function checkLoanEligibility(userId: string) {
 
   const [vantageRow] = await db.execute(sql`
     SELECT vantage_point FROM founder_profiles WHERE user_id = ${userId} LIMIT 1
-  `);
-  const vantage = Number((vantageRow as any)?.[0]?.vantage_point ?? 0);
+  `) as any;
+  const vantage = Number(vantageRow?.vantage_point ?? 0);
   if (vantage < 400) {
     return { eligible: false as const, reason: `Vantage score must be 400+. Current: ${vantage}` };
   }
@@ -113,8 +116,8 @@ async function checkLoanEligibility(userId: string) {
       ),
     );
 
-  const count = Number((activeVentures[0] as any)?.count ?? 0);
-  if (count < 1) {
+  const ventureCount = Number(activeVentures[0]?.count ?? 0);
+  if (ventureCount < 1) {
     return { eligible: false as const, reason: "You need at least 1 venture active for 3+ months on the platform." };
   }
 
@@ -157,17 +160,36 @@ export async function loanApplicationsRoutes(app: FastifyInstance) {
         .insert(loanApplications)
         .values({
           userId,
-          ...data,
-          status: "pending",
-        })
+          amountRequested: data.amountRequested,
+          legalName: data.legalName,
+          countryOfResidence: data.countryOfResidence,
+          phoneNumber: data.phoneNumber,
+          nationalId: data.nationalId,
+          dateOfBirth: data.dateOfBirth,
+          sourceOfIncome: data.sourceOfIncome,
+          ventureName: data.ventureName,
+          businessRegNumber: data.businessRegNumber,
+          countryOfRegistration: data.countryOfRegistration,
+          monthlyRevenue: data.monthlyRevenue,
+          monthlyExpenses: data.monthlyExpenses,
+          outstandingDebts: data.outstandingDebts,
+          purpose: data.purpose,
+          repaymentPeriodMonths: data.repaymentPeriodMonths,
+          collateral: data.collateral,
+          revenueProofUrl: data.revenueProofUrl,
+          expenseProofUrl: data.expenseProofUrl,
+        } as any)
         .returning();
 
-      const repaymentRows = Array.from({ length: termMonths }).map((_, idx) => ({
-        loanApplicationId: application.id,
-        dueDate: new Date(Date.now() + (idx + 1) * 30 * 24 * 60 * 60 * 1000).toISOString(),
-        amountDot: monthlyPayment,
-        status: "pending" as const,
-      }));
+      const repaymentRows: any[] = [];
+      for (let idx = 0; idx < termMonths; idx++) {
+        repaymentRows.push({
+          loanApplicationId: application.id,
+          dueDate: new Date(Date.now() + (idx + 1) * 30 * 24 * 60 * 60 * 1000).toISOString(),
+          amountDot: monthlyPayment,
+          status: "pending" as const,
+        });
+      }
 
       await db.insert(loanRepayments).values(repaymentRows);
 
@@ -216,7 +238,7 @@ export async function adminLoanRoutes(app: FastifyInstance) {
         .set({
           status: "approved",
           reviewedBy: actorId,
-          reviewedAt: new Date().toISOString(),
+          reviewedAt: new Date(),
           adminNotes: terms ?? application.adminNotes,
         })
         .where(eq(loanApplications.id, id))
@@ -255,7 +277,7 @@ export async function adminLoanRoutes(app: FastifyInstance) {
         .set({
           status: "declined",
           reviewedBy: actorId,
-          reviewedAt: new Date().toISOString(),
+          reviewedAt: new Date(),
         })
         .where(eq(loanApplications.id, id));
 
@@ -294,7 +316,7 @@ export async function adminLoanRoutes(app: FastifyInstance) {
         .set({
           status: "more_info_needed",
           reviewedBy: actorId,
-          reviewedAt: new Date().toISOString(),
+          reviewedAt: new Date(),
         })
         .where(eq(loanApplications.id, id));
 
