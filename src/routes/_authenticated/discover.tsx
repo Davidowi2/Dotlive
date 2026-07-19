@@ -49,6 +49,9 @@ import { dotApi } from "@/api/client";
 import { cn } from "@/lib/utils";
 import { listVentures } from "@/api/ventures";
 import { getDiscoverPeople } from "@/api/people";
+import { useDotAuth } from "@/contexts/DotAuthContext";
+import { uploadImage } from "@/api/upload";
+import { listPublicCommunities, joinByCode } from "@/api/community";
 import { PersonCard } from "@/components/discover/PersonCard";
 
 export const Route = createFileRoute("/_authenticated/discover")({

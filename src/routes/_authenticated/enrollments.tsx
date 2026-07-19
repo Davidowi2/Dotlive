@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   GraduationCap, Award, Clock, Loader2, ArrowRight,
-  ExternalLink, Play
+  ExternalLink, Play, Check
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/app/AppShell";
