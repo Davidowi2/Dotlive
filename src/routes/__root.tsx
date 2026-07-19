@@ -219,7 +219,7 @@ function WizardHost() {
   const { data: state } = useQuery({
     queryKey: ["wizard-state"],
     queryFn: fetchWizardState,
-    enabled: !!user,
+    enabled: !!user && typeof window !== "undefined", // Don't run during SSR
     staleTime: 60_000,
   });
 
