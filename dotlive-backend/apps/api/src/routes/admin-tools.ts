@@ -238,29 +238,6 @@ export async function adminToolsRoutes(app: FastifyInstance) {
     },
   );
 
-  /* ============================== ADMIN AUDIT LOG ============================== */
-  app.get(
-    "/admin/audit",
-    { preHandler: [app.authenticate, requireAdmin], config: { rateLimit: { max: 30, timeWindow: "1 minute" } } },
-    async (req, reply) => {
-      const q = (req.query ?? {}) as { limit?: string; userId?: string; action?: string };
-      const limit = Math.min(Number(q.limit ?? 100), 500);
-
-      const filters: any[] = [];
-      if (q.userId) filters.push(eq(adminAuditLog.actorId, q.userId));
-      if (q.action) filters.push(eq(adminAuditLog.action, q.action));
-
-      const rows = await db
-        .select()
-        .from(adminAuditLog)
-        .where(filters.length ? and(...filters) : undefined)
-        .orderBy(desc(adminAuditLog.createdAt))
-        .limit(limit);
-
-      return reply.send({ entries: rows });
-    },
-  );
-
   /* ============================== ADMIN WALLET TRANSFER ============================== */
 
   app.post(
@@ -432,46 +409,6 @@ export async function adminToolsRoutes(app: FastifyInstance) {
           capReachedPercent: Number(stats.capReachedPercent.toFixed(6)),
         },
       });
-    },
-  );
-
-  /* ============================== IMPERSONATE ============================== */
-
-  app.post<{ Params: { id: string } }>(
-    "/admin/users/:id/impersonate",
-    { preHandler: [app.authenticate, requireSuperAdmin, withIdempotency({ action: "user.impersonate" })] },
-    async (req, reply) => {
-      const { id } = req.params;
-      const actorId = (req.user as { sub: string }).sub;
-      const [target] = await db.select().from(users).where(eq(users.id, id)).limit(1);
-      if (!target) return reply.code(404).send({ error: "User not found" });
-      if (target.id === actorId) return reply.code(400).send({ error: "Cannot impersonate yourself" });
-
-      const supers = await db.execute(sql`SELECT COUNT(*)::int AS n FROM user_roles WHERE role = 'super_admin'`);
-      const superCount = Number(((supers as any).rows?.[0]?.n ?? 0));
-      const isTargetSuper = await userHasRole(id, "super_admin");
-      if (isTargetSuper && superCount <= 1) {
-        return reply.code(400).send({ error: "Cannot impersonate the last super_admin" });
-      }
-
-      const token = await consumeConfirmToken((req as any).confirmToken || "", (req as any).user.sub, "user.impersonate");
-      const accessToken = app.jwt.sign(
-        { sub: target.id, email: target.email, roles: await getUserRoles(target.id), impersonating: true, impersonatedBy: actorId },
-        { expiresIn: "1h" },
-      );
-
-      await logAdminAction({
-        actorId,
-        actorEmail: (req.user as { email: string }).email,
-        action: "user.impersonate",
-        targetType: "user",
-        targetId: id,
-        after: { targetId: id, targetEmail: target.email },
-        reason: "Admin impersonation",
-        req,
-      });
-
-      return reply.send({ accessToken, user: { id: target.id, email: target.email } });
     },
   );
 
