@@ -26,6 +26,7 @@ import {
   unstake,
   type StakePosition,
   type StakerTier,
+  type StakesResponse,
 } from "@/api/stakes";
 import { useWallet } from "@/hooks/use-dot-data";
 import { formatDot } from "@/lib/constants";
